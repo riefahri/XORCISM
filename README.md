@@ -1,18 +1,21 @@
 # XORCISM
-XORCISM is a cybersecurity project for an open unified platform for cyber exposure management, and tools
+XORCISM is a cybersecurity project for an open unified platform for cybersecurity management, and tools
+(Global Cyber Risk Exposure)
+
 Asset Management
 Configuration Management (CPEs/OVAL)
 Vulnerability Management (CVEs/KEV,pentests...) VOC
 Governance, Risk and Compliance (GRC)
 Compliance (ISO27001, NIST CSF, CIS, NIS2, DORA, CRA, SOC2...):
 	Policies, Standards, Procedures management
-	Audits, evidences management
+	Audits, evidences management, readiness
 Threat Modeling
 SOC, Blue Team
 	Alerts and Incident management
 Red Team
 	Pentest engagements management, connectors
 Purple Team
+Threat Management
 Cyber Threat Intelligence (CTI)
 	STIX/TAXII
 	Threat Management and exposure (CTEM)
