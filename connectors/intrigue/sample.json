@@ -1,0 +1,11 @@
+{
+  "_comment": "Illustrative Intrigue Core entities payload (.entities). run.py parses type/name tolerantly. Used for offline import: python connectors/intrigue/run.py --file connectors/intrigue/sample.json",
+  "entities": [
+    { "id": 1, "type": "Intrigue::Entity::Domain", "name": "example.com" },
+    { "id": 2, "type": "Intrigue::Entity::DnsRecord", "name": "www.example.com" },
+    { "id": 3, "type": "Intrigue::Entity::DnsRecord", "name": "mail.example.com" },
+    { "id": 4, "type": "Intrigue::Entity::IpAddress", "name": "203.0.113.20" },
+    { "id": 5, "type": "Intrigue::Entity::Uri", "name": "https://www.example.com/login" },
+    { "id": 6, "type": "Intrigue::Entity::NetworkService", "name": "203.0.113.20:443" }
+  ]
+}

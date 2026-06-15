@@ -1,0 +1,5 @@
+[2026-06-16 10:00:01] [critical] - 200 - https://target.example.com/api/login - jaeles-sqli-auth-bypass
+[2026-06-16 10:00:03] [high] - 200 - https://target.example.com/cgi-bin/test.cgi - shellshock-cve referencing CVE-2014-6271
+[2026-06-16 10:00:05] [medium][Found] https://target.example.com/.git/config - jaeles-git-config-exposure
+[2026-06-16 10:00:06] [info] - 200 - https://target.example.com/server-status - apache-server-status
+not a finding line, just verbose request log GET https://target.example.com/robots.txt

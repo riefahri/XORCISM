@@ -1,0 +1,15 @@
+{
+  "id": "intrigue",
+  "name": "Intrigue Core — attack surface / OSINT discovery",
+  "type": "import",
+  "category": "recon",
+  "description": "Imports discovered entities from a running Intrigue Core instance (attack-surface mapping / OSINT) via its REST API. Domains / DNS records / hosts / IP addresses become ASSETs; URIs become assets with a service. Read-only API import (non-intrusive). Configure via worker environment variables (never in the UI): INTRIGUE_CORE_URL (e.g. http://127.0.0.1:7777), INTRIGUE_CORE_API_KEY, INTRIGUE_VERIFY_TLS (0 to skip). Requires `pip install requests` on the worker.",
+  "intrusive": false,
+  "permission": "connector:intrigue",
+  "run": "run.py",
+  "mapping": "intrigue",
+  "parameters": [
+    { "name": "project", "type": "string", "required": true, "pattern": "^[A-Za-z0-9 ._-]+$", "help": "Intrigue Core project name to import entities from." },
+    { "name": "limit", "type": "int", "required": false, "default": 2000, "min": 1, "max": 50000, "help": "Maximum number of entities to import." }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "sn1per",
+  "name": "Sn1per — automated recon & attack surface",
+  "type": "tool-runner",
+  "category": "recon",
+  "description": "Automated reconnaissance / attack-surface scan with Sn1per. The target becomes an ASSET, discovered open ports/services become CPEs linked to it, and any CVEs found become findings. Intrusive — run only against authorized targets (the engagement scope is enforced by the runner); pick the least-intrusive mode that fits your authorization. Install Sn1per on the worker (https://github.com/1N3/Sn1per) and ensure it runs non-interactively.",
+  "binary": "sniper",
+  "intrusive": true,
+  "permission": "connector:sn1per",
+  "parameters": [
+    { "name": "target", "type": "target", "required": true, "help": "Target host / domain / IP within the authorized engagement scope." },
+    { "name": "mode", "type": "enum", "values": ["stealth", "discover", "web", "port"], "default": "stealth", "help": "Sn1per scan mode (stealth = least intrusive)." }
+  ],
+  "command": ["sniper", "-t", "{{target}}", "-m", "{{mode}}"],
+  "output": { "kind": "stdout" },
+  "parser": "parse_sn1per.py",
+  "mapping": "sn1per"
+}

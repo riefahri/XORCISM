@@ -1,0 +1,19 @@
+{
+  "id": "jaeles",
+  "name": "Jaeles — web vulnerability scan (signatures)",
+  "type": "tool-runner",
+  "category": "vuln",
+  "description": "Automated web-application vulnerability scanning with Jaeles signatures. Each matched signature becomes a finding (VULNERABILITY / ASSETVULNERABILITY) on the target asset; CVE ids referenced by a signature are used as the reference. Intrusive — run only against authorized targets (the engagement scope is enforced by the runner). Install on the worker: go install github.com/jaeles-project/jaeles@latest, then `jaeles config init` to fetch signatures.",
+  "binary": "jaeles",
+  "intrusive": true,
+  "permission": "connector:jaeles",
+  "parameters": [
+    { "name": "target", "type": "url", "required": true, "help": "Target URL within the authorized engagement scope (e.g. https://example.com)." },
+    { "name": "level", "type": "int", "default": 1, "min": 1, "max": 5, "help": "Signature level filter (1 = safest … 5 = most intrusive)." },
+    { "name": "concurrency", "type": "int", "default": 20, "min": 1, "max": 100, "help": "Concurrent threads." }
+  ],
+  "command": ["jaeles", "scan", "-u", "{{target}}", "--level", "{{level}}", "-c", "{{concurrency}}"],
+  "output": { "kind": "stdout" },
+  "parser": "parse_jaeles.py",
+  "mapping": "jaeles"
+}

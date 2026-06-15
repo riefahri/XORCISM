@@ -1,0 +1,11 @@
+[*] Launching Sn1per stealth scan against target.example.com
+Nmap scan report for target.example.com (203.0.113.20)
+Host is up (0.012s latency).
+PORT     STATE SERVICE     VERSION
+22/tcp   open  ssh         OpenSSH 8.2p1
+80/tcp   open  http        nginx 1.18.0
+443/tcp  open  ssl/http    nginx 1.18.0
+3306/tcp open  mysql       MySQL 5.7.38
+[+] Vulnerability check: nginx 1.18.0 affected by CVE-2021-23017
+[+] MySQL 5.7.38 — potential CVE-2022-21417 reported by vuln module
+[*] Scan complete.
