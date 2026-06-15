@@ -1,0 +1,472 @@
+/**
+ * dashboard.ts — XORCISM Dashboard page
+ *  - Vulnerabilities by year (bars, VULNERABILITY table)
+ *  - Incidents by status (doughnut, INCIDENT ⋈ INCIDENTSTATUS)
+ */
+
+import { api } from "./api";
+import { initI18n, lang, t } from "./i18n";
+
+// Chart.js is loaded globally via CDN in dashboard.html
+declare const Chart: any;
+
+function $(id: string): HTMLElement {
+  return document.getElementById(id)!;
+}
+
+const PALETTE = [
+  "#7c83fd", "#4ade80", "#f87171", "#fbbf24", "#60a5fa",
+  "#f472b6", "#34d399", "#a78bfa", "#fb923c", "#22d3ee",
+  "#e879f9", "#facc15", "#2dd4bf",
+];
+
+// Score color according to its severity (neutral / green / amber / red).
+function riskColor(s: number): string {
+  if (s >= 100) return "#f87171";
+  if (s >= 30) return "#fbbf24";
+  if (s > 0) return "#4ade80";
+  return "#94a3b8";
+}
+
+// EnterpriseRiskScore of the current tenant — refreshed every 30 s.
+async function refreshRiskScore(): Promise<void> {
+  const valEl = $("risk-score-value");
+  const statsEl = $("risk-stats");
+  try {
+    const r = await api.getEnterpriseRiskScore();
+    valEl.textContent = r.score.toLocaleString();
+    valEl.style.color = riskColor(r.score);
+    statsEl.textContent = t("dash.updated") + " " + new Date().toLocaleTimeString(lang());
+  } catch (e) {
+    statsEl.textContent = t("dash.loadError") + " " + e;
+  }
+}
+
+function initRiskScore(): void {
+  void refreshRiskScore();
+  window.setInterval(() => void refreshRiskScore(), 30_000); // recompute every 30 s
+}
+
+async function initVuln(): Promise<void> {
+  let data: { year: string; count: number }[] = [];
+  try {
+    data = await api.getVulnByYear();
+  } catch (e) {
+    $("vuln-stats").textContent = t("dash.loadError") + " " + e;
+    return;
+  }
+  if (!data.length) {
+    $("vuln-empty").style.display = "";
+    return;
+  }
+  const labels = data.map((d) => d.year);
+  const counts = data.map((d) => d.count);
+  const total = counts.reduce((a, b) => a + b, 0);
+  $("vuln-stats").textContent =
+    `${total.toLocaleString()} ${t("dash.vulnsUnit")} • ${labels.length} ${t("dash.yearsUnit")} ` +
+    `(${labels[0]}–${labels[labels.length - 1]})`;
+
+  if (typeof Chart === "undefined") {
+    $("vuln-stats").textContent += "  " + t("dash.chartJsMissing");
+    return;
+  }
+  new Chart(($("vuln-chart") as HTMLCanvasElement).getContext("2d"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: t("dash.vulns"),
+          data: counts,
+          backgroundColor: "#7c83fd",
+          hoverBackgroundColor: "#9aa0ff",
+          borderRadius: 4,
+          maxBarThickness: 48,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: (ctx: any) => ` ${ctx.parsed.y.toLocaleString()} ${t("dash.vulnsUnit")}` },
+        },
+      },
+      scales: {
+        x: { ticks: { color: "#94a3b8" }, grid: { color: "#1e2133" } },
+        y: { beginAtZero: true, ticks: { color: "#94a3b8" }, grid: { color: "#1e2133" } },
+      },
+    },
+  });
+}
+
+async function initFinancial(): Promise<void> {
+  let data: { assets: { name: string; value: number }[]; total: number; count: number };
+  try {
+    data = await api.getAssetFinancialValues();
+  } catch (e) {
+    $("fin-stats").textContent = t("dash.loadError") + " " + e;
+    return;
+  }
+  const money = (n: number): string =>
+    new Intl.NumberFormat(lang(), { maximumFractionDigits: 0 }).format(n);
+  if (!data.assets.length) {
+    $("fin-empty").style.display = "";
+    return;
+  }
+  $("fin-stats").textContent =
+    `${t("dash.financialTotal")} : ${money(data.total)} • ${data.count} ${t("dash.assetsUnit")}`;
+
+  if (typeof Chart === "undefined") {
+    $("fin-stats").textContent += "  " + t("dash.chartJsMissing");
+    return;
+  }
+  new Chart(($("fin-chart") as HTMLCanvasElement).getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: data.assets.map((a) => a.name),
+      datasets: [
+        {
+          label: t("dash.assetFinancialValue"),
+          data: data.assets.map((a) => a.value),
+          backgroundColor: "#22d3ee",
+          hoverBackgroundColor: "#67e8f9",
+          borderRadius: 4,
+          maxBarThickness: 48,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx: any) => " " + money(ctx.parsed.y) } },
+      },
+      scales: {
+        x: { ticks: { color: "#94a3b8" }, grid: { color: "#1e2133" } },
+        y: { beginAtZero: true, ticks: { color: "#94a3b8", callback: (v: any) => money(Number(v)) }, grid: { color: "#1e2133" } },
+      },
+    },
+  });
+}
+
+let finHistChart: any = null;
+async function initFinancialHistory(): Promise<void> {
+  const input = $("finhist-asset") as HTMLInputElement;
+  // Datalist of asset names (input aid)
+  try {
+    const opts = await api.getLookup("XORCISM", "ASSET", "AssetID", "AssetName");
+    const dl = $("finhist-assets");
+    dl.innerHTML = "";
+    const seen = new Set<string>();
+    for (const o of opts) {
+      const name = String(o.label ?? "").trim();
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      const opt = document.createElement("option");
+      opt.value = name;
+      dl.appendChild(opt);
+    }
+  } catch { /* lookup unavailable */ }
+
+  const money = (n: number): string =>
+    new Intl.NumberFormat(lang(), { maximumFractionDigits: 0 }).format(n);
+
+  const run = async (): Promise<void> => {
+    const name = input.value.trim();
+    if (!name) return;
+    let data: { asset: string; points: { date: string; value: number; currency: string | null }[] };
+    try {
+      data = await api.getAssetFinancialHistory(name);
+    } catch (e) {
+      $("finhist-empty").textContent = t("dash.loadError") + " " + e;
+      $("finhist-empty").style.display = "";
+      return;
+    }
+    if (finHistChart) { finHistChart.destroy(); finHistChart = null; }
+    if (!data.points.length) {
+      $("finhist-empty").textContent = t("dash.finHistoryEmpty");
+      $("finhist-empty").style.display = "";
+      return;
+    }
+    $("finhist-empty").style.display = "none";
+    if (typeof Chart === "undefined") return;
+    const cur = data.points[data.points.length - 1].currency || "";
+    finHistChart = new Chart(($("finhist-chart") as HTMLCanvasElement).getContext("2d"), {
+      type: "line",
+      data: {
+        labels: data.points.map((p) => p.date),
+        datasets: [
+          {
+            label: `${name} (${cur})`,
+            data: data.points.map((p) => p.value),
+            borderColor: "#4ade80",
+            backgroundColor: "rgba(74,222,128,.15)",
+            pointBackgroundColor: "#4ade80",
+            tension: 0.2,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: "#94a3b8" } },
+          tooltip: { callbacks: { label: (ctx: any) => ` ${money(ctx.parsed.y)} ${cur}` } },
+        },
+        scales: {
+          x: { ticks: { color: "#94a3b8" }, grid: { color: "#1e2133" } },
+          y: { beginAtZero: true, ticks: { color: "#94a3b8", callback: (v: any) => money(Number(v)) }, grid: { color: "#1e2133" } },
+        },
+      },
+    });
+  };
+  $("finhist-go").addEventListener("click", () => void run());
+  input.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") void run(); });
+}
+
+async function initRiskExposure(): Promise<void> {
+  let data: {
+    assets: { name: string; risk: number; value: number; exposure: number }[];
+    totalExposure: number; totalValue: number; count: number;
+  };
+  try {
+    data = await api.getAssetRiskExposure();
+  } catch (e) {
+    $("exp-stats").textContent = t("dash.loadError") + " " + e;
+    return;
+  }
+  const money = (n: number): string =>
+    new Intl.NumberFormat(lang(), { maximumFractionDigits: 0 }).format(n);
+  if (!data.assets.length) {
+    $("exp-empty").style.display = "";
+    return;
+  }
+  // Some assets carry a value OR a risk, but none both → zero exposure:
+  // an all-zero chart would look broken, we show the explanatory message instead.
+  if (data.totalExposure === 0) {
+    const empty = $("exp-empty");
+    empty.textContent = t("dash.noExposure");
+    empty.style.display = "";
+    $("exp-stats").textContent =
+      `${t("dash.exposureTotal")} : ${money(0)} • ${data.count} ${t("dash.assetsUnit")}`;
+    return;
+  }
+  $("exp-stats").textContent =
+    `${t("dash.exposureTotal")} : ${money(data.totalExposure)} • ${data.count} ${t("dash.assetsUnit")}`;
+
+  if (typeof Chart === "undefined") {
+    $("exp-stats").textContent += "  " + t("dash.chartJsMissing");
+    return;
+  }
+  new Chart(($("exp-chart") as HTMLCanvasElement).getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: data.assets.map((a) => a.name),
+      datasets: [
+        {
+          label: t("dash.riskExposure"),
+          data: data.assets.map((a) => a.exposure),
+          backgroundColor: "#f87171",
+          hoverBackgroundColor: "#fca5a5",
+          borderRadius: 4,
+          maxBarThickness: 48,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx: any) => {
+              const a = data.assets[ctx.dataIndex];
+              return ` ${money(a.exposure)}  (${t("dash.riskShort")} ${a.risk} × ${money(a.value)})`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { color: "#94a3b8" }, grid: { color: "#1e2133" } },
+        y: { beginAtZero: true, ticks: { color: "#94a3b8", callback: (v: any) => money(Number(v)) }, grid: { color: "#1e2133" } },
+      },
+    },
+  });
+}
+
+async function initIncidents(): Promise<void> {
+  let data: { status: string; count: number }[] = [];
+  try {
+    data = await api.getIncidentsByStatus();
+  } catch (e) {
+    $("inc-stats").textContent = t("dash.loadError") + " " + e;
+    return;
+  }
+  if (!data.length) {
+    $("inc-empty").style.display = "";
+    return;
+  }
+  const labels = data.map((d) => d.status);
+  const counts = data.map((d) => d.count);
+  const total = counts.reduce((a, b) => a + b, 0);
+  $("inc-stats").textContent =
+    `${total.toLocaleString()} incidents • ${labels.length} ${t("dash.statusesUnit")}`;
+
+  if (typeof Chart === "undefined") {
+    $("inc-stats").textContent += "  " + t("dash.chartJsMissing");
+    return;
+  }
+  new Chart(($("inc-chart") as HTMLCanvasElement).getContext("2d"), {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Incidents",
+          data: counts,
+          backgroundColor: labels.map((_l, i) => PALETTE[i % PALETTE.length]),
+          borderColor: "#13162a",
+          borderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "right", labels: { color: "#cbd5e1", boxWidth: 14 } },
+        tooltip: {
+          callbacks: {
+            label: (ctx: any) => {
+              const v = ctx.parsed;
+              const pct = total ? ((v / total) * 100).toFixed(1) : "0";
+              return ` ${ctx.label}: ${v.toLocaleString()} (${pct}%)`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+let assetChart: any = null;
+
+async function renderIncidentsByAsset(from?: string, to?: string): Promise<void> {
+  let data: { asset: string; count: number }[] = [];
+  try {
+    data = await api.getIncidentsByAsset(from, to);
+  } catch (e) {
+    $("asset-stats").textContent = t("dash.loadError") + " " + e;
+    return;
+  }
+  if (assetChart) {
+    assetChart.destroy();
+    assetChart = null;
+  }
+  const emptyEl = $("asset-empty");
+  if (!data.length) {
+    emptyEl.style.display = "";
+    $("asset-stats").textContent = "";
+    return;
+  }
+  emptyEl.style.display = "none";
+
+  const labels = data.map((d) => d.asset);
+  const counts = data.map((d) => d.count);
+  const total = counts.reduce((a, b) => a + b, 0);
+  const periode = from || to
+    ? ` • ${t("dash.period")} ${from || "…"} → ${to || "…"}`
+    : ` • ${t("dash.allDates")}`;
+  $("asset-stats").textContent =
+    `${total.toLocaleString()} ${t("dash.incidentUnit")} • ${labels.length} ${t("dash.assetUnit")}${periode}`;
+
+  if (typeof Chart === "undefined") return;
+  assetChart = new Chart(($("asset-chart") as HTMLCanvasElement).getContext("2d"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Incidents",
+          data: counts,
+          backgroundColor: "#4ade80",
+          hoverBackgroundColor: "#86efac",
+          borderRadius: 4,
+          maxBarThickness: 48,
+        },
+      ],
+    },
+    options: {
+      indexAxis: "y", // horizontal bars (readable asset names)
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.parsed.x} ${t("dash.incidentUnit")}` } },
+      },
+      scales: {
+        x: { beginAtZero: true, ticks: { color: "#94a3b8", precision: 0 }, grid: { color: "#1e2133" } },
+        y: { ticks: { color: "#94a3b8" }, grid: { color: "#1e2133" } },
+      },
+    },
+  });
+}
+
+function initIncidentsByAsset(): void {
+  const fromEl = $("asset-from") as HTMLInputElement;
+  const toEl = $("asset-to") as HTMLInputElement;
+  $("asset-apply").onclick = () =>
+    renderIncidentsByAsset(fromEl.value || undefined, toEl.value || undefined);
+  $("asset-reset").onclick = () => {
+    fromEl.value = "";
+    toEl.value = "";
+    renderIncidentsByAsset();
+  };
+  renderIncidentsByAsset(); // initial display (all dates)
+}
+
+// Tag cloud: font size proportional to the tag frequency; each
+// tag points to the ASSETTAG table filtered on that value.
+async function initTagCloud(): Promise<void> {
+  const host = $("tagcloud");
+  let data: { tag: string; count: number }[] = [];
+  try {
+    data = await api.getAssetTagCloud();
+  } catch (e) {
+    $("tagcloud-stats").textContent = t("dash.loadError") + " " + e;
+    return;
+  }
+  if (!data.length) { $("tagcloud-empty").style.display = ""; return; }
+  const counts = data.map((d) => d.count);
+  const max = Math.max(...counts), min = Math.min(...counts);
+  $("tagcloud-stats").textContent = `${data.length} tags`;
+  host.innerHTML = "";
+  for (const d of data) {
+    const ratio = max === min ? 1 : (d.count - min) / (max - min); // 0..1
+    const size = 13 + Math.round(ratio * 17); // 13px → 30px according to the frequency
+    const a = document.createElement("a");
+    a.href = `/?db=XORCISM&table=ASSETTAG&filterCol=Tag&filterVal=${encodeURIComponent(d.tag)}`;
+    a.textContent = d.tag;
+    a.title = `${d.tag} — ${d.count}`;
+    a.style.cssText = `font-size:${size}px;color:var(--accent);text-decoration:none;opacity:${(0.6 + ratio * 0.4).toFixed(2)}`;
+    host.appendChild(a);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
+  initRiskScore();
+  initVuln();
+  initFinancial();
+  initRiskExposure();
+  initFinancialHistory();
+  initIncidents();
+  initIncidentsByAsset();
+  initTagCloud();
+});

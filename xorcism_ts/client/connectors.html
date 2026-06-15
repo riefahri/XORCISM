@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Connectors</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .cn-layout{display:flex;gap:16px;padding:16px;align-items:flex-start;flex-wrap:wrap}
+  .cn-col{flex:1;min-width:300px}
+  .cn-card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px;margin-bottom:14px}
+  .cn-card h3{font-size:13px;margin:0 0 10px;color:#cbd5e1}
+  .cn-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid #2d3250;border-radius:8px;margin-bottom:6px;cursor:pointer}
+  .cn-item:hover{border-color:#7c83fd}
+  .cn-item.sel{border-color:#7c83fd;background:#1a1d2e}
+  .cn-item .nm{font-size:13px;color:#e2e8f0}
+  .cn-item .meta{font-size:10px;color:#64748b}
+  .pill{font-size:9px;border-radius:10px;padding:1px 6px}
+  .pill.intr{background:#7f1d1d;color:#fecaca}
+  .pill.cat{background:#1e3a5f;color:#bfdbfe}
+  label{display:block;font-size:11px;color:#94a3b8;margin:8px 0 3px}
+  input,select{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:7px 9px;color:#e2e8f0;font-size:13px}
+  .hint{font-size:10px;color:#64748b;margin-top:2px}
+  table.jobs{width:100%;border-collapse:collapse;font-size:12px}
+  table.jobs th,table.jobs td{padding:5px 7px;border-bottom:1px solid #1e2133;text-align:left}
+  table.jobs th{color:#94a3b8}
+  .st{font-size:10px;border-radius:10px;padding:1px 7px}
+  .st.queued{background:#374151;color:#d1d5db}.st.running{background:#1e3a5f;color:#93c5fd}
+  .st.done{background:#14532d;color:#86efac}.st.failed,.st.error{background:#7f1d1d;color:#fecaca}
+  .st.collected,.st.importing{background:#3b2f12;color:#fcd34d}
+  pre#cn-log{background:#0b0d18;border:1px solid #2d3250;border-radius:8px;padding:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap;color:#cbd5e1}
+  .warn{background:#3b1d1d;border:1px solid #7f1d1d;color:#fecaca;border-radius:8px;padding:8px;font-size:11px;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorateur</a>
+  <a href="/threat-feeds" data-i18n="nav.feeds">&#128225; Threat Feeds</a>
+  <a href="/stix-graph" data-i18n="nav.stix">&#128376; STIX Graph</a>
+  <span class="spacer"></span>
+  <span class="title" data-i18n="conn.title">Connecteurs (outils)</span>
+</div>
+
+<div class="cn-layout">
+  <div class="cn-col" style="max-width:340px">
+    <div class="cn-card">
+      <h3 data-i18n="conn.available">Connecteurs disponibles</h3>
+      <div id="cn-list"></div>
+    </div>
+  </div>
+
+  <div class="cn-col" style="max-width:360px">
+    <div class="cn-card" id="cn-form-card" style="display:none">
+      <h3 id="cn-form-title">—</h3>
+      <div id="cn-warn" class="warn" style="display:none" data-i18n="conn.intrusiveWarn">⚠️ Outil actif : à n'utiliser que sur des cibles autorisées (périmètre d'engagement).</div>
+      <div id="cn-eng-wrap" style="display:none">
+        <label data-i18n="conn.engagement">Engagement (périmètre / ROE)</label>
+        <select id="cn-engagement"><option value="">—</option></select>
+        <div class="hint" id="cn-eng-scope"></div>
+      </div>
+      <label data-i18n="conn.worker">Worker (exécution)</label>
+      <select id="cn-worker"><option value="local">local</option></select>
+      <div id="cn-form"></div>
+
+      <div id="cn-recur-wrap" style="margin-top:10px;border-top:1px solid #2d3250;padding-top:8px">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+          <input type="checkbox" id="cn-recur" style="width:auto"> <span data-i18n="conn.recurrent">Tâche récurrente (planifiée)</span>
+        </label>
+        <div id="cn-recur-opts" style="display:none;margin-top:6px">
+          <label data-i18n="conn.recurPreset">Fréquence</label>
+          <select id="cn-recur-preset">
+            <option value="every15" data-i18n="conn.freq.every15">Toutes les 15 min</option>
+            <option value="every30" data-i18n="conn.freq.every30">Toutes les 30 min</option>
+            <option value="hourly" data-i18n="conn.freq.hourly">Toutes les heures</option>
+            <option value="daily" selected data-i18n="conn.freq.daily">Quotidien (02:00)</option>
+            <option value="weekly" data-i18n="conn.freq.weekly">Hebdomadaire (lun. 03:00)</option>
+            <option value="monthly" data-i18n="conn.freq.monthly">Mensuel (1er 04:00)</option>
+            <option value="custom" data-i18n="conn.freq.custom">Cron personnalisé…</option>
+          </select>
+          <label data-i18n="conn.cron">Expression cron (min heure jour mois jour-sem.)</label>
+          <input id="cn-cron" value="0 2 * * *" placeholder="0 2 * * *">
+          <div class="hint" data-i18n="conn.cronHint">5 champs. Ex. « */30 * * * * » = toutes les 30 min.</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-sm" id="cn-run" style="margin-top:12px" data-i18n="conn.run">Lancer</button>
+    </div>
+
+    <div class="cn-card">
+      <h3 data-i18n="conn.engagements">Engagements</h3>
+      <label data-i18n="conn.engName">Nom</label>
+      <input id="eng-name" placeholder="ex. Pentest ACME 2026">
+      <label data-i18n="conn.engScope">Périmètre (hôtes / CIDR / domaines, un par ligne)</label>
+      <textarea id="eng-scope" rows="3" style="width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:12px;padding:7px" placeholder="10.0.0.0/24&#10;app.example.com"></textarea>
+      <label data-i18n="conn.engRoe">ROE / autorisation (fenêtre, référence)</label>
+      <input id="eng-roe" placeholder="ex. autorisation #1234, 2026-06-10 22:00→06:00">
+      <button class="btn btn-ghost btn-sm" id="eng-create" style="margin-top:8px" data-i18n="conn.engCreate">+ Créer l'engagement</button>
+    </div>
+
+    <div class="cn-card">
+      <h3 data-i18n="conn.ocil">OCIL 2.0 — Questionnaires</h3>
+      <div class="hint" data-i18n="conn.ocilHint">Import / export OCIL 2.0 (NIST IR 7692) des questionnaires de conformité (XCOMPLIANCE).</div>
+      <label data-i18n="conn.ocilSelect" style="margin-top:8px">Questionnaire à exporter</label>
+      <select id="ocil-qn" style="width:100%;box-sizing:border-box"><option value="" data-i18n="conn.ocilAll">Tous</option></select>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        <a class="btn btn-ghost btn-sm" id="ocil-export" href="/api/ocil/export" download="ocil-export.xml" data-i18n="conn.ocilExport">⬇ Exporter (OCIL XML)</a>
+        <input type="file" id="ocil-file" accept=".xml,application/xml,text/xml" style="display:none">
+        <button class="btn btn-ghost btn-sm" id="ocil-validate" data-i18n="conn.ocilValidate">✓ Valider un fichier…</button>
+        <button class="btn btn-ghost btn-sm" id="ocil-import" data-i18n="conn.ocilImport">⬆ Importer un fichier OCIL…</button>
+      </div>
+      <div id="ocil-msg" class="hint" style="margin-top:8px;min-height:16px;white-space:pre-wrap"></div>
+    </div>
+
+    <div class="cn-card" id="cn-workers-card">
+      <h3 data-i18n="conn.workers">Workers (agents distants)</h3>
+      <label data-i18n="conn.workerPath">Répertoire des workers (outils : nmap, nikto, metasploit…)</label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="wk-path" placeholder="C:\Users\me\XORCISM_worker" style="flex:1">
+        <span id="wk-path-saved" class="meta" style="font-size:10px;color:#4ade80;opacity:0;transition:opacity .3s">✓</span>
+      </div>
+      <div class="hint" data-i18n="conn.workerPathHint">Préférence personnelle, enregistrée sur votre compte.</div>
+      <table class="jobs" style="margin-top:10px"><thead><tr><th data-i18n="conn.wName">Nom</th><th data-i18n="conn.wStatus">Statut</th><th data-i18n="conn.wSeen">Vu</th><th></th></tr></thead>
+        <tbody id="cn-workers"></tbody></table>
+      <label data-i18n="conn.wNewName">Nouveau worker (nom)</label>
+      <input id="wk-name" placeholder="ex. kali-01">
+      <label data-i18n="conn.wCaps">Connecteurs autorisés (vide = tous)</label>
+      <input id="wk-caps" placeholder="nmap,nuclei,whatweb">
+      <button class="btn btn-ghost btn-sm" id="wk-create" style="margin-top:8px" data-i18n="conn.wCreate">+ Créer le worker</button>
+      <div id="wk-token" class="warn" style="display:none"></div>
+    </div>
+
+    <div class="cn-card" id="cn-empty">
+      <span class="hint" data-i18n="conn.pick">Sélectionnez un connecteur à gauche.</span>
+    </div>
+  </div>
+
+  <div class="cn-col">
+    <div class="cn-card" id="cn-sched-card">
+      <h3 data-i18n="conn.schedules">Tâches planifiées</h3>
+      <table class="jobs"><thead><tr><th data-i18n="conn.connector">Connecteur</th><th data-i18n="conn.target">Cible</th><th>Cron</th><th data-i18n="conn.status">Statut</th><th></th></tr></thead>
+        <tbody id="cn-schedules"></tbody></table>
+    </div>
+    <div class="cn-card">
+      <h3 data-i18n="conn.jobs">Jobs récents <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px" id="cn-refresh" data-i18n="admin.refresh">Rafraîchir</button></h3>
+      <table class="jobs"><thead><tr><th>#</th><th data-i18n="conn.connector">Connecteur</th><th data-i18n="conn.target">Cible</th><th data-i18n="conn.status">Statut</th><th></th></tr></thead>
+        <tbody id="cn-jobs"></tbody></table>
+    </div>
+    <div class="cn-card" id="cn-log-card" style="display:none">
+      <h3 id="cn-log-title">Job</h3>
+      <div id="cn-summary" class="hint" style="margin-bottom:6px"></div>
+      <pre id="cn-log"></pre>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/connectors.js"></script>
+</body>
+</html>

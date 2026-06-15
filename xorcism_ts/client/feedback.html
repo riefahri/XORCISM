@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Feedback</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .fb-wrap{max-width:980px;margin:24px auto;padding:0 18px}
+  .fb-cards{display:flex;gap:16px;flex-wrap:wrap}
+  .fb-card{flex:1;min-width:300px;background:#13162a;border:1px solid #2d3250;border-radius:12px;padding:18px}
+  .fb-card h2{font-size:15px;margin:0 0 12px;color:#e2e8f0}
+  label{display:block;font-size:12px;color:#94a3b8;margin:8px 0 4px}
+  input,select,textarea{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:13px;font-family:inherit}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #1e2133;color:#cbd5e1}
+  th{color:#94a3b8}
+  .chip{display:inline-block;font-size:12px;border:1px solid #2d3250;border-radius:20px;padding:4px 10px;margin:3px;color:#94a3b8}
+  .ok{color:#86efac}.muted{color:#64748b}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" style="color:#94a3b8;text-decoration:none;font-size:13px">&#8592; Explorateur</a>
+  <span class="spacer"></span>
+  <span class="title">Feedback</span>
+</div>
+<div class="fb-wrap">
+  <h1 style="font-size:22px">Noter les fonctionnalités &amp; proposer des améliorations</h1>
+  <div id="msg" class="ok" style="min-height:18px"></div>
+  <div class="fb-cards">
+    <form class="fb-card" id="rate-form">
+      <h2>⭐ Noter une fonctionnalité</h2>
+      <label>Fonctionnalité</label>
+      <select id="feature"></select>
+      <label>Note</label>
+      <select id="rating">
+        <option value="5">★★★★★ (5)</option><option value="4">★★★★☆ (4)</option>
+        <option value="3" selected>★★★☆☆ (3)</option><option value="2">★★☆☆☆ (2)</option><option value="1">★☆☆☆☆ (1)</option>
+      </select>
+      <label>Commentaire (optionnel)</label>
+      <textarea id="rcomment" rows="3"></textarea>
+      <button class="btn btn-primary" type="submit" style="margin-top:10px">Envoyer</button>
+    </form>
+    <form class="fb-card" id="imp-form">
+      <h2>💡 Proposer une amélioration</h2>
+      <label>Titre</label>
+      <input id="ititle" maxlength="180" required>
+      <label>Description</label>
+      <textarea id="imsg" rows="5" required></textarea>
+      <button class="btn btn-primary" type="submit" style="margin-top:10px">Envoyer</button>
+    </form>
+  </div>
+
+  <h2 style="font-size:16px;margin-top:22px">Notes de la communauté</h2>
+  <div id="avg"></div>
+
+  <h2 style="font-size:16px;margin-top:18px">Mes contributions</h2>
+  <table><thead><tr><th>Type</th><th>Sujet</th><th>Note</th><th>Statut</th><th>Date</th></tr></thead><tbody id="mine"></tbody></table>
+
+  <div id="admin-block" style="display:none">
+    <h2 style="font-size:16px;margin-top:22px">Triage (admin)</h2>
+    <table><thead><tr><th>#</th><th>User</th><th>Type</th><th>Feature</th><th>★</th><th>Contenu</th><th>Statut</th></tr></thead><tbody id="all"></tbody></table>
+  </div>
+</div>
+<script>
+const FEATURES = {asset:'Asset Management',config:'Configuration (OVAL)',vuln:'Vulnerability Management',cti:'CTI (STIX/TAXII)',compliance:'Compliance & Audits',connectors:'Connectors / Pentest',ctem:'CTEM',threatmodel:'Threat Models',ticketing:'Ticketing',encryption:'Encryption',edr:'XOR EDR agent',explorer:'Data Explorer',other:'Other'};
+const $ = (id)=>document.getElementById(id);
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const fsel = $('feature'); Object.entries(FEATURES).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v;fsel.appendChild(o);});
+async function jget(u){const r=await fetch(u);return r.ok?r.json():null;}
+async function jpost(u,b){const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return {ok:r.ok,d:await r.json().catch(()=>({}))};}
+function msg(t){$('msg').textContent=t;setTimeout(()=>{$('msg').textContent='';},3000);}
+
+async function load(){
+  const me = await jget('/api/feedback/mine');
+  if(me){
+    const am={}; (me.averages||[]).forEach(a=>am[a.FeatureKey]=a);
+    $('avg').innerHTML = Object.entries(FEATURES).map(([k,v])=>`<span class="chip">${esc(v)} — ${am[k]?am[k].avg+'★ ('+am[k].n+')':'—'}</span>`).join('');
+    $('mine').innerHTML = (me.mine||[]).map(f=>`<tr><td>${esc(f.Type)}</td><td>${esc(f.Type==='rating'?(FEATURES[f.FeatureKey]||f.FeatureKey):f.Title)}</td><td>${f.Rating?'★'.repeat(f.Rating):'—'}</td><td>${esc(f.Status)}</td><td class="muted">${esc(f.CreatedDate)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">—</td></tr>';
+  }
+  const all = await jget('/api/feedback/all');
+  if(all){
+    $('admin-block').style.display='';
+    $('all').innerHTML = all.map(f=>`<tr><td>${f.FeedbackID}</td><td>${esc(f.DisplayName||f.Email)}</td><td>${esc(f.Type)}</td><td>${esc(f.FeatureKey||'')}</td><td>${f.Rating?'★'.repeat(f.Rating):''}</td><td>${esc((f.Title?f.Title+' — ':'')+(f.Message||'').slice(0,80))}</td>
+      <td><select onchange="setStatus(${f.FeedbackID},this.value)">${['new','reviewing','planned','done','declined'].map(s=>`<option ${f.Status===s?'selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('');
+  }
+}
+window.setStatus = async (id,s)=>{ await jpost('/api/feedback/'+id+'/status',{status:s}); };
+$('rate-form').addEventListener('submit', async (e)=>{e.preventDefault();const r=await jpost('/api/feedback',{type:'rating',feature:fsel.value,rating:+$('rating').value,message:$('rcomment').value});if(r.ok){msg('Merci pour votre retour !');$('rcomment').value='';load();}else msg(r.d.error||'Erreur');});
+$('imp-form').addEventListener('submit', async (e)=>{e.preventDefault();const r=await jpost('/api/feedback',{type:'improvement',title:$('ititle').value,message:$('imsg').value});if(r.ok){msg('Merci pour votre retour !');$('ititle').value='';$('imsg').value='';load();}else msg(r.d.error||'Erreur');});
+load();
+</script>
+</body>
+</html>

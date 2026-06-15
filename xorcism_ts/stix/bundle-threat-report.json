@@ -1,0 +1,142 @@
+{
+  "type": "bundle",
+  "id": "bundle--9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "objects": [
+    {
+      "type": "marking-definition",
+      "spec_version": "2.1",
+      "id": "marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da",
+      "created": "2017-01-20T00:00:00.000Z",
+      "definition_type": "tlp",
+      "name": "TLP:GREEN",
+      "definition": { "tlp": "green" }
+    },
+    {
+      "type": "identity",
+      "spec_version": "2.1",
+      "id": "identity--7f8d2b1a-4c3e-4a6b-9f0d-2e1c3b4a5d6e",
+      "created": "2024-01-10T09:00:00.000Z",
+      "modified": "2024-01-10T09:00:00.000Z",
+      "name": "XORCISM Threat Intelligence",
+      "identity_class": "organization",
+      "sectors": ["technology"],
+      "contact_information": "intel@xorcism.example.com",
+      "object_marking_refs": ["marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da"]
+    },
+    {
+      "type": "threat-actor",
+      "spec_version": "2.1",
+      "id": "threat-actor--d84c4a8f-9b2e-4f1a-8c3d-1e2f3a4b5c6d",
+      "created_by_ref": "identity--7f8d2b1a-4c3e-4a6b-9f0d-2e1c3b4a5d6e",
+      "created": "2024-01-12T10:00:00.000Z",
+      "modified": "2024-01-12T10:00:00.000Z",
+      "name": "Mythic Leopard",
+      "description": "Espionage-motivated actor targeting the technology sector.",
+      "threat_actor_types": ["nation-state"],
+      "aliases": ["APT-TX", "LeopardSpot"],
+      "roles": ["agent"],
+      "sophistication": "advanced",
+      "resource_level": "government",
+      "primary_motivation": "organizational-gain",
+      "object_marking_refs": ["marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da"]
+    },
+    {
+      "type": "malware",
+      "spec_version": "2.1",
+      "id": "malware--3e2c8f1b-7a6d-4b5c-9e8f-0a1b2c3d4e5f",
+      "created_by_ref": "identity--7f8d2b1a-4c3e-4a6b-9f0d-2e1c3b4a5d6e",
+      "created": "2024-01-13T11:30:00.000Z",
+      "modified": "2024-01-13T11:30:00.000Z",
+      "name": "ShadowPad",
+      "description": "Modular backdoor used for long-term access.",
+      "malware_types": ["backdoor", "remote-access-trojan"],
+      "is_family": true,
+      "capabilities": ["communicates-with-c2", "persists-after-system-reboot"],
+      "object_marking_refs": ["marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da"]
+    },
+    {
+      "type": "attack-pattern",
+      "spec_version": "2.1",
+      "id": "attack-pattern--1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+      "created_by_ref": "identity--7f8d2b1a-4c3e-4a6b-9f0d-2e1c3b4a5d6e",
+      "created": "2024-01-13T11:35:00.000Z",
+      "modified": "2024-01-13T11:35:00.000Z",
+      "name": "Spearphishing Attachment",
+      "description": "Targeted email with a malicious attachment.",
+      "external_references": [
+        { "source_name": "capec", "external_id": "CAPEC-163" },
+        { "source_name": "mitre-attack", "external_id": "T1566.001", "url": "https://attack.mitre.org/techniques/T1566/001/" }
+      ],
+      "object_marking_refs": ["marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da"]
+    },
+    {
+      "type": "indicator",
+      "spec_version": "2.1",
+      "id": "indicator--cd981c25-8042-4166-8945-51178443bdac",
+      "created_by_ref": "identity--7f8d2b1a-4c3e-4a6b-9f0d-2e1c3b4a5d6e",
+      "created": "2024-01-14T08:00:00.000Z",
+      "modified": "2024-01-14T08:00:00.000Z",
+      "name": "ShadowPad C2 domain",
+      "description": "Command-and-control domain observed in ShadowPad samples.",
+      "indicator_types": ["malicious-activity"],
+      "pattern": "[domain-name:value = 'c2.evil-leopard.example']",
+      "pattern_type": "stix",
+      "pattern_version": "2.1",
+      "valid_from": "2024-01-14T00:00:00Z",
+      "object_marking_refs": ["marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da"]
+    },
+    {
+      "type": "campaign",
+      "spec_version": "2.1",
+      "id": "campaign--6b5a4938-2716-4f5e-8d9c-0b1a2c3d4e5f",
+      "created_by_ref": "identity--7f8d2b1a-4c3e-4a6b-9f0d-2e1c3b4a5d6e",
+      "created": "2024-01-15T09:00:00.000Z",
+      "modified": "2024-01-15T09:00:00.000Z",
+      "name": "Operation Spotted Leopard",
+      "description": "2024 campaign against technology firms.",
+      "first_seen": "2024-01-01T00:00:00Z",
+      "objective": "Long-term espionage access",
+      "object_marking_refs": ["marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da"]
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "created": "2024-01-15T09:05:00.000Z",
+      "modified": "2024-01-15T09:05:00.000Z",
+      "relationship_type": "indicates",
+      "source_ref": "indicator--cd981c25-8042-4166-8945-51178443bdac",
+      "target_ref": "malware--3e2c8f1b-7a6d-4b5c-9e8f-0a1b2c3d4e5f"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+      "created": "2024-01-15T09:06:00.000Z",
+      "modified": "2024-01-15T09:06:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "threat-actor--d84c4a8f-9b2e-4f1a-8c3d-1e2f3a4b5c6d",
+      "target_ref": "malware--3e2c8f1b-7a6d-4b5c-9e8f-0a1b2c3d4e5f"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--c3d4e5f6-a7b8-4c9d-8e0f-2a3b4c5d6e7f",
+      "created": "2024-01-15T09:07:00.000Z",
+      "modified": "2024-01-15T09:07:00.000Z",
+      "relationship_type": "uses",
+      "source_ref": "threat-actor--d84c4a8f-9b2e-4f1a-8c3d-1e2f3a4b5c6d",
+      "target_ref": "attack-pattern--1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--d4e5f6a7-b8c9-4d0e-9f1a-3b4c5d6e7f80",
+      "created": "2024-01-15T09:08:00.000Z",
+      "modified": "2024-01-15T09:08:00.000Z",
+      "relationship_type": "attributed-to",
+      "source_ref": "campaign--6b5a4938-2716-4f5e-8d9c-0b1a2c3d4e5f",
+      "target_ref": "threat-actor--d84c4a8f-9b2e-4f1a-8c3d-1e2f3a4b5c6d"
+    }
+  ]
+}

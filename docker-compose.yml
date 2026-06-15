@@ -1,0 +1,38 @@
+# XORCISM — run with Docker Compose.
+#   docker compose up -d --build
+#
+# SQLite databases are persisted in the named volume "xorcism-data" (= DB_DIR=/data)
+# and auto-created on first start. To reuse your existing databases instead, replace
+# the named volume with a bind mount to your host folder, e.g.:
+#   volumes:
+#     - C:/Users/you/XORCISM_databases:/data     # Windows
+#     - ${HOME}/XORCISM_databases:/data          # Linux/macOS
+#
+# Scope: this service is the Node WEB application. Security connectors are Python
+# and run via connectors/runner.py on a worker (local or remote) — not in this
+# container; their manifests are baked in so the Connectors catalog shows in the UI.
+services:
+  xorcism:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xorcism:latest
+    container_name: xorcism
+    restart: unless-stopped
+    init: true                 # proper PID 1 signal handling / zombie reaping
+    ports:
+      - "9292:9292"
+    environment:
+      DB_DIR: /data
+      PORT: "9292"
+      # Optional integrations (uncomment + set as needed):
+      # NVD_API_KEY: ""
+      # TAXII_PROXY_URL: "http://taxii:5000"
+      # OSV_API_URL: "https://api.osv.dev"
+      # CIRCL_API_URL: "https://vulnerability.circl.lu"
+      # XORCISM_ALLOW_REGISTER: "0"   # disable public self-registration
+    volumes:
+      - xorcism-data:/data
+
+volumes:
+  xorcism-data:

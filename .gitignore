@@ -1,0 +1,155 @@
+# ============================================================================
+#  XORCISM — root .gitignore
+#  Goal #1: NEVER commit secrets, credentials, tokens, vault keys, or databases
+#           (which contain real user data). Read Github.txt before the first push.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# 1. SECRETS & CREDENTIALS  (highest priority — do not leak)
+# ---------------------------------------------------------------------------
+# Env files (keep only *.example / *.sample templates, which carry no secrets)
+.env
+.env.*
+*.env
+!*.env.example
+!.env.example
+
+# Local app/site/forum/agent configuration that holds passwords or DSNs.
+# The committed templates are the *.example / *.sample variants.
+config.local.php
+**/config.local.php
+*.local.php
+!*.local.php.example
+xor_agent.conf
+**/xor_agent.conf
+!**/xor_agent.conf.example
+taxii/manager_config.json
+
+# Field-encryption vault (data-encryption key + recovery material)
+XVAULT.json
+**/XVAULT.json
+xvault*.json
+
+# Keys / certificates / token material
+*.key
+*.pem
+*.pfx
+*.p12
+*.keystore
+*.jks
+*.asc
+*.gpg
+id_rsa*
+*_rsa
+*.ppk
+secrets/
+**/secrets/
+*secret*.json
+*secret*.txt
+*.secret
+*credentials*.json
+*.token
+apikey*.txt
+api_key*.txt
+
+# ---------------------------------------------------------------------------
+# 2. DATABASES  (contain real data — must never be published)
+# ---------------------------------------------------------------------------
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+# stray DB written by a mis-set DB_DIR during dev
+xorcism_ts/UsersjeromOneDriveDocumentsXORCISM*.db
+# NOTE: the *schema* DDL in databases/*_sqlite.sql IS committed (it is not a *.db)
+
+# ---------------------------------------------------------------------------
+# 3. BUILD ARTIFACTS & DEPENDENCIES  (regenerated, never committed)
+# ---------------------------------------------------------------------------
+**/node_modules/
+**/dist/
+**/build/
+*.tsbuildinfo
+*.js.map
+
+# Python
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ---------------------------------------------------------------------------
+# 4. RUNTIME DATA, CACHES, LOGS  (machine/instance specific)
+# ---------------------------------------------------------------------------
+logs/
+*.log
+*.pid
+nvd_cache/
+nvd_import.log
+# user/forum/newsletter runtime data (uploads, generated content, sessions)
+website/data/
+website/forum/data/
+**/forum/data/
+deploy_newsletter/data/
+xorcism_php/public/uploads/*
+!xorcism_php/public/uploads/.gitkeep
+
+# ---------------------------------------------------------------------------
+# 5. LARGE BINARIES / VENDORED RUNTIMES  (don't ship in the repo)
+# ---------------------------------------------------------------------------
+# Portable Node 20 runtime (~80 MB) + bundled sqlite3.exe — install Node 20 yourself
+tools/nodejs/
+tools/*.exe
+tools/*.dll
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
+# Large downloaded reference dumps (re-downloaded by the importers)
+xorcism_python/parsers/*.xml
+xorcism_python/importers/*.xml
+# cloned third-party OVAL repository
+xorcism_python/importers/OVALRepo/
+
+# ---------------------------------------------------------------------------
+# 6. PRIVATE / OUT-OF-SCOPE FOLDERS  (do not publish)
+# ---------------------------------------------------------------------------
+# Infomaniak/   = hosting invoices & private account material (PRIVATE)
+# website_backup/ = backup snapshot (also contains a forum DB)
+# .claude/      = local Claude Code agent config & memory
+# XORCISM_repo/ = legacy .NET/PowerShell source repo (own .git, hard-coded creds)
+# xorcism_php/  = alternate PHP implementation (not part of the public release)
+# deploy_newsletter/ = newsletter app (not part of the public release)
+Infomaniak/
+website_backup/
+.claude/
+XORCISM_repo/
+xorcism_php/
+deploy_newsletter/
+deploy_newsletter.zip
+
+# Nested VCS metadata from vendored/cloned repos (avoid accidental submodule / leak).
+# (Git always ignores the repository's own root .git — this targets embedded ones.)
+**/.git/
+
+# ---------------------------------------------------------------------------
+# 7. EDITOR / OS CRUFT
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~

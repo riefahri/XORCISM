@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — A3M (Agentic AI Attack Matrix)</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .att-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 16px}
+  .att-toolbar h2{margin:0;font-size:18px;color:#e2e8f0}
+  .att-toolbar input{background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:13px;padding:6px 9px;min-width:240px}
+  .att-stats{font-size:12px;color:#94a3b8}
+  .matrix{display:flex;gap:8px;overflow-x:auto;padding:0 16px 24px;align-items:flex-start}
+  .att-col{flex:0 0 210px;width:210px;background:#13162a;border:1px solid #2d3250;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;max-height:80vh}
+  .att-col-head{padding:8px 10px;border-bottom:1px solid #2d3250;background:#171b30;position:sticky;top:0}
+  .att-tac-name{font-size:12.5px;font-weight:600;color:#a78bfa;line-height:1.2}
+  .att-tac-meta{font-size:10px;color:#64748b;margin-top:2px}
+  .att-col-body{overflow-y:auto;padding:4px}
+  .att-cell{border:1px solid #232843;border-radius:5px;margin:3px 0;background:#0f1117;padding:5px 7px}
+  .att-id{color:#64748b;font-size:10px;font-family:ui-monospace,Consolas,monospace}
+  .att-cell .tn{color:#cbd5e1;font-size:11.5px;line-height:1.3;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="logo" style="text-decoration:none;color:inherit">&#9670; XORCISM</a>
+  <span class="spacer"></span>
+  <a href="/?db=XORCISM&amp;table=ASSET">&#128450;&#65039; Assets</a>
+  <a href="/dashboard">&#128202; Dashboard</a>
+  <a href="/attack">&#127919; ATT&amp;CK</a>
+  <a href="/d3fend">&#128737;&#65039; D3FEND</a>
+  <a href="/a3m" style="color:#a78bfa">&#129302; A3M</a>
+  <a href="/ask">&#129302; Ask AI</a>
+</div>
+
+<div class="att-toolbar">
+  <h2>&#129302; A3M — Agentic AI Attack Matrix</h2>
+  <input id="a3m-search" type="search" placeholder="Filtrer (AAT-ID ou nom de technique)…">
+  <span class="att-stats" id="a3m-stats"></span>
+</div>
+<div class="matrix" id="a3m-matrix"></div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/a3m.js"></script>
+</body>
+</html>

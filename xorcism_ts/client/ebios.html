@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — EBIOS RM</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .eb-wrap{max-width:1280px;margin:0 auto;padding:16px}
+  .eb-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
+  .eb-head h2{margin:0;font-size:18px;color:#e2e8f0}
+  .eb-stats{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}
+  .eb-stat{background:#13162a;border:1px solid #2d3250;border-radius:8px;padding:10px 14px;min-width:120px}
+  .eb-stat .n{font-size:22px;font-weight:700;color:#e2e8f0}
+  .eb-stat .l{font-size:11px;color:#94a3b8;margin-top:2px}
+  table.eb{width:100%;border-collapse:collapse;font-size:13px}
+  table.eb th{text-align:left;padding:7px 10px;color:#94a3b8;border-bottom:1px solid #2d3250;position:sticky;top:0;background:#0f1117;font-weight:600}
+  table.eb td{padding:6px 10px;border-bottom:1px solid #1e2133;color:#cbd5e1;vertical-align:top}
+  table.eb tr:hover td{background:#13162a}
+  table.eb td.num{text-align:center;font-variant-numeric:tabular-nums}
+  table.eb a{color:#7c83fd;text-decoration:none}
+  table.eb a:hover{text-decoration:underline}
+  .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;border:1px solid currentColor}
+  .eb-filter{background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:13px;padding:6px 9px;min-width:240px}
+  .ws{display:inline-block;font-size:10px;color:#64748b;border:1px solid #2d3250;border-radius:6px;padding:0 5px;margin-right:2px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="logo" style="text-decoration:none;color:inherit">&#9670; XORCISM</a>
+  <span class="spacer"></span>
+  <a href="/?db=XORCISM&amp;table=ASSET">&#128450;&#65039; Assets</a>
+  <a href="/dashboard">&#128202; Dashboard</a>
+  <a href="/ebios" style="color:#7c83fd">&#127919; EBIOS RM</a>
+  <a href="/?db=XCOMPLIANCE&amp;table=RISKASSESSMENT">&#9881;&#65039; Risk assessments</a>
+</div>
+
+<div class="eb-wrap">
+  <div class="eb-head">
+    <h2>&#127919; <span data-i18n="ebios.title">EBIOS Risk Manager</span></h2>
+    <input id="eb-search" class="eb-filter" type="search" data-i18n-placeholder="ebios.search" placeholder="Filtrer (étude, statut…)">
+    <span style="flex:1"></span>
+    <a class="btn btn-primary btn-sm" href="/?db=XCOMPLIANCE&amp;table=RISKASSESSMENT" data-i18n="ebios.new">+ Nouvelle étude</a>
+  </div>
+  <div class="eb-stats" id="eb-stats"></div>
+  <div id="eb-table"></div>
+  <div class="eb-hint" id="eb-hint" style="font-size:12px;color:#64748b;margin-top:12px"></div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/ebios.js"></script>
+</body>
+</html>

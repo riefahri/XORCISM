@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — MITRE D3FEND</title>
+<script>try{var _t=localStorage.getItem('xorcism.theme');if(_t)document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .att-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 16px}
+  .att-toolbar h2{margin:0;font-size:18px;color:var(--text)}
+  .att-toolbar input{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:6px 9px;min-width:220px}
+  .att-stats{font-size:12px;color:var(--text-muted)}
+  .matrix{display:flex;gap:8px;overflow-x:auto;padding:0 16px 24px;align-items:flex-start}
+  .att-col{flex:0 0 200px;width:200px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;max-height:78vh}
+  .att-col-head{padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0}
+  .att-tac-name{font-size:12.5px;font-weight:600;color:var(--text);line-height:1.2}
+  .att-tac-meta{font-size:10px;color:var(--text-dim);margin-top:2px}
+  .att-col-body{overflow-y:auto;padding:4px}
+  .att-cell{border:1px solid var(--border-subtle);border-radius:5px;margin:3px 0;background:var(--bg)}
+  .att-cell-main{display:flex;align-items:center;gap:6px;padding:5px 7px}
+  .att-cell a{color:var(--text-soft);text-decoration:none;font-size:11.5px;line-height:1.25;flex:1;word-break:break-word}
+  .att-cell a:hover{color:var(--accent)}
+  .att-id{color:var(--text-dim);font-size:10px;font-family:ui-monospace,Consolas,monospace}
+  .att-sub-toggle{flex:0 0 auto;cursor:pointer;font-size:10px;color:var(--accent);background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0 6px;line-height:16px}
+  .att-subs{display:none;border-top:1px dashed var(--border-subtle);padding:2px 0 2px 10px}
+  .att-subs.open{display:block}
+  .att-sub{padding:2px 7px;font-size:11px}
+  .att-sub a{color:var(--text-muted);text-decoration:none}
+  .att-sub a:hover{color:var(--accent)}
+  .att-map{display:inline-block;font-size:9px;background:#14532d;color:#86efac;border-radius:8px;padding:0 5px;margin-left:4px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="logo" style="text-decoration:none;color:inherit">&#9670; XORCISM</a>
+  <span class="spacer"></span>
+  <a href="/?db=XORCISM&amp;table=ASSET">&#128450;&#65039; Assets</a>
+  <a href="/dashboard">&#128202; Dashboard</a>
+  <a href="/attack">&#127919; ATT&amp;CK</a>
+  <a href="/d3fend" style="color:var(--accent)">&#128737;&#65039; D3FEND</a>
+  <a href="/a3m">&#129302; A3M</a>
+  <a href="/ask">&#129302; Ask AI</a>
+</div>
+
+<div class="att-toolbar">
+  <h2>&#128737;&#65039; MITRE D3FEND</h2>
+  <input id="d3-search" type="search" placeholder="Filtrer (D3-ID, nom, ou T-ID ATT&amp;CK)…">
+  <span class="att-stats" id="d3-stats"></span>
+</div>
+<div class="matrix" id="d3-matrix"></div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/d3fend.js"></script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BIA - Business Impact Analysis</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorateur</a>
+  <a href="/dashboard" data-i18n="nav.dashboard">&#128202; Dashboard</a>
+  <span class="spacer"></span>
+  <span class="title" data-i18n="title.bia">Business Impact Analysis &mdash; AUDIT</span>
+</div>
+
+<div class="container">
+
+  <!-- Audits list -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Audits BIA</span>
+      <button class="btn btn-primary btn-sm" id="btn-new-audit">+ Nouvel audit</button>
+    </div>
+    <div class="audit-list" id="audit-list">
+      <div class="empty">Chargement...</div>
+    </div>
+  </div>
+
+  <!-- Entry table (shown when audit selected) -->
+  <div class="card" id="entry-section" style="display:none">
+    <div class="card-header">
+      <span class="card-title" id="entry-title">Saisie BIA</span>
+      <div class="btn-row">
+        <select id="filter-crit" style="background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;padding:4px 8px;font-size:12px">
+          <option value="">Toutes criticit&eacute;s</option>
+          <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="btn-add-row">+ Ligne</button>
+        <button class="btn btn-ghost btn-sm" id="btn-excel">&#128190; Excel</button>
+        <button class="btn btn-ghost btn-sm" id="btn-csv">&#128196; CSV</button>
+        <button class="btn btn-success btn-sm" id="btn-finalize">Finaliser</button>
+      </div>
+    </div>
+    <div class="statusbar" id="statusbar"></div>
+    <div style="overflow-x:auto">
+      <table class="bia" style="min-width:1600px">
+        <thead>
+          <tr>
+            <th class="col-name">Nom asset</th>
+            <th class="col-desc">Description</th>
+            <th class="col-type">Type</th>
+            <th class="col-crit">Criticit&eacute;</th>
+            <th class="col-owner">Propri&eacute;taire</th>
+            <th class="col-risk">Risque</th>
+            <th class="col-rlvl">Niv. risque</th>
+            <th class="col-imp">Impact fin.</th>
+            <th class="col-imp">Impact op.</th>
+            <th class="col-imp">Impact l&eacute;gal</th>
+            <th class="col-imp">Impact r&eacute;put.</th>
+            <th class="col-mtd">MTD</th>
+            <th class="col-mtd">RTO</th>
+            <th class="col-mtd">RPO</th>
+            <th class="col-notes">Notes</th>
+            <th style="width:70px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bia-tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn btn-ghost btn-sm" id="btn-add-row-bottom">+ Ajouter une ligne</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- New Audit Modal -->
+<div class="modal-bg" id="audit-modal">
+  <div class="modal">
+    <h3>Nouvel audit BIA</h3>
+    <div class="form-grid">
+      <div>
+        <label>Nom de l&apos;audit *</label>
+        <input id="a-name" placeholder="ex: BIA 2026 - SI Critique">
+      </div>
+      <div>
+        <label>Date</label>
+        <input id="a-date" type="date">
+      </div>
+      <div>
+        <label>Auditeur</label>
+        <input id="a-auditor" placeholder="Nom de l&apos;auditeur">
+      </div>
+      <div>
+        <label>P&eacute;rim&egrave;tre</label>
+        <input id="a-scope" placeholder="ex: Infrastructure critique">
+      </div>
+      <div class="form-full">
+        <label>Description</label>
+        <textarea id="a-desc" rows="2" placeholder="Objectifs..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btn-create-audit">Cr&eacute;er</button>
+      <button class="btn btn-ghost" id="btn-cancel-modal">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="/js/session-ui.js"></script>
+<script src="/js/bia.js"></script>
+</body>
+</html>

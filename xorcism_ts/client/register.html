@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Inscription</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><span class="spacer"></span><span class="title" data-i18n="title.register">Créer un compte</span></div>
+<div style="display:flex;justify-content:center;align-items:flex-start;padding-top:8vh">
+  <div class="card" style="width:380px;max-width:94vw">
+    <div class="card-header"><span class="card-title" data-i18n="reg.cardTitle">Créer votre compte XORCISM</span></div>
+    <form id="f">
+      <!-- Honeypot anti-bot: invisible to humans, often filled by bots -->
+      <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true"
+             style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <label data-i18n="login.email">Email</label>
+      <input id="email" type="email" required autocomplete="username" style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px;margin-bottom:10px">
+      <label data-i18n="reg.name">Nom affiché (optionnel)</label>
+      <input id="name" type="text" style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px;margin-bottom:10px">
+      <label data-i18n="login.password">Mot de passe</label>
+      <input id="password" type="password" required autocomplete="new-password" style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px">
+      <p style="font-size:11px;color:#64748b;margin:6px 0" data-i18n="login.pwPolicy">Min. 12 caractères, mêlant au moins 3 types (minuscules, majuscules, chiffres, symboles).</p>
+      <div id="err" style="color:#f87171;font-size:13px;min-height:18px;margin:8px 0"></div>
+      <button class="btn btn-primary" type="submit" data-i18n="reg.submit" style="width:100%;justify-content:center;padding:10px">S'inscrire</button>
+    </form>
+    <div style="margin-top:12px;font-size:12px"><a href="/login" data-i18n="reg.haveAccount" style="color:#7c83fd;text-decoration:none">← J'ai déjà un compte</a></div>
+  </div>
+</div>
+<script src="/js/register.js"></script>
+</body>
+</html>

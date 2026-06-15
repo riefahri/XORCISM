@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Administration</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .adm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(40px,auto));}
+  .perm-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #1e2133;font-size:12px}
+  .perm-row .lbl{flex:1;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .perm-row.lvl-db{font-weight:600;color:#7c83fd}
+  .perm-row.lvl-table{padding-left:18px}
+  .perm-row.lvl-field{padding-left:36px;color:#94a3b8}
+  .perm-row label{display:flex;align-items:center;gap:3px;color:#94a3b8;cursor:pointer;width:42px}
+  .toggle{background:none;border:none;color:#7c83fd;cursor:pointer;font-size:12px;width:16px}
+  table.users{width:100%;border-collapse:collapse;font-size:12px}
+  table.users th,table.users td{padding:6px 8px;border-bottom:1px solid #1e2133;text-align:left}
+  table.users th{color:#94a3b8}
+  .pill{font-size:10px;background:#2d3250;color:#cbd5e1;border-radius:10px;padding:1px 7px;margin-right:3px}
+  .super-only{display:none}
+  body.is-super .super-only{display:revert}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorateur</a>
+  <span class="spacer"></span>
+  <span class="title" data-i18n="title.admin">Administration &mdash; Utilisateurs &amp; Droits</span>
+  <span id="tenant-badge" class="pill" style="margin-left:10px;background:#1e3a5f;color:#bfdbfe"></span>
+</div>
+
+<div class="container">
+
+  <!-- TENANTS (super-admin uniquement) -->
+  <div class="card super-only" id="card-tenants">
+    <div class="card-header">
+      <span class="card-title" data-i18n="admin.tenants">Locataires (tenants)</span>
+      <span class="btn-row">
+        <input id="new-tenant" placeholder="Nouveau locataire" data-i18n-placeholder="admin.newTenant" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:6px 9px;color:#e2e8f0;font-size:13px">
+        <button class="btn btn-ghost btn-sm" id="btn-add-tenant" data-i18n="admin.addTenant">+ Locataire</button>
+      </span>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-bottom:8px" data-i18n="admin.tenantsHelp">Chaque locataire cloisonne ses donn&eacute;es op&eacute;rationnelles et ses utilisateurs. Le locataire <b>Syst&egrave;me</b> (super-admin) voit tout.</p>
+    <table class="users">
+      <thead><tr>
+        <th data-i18n="admin.tenantName">Nom</th>
+        <th data-i18n="admin.tenantUsers">Utilisateurs</th>
+        <th data-i18n="admin.tenantStatus">Statut</th>
+        <th data-i18n="admin.actions">Actions</th>
+      </tr></thead>
+      <tbody id="tenants-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="card super-only" id="card-backup">
+    <div class="card-header">
+      <span class="card-title" data-i18n="admin.backupTitle">Sauvegarde des bases</span>
+      <button class="btn btn-primary btn-sm" id="btn-backup" data-i18n="admin.backupNow">&#128190; Sauvegarder maintenant</button>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-bottom:8px" data-i18n="admin.backupHelp">Cr&eacute;e un instantan&eacute; coh&eacute;rent de toutes les bases dans DB_DIR/backups/&lt;horodatage&gt;/ (le serveur peut rester actif).</p>
+    <div id="backup-result" style="font-size:12px;color:#94a3b8"></div>
+  </div>
+
+  <div class="card super-only" id="card-correlate">
+    <div class="card-header">
+      <span class="card-title" data-i18n="admin.correlateTitle">Corr&eacute;lation CVE &rarr; actifs</span>
+      <button class="btn btn-primary btn-sm" id="btn-correlate" data-i18n="admin.correlateNow">&#128279; Corr&eacute;ler maintenant</button>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-bottom:8px" data-i18n="admin.correlateHelp">Relie les CVE aux actifs par correspondance CPE (niveau produit) et cr&eacute;e les liens ASSETVULNERABILITY. N&eacute;cessite des CPE sur les actifs et l'import NVD des CPE affect&eacute;s.</p>
+    <div id="correlate-result" style="font-size:12px;color:#94a3b8"></div>
+  </div>
+
+  <div class="card" id="card-notify">
+    <div class="card-header">
+      <span class="card-title" data-i18n="admin.notifyTitle">Notification &agrave; tous les utilisateurs</span>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-bottom:8px" data-i18n="admin.notifyHelp">Diffuse une notification &agrave; tous les utilisateurs de votre locataire (le super-admin la diffuse &agrave; tous les locataires).</p>
+    <div style="display:flex;flex-direction:column;gap:8px;max-width:560px">
+      <input id="notify-title" placeholder="Titre" data-i18n-placeholder="admin.notifyTitlePh" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px">
+      <textarea id="notify-message" rows="2" placeholder="Message (facultatif)" data-i18n-placeholder="admin.notifyMsgPh" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px;resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:11px;color:#94a3b8" data-i18n="admin.notifyLevel">Niveau</label>
+        <select id="notify-level" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:6px 9px;color:#e2e8f0;font-size:13px">
+          <option value="info">info</option>
+          <option value="success">success</option>
+          <option value="warning">warning</option>
+          <option value="error">error</option>
+        </select>
+        <button class="btn btn-primary btn-sm" id="btn-notify-all" data-i18n="admin.notifySend">&#128226; Envoyer &agrave; tous</button>
+      </div>
+      <div id="notify-result" style="font-size:12px;color:#94a3b8"></div>
+    </div>
+  </div>
+
+  <!-- ROLES & PERMISSIONS (config globale — super-admin uniquement) -->
+  <div class="card super-only" id="card-roles">
+    <div class="card-header">
+      <span class="card-title" data-i18n="admin.rolesPerms">R&ocirc;les &amp; permissions (RBAC / CRUD)</span>
+      <span class="btn-row">
+        <select id="role-select" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:6px 9px;color:#e2e8f0;font-size:13px"></select>
+        <input id="new-role" placeholder="Nouveau r&ocirc;le" data-i18n-placeholder="admin.newRole" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:6px 9px;color:#e2e8f0;font-size:13px">
+        <button class="btn btn-ghost btn-sm" id="btn-add-role" data-i18n="admin.addRole">+ R&ocirc;le</button>
+      </span>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-bottom:8px">Cochez C(reate) R(ead) U(pdate) D(elete). L'enregistrement est automatique. Le r&ocirc;le <b>Admin</b> a tous les droits.</p>
+
+    <div class="card-title" style="margin:8px 0 4px" data-i18n="admin.pages">Pages</div>
+    <div id="perm-pages"></div>
+
+    <div class="card-title" style="margin:14px 0 4px" data-i18n="admin.dbTablesFields">Bases de donn&eacute;es / tables / champs</div>
+    <div id="perm-data"></div>
+  </div>
+
+  <!-- UTILISATEURS -->
+  <div class="card">
+    <div class="card-header"><span class="card-title" data-i18n="admin.users">Utilisateurs</span>
+      <span class="btn-row super-only" id="user-tenant-filter-wrap">
+        <label style="font-size:11px;color:#94a3b8" data-i18n="admin.filterTenant">Locataire</label>
+        <select id="user-tenant-filter" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:6px 9px;color:#e2e8f0;font-size:13px"></select>
+      </span>
+    </div>
+    <table class="users">
+      <thead><tr><th>Email</th><th>Nom</th><th class="super-only" data-i18n="admin.tenant">Locataire</th><th>R&ocirc;les</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="users-tbody"></tbody>
+    </table>
+    <div class="card-header" style="margin-top:14px"><span class="card-title" data-i18n="admin.newUser">Nouvel utilisateur</span></div>
+    <div class="form-grid">
+      <div><label data-i18n="login.email">Email</label><input id="nu-email" type="email"></div>
+      <div><label data-i18n="admin.displayName">Nom affich&eacute;</label><input id="nu-name"></div>
+      <div><label data-i18n="admin.tempPw">Mot de passe temporaire</label><input id="nu-pw" type="text"></div>
+      <div class="super-only" id="nu-tenant-wrap"><label data-i18n="admin.tenant">Locataire</label><select id="nu-tenant"></select></div>
+      <div><label data-i18n="admin.roles">R&ocirc;les</label><select id="nu-roles" multiple style="height:64px"></select></div>
+      <div class="form-full"><button class="btn btn-primary btn-sm" id="btn-add-user" data-i18n="admin.createUser">Cr&eacute;er l'utilisateur</button>
+        <span style="font-size:11px;color:#64748b">Mdp &ge;12 car., 3 types. Changement forc&eacute; &agrave; la 1re connexion.</span></div>
+    </div>
+  </div>
+
+  <!-- AUDIT -->
+  <div class="card">
+    <div class="card-header"><span class="card-title" data-i18n="admin.audit">Journal d'audit (200 derniers)</span>
+      <button class="btn btn-ghost btn-sm" id="btn-refresh-audit" data-i18n="admin.refresh">Rafra&icirc;chir</button></div>
+    <table class="users"><thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Ressource</th><th>D&eacute;tail</th><th>IP</th></tr></thead>
+      <tbody id="audit-tbody"></tbody></table>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

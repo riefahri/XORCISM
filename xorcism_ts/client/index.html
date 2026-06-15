@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM Database Explorer</title>
+<!-- Theme: applies the stored choice BEFORE rendering (avoids the flash). -->
+<script>try{var _t=localStorage.getItem('xorcism.theme');if(_t)document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .landing{max-width:1120px;margin:0 auto;padding:52px 24px 64px}
+  .landing-hero{text-align:center;margin-bottom:42px}
+  .landing-hero h1{font-size:36px;margin:0 0 8px;font-weight:800;letter-spacing:.5px;
+    background:linear-gradient(135deg,#7c83fd,#a78bfa 60%,#22d3ee);-webkit-background-clip:text;
+    background-clip:text;-webkit-text-fill-color:transparent}
+  .landing-hero p{color:#94a3b8;font-size:15px;margin:0}
+  .domain-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:18px}
+  .domain-card{display:flex;flex-direction:column;align-items:flex-start;gap:12px;
+    background:#1a1d2e;border:1px solid #2d3250;border-radius:16px;padding:24px 22px;
+    text-decoration:none;color:#e2e8f0;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+  .domain-card:hover{transform:translateY(-4px);border-color:var(--accent);
+    box-shadow:0 12px 34px rgba(0,0,0,.4)}
+  .domain-icon{display:inline-flex;align-items:center;justify-content:center;width:54px;height:54px;
+    border-radius:14px;background:color-mix(in srgb,var(--accent) 16%,#0f1117);color:var(--accent)}
+  .domain-icon svg{width:28px;height:28px;display:block}
+  .domain-title{font-size:16px;font-weight:700;line-height:1.2}
+  .domain-sub{font-size:12px;color:#94a3b8;letter-spacing:.3px;font-family:ui-monospace,monospace}
+  .domain-desc{font-size:12px;color:#64748b;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/" class="logo" style="text-decoration:none;color:inherit">&#9670; XORCISM</a>
+  <span class="spacer"></span>
+  <a href="/?db=XORCISM&amp;table=ASSET" data-i18n="nav.assets">&#128450;&#65039; Assets</a>
+  <a href="/bia" id="nav-bia" data-i18n="nav.bia" style="display:none">&#128196; BIA Audit</a>
+  <a href="/dashboard" data-i18n="nav.dashboard">&#128202; Dashboard</a>
+  <a href="/threat-feeds" data-i18n="nav.feeds">&#128225; Threat Feeds</a>
+  <a href="/attack" id="nav-attack" data-i18n="nav.attack" style="display:none">&#127919; ATT&amp;CK</a>
+  <a href="/d3fend" id="nav-d3fend" data-i18n="nav.d3fend" style="display:none">&#128737;&#65039; D3FEND</a>
+  <a href="/stix-graph" data-i18n="nav.stix">&#128376; STIX Graph</a>
+  <a href="/connectors" data-i18n="nav.connectors">&#128268; Connectors</a>
+  <a href="/feedback" data-i18n="nav.feedback">&#128172; Feedback</a>
+  <button id="notif-bell" title="Notifications" aria-label="Notifications"
+    style="position:relative;background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;color:inherit">
+    &#128276;
+    <span id="notif-badge" hidden
+      style="position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
+  </button>
+</div>
+
+<!-- Notifications panel (filled dynamically by app.ts) -->
+<div id="notif-panel" hidden
+  style="position:fixed;bottom:16px;right:16px;width:360px;max-width:94vw;max-height:70vh;display:flex;flex-direction:column;background:#13162a;border:1px solid #2d3250;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.5);z-index:1200;overflow:hidden">
+  <div id="notif-header" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #2d3250;cursor:move;user-select:none;touch-action:none">
+    <strong style="flex:1;font-size:13px;color:#e2e8f0" data-i18n="notif.title">Notifications</strong>
+    <button id="notif-enable" class="btn btn-ghost btn-sm" data-i18n="notif.enable" title="Activer les notifications du navigateur">Activer</button>
+    <button id="notif-readall" class="btn btn-ghost btn-sm" data-i18n="notif.readAll">Tout lire</button>
+  </div>
+  <div id="notif-list" style="overflow:auto;padding:4px 0"></div>
+</div>
+
+<!-- ═══ Landing page: access menu by domain (shown if no ?db= in the URL) ═══ -->
+<div id="landing" class="landing">
+  <div class="landing-hero">
+    <h1>XORCISM</h1>
+    <p data-i18n="landing.sub">Cyber exposure, threat &amp; compliance management — choisissez un domaine</p>
+  </div>
+  <div class="domain-grid">
+
+    <a class="domain-card" href="/?db=XORCISM&amp;table=ASSET" style="--accent:#7c83fd">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>
+      <span class="domain-title" data-i18n="landing.assets">Asset Management</span>
+      <span class="domain-sub">XORCISM · ASSET</span>
+      <span class="domain-desc" data-i18n="landing.assets.d">Inventaire des actifs, propriétaires, criticité et exposition.</span>
+    </a>
+
+    <a class="domain-card" href="/?db=XOVAL&amp;table=OVALDEFINITION" style="--accent:#22d3ee">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span>
+      <span class="domain-title" data-i18n="landing.config">Configuration Management</span>
+      <span class="domain-sub">XOVAL · OVALDEFINITION</span>
+      <span class="domain-desc" data-i18n="landing.config.d">Définitions OVAL, durcissement et conformité de configuration.</span>
+    </a>
+
+    <a class="domain-card" href="/?db=XCOMPLIANCE&amp;table=AUDIT" style="--accent:#4ade80">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span>
+      <span class="domain-title" data-i18n="landing.compliance">Compliance</span>
+      <span class="domain-sub">XCOMPLIANCE · AUDIT</span>
+      <span class="domain-desc" data-i18n="landing.compliance.d">Audits, constats, preuves, référentiels et risques (GRC).</span>
+    </a>
+
+    <a class="domain-card" href="/tprm" style="--accent:#c084fc">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <span class="domain-title" data-i18n="landing.tprm">TPRM: Third Party Risk Management</span>
+      <span class="domain-sub">Module · QUESTIONNAIREFORORGANISATION</span>
+      <span class="domain-desc" data-i18n="landing.tprm.d">Évaluation des risques tiers : questionnaires (OCIL), réponses et preuves.</span>
+    </a>
+
+    <a class="domain-card" href="/ebios" style="--accent:#f59e0b">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></span>
+      <span class="domain-title" data-i18n="landing.ebios">EBIOS Risk Manager</span>
+      <span class="domain-sub">Module · RISKASSESSMENT (EBIOS*)</span>
+      <span class="domain-desc" data-i18n="landing.ebios.d">Analyse de risque cyber EBIOS RM (ANSSI) : valeurs métier, événements redoutés, sources de risque, écosystème, scénarios et mesures.</span>
+    </a>
+
+    <a class="domain-card" href="/?db=XORCISM&amp;table=ASSETVULNERABILITY" style="--accent:#f87171">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6a3 3 0 0 0-3-3 3 3 0 0 0-3 3"/><path d="M5 11a7 7 0 0 1 14 0v2a7 7 0 0 1-14 0z"/><line x1="12" y1="11" x2="12" y2="20"/><line x1="5" y1="11" x2="2" y2="9"/><line x1="5" y1="15" x2="2" y2="15"/><line x1="5" y1="18" x2="3" y2="20"/><line x1="19" y1="11" x2="22" y2="9"/><line x1="19" y1="15" x2="22" y2="15"/><line x1="19" y1="18" x2="21" y2="20"/></svg></span>
+      <span class="domain-title" data-i18n="landing.vuln">Vulnerability Management</span>
+      <span class="domain-sub">XORCISM · ASSETVULNERABILITY</span>
+      <span class="domain-desc" data-i18n="landing.vuln.d">CVE / NVD, KEV, CVSS, EPSS et priorisation de la remédiation.</span>
+    </a>
+
+    <a class="domain-card" href="/?db=XTHREAT&amp;table=THREAT" style="--accent:#fb923c">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg></span>
+      <span class="domain-title" data-i18n="landing.threat">Threat Management (CTI)</span>
+      <span class="domain-sub">XTHREAT · THREAT</span>
+      <span class="domain-desc" data-i18n="landing.threat.d">Renseignement sur les menaces : acteurs, TTP, STIX/TAXII, ATT&amp;CK.</span>
+    </a>
+
+    <a class="domain-card" href="/?db=XORCISM&amp;table=THREATMODEL" style="--accent:#f472b6">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></span>
+      <span class="domain-title" data-i18n="landing.threatmodel">Threat Modeling</span>
+      <span class="domain-sub">XORCISM · THREATMODEL</span>
+      <span class="domain-desc" data-i18n="landing.threatmodel.d">Modélisation des menaces : STRIDE, périmètre, menaces et contrôles d'atténuation.</span>
+    </a>
+
+    <a class="domain-card" href="/?db=XINCIDENT&amp;table=INCIDENT" style="--accent:#fbbf24">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+      <span class="domain-title" data-i18n="landing.incident">Incident Management</span>
+      <span class="domain-sub">XINCIDENT · INCIDENT</span>
+      <span class="domain-desc" data-i18n="landing.incident.d">Détection, qualification, réponse et suivi des incidents.</span>
+    </a>
+
+    <a class="domain-card" href="/?db=XTICKET&amp;table=TICKET" style="--accent:#a78bfa">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><line x1="13" y1="5" x2="13" y2="7"/><line x1="13" y1="11" x2="13" y2="13"/><line x1="13" y1="17" x2="13" y2="19"/></svg></span>
+      <span class="domain-title" data-i18n="landing.ticketing">Ticketing</span>
+      <span class="domain-sub">XTICKET · TICKET</span>
+      <span class="domain-desc" data-i18n="landing.ticketing.d">Tickets, commentaires, catégories et pièces jointes.</span>
+    </a>
+
+    <a class="domain-card" href="/connectors" style="--accent:#2dd4bf">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6a6 6 0 1 0 6 6"/><circle cx="12" cy="12" r="2"/><line x1="13.5" y1="10.5" x2="20" y2="4"/></svg></span>
+      <span class="domain-title" data-i18n="landing.xposure">Xposure</span>
+      <span class="domain-sub">Connectors</span>
+      <span class="domain-desc" data-i18n="landing.xposure.d">Gestion de l'exposition : connecteurs (nmap, nuclei, scanners), engagements (ROE) et agents distants.</span>
+    </a>
+
+    <a class="domain-card" href="/?db=XORCISM&amp;table=TOOL&amp;filterCol=Category&amp;filterVal=OSINT" style="--accent:#38bdf8">
+      <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><circle cx="11" cy="11" r="2.5"/></svg></span>
+      <span class="domain-title" data-i18n="landing.osint">OSINT</span>
+      <span class="domain-sub">XORCISM · TOOL · Category=OSINT</span>
+      <span class="domain-desc" data-i18n="landing.osint.d">Outils de renseignement en sources ouvertes : la table TOOL filtrée sur la catégorie OSINT.</span>
+    </a>
+
+  </div>
+</div>
+
+<div class="layout" id="explorer-layout" style="display:none">
+
+  <!-- Sidebar: databases -->
+  <nav class="sidebar">
+    <div class="sidebar-section" data-i18n="sidebar.databases">Bases de donn&eacute;es</div>
+    <ul id="db-list"></ul>
+    <div class="divider"></div>
+    <div class="sidebar-section" id="table-section" style="display:none" data-i18n="sidebar.tables">Tables</div>
+    <ul id="table-list"></ul>
+  </nav>
+
+  <!-- Main content -->
+  <div class="main">
+    <div class="toolbar">
+      <span class="current" id="current-title" data-i18n="explorer.select">S&eacute;lectionnez une base et une table</span>
+      <select id="vocab-filter" title="Filtrer par vocabulaire" data-i18n-title="explorer.vocabFilter" disabled
+              style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px;max-width:210px">
+      </select>
+      <div class="search-box">
+        <span class="search-icon">&#128269;</span>
+        <input
+          type="search"
+          id="search-input"
+          placeholder="Rechercher…"
+          data-i18n-placeholder="explorer.search"
+          autocomplete="off"
+          spellcheck="false"
+          disabled
+        >
+        <button class="search-clear" id="btn-search-clear" title="Effacer (Echap)" data-i18n-title="explorer.searchClear">&#10005;</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-insert" data-i18n="explorer.insert">+ Ins&eacute;rer</button>
+      <button class="btn btn-ghost btn-sm" id="btn-reset-cols" data-i18n="explorer.resetCols" title="R&eacute;initialiser l'ordre des colonnes de cette table">&#8596; Colonnes</button>
+      <button class="btn btn-ghost btn-sm" id="btn-import" data-i18n="explorer.import">&#11014; Import JSON/CSV</button>
+      <button class="btn btn-ghost btn-sm" id="btn-osv" data-i18n="explorer.osvImport" title="Importer depuis OSV.dev" style="display:none">&#128229; Import OSV</button>
+      <button class="btn btn-ghost btn-sm" id="btn-circl" data-i18n="explorer.circlImport" title="Importer depuis CIRCL (KEV)" style="display:none">&#128737;&#65039; Import CIRCL</button>
+      <button class="btn btn-ghost btn-sm" id="btn-pentest" data-i18n="pentest.mode" data-i18n-title="tip.pentestMode" title="Mode Pentest : sélection + scan en masse" style="display:none">&#128737;&#65039; Mode Pentest</button>
+      <label class="import-replace" title="Vider la table avant import" data-i18n-title="explorer.replaceHint"
+             style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#94a3b8;cursor:pointer">
+        <input type="checkbox" id="import-replace" style="width:auto"> <span data-i18n="explorer.replace">Remplacer</span>
+      </label>
+      <input type="file" id="import-file" accept=".json,.csv,application/json,text/csv" style="display:none">
+      <button class="btn btn-ghost btn-sm" id="btn-csv" data-i18n="explorer.csv">&#128196; CSV</button>
+      <button class="btn btn-ghost btn-sm" id="btn-excel" data-i18n="explorer.excel">&#128190; Excel</button>
+    </div>
+
+    <div id="data-section" class="table-wrap" style="display:none;flex:1">
+      <table>
+        <thead id="data-thead"></thead>
+        <tbody id="data-tbody"><tr><td style="padding:32px;color:#94a3b8;text-align:center" data-i18n="explorer.selectTable">S&eacute;lectionnez une table</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="pager" id="pager" style="display:none">
+      <button class="btn btn-ghost btn-sm" id="btn-prev" data-i18n="explorer.prev">&#8592; Pr&eacute;c.</button>
+      <button class="btn btn-ghost btn-sm" id="btn-next" data-i18n="explorer.next">Suiv. &#8594;</button>
+      <span class="spacer"></span>
+      <span id="pager-info"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Insert Modal -->
+<div class="modal-bg" id="insert-modal">
+  <div class="modal">
+    <h3 data-i18n="modal.insertTitle">Ins&eacute;rer une ligne</h3>
+    <div id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="modal-submit" data-i18n="modal.insert">Ins&eacute;rer</button>
+      <button class="btn btn-ghost" id="modal-json" data-i18n="modal.json" title="T&eacute;l&eacute;charger les donn&eacute;es du formulaire en JSON">&#128229; JSON</button>
+      <button class="btn btn-ghost" id="modal-excel" data-i18n="modal.excel" title="T&eacute;l&eacute;charger les donn&eacute;es du formulaire en Excel">&#128202; EXCEL</button>
+      <button class="btn btn-ghost" id="modal-cancel" data-i18n="modal.cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal">
+    <h3 data-i18n="modal.editTitle">&#9998; Modifier la ligne</h3>
+    <div id="edit-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="edit-modal-submit" data-i18n="modal.save">Enregistrer</button>
+      <button class="btn btn-ghost" id="edit-modal-json" data-i18n="modal.json" title="T&eacute;l&eacute;charger les donn&eacute;es du formulaire en JSON">&#128229; JSON</button>
+      <button class="btn btn-ghost" id="edit-modal-excel" data-i18n="modal.excel" title="T&eacute;l&eacute;charger les donn&eacute;es du formulaire en Excel">&#128202; EXCEL</button>
+      <button class="btn btn-ghost" id="edit-modal-cancel" data-i18n="modal.cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- CPE Modal (add / remove CPEs for an ASSET) -->
+<div class="modal-bg" id="cpe-modal">
+  <div class="modal" style="width:580px">
+    <h3 data-i18n="cpe.manage">Ajouter / retirer des CPE</h3>
+    <input id="cpe-filter" placeholder="Filtrer les CPE…" data-i18n-placeholder="cpe.filter"
+           autocomplete="off" spellcheck="false"
+           style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px;margin-bottom:8px">
+    <div id="cpe-list" style="max-height:46vh;overflow:auto;border:1px solid #2d3250;border-radius:6px;padding:6px 8px;background:#0f1117"></div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input id="cpe-add-input" placeholder="cpe:2.3:a:vendor:product:version:*:*:*:*:*:*:* — ou cpe:/a:vendor:product:version"
+             data-i18n-placeholder="cpe.addPlaceholder" autocomplete="off" spellcheck="false"
+             style="flex:1;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:12px">
+      <button class="btn btn-ghost btn-sm" id="cpe-add-btn" data-i18n="cpe.addBtn" style="flex:0 0 auto">+ Ajouter</button>
+    </div>
+    <div id="cpe-add-err" style="color:#f87171;font-size:11px;min-height:14px;margin-top:3px"></div>
+    <!-- CPE 2.3 builder (field-by-field assembly) -->
+    <div id="cpe-builder-mount" style="margin-top:6px"></div>
+    <datalist id="cpe-vendor-list"></datalist>
+    <datalist id="cpe-product-list"></datalist>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="cpe-modal-submit" data-i18n="modal.save">Enregistrer</button>
+      <button class="btn btn-ghost" id="cpe-modal-cancel" data-i18n="modal.cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- Vulnerability Modal (link / unlink vulnerabilities for an ASSET) -->
+<div class="modal-bg" id="vuln-modal">
+  <div class="modal" style="width:660px">
+    <h3 data-i18n="vuln.manage">Lier / d&eacute;lier des vuln&eacute;rabilit&eacute;s</h3>
+    <button class="btn btn-ghost btn-sm" id="vuln-add-new" data-i18n="vuln.addNew"
+            title="Cr&eacute;er une nouvelle VULNERABILITY" style="margin-bottom:10px">+ Add new vulnerability</button>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:4px" data-i18n="vuln.selectedLabel">S&eacute;lection courante</div>
+    <div id="vuln-selected" style="max-height:22vh;overflow:auto;border:1px solid #2d3250;border-radius:6px;padding:6px 8px;background:#0f1117;margin-bottom:10px"></div>
+    <input id="vuln-search" placeholder="Rechercher une vuln&eacute;rabilit&eacute; (CVE / GUID)…" data-i18n-placeholder="vuln.search"
+           autocomplete="off" spellcheck="false"
+           style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:7px 10px;color:#e2e8f0;font-size:13px;margin-bottom:8px">
+    <div id="vuln-results" style="max-height:34vh;overflow:auto;border:1px solid #2d3250;border-radius:6px;padding:6px 8px;background:#0f1117"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="vuln-modal-submit" data-i18n="modal.save">Enregistrer</button>
+      <button class="btn btn-ghost" id="vuln-modal-cancel" data-i18n="modal.cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div id="pentest-bar" style="display:none;position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:900;align-items:center;gap:14px;background:#13162a;border:1px solid #7c83fd;border-radius:10px;padding:10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.5)">
+  <span style="color:#e2e8f0;font-size:13px">&#128737;&#65039; <b id="pentest-count">0</b> <span data-i18n="pentest.selected">actif(s) sélectionné(s)</span></span>
+  <button class="btn btn-primary btn-sm" id="pentest-launch" data-i18n="pentest.launchBtn" disabled>Lancer le scan</button>
+  <button class="btn btn-ghost btn-sm" id="pentest-agent" data-i18n="pentest.agentScan" disabled>&#128302; Scan XOR agent</button>
+  <button class="btn btn-ghost btn-sm" id="pentest-cancel" data-i18n="pentest.exit">Quitter</button>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="/js/session-ui.js"></script>
+<script src="/js/app.js"></script>
+<script>
+// Show pager and table-section when a table is selected
+const origSelectTable = window.__selectTable;
+document.addEventListener('DOMContentLoaded', () => {
+  const dataSection = document.getElementById('data-section');
+  const pager = document.getElementById('pager');
+  const tableSection = document.getElementById('table-section');
+  // Show pager when data section is visible
+  const obs = new MutationObserver(() => {
+    if (dataSection && pager) pager.style.display = dataSection.style.display === 'none' ? 'none' : '';
+    if (tableSection) tableSection.style.display = '';
+  });
+  if (dataSection) obs.observe(dataSection, { attributes: true });
+});
+</script>
+</body>
+</html>

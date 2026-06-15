@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Connexion</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <span class="spacer"></span>
+  <span class="title" data-i18n="title.login">Connexion s&eacute;curis&eacute;e</span>
+</div>
+
+<div style="display:flex;justify-content:center;align-items:flex-start;padding-top:8vh">
+  <div class="card" style="width:380px;max-width:94vw">
+
+    <!-- Login form -->
+    <div id="login-view">
+      <div class="card-header"><span class="card-title" data-i18n="login.auth">Authentification</span></div>
+      <form id="login-form" autocomplete="on">
+        <label data-i18n="login.email">Email</label>
+        <input class="modal-input" id="email" type="email" autocomplete="username"
+               required style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px;margin-bottom:12px">
+        <label data-i18n="login.password">Mot de passe</label>
+        <input id="password" type="password" autocomplete="current-password"
+               required style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px">
+        <div id="login-error" style="color:#f87171;font-size:13px;min-height:18px;margin:10px 0"></div>
+        <button class="btn btn-primary" id="login-btn" type="submit" data-i18n="login.submit" style="width:100%;justify-content:center;padding:10px">Se connecter</button>
+      </form>
+      <div style="display:flex;justify-content:space-between;gap:10px;margin-top:12px;font-size:12px">
+        <a href="/forgot" data-i18n="login.forgot" style="color:#7c83fd;text-decoration:none">Mot de passe oublié ?</a>
+        <a href="/register" data-i18n="login.register" style="color:#7c83fd;text-decoration:none">Créer un compte</a>
+      </div>
+      <div style="text-align:center;margin-top:10px">
+        <a href="#" id="to-pin" data-i18n="login.usePin" style="color:#7c83fd;text-decoration:none;font-size:12px">&#128274; Se connecter avec un PIN</a>
+      </div>
+      <div id="passkey-block" style="text-align:center;margin-top:8px;display:none">
+        <button class="btn btn-ghost" id="passkey-login-btn" type="button"
+                data-i18n="login.usePasskey" style="width:100%;justify-content:center;padding:10px">&#128273; Se connecter avec une clé d'accès</button>
+        <div id="passkey-error" style="color:#f87171;font-size:13px;min-height:18px;margin-top:8px"></div>
+      </div>
+      <!-- OAuth/OIDC login (shown if configured) -->
+      <div id="oidc-block" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:11px;margin-bottom:10px">
+          <span style="flex:1;height:1px;background:#2d3250"></span>
+          <span data-i18n="login.or">ou</span>
+          <span style="flex:1;height:1px;background:#2d3250"></span>
+        </div>
+        <a id="oidc-btn" href="/api/auth/oidc/login" class="btn btn-ghost"
+           data-i18n="login.oidc" style="width:100%;justify-content:center;padding:10px;text-decoration:none">
+          Se connecter avec OIDC
+        </a>
+      </div>
+    </div>
+
+    <!-- PIN login (scrambled keypad) -->
+    <div id="pin-view" style="display:none">
+      <div class="card-header"><span class="card-title" data-i18n="login.pinTitle">Connexion par PIN</span></div>
+      <label data-i18n="login.email">Email</label>
+      <input id="pin-email" type="email" autocomplete="username"
+             style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px;margin-bottom:12px">
+      <p style="font-size:11px;color:#64748b;margin:0 0 8px" data-i18n="login.pinHint">Saisissez votre PIN avec le clavier ci-dessous (ordre aléatoire à chaque connexion).</p>
+      <div id="pin-mask" style="text-align:center;font-size:26px;letter-spacing:10px;color:#e2e8f0;min-height:32px;margin-bottom:10px">&middot;&middot;&middot;&middot;</div>
+      <div id="pin-keypad" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-ghost btn-sm" id="pin-back" type="button" style="flex:1" data-i18n="login.pinBackspace">&#9003; Effacer</button>
+        <button class="btn btn-ghost btn-sm" id="pin-reshuffle" type="button" style="flex:1" data-i18n="login.pinReshuffle">&#8635; Mélanger</button>
+      </div>
+      <div id="pin-error" style="color:#f87171;font-size:13px;min-height:18px;margin:10px 0"></div>
+      <button class="btn btn-primary" id="pin-submit" type="button" data-i18n="login.submit" style="width:100%;justify-content:center;padding:10px">Se connecter</button>
+      <div style="text-align:center;margin-top:10px">
+        <a href="#" id="to-password" data-i18n="login.usePassword" style="color:#7c83fd;text-decoration:none;font-size:12px">&#8592; Mot de passe</a>
+      </div>
+    </div>
+
+    <!-- Mandatory password change -->
+    <div id="change-view" style="display:none">
+      <div class="card-header"><span class="card-title" data-i18n="login.changeTitle">Changement de mot de passe requis</span></div>
+      <p style="font-size:12px;color:#94a3b8;margin-bottom:12px" data-i18n="login.changeHint">Votre mot de passe doit &ecirc;tre chang&eacute; avant de continuer.</p>
+      <form id="change-form">
+        <label data-i18n="login.currentPw">Mot de passe actuel</label>
+        <input id="cur-pw" type="password" autocomplete="current-password" required
+               style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px;margin-bottom:12px">
+        <label data-i18n="login.newPw">Nouveau mot de passe</label>
+        <input id="new-pw" type="password" autocomplete="new-password" required
+               style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px">
+        <p style="font-size:11px;color:#64748b;margin:6px 0" data-i18n="login.pwPolicy">Min. 12 caract&egrave;res, m&ecirc;lant au moins 3 types (minuscules, majuscules, chiffres, symboles).</p>
+        <div id="change-error" style="color:#f87171;font-size:13px;min-height:18px;margin:8px 0"></div>
+        <button class="btn btn-primary" id="change-btn" type="submit" data-i18n="login.validate" style="width:100%;justify-content:center;padding:10px">Valider</button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/login.js"></script>
+</body>
+</html>

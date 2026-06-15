@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Coffre de chiffrement</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .v-wrap{max-width:680px;margin:30px auto;padding:0 18px}
+  .v-card{background:#13162a;border:1px solid #2d3250;border-radius:12px;padding:22px;margin-bottom:16px}
+  .v-card h2{font-size:16px;margin:0 0 12px;color:#e2e8f0}
+  .v-card p{color:#94a3b8;font-size:13px;margin:6px 0}
+  label{display:block;font-size:12px;color:#94a3b8;margin:10px 0 4px}
+  input{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:14px}
+  .badge{display:inline-block;font-size:11px;font-weight:700;border-radius:20px;padding:3px 11px}
+  .b-on{background:#14532d;color:#86efac}.b-off{background:#3b1d1d;color:#fecaca}.b-lock{background:#3b2f12;color:#fcd34d}
+  .rec{background:#0b0d18;border:1px dashed #7c83fd;border-radius:8px;padding:14px;margin-top:12px;font-family:monospace;font-size:13px;color:#a5b4fc;word-break:break-all}
+  .warn{background:#3b1d1d;border:1px solid #7f1d1d;color:#fecaca;border-radius:8px;padding:10px;font-size:12px;margin-top:10px}
+  .ok{color:#86efac;font-size:13px}.err{color:#fca5a5;font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .pill{font-size:11px;border:1px solid #2d3250;border-radius:20px;padding:3px 9px;color:#94a3b8;font-family:monospace}
+  .muted{color:#64748b;font-size:12px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorateur</a>
+  <span class="spacer"></span>
+  <span class="title">Coffre de chiffrement</span>
+</div>
+
+<div class="v-wrap">
+  <div class="v-card">
+    <h2>État du coffre <span id="v-state"></span></h2>
+    <p>Chiffrement « accès nul » des champs sensibles (AES-256-GCM). Le serveur ne peut
+       déchiffrer que lorsque le coffre est <b>déverrouillé</b> (clé en mémoire seulement).</p>
+    <div id="v-patterns" class="row"></div>
+    <div id="v-msg" style="margin-top:10px"></div>
+  </div>
+
+  <!-- Initial configuration -->
+  <div class="v-card" id="card-setup" style="display:none">
+    <h2>1. Configurer le coffre</h2>
+    <p>Choisissez une <b>phrase secrète</b> (≥ 8 caractères). Elle n'est jamais stockée :
+       elle sert à dériver la clé qui protège la clé de chiffrement des données.</p>
+    <label>Phrase secrète</label>
+    <input type="password" id="setup-pass" autocomplete="new-password">
+    <button class="btn btn-primary" id="btn-setup" style="margin-top:12px">Créer le coffre</button>
+    <div id="setup-recovery" style="display:none">
+      <div class="warn">⚠️ <b>Sauvegardez cette clé de récupération maintenant</b> (hors-ligne, gestionnaire de mots de passe).
+        Elle est affichée <b>une seule fois</b> et permet de restaurer l'accès si vous oubliez la phrase secrète.</div>
+      <div class="rec" id="recovery-key"></div>
+      <button class="btn btn-ghost btn-sm" id="btn-copy" style="margin-top:8px">Copier</button>
+      <button class="btn btn-ghost btn-sm" id="btn-download" style="margin-top:8px">Télécharger (.txt)</button>
+    </div>
+  </div>
+
+  <!-- Unlock -->
+  <div class="v-card" id="card-unlock" style="display:none">
+    <h2>Déverrouiller</h2>
+    <p>Saisissez la phrase secrète pour charger la clé en mémoire et permettre le
+       chiffrement/déchiffrement des champs sensibles.</p>
+    <label>Phrase secrète</label>
+    <input type="password" id="unlock-pass" autocomplete="current-password">
+    <button class="btn btn-primary" id="btn-unlock" style="margin-top:12px">Déverrouiller</button>
+  </div>
+
+  <!-- Lock -->
+  <div class="v-card" id="card-lock" style="display:none">
+    <h2>Verrouiller</h2>
+    <p>Efface la clé de la mémoire. Les champs chiffrés s'afficheront « 🔒 » et
+       l'écriture de champs sensibles sera refusée jusqu'au prochain déverrouillage.</p>
+    <button class="btn btn-danger" id="btn-lock">Verrouiller maintenant</button>
+  </div>
+
+  <!-- Recovery -->
+  <div class="v-card" id="card-recover" style="display:none">
+    <h2>Récupération (phrase oubliée)</h2>
+    <p>Collez votre <b>clé de récupération</b> et choisissez une nouvelle phrase secrète.</p>
+    <label>Clé de récupération</label>
+    <input type="text" id="rec-key">
+    <label>Nouvelle phrase secrète</label>
+    <input type="password" id="rec-pass" autocomplete="new-password">
+    <button class="btn btn-primary" id="btn-recover" style="margin-top:12px">Restaurer l'accès</button>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+function msg(t, cls){ $("v-msg").innerHTML = '<span class="'+(cls||'ok')+'">'+t+'</span>'; }
+async function jpost(u, b){ const r = await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}); const d = await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||r.statusText); return d; }
+async function jget(u){ const r = await fetch(u); const d = await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||r.statusText); return d; }
+
+async function refresh(){
+  let s; try { s = await jget('/api/vault/status'); } catch(e){ msg(String(e),'err'); return; }
+  const badge = s.unlocked ? '<span class="badge b-on">déverrouillé</span>'
+              : s.configured ? '<span class="badge b-lock">verrouillé</span>'
+              : '<span class="badge b-off">non configuré</span>';
+  $("v-state").innerHTML = badge;
+  $("v-patterns").innerHTML = (s.patterns||[]).map(p=>'<span class="pill">'+p+'</span>').join('')
+      + (s.columns||[]).map(c=>'<span class="pill">'+c+'</span>').join('');
+  $("card-setup").style.display   = s.configured ? 'none' : '';
+  $("card-unlock").style.display  = (s.configured && !s.unlocked) ? '' : 'none';
+  $("card-recover").style.display = (s.configured && !s.unlocked) ? '' : 'none';
+  $("card-lock").style.display    = s.unlocked ? '' : 'none';
+}
+
+$("btn-setup").onclick = async () => {
+  try {
+    const d = await jpost('/api/vault/setup',{passphrase: $("setup-pass").value});
+    $("recovery-key").textContent = d.recoveryKey;
+    $("setup-recovery").style.display = '';
+    $("btn-setup").disabled = true; $("setup-pass").disabled = true;
+    window._rk = d.recoveryKey;
+    msg('Coffre créé et déverrouillé. Sauvegardez la clé de récupération.','ok');
+    refresh();
+  } catch(e){ msg(String(e),'err'); }
+};
+$("btn-copy").onclick = () => { navigator.clipboard.writeText(window._rk||''); msg('Clé copiée.','ok'); };
+$("btn-download").onclick = () => {
+  const blob = new Blob(["XORCISM vault recovery key\n"+(window._rk||'')+"\n"],{type:'text/plain'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='xorcism-recovery-key.txt'; a.click();
+};
+$("btn-unlock").onclick = async () => { try { await jpost('/api/vault/unlock',{passphrase:$("unlock-pass").value}); $("unlock-pass").value=''; msg('Coffre déverrouillé.','ok'); refresh(); } catch(e){ msg(String(e),'err'); } };
+$("btn-lock").onclick   = async () => { try { await jpost('/api/vault/lock',{}); msg('Coffre verrouillé.','ok'); refresh(); } catch(e){ msg(String(e),'err'); } };
+$("btn-recover").onclick= async () => { try { await jpost('/api/vault/recover',{recoveryKey:$("rec-key").value,newPassphrase:$("rec-pass").value}); $("rec-key").value=''; $("rec-pass").value=''; msg('Accès restauré et coffre déverrouillé.','ok'); refresh(); } catch(e){ msg(String(e),'err'); } };
+
+refresh();
+</script>
+</body>
+</html>

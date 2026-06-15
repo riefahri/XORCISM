@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — STIX Graph</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .sg-layout{display:flex;height:calc(100vh - 46px)}
+  .sg-side{width:300px;min-width:300px;background:#13162a;border-right:1px solid #2d3250;display:flex;flex-direction:column;overflow:auto}
+  .sg-side .sec{padding:12px 14px;border-bottom:1px solid #1e2133}
+  .sg-side h3{font-size:12px;color:#94a3b8;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em}
+  .sg-main{flex:1;position:relative;overflow:hidden;background:#0b0d18}
+  #sg-svg{width:100%;height:100%;display:block;cursor:grab}
+  #sg-svg:active{cursor:grabbing}
+  textarea#sg-json{width:100%;height:120px;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:11px;font-family:ui-monospace,monospace;padding:8px;resize:vertical}
+  .sg-side select,.sg-side input[type=file]{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:12px;padding:7px}
+  .sg-side label{display:block;font-size:11px;color:#94a3b8;margin:8px 0 3px}
+  .sg-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .node circle{stroke:#0b0d18;stroke-width:1.5px;cursor:pointer}
+  .node text{font-size:9px;fill:#cbd5e1;pointer-events:none}
+  .node.sel circle{stroke:#fff;stroke-width:2.5px}
+  .link{stroke:#475569;stroke-width:1.2px}
+  .link.embedded{stroke:#334155;stroke-dasharray:3 3}
+  .linklabel{font-size:8px;fill:#7c83fd;pointer-events:none}
+  #sg-details{position:absolute;top:10px;right:10px;width:320px;max-height:calc(100% - 20px);overflow:auto;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px;display:none;font-size:12px}
+  #sg-details h4{margin:0 0 6px;font-size:13px;color:#e2e8f0}
+  #sg-details pre{background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:8px;font-size:10px;overflow:auto;max-height:40vh}
+  #sg-details .close{float:right;cursor:pointer;color:#94a3b8}
+  .legend{display:flex;flex-wrap:wrap;gap:5px}
+  .legend .it{display:flex;align-items:center;gap:4px;font-size:10px;color:#cbd5e1}
+  .legend .dot{width:10px;height:10px;border-radius:50%}
+  .sg-stat{font-size:11px;color:#64748b}
+  #sg-toast{position:absolute;bottom:12px;left:12px;background:#7f1d1d;color:#fecaca;border-radius:6px;padding:7px 12px;font-size:12px;display:none}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorateur</a>
+  <a href="/dashboard" data-i18n="nav.dashboard">&#128202; Dashboard</a>
+  <span class="spacer"></span>
+  <span class="title" data-i18n="stix.title">Visualisation STIX</span>
+</div>
+
+<div class="sg-layout">
+  <div class="sg-side">
+    <div class="sec">
+      <h3 data-i18n="stix.source">Source du bundle</h3>
+      <label data-i18n="stix.examples">Exemples (dossier stix/)</label>
+      <select id="sg-examples"><option value="">—</option></select>
+      <label data-i18n="stix.upload">Fichier .json</label>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <input type="file" id="sg-file" accept=".json,application/json" style="display:none">
+        <button type="button" class="btn btn-ghost btn-sm" id="sg-file-btn" data-i18n="file.choose">Choose file</button>
+        <span id="sg-file-name" data-i18n="file.none" style="font-size:12px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px">No file chosen</span>
+      </div>
+      <label data-i18n="stix.paste">Coller du JSON (bundle / enveloppe / objet)</label>
+      <textarea id="sg-json" spellcheck="false" placeholder='{ "type":"bundle", "objects":[ ... ] }'></textarea>
+      <div class="sg-btns">
+        <button class="btn btn-primary btn-sm" id="sg-render" data-i18n="stix.visualize">Visualiser</button>
+        <button class="btn btn-ghost btn-sm" id="sg-clear" data-i18n="stix.clear">Effacer</button>
+      </div>
+    </div>
+    <div class="sec">
+      <h3 data-i18n="stix.xorcism">Données XORCISM</h3>
+      <button class="btn btn-primary btn-sm" id="sg-load-hunts" data-i18n="stix.loadHunts">🎯 Charger les hunts (XTHREAT)</button>
+      <div class="sg-stat" style="margin-top:6px" data-i18n="stix.loadHuntsHint">Hunts reliés aux techniques ATT&amp;CK et IOC.</div>
+    </div>
+    <div class="sec" id="sg-taxii-sec" style="display:none">
+      <h3 data-i18n="stix.taxii">Serveur TAXII</h3>
+      <div class="sg-stat" id="sg-taxii-target" style="margin-bottom:6px"></div>
+      <label data-i18n="stix.taxiiCollection">Collection</label>
+      <select id="sg-taxii-col"><option value="">—</option></select>
+      <label data-i18n="stix.limit">Limite d'objets</label>
+      <input id="sg-taxii-limit" type="number" value="500" min="1" max="10000"
+             style="width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:12px;padding:7px">
+      <div class="sg-btns">
+        <button class="btn btn-primary btn-sm" id="sg-taxii-load" data-i18n="stix.taxiiLoad">Charger &amp; visualiser</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3 data-i18n="stix.options">Options</h3>
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="sg-embedded" style="width:auto"> <span data-i18n="stix.embedded">Afficher les références imbriquées</span></label>
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="sg-labels" checked style="width:auto"> <span data-i18n="stix.relLabels">Étiquettes de relations</span></label>
+      <div class="sg-btns">
+        <button class="btn btn-ghost btn-sm" id="sg-fit" data-i18n="stix.fit">Ajuster</button>
+        <button class="btn btn-ghost btn-sm" id="sg-export" data-i18n="stix.exportSvg">Export SVG</button>
+      </div>
+      <div class="sg-stat" id="sg-counts" style="margin-top:8px"></div>
+    </div>
+    <div class="sec">
+      <h3 data-i18n="stix.legend">Légende</h3>
+      <div class="legend" id="sg-legend"></div>
+    </div>
+  </div>
+
+  <div class="sg-main">
+    <svg id="sg-svg"></svg>
+    <div id="sg-details"></div>
+    <div id="sg-toast"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="/js/session-ui.js"></script>
+<script src="/js/stix-graph.js"></script>
+</body>
+</html>

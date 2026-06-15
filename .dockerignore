@@ -1,0 +1,22 @@
+# Contexte de build minimal — n'envoyez pas les artefacts lourds/secrets.
+**/node_modules
+**/dist
+xorcism_ts/dist
+tools/nodejs
+nvd_cache
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+logs
+website
+website_backup
+Infomaniak
+agent/dist
+**/__pycache__
+**/*.pyc
+.git
+.gitignore
+*.log
+*.zip
+deploy_newsletter
+docs/*.pdf

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM Dashboard</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorateur</a>
+  <span class="spacer"></span>
+  <span class="title" data-i18n="title.dashboard">Dashboard</span>
+</div>
+
+<div class="container">
+  <div class="card" id="risk-card">
+    <div class="card-header">
+      <span class="card-title" data-i18n="dash.riskScore">Enterprise RiskScore</span>
+      <span class="statusbar" id="risk-stats"></span>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:16px;padding:10px 4px 4px">
+      <span id="risk-score-value" style="font-size:60px;font-weight:800;line-height:1;color:#94a3b8">&mdash;</span>
+      <span id="risk-score-note" style="font-size:13px;color:#64748b" data-i18n="dash.riskScoreNote">recalcul&eacute; toutes les 30&nbsp;s</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" data-i18n="dash.vulnByYear">Vuln&eacute;rabilit&eacute;s par ann&eacute;e</span>
+      <span class="statusbar" id="vuln-stats"></span>
+    </div>
+    <div style="position:relative;height:60vh;min-height:360px">
+      <canvas id="vuln-chart"></canvas>
+    </div>
+    <div class="empty" id="vuln-empty" style="display:none" data-i18n="dash.noVuln">Aucune donn&eacute;e de vuln&eacute;rabilit&eacute;.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" data-i18n="dash.assetFinancialValue">Valeur financi&egrave;re des actifs</span>
+      <span class="statusbar" id="fin-stats"></span>
+    </div>
+    <div style="position:relative;height:60vh;min-height:360px">
+      <canvas id="fin-chart"></canvas>
+    </div>
+    <div class="empty" id="fin-empty" style="display:none" data-i18n="dash.noFinancial">Aucune valeur financi&egrave;re renseign&eacute;e (champ ASSET.FinancialValue).</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" data-i18n="dash.riskExposure">Exposition au risque (risque &times; valeur)</span>
+      <span class="statusbar" id="exp-stats"></span>
+    </div>
+    <div style="position:relative;height:60vh;min-height:360px">
+      <canvas id="exp-chart"></canvas>
+    </div>
+    <div class="empty" id="exp-empty" style="display:none" data-i18n="dash.noExposure">Aucune exposition calculable (n&eacute;cessite RiskScore + FinancialValue sur des actifs).</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" data-i18n="dash.finHistory">Valeur financi&egrave;re d'un actif dans le temps</span>
+      <span class="btn-row">
+        <input id="finhist-asset" list="finhist-assets" placeholder="AssetName&hellip;" data-i18n-placeholder="dash.finHistorySearch"
+               style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:6px 9px;color:#e2e8f0;font-size:13px;min-width:220px">
+        <datalist id="finhist-assets"></datalist>
+        <button class="btn btn-primary btn-sm" id="finhist-go" data-i18n="dash.finHistoryGo">Afficher</button>
+      </span>
+    </div>
+    <div style="position:relative;height:60vh;min-height:360px">
+      <canvas id="finhist-chart"></canvas>
+    </div>
+    <div class="empty" id="finhist-empty" style="display:none" data-i18n="dash.finHistoryNone">Saisissez un AssetName puis &laquo; Afficher &raquo;.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" data-i18n="dash.incByStatus">Incidents by status</span>
+      <span class="statusbar" id="inc-stats"></span>
+    </div>
+    <div style="position:relative;height:50vh;min-height:320px">
+      <canvas id="inc-chart"></canvas>
+    </div>
+    <div class="empty" id="inc-empty" style="display:none" data-i18n="dash.noInc">Aucun incident avec statut.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" data-i18n="dash.incByAsset">Incidents par asset</span>
+      <span class="btn-row">
+        <label style="font-size:11px;color:#94a3b8"><span data-i18n="dash.from">Du</span>
+          <input type="date" id="asset-from" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:5px 8px;color:#e2e8f0;font-size:12px">
+        </label>
+        <label style="font-size:11px;color:#94a3b8"><span data-i18n="dash.to">au</span>
+          <input type="date" id="asset-to" style="background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:5px 8px;color:#e2e8f0;font-size:12px">
+        </label>
+        <button class="btn btn-primary btn-sm" id="asset-apply" data-i18n="dash.apply">Appliquer</button>
+        <button class="btn btn-ghost btn-sm" id="asset-reset" data-i18n="dash.all">Tout</button>
+      </span>
+    </div>
+    <span class="statusbar" id="asset-stats"></span>
+    <div style="position:relative;height:50vh;min-height:320px">
+      <canvas id="asset-chart"></canvas>
+    </div>
+    <div class="empty" id="asset-empty" style="display:none" data-i18n="dash.noAsset">Aucun incident li&eacute; &agrave; un asset sur la p&eacute;riode.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" data-i18n="dash.tagCloud">Nuage de tags (ASSETTAG)</span>
+      <span class="statusbar" id="tagcloud-stats"></span>
+    </div>
+    <div id="tagcloud" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 2px;line-height:1.2"></div>
+    <div class="empty" id="tagcloud-empty" style="display:none" data-i18n="dash.noTags">Aucun tag actif.</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="/js/session-ui.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

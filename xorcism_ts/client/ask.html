@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Ask the threat model</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ask-wrap{max-width:900px;margin:0 auto;padding:16px}
+  .ask-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+  .ask-head h2{margin:0;font-size:18px;color:#e2e8f0}
+  .ai-badge{font-size:11px;padding:3px 8px;border-radius:10px;border:1px solid #2d3250}
+  .ai-up{color:#22c55e;border-color:#1e5631}
+  .ai-down{color:#f87171;border-color:#5b2330}
+  .ask-box{display:flex;gap:8px;margin:8px 0}
+  .ask-box textarea{flex:1;background:#0f1117;border:1px solid #2d3250;border-radius:8px;color:#e2e8f0;font-size:14px;padding:10px;min-height:64px;resize:vertical;font-family:inherit}
+  .ask-ex{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
+  .ask-ex button{background:#13162a;border:1px solid #2d3250;border-radius:14px;color:#94a3b8;font-size:12px;padding:4px 10px;cursor:pointer}
+  .ask-ex button:hover{color:#cbd5e1;border-color:#7c83fd}
+  #ask-answer{white-space:pre-wrap;background:#13162a;border:1px solid #2d3250;border-radius:8px;padding:14px;color:#e2e8f0;font-size:14px;line-height:1.5;min-height:40px}
+  .ask-sources{font-size:11px;color:#64748b;margin-top:8px}
+  .ask-hint{font-size:12px;color:#64748b;margin-top:10px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="logo" style="text-decoration:none;color:inherit">&#9670; XORCISM</a>
+  <span class="spacer"></span>
+  <a href="/?db=XORCISM&amp;table=ASSET">&#128450;&#65039; Assets</a>
+  <a href="/dashboard">&#128202; Dashboard</a>
+  <a href="/threat-feeds">&#128225; Threat Feeds</a>
+  <a href="/attack">&#127919; ATT&amp;CK</a>
+  <a href="/d3fend">&#128737;&#65039; D3FEND</a>
+  <a href="/ask" style="color:#7c83fd">&#129302; Ask AI</a>
+</div>
+
+<div class="ask-wrap">
+  <div class="ask-head">
+    <h2>&#129302; Ask the threat model</h2>
+    <span class="ai-badge" id="ai-status">…</span>
+  </div>
+  <div class="ask-box">
+    <textarea id="ask-q" placeholder="Ex. : Quelles sont les menaces les plus impactantes pour mon organisation ?"></textarea>
+  </div>
+  <div class="ask-ex" id="ask-examples"></div>
+  <div style="margin-bottom:14px">
+    <button class="btn btn-primary btn-sm" id="ask-btn">Poser la question</button>
+  </div>
+  <div id="ask-answer">La réponse de l'IA locale s'affichera ici. Elle s'appuie sur vos données XORCISM (KEV sur actifs, exposition, ATT&amp;CK, hunts).</div>
+  <div class="ask-sources" id="ask-sources"></div>
+  <div class="ask-hint">
+    100&nbsp;% local &amp; privé : les questions et vos données ne quittent pas la machine (serveur Ollama local).
+    Si l'IA est indisponible, installez <a href="https://ollama.com" target="_blank" rel="noopener" style="color:#7c83fd">Ollama</a>
+    puis <code>ollama pull llama3.1:8b</code>.
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/ask.js"></script>
+</body>
+</html>

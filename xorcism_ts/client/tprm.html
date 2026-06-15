@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — TPRM</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .tprm-wrap{max-width:1200px;margin:0 auto;padding:16px}
+  .tprm-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
+  .tprm-head h2{margin:0;font-size:18px;color:#e2e8f0}
+  .tprm-stats{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}
+  .tprm-stat{background:#13162a;border:1px solid #2d3250;border-radius:8px;padding:10px 14px;min-width:120px}
+  .tprm-stat .n{font-size:22px;font-weight:700;color:#e2e8f0}
+  .tprm-stat .l{font-size:11px;color:#94a3b8;margin-top:2px}
+  table.tprm{width:100%;border-collapse:collapse;font-size:13px}
+  table.tprm th{text-align:left;padding:7px 10px;color:#94a3b8;border-bottom:1px solid #2d3250;position:sticky;top:0;background:#0f1117;font-weight:600}
+  table.tprm td{padding:6px 10px;border-bottom:1px solid #1e2133;color:#cbd5e1;vertical-align:top}
+  table.tprm tr:hover td{background:#13162a}
+  .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;border:1px solid currentColor}
+  .ov{color:#f87171;font-weight:700}
+  .tprm-filter{background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:13px;padding:6px 9px;min-width:220px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="logo" style="text-decoration:none;color:inherit">&#9670; XORCISM</a>
+  <span class="spacer"></span>
+  <a href="/?db=XORCISM&amp;table=ASSET">&#128450;&#65039; Assets</a>
+  <a href="/dashboard">&#128202; Dashboard</a>
+  <a href="/tprm" style="color:#7c83fd">&#129309; TPRM</a>
+  <a href="/?db=XCOMPLIANCE&amp;table=QUESTIONNAIREFORORGANISATION">&#9881;&#65039; Assessments</a>
+</div>
+
+<div class="tprm-wrap">
+  <div class="tprm-head">
+    <h2>&#129309; <span data-i18n="tprm.title">Third-Party Risk Management</span></h2>
+    <input id="tprm-search" class="tprm-filter" type="search" data-i18n-placeholder="tprm.search" placeholder="Filtrer (organisation, questionnaire, statut…)">
+    <span style="flex:1"></span>
+    <a class="btn btn-primary btn-sm" href="/?db=XCOMPLIANCE&amp;table=QUESTIONNAIREFORORGANISATION" data-i18n="tprm.new">+ Nouvelle évaluation</a>
+  </div>
+  <div class="tprm-stats" id="tprm-stats"></div>
+  <div id="tprm-table"></div>
+  <div class="tprm-hint" id="tprm-hint" style="font-size:12px;color:#64748b;margin-top:12px"></div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/tprm.js"></script>
+</body>
+</html>
