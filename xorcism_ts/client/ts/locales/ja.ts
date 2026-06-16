@@ -128,6 +128,8 @@ export const ja: Record<string, string> = {
   "stix.xorcism": "XORCISM データ",
   "stix.loadHunts": "🎯 ハントを読み込み (XTHREAT)",
   "stix.loadHuntsHint": "ATT&CK テクニックおよび IOC に紐づくハント。",
+  "stix.loadReports": "📄 レポートを読み込む (XTHREAT)",
+  "stix.loadReportsHint": "言及された ATT&CK テクニックおよび CVE に紐づくレポート。",
   "stix.examples": "サンプル (stix/ フォルダ)",
   "stix.upload": ".json ファイル",
   "stix.paste": "JSON を貼り付け (bundle / envelope / オブジェクト)",

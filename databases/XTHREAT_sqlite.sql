@@ -1204,6 +1204,18 @@ CREATE TABLE IF NOT EXISTS HYPOTHESIS (
   HypothesisID INTEGER PRIMARY KEY,
   HypothesisGUID TEXT, HypothesisName TEXT, HypothesisDescription TEXT,
   CreatedDate DATE, ValidFromDate DATE, ValidUntil DATE, ConfidenceLevel TEXT);
+CREATE TABLE IF NOT EXISTS THREATREPORT (
+  ThreatReportID INTEGER PRIMARY KEY,
+  ThreatReportGUID TEXT, ThreatReportName TEXT, ThreatReportDescription TEXT,
+  CreatedDate DATE, ValidFrom DATE, ValidUntil DATE, PersonID INTEGER,
+  ThreatReportFileName TEXT, ThreatReportSource TEXT);
+CREATE TABLE IF NOT EXISTS SIGMARULE (
+  SigmaRuleID INTEGER PRIMARY KEY,
+  SigmaRuleGUID TEXT, SigmaRuleName TEXT, SigmaRuleDescription TEXT,
+  SigmaYaml TEXT, LogSource TEXT, Level TEXT, Status TEXT, Author TEXT,
+  SigmaReference TEXT, AttackTags TEXT,
+  SplQuery TEXT, KqlQuery TEXT, EqlQuery TEXT,
+  CreatedDate DATE, ValidFrom DATE, ValidUntil DATE);
 CREATE TABLE IF NOT EXISTS HUNTATTACK (
   HuntAttackID INTEGER PRIMARY KEY, HuntID INTEGER, AttackID TEXT,
   AttackTechniqueID INTEGER, CreatedDate DATE, UNIQUE(HuntID, AttackID));

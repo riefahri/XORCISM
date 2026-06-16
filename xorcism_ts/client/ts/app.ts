@@ -190,12 +190,17 @@ const GRID_VALUE_LABELS: Record<string, Record<string, string>> = {
   "ASSET.PublicFacing": { ...YES_NO },
   // Patch status: 0 → Unpatched, 1 → Patched
   "ASSETVULNERABILITY.Status": { "0": "Unpatched", "1": "Patched" },
+  // Business value 1–5 → label (form select stores the int; grid shows the label).
+  "ASSET.BusinessValue": { "1": "Very Low", "2": "Low", "3": "Medium", "4": "High", "5": "Very High" },
 };
 // Cell color based on the DISPLAYED value (key "TABLE.Column" → value → CSS color).
 // E.g. "Yes" in red for the computed columns Exploited / KEV.
 const GRID_VALUE_COLORS: Record<string, Record<string, string>> = {
   "ASSETVULNERABILITY.Exploited": { Yes: "var(--danger)" },
   "ASSETVULNERABILITY.KEV": { Yes: "var(--danger)" },
+  // Business value heat scale (low → critical importance). Keyed by the DISPLAYED
+  // label (the grid colors on the displayed value, which comes from GRID_VALUE_LABELS).
+  "ASSET.BusinessValue": { "Very Low": "#22c55e", "Low": "#84cc16", "Medium": "#eab308", "High": "#f97316", "Very High": "#ef4444" },
 };
 function gridLabel(table: string, col: string, val: unknown): string | null {
   const map = GRID_VALUE_LABELS[`${table}.${col}`];
@@ -530,6 +535,40 @@ function mkStaticDatalistInput(id: string, options: string[], currentVal: string
   wrap.appendChild(input);
   wrap.appendChild(dl);
   return wrap;
+}
+
+// <select> that DISPLAYS a label but stores/submits the option value (e.g. an
+// ordinal kept as an int, like ASSET.BusinessValue 1–5). Key "TABLE.Column".
+interface LabeledOption { value: string; label: string }
+const LABELED_SELECT_COLUMNS: Record<string, LabeledOption[]> = {
+  "ASSET.BusinessValue": [
+    { value: "1", label: "Very Low" },
+    { value: "2", label: "Low" },
+    { value: "3", label: "Medium" },
+    { value: "4", label: "High" },
+    { value: "5", label: "Very High" },
+  ],
+};
+function getLabeledSelect(table: string, col: string): LabeledOption[] | null {
+  return LABELED_SELECT_COLUMNS[`${table}.${col}`] ?? null;
+}
+// <select> showing the label; value (submitted) = the stored int. Empty option = unset.
+function mkLabeledSelectInput(id: string, options: LabeledOption[], currentVal: string): HTMLElement {
+  const sel = document.createElement("select");
+  sel.id = id;
+  sel.style.cssText = FIELD_INPUT_CSS;
+  const blank = document.createElement("option");
+  blank.value = "";
+  blank.textContent = "—";
+  sel.appendChild(blank);
+  for (const o of options) {
+    const op = document.createElement("option");
+    op.value = o.value;
+    op.textContent = o.label;
+    sel.appendChild(op);
+  }
+  sel.value = currentVal || "";
+  return sel;
 }
 
 // Read-only <input> for a server-computed column (e.g. ASSET.RiskScore).
@@ -1994,7 +2033,7 @@ const STIX_SCO_TYPES = [
 const OPENCTI_ENTITY_TABLES = [
   "THREAT", "THREATACTOR", "THREATCAMPAIGN", "ATTACKGROUP", "ATTACKSOFTWARE",
   "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "IOC", "RELATIONSHIP",
-  "SIGHTING", "OBSERVABLE",
+  "SIGHTING", "OBSERVABLE", "THREATREPORT",
 ];
 for (const t of OPENCTI_ENTITY_TABLES) {
   STATIC_DATALIST_COLUMNS[`${t}.TLP`] = OPENCTI_TLP_VALUES;
@@ -2003,12 +2042,12 @@ for (const t of OPENCTI_ENTITY_TABLES) {
   GRID_VALUE_COLORS[`${t}.TLP`] = OPENCTI_TLP_COLORS;
 }
 for (const t of ["THREAT", "THREATACTOR", "THREATCAMPAIGN", "ATTACKGROUP", "ATTACKSOFTWARE",
-  "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "IOC", "RELATIONSHIP"]) {
+  "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "IOC", "RELATIONSHIP", "THREATREPORT"]) {
   CHECKBOX_COLUMNS[`${t}.Revoked`] = { checked: "1", unchecked: "0", default: "0" };
 }
 // Workflow status (entities + indicators): dropdown + default + colors.
 for (const t of ["THREAT", "THREATACTOR", "THREATCAMPAIGN", "ATTACKGROUP", "ATTACKSOFTWARE",
-  "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "IOC"]) {
+  "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "IOC", "THREATREPORT"]) {
   STATIC_DATALIST_COLUMNS[`${t}.WorkflowStatus`] = OPENCTI_WORKFLOW_VALUES;
   STATIC_DATALIST_DEFAULTS[`${t}.WorkflowStatus`] = "New";
   GRID_VALUE_COLORS[`${t}.WorkflowStatus`] = OPENCTI_WORKFLOW_COLORS;
@@ -2022,6 +2061,8 @@ FK_COLUMNS["SIGHTING.IOCID"] = { db: "XTHREAT", table: "IOC", idCol: "IOCID", la
 // "based-on" relationship: indicator (IOC) ↔ observable.
 FK_COLUMNS["INDICATOROBSERVABLE.IOCID"] = { db: "XTHREAT", table: "IOC", idCol: "IOCID", labelCol: "IOCName", distinct: true };
 FK_COLUMNS["INDICATOROBSERVABLE.ObservableID"] = { db: "XTHREAT", table: "OBSERVABLE", idCol: "ObservableID", labelCol: "Value", distinct: true };
+// THREATREPORT author → PERSON (cross-database FK to XORCISM.PERSON).
+FK_COLUMNS["THREATREPORT.PersonID"] = { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", searchLabel: "Author" };
 
 // Labels columns handled by a chip selector (reuses the ASSET tag-picker UX).
 const OPENCTI_LABEL_TABLES = new Set([...OPENCTI_ENTITY_TABLES]);
@@ -3137,6 +3178,68 @@ function appendSocradarIocField(prefix: string): void {
   };
   input.addEventListener("input", update);
   update();
+}
+
+// "↓ EPSS" button placed to the RIGHT of the EPSS field (VULNERABILITY form):
+// fetches the EPSS score from FIRST.org for the CVE in VULReferentialID.
+function appendEpssButton(prefix: string): void {
+  const input = document.getElementById(`${prefix}EPSS`) as HTMLInputElement | null;
+  if (!input || input.dataset.epssWired) return;
+  const parent = input.parentElement;
+  if (!parent) return;
+  input.dataset.epssWired = "1";
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:6px;align-items:center";
+  parent.insertBefore(row, input);
+  input.style.flex = "1";
+  row.appendChild(input);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-ghost btn-sm";
+  btn.textContent = "↓ EPSS";
+  btn.title = "Fetch the EPSS score from FIRST.org for the CVE in VULReferentialID";
+  btn.style.flex = "0 0 auto";
+  row.appendChild(btn);
+  const cveInput = document.getElementById(`${prefix}VULReferentialID`) as HTMLInputElement | null;
+  const cveOf = (): string => (cveInput?.value || "").trim().toUpperCase();
+
+  // `silent` suppresses validation/error toasts (used by the auto-on-blur path).
+  async function fetchEpss(silent: boolean): Promise<void> {
+    const cve = cveOf();
+    if (!/^CVE-\d{4}-\d{4,7}$/.test(cve)) {
+      if (!silent) toast("Set VULReferentialID to a CVE id first (e.g. CVE-2022-27225).");
+      return;
+    }
+    const old = btn.textContent; btn.disabled = true; btn.textContent = "…";
+    try {
+      const r = await fetch(`/api/epss?cve=${encodeURIComponent(cve)}`);
+      const d = await r.json().catch(() => ({})) as { error?: string; epss?: number | null; percentile?: number | null; date?: string };
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      if (d.epss == null) { if (!silent) toast(`No EPSS score published for ${cve}.`); return; }
+      input.value = String(d.epss);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      const pct = d.percentile != null ? ` (percentile ${(d.percentile * 100).toFixed(1)}%)` : "";
+      toast(`EPSS for ${cve}: ${d.epss}${pct}${d.date ? ` — ${d.date}` : ""}`);
+    } catch (e) {
+      if (!silent) toast("EPSS fetch failed: " + String(e));
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  }
+  btn.onclick = () => void fetchEpss(false);
+
+  // Auto-populate EPSS when leaving the VULReferentialID field with a CVE id.
+  // Tracks the last auto-fetched CVE so re-blurring the same value doesn't refetch.
+  if (cveInput && !cveInput.dataset.epssBlurWired) {
+    cveInput.dataset.epssBlurWired = "1";
+    cveInput.addEventListener("blur", () => {
+      const cve = cveOf();
+      if (/^CVE-\d{4}-\d{4,7}$/.test(cve) && cveInput.dataset.epssAuto !== cve) {
+        cveInput.dataset.epssAuto = cve;
+        void fetchEpss(true);
+      }
+    });
+  }
 }
 
 // ── CIRCL vulnerability-lookup search (KEV catalogues) ─────────────────────
@@ -4383,6 +4486,14 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
       return;
     }
 
+    // Labeled <select> (shows a label, stores the int value, e.g. BusinessValue)
+    const lsEf = getLabeledSelect(currentTable, col.name);
+    if (lsEf) {
+      div.appendChild(mkLabeledSelectInput(`ef_${col.name}`, lsEf, currentVal == null ? "" : String(currentVal)));
+      body.appendChild(div);
+      return;
+    }
+
     // Dropdown with input (static options: e.g. Role, status)
     const sdlEf = getStaticDatalist(currentTable, col.name);
     if (sdlEf) {
@@ -4483,7 +4594,7 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
   // Web security scanner + network scanner (ASSET form)
   if (currentTable === "ASSET") { void appendWebScanPanel("ef_"); void appendNetworkScanPanel("ef_"); }
   // SOCRadar IOC Radar: search a CVE (VULNERABILITY form)
-  if (isOsvTable()) appendSocradarIocField("ef_");
+  if (isOsvTable()) { appendSocradarIocField("ef_"); appendEpssButton("ef_"); }
   // AI answer suggestion (QUESTION / OCIL form)
   if (currentTable === "QUESTION") appendOcilSuggestPanel(body, "ef_");
 
@@ -4563,6 +4674,10 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
     appendQuestionnaireImportButton(body); // "📥 Excel import" at the top of the form
     await appendQuestionnaireQuestions(body, Number(row["QuestionnaireID"]) || null);
     appendQuestionnaireExcelButton(body, Number(row["QuestionnaireID"]) || null, String(row["QuestionnaireName"] ?? ""));
+  } else if (currentTable === "THREATREPORT") {
+    appendThreatReportImportButton(body, "ef_"); // PDF ingestion at the top of the form
+  } else if (currentTable === "SIGMARULE") {
+    appendSigmaConvertButton(body, "ef_"); // Sigma → SPL/KQL/EQL at the top of the form
   } else if (currentTable === "ANSWER") {
     await appendAnswerEvidences(body, Number(row["AnswerID"]) || null);
   } else if (currentTable === "THREAT") {
@@ -5851,6 +5966,115 @@ function appendQuestionnaireImportButton(body: HTMLElement): void {
   hint.textContent = "Crée un nouveau questionnaire à partir d'un fichier (.xlsx/.csv).";
   div.appendChild(btn); div.appendChild(hint);
   body.insertBefore(div, body.firstChild); // always at the top, whatever the call order
+}
+
+// PDF threat-report ingestion panel placed at the TOP of the THREATREPORT form.
+// Uploads the PDF → parsed server-side (pdf-parse): threat actors are added to
+// THREATACTOR and IOCs to IOC; the file name / source are written into the form.
+function appendThreatReportImportButton(body: HTMLElement, prefix: string): void {
+  const div = document.createElement("div");
+  div.style.cssText = "margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap";
+  const label = document.createElement("div");
+  label.textContent = "📄 Import threat report (PDF)";
+  label.style.cssText = "flex:0 0 100%;font-size:12px;color:var(--text-muted)";
+  const file = document.createElement("input");
+  file.type = "file"; file.accept = "application/pdf,.pdf";
+  file.style.cssText = "flex:1;min-width:200px;font-size:12px;color:var(--text)";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "btn btn-primary btn-sm"; btn.textContent = "Upload & parse";
+  btn.title = "Extracts threat actors → THREATACTOR and IOCs → IOC";
+  const status = document.createElement("span");
+  status.style.cssText = "flex:0 0 100%;font-size:11px;color:var(--text-dim)";
+  status.textContent = "Select a PDF: threat actors & IOCs are auto-extracted; the file name is stored on the report.";
+  btn.onclick = async () => {
+    const f = file.files?.[0];
+    if (!f) { toast("Select a PDF first."); return; }
+    btn.disabled = true; status.textContent = "Parsing…";
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(r.error); r.readAsDataURL(f);
+      });
+      const resp = await fetch("/api/threatreport/parse", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: f.name, dataBase64: dataUrl }),
+      });
+      const data = await resp.json().catch(() => ({})) as {
+        error?: string; fileName?: string; source?: string;
+        newActors?: number; newIocs?: number; actorsFound?: number; iocsFound?: number;
+      };
+      if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+      const fn = document.getElementById(`${prefix}ThreatReportFileName`) as HTMLInputElement | null;
+      if (fn) fn.value = data.fileName ?? f.name;
+      const src = document.getElementById(`${prefix}ThreatReportSource`) as HTMLInputElement | null;
+      if (src && !src.value.trim() && data.source) src.value = data.source;
+      status.textContent = `Parsed “${data.fileName}”: +${data.newActors} actors (of ${data.actorsFound}), +${data.newIocs} IOCs (of ${data.iocsFound}).`;
+      toast(`Threat report parsed: +${data.newActors} actors, +${data.newIocs} IOCs added.`);
+    } catch (e) {
+      status.textContent = "Failed: " + String(e); toast("Parse failed: " + String(e));
+    } finally { btn.disabled = false; }
+  };
+  div.appendChild(label); div.appendChild(file); div.appendChild(btn); div.appendChild(status);
+  body.insertBefore(div, body.firstChild);
+}
+
+// Sigma → SPL/KQL/EQL conversion panel at the TOP of the SIGMARULE form. Paste the
+// Sigma YAML; "Convert" fills SigmaYaml + SplQuery/KqlQuery/EqlQuery (+ metadata).
+function appendSigmaConvertButton(body: HTMLElement, prefix: string): void {
+  const getEl = (col: string) =>
+    document.getElementById(`${prefix}${col}`) as HTMLInputElement | HTMLTextAreaElement | null;
+  const div = document.createElement("div");
+  div.style.cssText = "margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:12px";
+  const label = document.createElement("div");
+  label.textContent = "🛡️ Sigma rule → SPL / KQL / EQL";
+  label.style.cssText = "font-size:12px;color:var(--text-muted);margin-bottom:6px";
+  const taCss = "width:100%;font-family:monospace;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px";
+  const yamlTa = document.createElement("textarea");
+  yamlTa.rows = 7; yamlTa.placeholder = "Paste a Sigma rule (YAML)…"; yamlTa.style.cssText = taCss;
+  yamlTa.value = getEl("SigmaYaml")?.value || "";
+  yamlTa.oninput = () => { const f = getEl("SigmaYaml"); if (f) f.value = yamlTa.value; };
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "btn btn-primary btn-sm"; btn.textContent = "Convert → SPL / KQL / EQL";
+  btn.style.marginTop = "8px";
+  const status = document.createElement("span");
+  status.style.cssText = "font-size:11px;color:var(--text-dim);margin-left:10px";
+  const out = document.createElement("div");
+  out.style.cssText = "margin-top:8px;display:none;flex-direction:column;gap:6px";
+  const mkBox = (title: string): HTMLTextAreaElement => {
+    const h = document.createElement("div"); h.textContent = title; h.style.cssText = "font-size:11px;color:var(--text-muted)";
+    const ta = document.createElement("textarea"); ta.readOnly = true; ta.rows = 3; ta.style.cssText = taCss;
+    out.appendChild(h); out.appendChild(ta); return ta;
+  };
+  const splTa = mkBox("SPL (Splunk)"), kqlTa = mkBox("KQL (Sentinel)"), eqlTa = mkBox("EQL (Elastic)");
+  btn.onclick = async () => {
+    const yaml = yamlTa.value.trim();
+    if (!yaml) { toast("Paste a Sigma rule first."); return; }
+    const f = getEl("SigmaYaml"); if (f) f.value = yaml;
+    btn.disabled = true; status.textContent = "Converting…";
+    try {
+      const resp = await fetch("/api/sigma/convert", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ yaml }),
+      });
+      const d = await resp.json().catch(() => ({})) as {
+        error?: string; title?: string; level?: string; status?: string; logsource?: string;
+        attackTags?: string[]; spl?: string; kql?: string; eql?: string;
+      };
+      if (!resp.ok) throw new Error(d.error || `HTTP ${resp.status}`);
+      splTa.value = d.spl || ""; kqlTa.value = d.kql || ""; eqlTa.value = d.eql || "";
+      out.style.display = "flex";
+      const set = (col: string, val?: string) => { const el = getEl(col); if (el) el.value = val || ""; };
+      set("SplQuery", d.spl); set("KqlQuery", d.kql); set("EqlQuery", d.eql);
+      const setIfEmpty = (col: string, val?: string) => { const el = getEl(col); if (el && !el.value.trim() && val) el.value = val; };
+      setIfEmpty("SigmaRuleName", d.title); setIfEmpty("Level", d.level); setIfEmpty("Status", d.status);
+      setIfEmpty("LogSource", d.logsource); setIfEmpty("AttackTags", (d.attackTags || []).join(", "));
+      status.textContent = `Converted${d.title ? ` “${d.title}”` : ""} — fields filled.`;
+      toast("Sigma converted → SPL / KQL / EQL.");
+    } catch (e) {
+      status.textContent = "Failed: " + String(e); toast("Sigma convert failed: " + String(e));
+    } finally { btn.disabled = false; }
+  };
+  const row = document.createElement("div"); row.appendChild(btn); row.appendChild(status);
+  div.appendChild(label); div.appendChild(yamlTa); div.appendChild(row); div.appendChild(out);
+  body.insertBefore(div, body.firstChild);
 }
 
 // Import modal window: upload → column detection → mapping → import.
@@ -7230,6 +7454,14 @@ async function openInsertModal(): Promise<void> {
       return;
     }
 
+    // Labeled <select> (shows a label, stores the int value, e.g. BusinessValue)
+    const lsF = getLabeledSelect(currentTable, col.name);
+    if (lsF) {
+      div.appendChild(mkLabeledSelectInput(`f_${col.name}`, lsF, ""));
+      body.appendChild(div);
+      return;
+    }
+
     // Dropdown with input (static options: e.g. Role, status)
     const sdlF = getStaticDatalist(currentTable, col.name);
     if (sdlF) {
@@ -7335,7 +7567,7 @@ async function openInsertModal(): Promise<void> {
   // Web security scanner + network scanner (ASSET form)
   if (currentTable === "ASSET") { void appendWebScanPanel("f_"); void appendNetworkScanPanel("f_"); wireAssetScreenshot("f_"); }
   // SOCRadar IOC Radar: search a CVE (VULNERABILITY form)
-  if (isOsvTable()) appendSocradarIocField("f_");
+  if (isOsvTable()) { appendSocradarIocField("f_"); appendEpssButton("f_"); }
   // AI answer suggestion (QUESTION / OCIL form)
   if (currentTable === "QUESTION") appendOcilSuggestPanel(body, "f_");
 
@@ -7393,6 +7625,10 @@ async function openInsertModal(): Promise<void> {
     pendingQuestionLinks = new Set(); // prepares the links, saved at insertion
     appendQuestionnaireImportButton(body); // "📥 Excel import" at the top of the form
     await appendQuestionnaireQuestions(body, null);
+  } else if (currentTable === "THREATREPORT") {
+    appendThreatReportImportButton(body, "f_"); // PDF ingestion at the top of the form
+  } else if (currentTable === "SIGMARULE") {
+    appendSigmaConvertButton(body, "f_"); // Sigma → SPL/KQL/EQL at the top of the form
   } else if (currentTable === "ANSWER") {
     pendingAnswerEvidences = new Set(); // prepares the evidence, saved at insertion
     await appendAnswerEvidences(body, null);

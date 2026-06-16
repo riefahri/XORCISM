@@ -385,6 +385,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Loads the XTHREAT threat reports (THREATREPORT → STIX report, linked to the
+  // ATT&CK techniques / CVEs they mention) as a STIX bundle.
+  $("sg-load-reports").onclick = async () => {
+    try {
+      const r = await fetch("/api/stix/reports");
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+      const text = await r.text();
+      ($("sg-json") as HTMLTextAreaElement).value = text;
+      visualizeFromText(text);
+    } catch (e) {
+      toast("Reports: " + String(e));
+    }
+  };
+
   ($("sg-examples") as HTMLSelectElement).onchange = async (e) => {
     const name = (e.target as HTMLSelectElement).value;
     if (!name) return;

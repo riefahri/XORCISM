@@ -25,6 +25,9 @@ import screenshotRouter from "./routes/screenshot";
 import circlRouter from "./routes/circl";
 import aiRouter from "./routes/ai";
 import uploadRouter, { UPLOAD_DIR } from "./routes/upload";
+import threatReportRouter from "./routes/threatreport";
+import sigmaRouter from "./routes/sigma";
+import epssRouter from "./routes/epss";
 import { antibot } from "./antibot";
 import { getJobDb } from "./jobs";
 import { startScheduler } from "./scheduler";
@@ -38,7 +41,7 @@ import {
   seedAdmin,
 } from "./auth";
 import { purgeExpiredSessions } from "./xid";
-import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables } from "./db";
+import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureAssetColumns, ensureVulnerabilityColumns } from "./db";
 import { tr } from "./i18n";
 
 const PORT = Number(process.env.PORT) || 9292;
@@ -124,6 +127,9 @@ app.use("/api", screenshotRouter); // URL screenshot (ASSET websiteurl → Asset
 app.use("/api", circlRouter); // CIRCL vulnerability-lookup (KEV search + import)
 app.use("/api", aiRouter); // local AI (Ollama): "Ask the threat model" + OCIL suggestion
 app.use("/api", uploadRouter); // file upload (evidence, etc.)
+app.use("/api", threatReportRouter); // THREATREPORT PDF ingestion → IOC / THREATACTOR
+app.use("/api", sigmaRouter); // Sigma rule → SPL / KQL / EQL conversion
+app.use("/api", epssRouter); // FIRST.org EPSS lookup (VULNERABILITY form)
 app.use("/api", connectorsRouter);
 app.use("/api", explorerRouter);
 
@@ -227,6 +233,8 @@ ensureThreatModelTables(); // creates the THREATMODEL* tables (XORCISM.db) if ne
 ensureThreatTables(); // creates the XTHREAT tables (IOC…) if needed
 ensureOpenctiColumns(); // adapts the XTHREAT tables to OpenCTI properties (Confidence/TLP/Sighting…)
 ensureEmulationTables(); // adversary emulation / validation (BAS) module: EMULATION*/ATOMICTEST
+ensureAssetColumns(); // adds ASSET.BusinessValue (and future core ASSET fields) if missing
+ensureVulnerabilityColumns(); // adds VULNERABILITY.EPSS (Exploit Prediction Scoring System) if missing
 ensureGrcColumns(); // advanced GRC: CRQ/FAIR (risk register), findings workflow, policy lifecycle
 ensureBugBountyTables(); // Bug Bounty program management (XVULNERABILITY): BUGBOUNTY*
 ensureEbiosTables(); // EBIOS Risk Manager (ANSSI) in XCOMPLIANCE: reuses RISKASSESSMENT/RISKSCENARIO + EBIOS* tables

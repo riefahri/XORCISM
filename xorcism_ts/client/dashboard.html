@@ -29,6 +29,17 @@
 
   <div class="card">
     <div class="card-header">
+      <span class="card-title" data-i18n="dash.riskExposure">Exposition au risque (risque &times; valeur)</span>
+      <span class="statusbar" id="exp-stats"></span>
+    </div>
+    <div style="position:relative;height:60vh;min-height:360px">
+      <canvas id="exp-chart"></canvas>
+    </div>
+    <div class="empty" id="exp-empty" style="display:none" data-i18n="dash.noExposure">Aucune exposition calculable (n&eacute;cessite RiskScore + FinancialValue sur des actifs).</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
       <span class="card-title" data-i18n="dash.vulnByYear">Vuln&eacute;rabilit&eacute;s par ann&eacute;e</span>
       <span class="statusbar" id="vuln-stats"></span>
     </div>
@@ -47,17 +58,6 @@
       <canvas id="fin-chart"></canvas>
     </div>
     <div class="empty" id="fin-empty" style="display:none" data-i18n="dash.noFinancial">Aucune valeur financi&egrave;re renseign&eacute;e (champ ASSET.FinancialValue).</div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title" data-i18n="dash.riskExposure">Exposition au risque (risque &times; valeur)</span>
-      <span class="statusbar" id="exp-stats"></span>
-    </div>
-    <div style="position:relative;height:60vh;min-height:360px">
-      <canvas id="exp-chart"></canvas>
-    </div>
-    <div class="empty" id="exp-empty" style="display:none" data-i18n="dash.noExposure">Aucune exposition calculable (n&eacute;cessite RiskScore + FinancialValue sur des actifs).</div>
   </div>
 
   <div class="card">

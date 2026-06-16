@@ -182,7 +182,7 @@ agentAdminRouter.post("/agent-scan", (req: Request, res: Response) => {
   if (!agent) return void res.status(400).json({ error: "agent requis" });
   if (!valid.includes(String(kind))) return void res.status(400).json({ error: "type de scan invalide" });
   // Checks that the agent exists
-  if (!listAgents().some((a) => a.name === agent)) return void res.status(404).json({ error: "agent introuvable pour cet asset" });
+  if (!listAgents().some((a) => a.name === agent)) return void res.status(404).json({ error: "agent not found for this asset" });
   const id = createAgentJob(String(agent), String(kind), {}, req.user?.UserID ?? null);
   xid.addAudit({ userId: req.user?.UserID ?? null, action: "agent_scan", resourceType: "agent",
     resourceKey: String(agent), detail: `kind=${kind} job=${id}`, ip: clientIp(req) });

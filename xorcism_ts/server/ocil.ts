@@ -321,7 +321,7 @@ export function validateOcil(xml: string): { ok: boolean; errors: string[] } {
 // ── IMPORT ──────────────────────────────────────────────────────────────────────
 export interface ImportResult { questionnaires: number; questions: number; choices: number; links: number }
 
-export function importOcil(xml: string): ImportResult {
+export function importOcil(xml: string, tenantId: number | null = null): ImportResult {
   const check = validateOcil(xml);
   if (!check.ok) throw new Error("OCIL invalide :\n• " + check.errors.join("\n• "));
   const root = parseXml(xml);
@@ -354,8 +354,8 @@ export function importOcil(xml: string): ImportResult {
         const def = qn.attrs.default_answer || qn.attrs.default_answer_ref || null;
         if (qid == null) {
           qid = nextId("QUESTION", "QuestionID");
-          db.prepare(`INSERT INTO QUESTION (QuestionID, QuestionName, QuestionDescription, QuestionText, OcilId, QuestionType, DefaultAnswer, Model, CreatedDate)
-                      VALUES (?,?,?,?,?,?,?,?,?)`).run(qid, text.slice(0, 120) || oid, text, text, oid, type, def, model, nowTs());
+          db.prepare(`INSERT INTO QUESTION (QuestionID, QuestionName, QuestionDescription, QuestionText, OcilId, QuestionType, DefaultAnswer, Model, CreatedDate, TenantID)
+                      VALUES (?,?,?,?,?,?,?,?,?,?)`).run(qid, text.slice(0, 120) || oid, text, text, oid, type, def, model, nowTs(), tenantId);
           out.questions++;
         } else {
           db.prepare(`UPDATE QUESTION SET QuestionText=?, QuestionType=?, DefaultAnswer=?, Model=?, ModifiedDate=? WHERE QuestionID=?`)
@@ -370,7 +370,7 @@ export function importOcil(xml: string): ImportResult {
           let aid = findBy("ANSWER", "AnswerID", choid);
           if (aid == null) {
             aid = nextId("ANSWER", "AnswerID");
-            db.prepare("INSERT INTO ANSWER (AnswerID, Answer, OcilId, CreatedDate) VALUES (?,?,?,?)").run(aid, label, choid, nowTs());
+            db.prepare("INSERT INTO ANSWER (AnswerID, Answer, OcilId, CreatedDate, TenantID) VALUES (?,?,?,?,?)").run(aid, label, choid, nowTs(), tenantId);
             out.choices++;
           } else {
             db.prepare("UPDATE ANSWER SET Answer=?, ModifiedDate=? WHERE AnswerID=?").run(label, nowTs(), aid);
@@ -400,8 +400,8 @@ export function importOcil(xml: string): ImportResult {
             if (aid == null) continue;
             const existing = db.prepare("SELECT AnswerForQuestionID AS id FROM ANSWERFORQUESTION WHERE QuestionID=? AND AnswerID=?").get(qid, aid) as { id: number } | undefined;
             if (existing) db.prepare("UPDATE ANSWERFORQUESTION SET Result=?, DisplayOrder=? WHERE AnswerForQuestionID=?").run(res, ord, existing.id);
-            else db.prepare("INSERT INTO ANSWERFORQUESTION (AnswerForQuestionID, QuestionID, AnswerID, Result, DisplayOrder, CreatedDate) VALUES (?,?,?,?,?,?)")
-              .run(nextId("ANSWERFORQUESTION", "AnswerForQuestionID"), qid, aid, res, ord, nowTs());
+            else db.prepare("INSERT INTO ANSWERFORQUESTION (AnswerForQuestionID, QuestionID, AnswerID, Result, DisplayOrder, CreatedDate, TenantID) VALUES (?,?,?,?,?,?,?)")
+              .run(nextId("ANSWERFORQUESTION", "AnswerForQuestionID"), qid, aid, res, ord, nowTs(), tenantId);
             ord++;
           }
         }
@@ -419,8 +419,8 @@ export function importOcil(xml: string): ImportResult {
         let qnid = findBy("QUESTIONNAIRE", "QuestionnaireID", oid);
         if (qnid == null) {
           qnid = nextId("QUESTIONNAIRE", "QuestionnaireID");
-          db.prepare(`INSERT INTO QUESTIONNAIRE (QuestionnaireID, QuestionnaireName, QuestionnaireDescription, OcilId, Operator, CreatedDate)
-                      VALUES (?,?,?,?,?,?)`).run(qnid, title || oid, desc, oid, op, nowTs());
+          db.prepare(`INSERT INTO QUESTIONNAIRE (QuestionnaireID, QuestionnaireName, QuestionnaireDescription, OcilId, Operator, CreatedDate, TenantID)
+                      VALUES (?,?,?,?,?,?,?)`).run(qnid, title || oid, desc, oid, op, nowTs(), tenantId);
           out.questionnaires++;
         } else {
           db.prepare("UPDATE QUESTIONNAIRE SET QuestionnaireName=?, QuestionnaireDescription=?, Operator=? WHERE QuestionnaireID=?")
@@ -434,8 +434,8 @@ export function importOcil(xml: string): ImportResult {
           const qOcil = taToQOcil.get(taId);
           const qid = qOcil ? qIdByOcil.get(qOcil) : undefined;
           if (qid == null) continue;
-          db.prepare(`INSERT INTO QUESTIONFORQUESTIONNAIRE (QuestionForQuestionnaireID, QuestionnaireID, QuestionID, DisplayOrder, CreatedDate)
-                      VALUES (?,?,?,?,?)`).run(nextId("QUESTIONFORQUESTIONNAIRE", "QuestionForQuestionnaireID"), qnid, qid, ord, nowTs());
+          db.prepare(`INSERT INTO QUESTIONFORQUESTIONNAIRE (QuestionForQuestionnaireID, QuestionnaireID, QuestionID, DisplayOrder, CreatedDate, TenantID)
+                      VALUES (?,?,?,?,?,?)`).run(nextId("QUESTIONFORQUESTIONNAIRE", "QuestionForQuestionnaireID"), qnid, qid, ord, nowTs(), tenantId);
           out.links++; ord++;
         }
       }

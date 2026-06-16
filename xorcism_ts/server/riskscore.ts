@@ -75,7 +75,7 @@ export class AssetRiskScoreCalculator {
       .prepare(
         'SELECT AssetCriticalityLevel, TaskCriticalAsset, DefenseCriticalAsset, ' +
           'managedbythirdparty, hostedbythirdparty, isEncrypted, PublicFacing, ' +
-          'PersonID, FinancialValue FROM "ASSET" WHERE AssetID = ?'
+          'PersonID, FinancialValue, BusinessValue FROM "ASSET" WHERE AssetID = ?'
       )
       .get(assetId) as Record<string, unknown> | undefined;
 
@@ -182,7 +182,11 @@ export class AssetRiskScoreCalculator {
     const raw =
       c.vulnerabilities + c.assetFactors + c.hardening +
       c.threats + c.findings + c.incidents + c.training;
-    c.total = Math.max(0, Math.round(raw)); // integer, never negative
+    // Business value (1–5) amplifies the threat-driven score as an impact factor
+    // (risk = threat × impact). Unset/0 → ×1 (unchanged); BV1→×1.0 … BV5→×2.0.
+    const bv = num(asset.BusinessValue);
+    const bizFactor = bv > 0 ? 1 + (Math.min(5, Math.max(1, bv)) - 1) * 0.25 : 1;
+    c.total = Math.max(0, Math.round(Math.max(0, raw) * bizFactor)); // integer, never negative
     return c;
   }
 

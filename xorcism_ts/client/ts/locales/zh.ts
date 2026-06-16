@@ -128,6 +128,8 @@ export const zh: Record<string, string> = {
   "stix.xorcism": "XORCISM 数据",
   "stix.loadHunts": "🎯 加载狩猎 (XTHREAT)",
   "stix.loadHuntsHint": "与 ATT&CK 技术和 IOC 关联的狩猎。",
+  "stix.loadReports": "📄 加载报告 (XTHREAT)",
+  "stix.loadReportsHint": "与所提及的 ATT&CK 技术和 CVE 关联的报告。",
   "stix.examples": "示例 (stix/ 文件夹)",
   "stix.upload": ".json 文件",
   "stix.paste": "粘贴 JSON (bundle / envelope / 对象)",

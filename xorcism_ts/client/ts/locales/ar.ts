@@ -128,6 +128,8 @@ export const ar: Record<string, string> = {
   "stix.xorcism": "بيانات XORCISM",
   "stix.loadHunts": "🎯 تحميل عمليات الصيد (XTHREAT)",
   "stix.loadHuntsHint": "عمليات صيد مرتبطة بتقنيات ATT&CK ومؤشرات IOC.",
+  "stix.loadReports": "📄 تحميل التقارير (XTHREAT)",
+  "stix.loadReportsHint": "تقارير مرتبطة بتقنيات ATT&CK وثغرات CVE المذكورة.",
   "stix.examples": "أمثلة (مجلد stix/)",
   "stix.upload": "ملف ‎.json",
   "stix.paste": "ألصق JSON (حزمة / مظروف / كائن)",

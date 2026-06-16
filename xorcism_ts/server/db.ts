@@ -498,7 +498,8 @@ export function createQuestion(name: string): { id: number; name: string; create
 export function importQuestionnaireFromExcel(
   name: string,
   fileName: string,
-  questions: Record<string, unknown>[]
+  questions: Record<string, unknown>[],
+  tenantId: number | null = null
 ): { questionnaireId: number; questions: number } {
   const db = getDb("XCOMPLIANCE");
   const clean = (v: unknown): string => (v == null ? "" : String(v)).trim();
@@ -506,16 +507,16 @@ export function importQuestionnaireFromExcel(
     const qId = (db.prepare("SELECT COALESCE(MAX(QuestionnaireID),0)+1 AS n FROM QUESTIONNAIRE").get() as { n: number }).n;
     const qName = clean(name) || clean(fileName) || `questionnaire_${qId}`;
     db.prepare(
-      "INSERT INTO QUESTIONNAIRE (QuestionnaireID, QuestionnaireName, FileName, CreatedDate) VALUES (?,?,?,?)"
-    ).run(qId, qName.slice(0, 300), clean(fileName).slice(0, 300), nowTs());
+      "INSERT INTO QUESTIONNAIRE (QuestionnaireID, QuestionnaireName, FileName, CreatedDate, TenantID) VALUES (?,?,?,?,?)"
+    ).run(qId, qName.slice(0, 300), clean(fileName).slice(0, 300), nowTs(), tenantId);
 
     let maxQ = (db.prepare("SELECT COALESCE(MAX(QuestionID),0) AS m FROM QUESTION").get() as { m: number }).m;
     let maxLink = (db.prepare("SELECT COALESCE(MAX(QuestionForQuestionnaireID),0) AS m FROM QUESTIONFORQUESTIONNAIRE").get() as { m: number }).m;
     const insQ = db.prepare(
-      "INSERT INTO QUESTION (QuestionID, QuestionGUID, QuestionName, QuestionText, QuestionDescription, QuestionType, DefaultAnswer, CreatedDate) VALUES (?,?,?,?,?,?,?,?)"
+      "INSERT INTO QUESTION (QuestionID, QuestionGUID, QuestionName, QuestionText, QuestionDescription, QuestionType, DefaultAnswer, CreatedDate, TenantID) VALUES (?,?,?,?,?,?,?,?,?)"
     );
     const insLink = db.prepare(
-      "INSERT INTO QUESTIONFORQUESTIONNAIRE (QuestionForQuestionnaireID, QuestionnaireID, QuestionID, DisplayOrder, CreatedDate) VALUES (?,?,?,?,?)"
+      "INSERT INTO QUESTIONFORQUESTIONNAIRE (QuestionForQuestionnaireID, QuestionnaireID, QuestionID, DisplayOrder, CreatedDate, TenantID) VALUES (?,?,?,?,?,?)"
     );
     let count = 0;
     let ord = 0;
@@ -525,11 +526,11 @@ export function importQuestionnaireFromExcel(
       const text = clean(r.QuestionText) || nm;
       const type = clean(r.QuestionType) || "boolean";
       maxQ++;
-      insQ.run(maxQ, randomUUID(), nm.slice(0, 500), text, clean(r.QuestionDescription), type.slice(0, 50), clean(r.DefaultAnswer).slice(0, 500), nowTs());
+      insQ.run(maxQ, randomUUID(), nm.slice(0, 500), text, clean(r.QuestionDescription), type.slice(0, 50), clean(r.DefaultAnswer).slice(0, 500), nowTs(), tenantId);
       const ordRaw = clean(r.DisplayOrder);
       const ordNum = ordRaw !== "" && !Number.isNaN(Number(ordRaw)) ? Number(ordRaw) : ord;
       maxLink++;
-      insLink.run(maxLink, qId, maxQ, ordNum, nowTs());
+      insLink.run(maxLink, qId, maxQ, ordNum, nowTs(), tenantId);
       ord++;
       count++;
     }
@@ -732,6 +733,12 @@ export const TENANT_SCOPED_TABLES = new Set<string>([
   "XCOMPLIANCE.EBIOSFEAREDEVENT",
   "XCOMPLIANCE.EBIOSRISKSOURCE",
   "XCOMPLIANCE.EBIOSSTAKEHOLDER",
+  // ── OCIL questionnaires (multi-tenant isolation) ──
+  "XCOMPLIANCE.QUESTIONNAIRE",
+  "XCOMPLIANCE.QUESTION",
+  "XCOMPLIANCE.QUESTIONFORQUESTIONNAIRE",
+  "XCOMPLIANCE.ANSWER",
+  "XCOMPLIANCE.ANSWERFORQUESTION",
 ]);
 
 export const TENANT_COL = "TenantID";
@@ -2663,6 +2670,21 @@ export function ensureThreatTables(): void {
       HypothesisID INTEGER PRIMARY KEY,
       HypothesisGUID TEXT, HypothesisName TEXT, HypothesisDescription TEXT,
       CreatedDate DATE, ValidFromDate DATE, ValidUntil DATE, ConfidenceLevel TEXT);
+    -- Threat reports (CTI report entity). ThreatReportFileName/Source hold the
+    -- uploaded PDF's name and the report source (PDF ingestion → IOC/THREATACTOR).
+    CREATE TABLE IF NOT EXISTS THREATREPORT (
+      ThreatReportID INTEGER PRIMARY KEY,
+      ThreatReportGUID TEXT, ThreatReportName TEXT, ThreatReportDescription TEXT,
+      CreatedDate DATE, ValidFrom DATE, ValidUntil DATE, PersonID INTEGER,
+      ThreatReportFileName TEXT, ThreatReportSource TEXT);
+    -- Sigma detection rules (YAML source + cached SPL/KQL/EQL conversions).
+    CREATE TABLE IF NOT EXISTS SIGMARULE (
+      SigmaRuleID INTEGER PRIMARY KEY,
+      SigmaRuleGUID TEXT, SigmaRuleName TEXT, SigmaRuleDescription TEXT,
+      SigmaYaml TEXT, LogSource TEXT, Level TEXT, Status TEXT, Author TEXT,
+      SigmaReference TEXT, AttackTags TEXT,
+      SplQuery TEXT, KqlQuery TEXT, EqlQuery TEXT,
+      CreatedDate DATE, ValidFrom DATE, ValidUntil DATE);
     -- HUNT ↔ ATT&CK techniques links (derived from HUNT.AttackTags) and HUNT ↔ IOC.
     CREATE TABLE IF NOT EXISTS HUNTATTACK (
       HuntAttackID INTEGER PRIMARY KEY, HuntID INTEGER, AttackID TEXT,
@@ -2696,6 +2718,11 @@ export function ensureThreatTables(): void {
     CREATE INDEX IF NOT EXISTS ix_intelattack_intel ON INTELEXCHANGEATTACK(IntelID);
     CREATE INDEX IF NOT EXISTS ix_intelattack_aid ON INTELEXCHANGEATTACK(AttackID);
   `);
+  // THREATREPORT PDF-ingestion columns on existing DBs (CREATE above covers fresh ones).
+  const trCols = new Set((db.prepare(`PRAGMA table_info("THREATREPORT")`).all() as { name: string }[]).map((c) => c.name));
+  for (const [n, ty] of [["ThreatReportFileName", "TEXT"], ["ThreatReportSource", "TEXT"]] as const) {
+    if (!trCols.has(n)) db.exec(`ALTER TABLE "THREATREPORT" ADD COLUMN "${n}" ${ty}`);
+  }
 }
 
 export interface A3mTech { aatId: string; name: string; description: string | null }
@@ -2747,12 +2774,12 @@ export function ensureOpenctiColumns(): void {
     CreatedByRef: "TEXT", ExternalReferences: "TEXT", Revoked: "INTEGER DEFAULT 0",
   };
   for (const t of ["THREAT", "THREATACTOR", "THREATCAMPAIGN", "ATTACKGROUP",
-    "ATTACKSOFTWARE", "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS"]) {
+    "ATTACKSOFTWARE", "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "THREATREPORT"]) {
     addCols(t, COMMON);
   }
   // Aliases for the entities that don't already have them (ATTACKGROUP/SOFTWARE have them).
   for (const t of ["THREAT", "THREATACTOR", "THREATCAMPAIGN", "ATTACKTECHNIQUE",
-    "ATTACKMITIGATION", "HUNT", "HYPOTHESIS"]) {
+    "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "THREATREPORT"]) {
     addCols(t, { Aliases: "TEXT" });
   }
   addCols("IOC", { TLP: "TEXT", Score: "INTEGER", Detection: "INTEGER DEFAULT 0" });
@@ -2760,7 +2787,7 @@ export function ensureOpenctiColumns(): void {
 
   // Workflow status (OpenCTI) on the entities + indicators.
   for (const t of ["THREAT", "THREATACTOR", "THREATCAMPAIGN", "ATTACKGROUP", "ATTACKSOFTWARE",
-    "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "IOC"]) {
+    "ATTACKTECHNIQUE", "ATTACKMITIGATION", "HUNT", "HYPOTHESIS", "IOC", "THREATREPORT"]) {
     addCols(t, { WorkflowStatus: "TEXT" });
   }
 
@@ -2862,6 +2889,41 @@ export function getAttackCoverage(): { byAttackId: Record<string, AttackCoverage
  *  - Policy lifecycle (status, version, owner, effective/review dates).
  * Idempotent (ALTER ADD COLUMN if absent). Called at boot.
  */
+/**
+ * Core ASSET business fields added on top of the base schema. Idempotent
+ * (ALTER ADD COLUMN only if absent); called at boot so existing and fresh DBs
+ * both get the column. BusinessValue = ordinal/numeric business importance of
+ * the asset (distinct from the monetary FinancialValue).
+ */
+export function ensureAssetColumns(): void {
+  const db = getDb("XORCISM");
+  if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ASSET'").get()) return;
+  const existing = new Set(
+    (db.prepare(`PRAGMA table_info("ASSET")`).all() as { name: string }[]).map((c) => c.name)
+  );
+  const cols: Record<string, string> = { BusinessValue: "INTEGER" };
+  for (const [n, t] of Object.entries(cols)) {
+    if (!existing.has(n)) db.exec(`ALTER TABLE "ASSET" ADD COLUMN "${n}" ${t}`);
+  }
+}
+
+/**
+ * Core VULNERABILITY columns added on top of the base schema. Idempotent
+ * (ALTER ADD COLUMN only if absent); called at boot so existing and fresh DBs
+ * both get the column. EPSS = Exploit Prediction Scoring System probability (0–1).
+ */
+export function ensureVulnerabilityColumns(): void {
+  const db = getDb("XVULNERABILITY");
+  if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='VULNERABILITY'").get()) return;
+  const existing = new Set(
+    (db.prepare(`PRAGMA table_info("VULNERABILITY")`).all() as { name: string }[]).map((c) => c.name)
+  );
+  const cols: Record<string, string> = { EPSS: "REAL" };
+  for (const [n, t] of Object.entries(cols)) {
+    if (!existing.has(n)) db.exec(`ALTER TABLE "VULNERABILITY" ADD COLUMN "${n}" ${t}`);
+  }
+}
+
 export function ensureGrcColumns(): void {
   const addCols = (dbName: string, table: string, cols: Record<string, string>): void => {
     const db = getDb(dbName);
@@ -3170,6 +3232,82 @@ export function getHuntsStixBundle(): { type: string; id: string; spec_version: 
         objects.push(o);
       }
       objects.push({ type: "relationship", spec_version: "2.1", id: `relationship--${randomUUID()}`, relationship_type: l.Relationship || "hunts", source_ref: src, target_ref: iid });
+    }
+  }
+
+  return bundle;
+}
+
+/**
+ * STIX 2.1 bundle of the XTHREAT threat reports (THREATREPORT). Each report becomes
+ * a STIX `report` SDO; the ATT&CK techniques (Txxxx) and CVEs mentioned in its
+ * name/description are emitted as attack-pattern / vulnerability objects and added
+ * to the report's object_refs (so the report links to them in the STIX Graph).
+ */
+export function getReportsStixBundle(): { type: string; id: string; spec_version: string; objects: unknown[] } {
+  const db = getDb("XTHREAT");
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const has = (n: string): boolean =>
+    !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(n);
+  const objects: Record<string, unknown>[] = [];
+  const bundle = { type: "bundle", id: `bundle--${randomUUID()}`, spec_version: "2.1", objects };
+  if (!has("THREATREPORT")) return bundle;
+
+  const techTable = has("ATTACKTECHNIQUE");
+  const apByAttackId = new Map<string, string>(); // AttackID → attack-pattern STIX id
+  const vulnByCve = new Map<string, string>();     // CVE → vulnerability STIX id
+  const attackRe = /\bT\d{4}(?:\.\d{3})?\b/g;
+  const cveRe = /\bCVE-\d{4}-\d{4,7}\b/gi;
+
+  const resolveTechnique = (attackId: string): string => {
+    let apId = apByAttackId.get(attackId);
+    if (apId) return apId;
+    let stixId: string | null = null, name: string | null = null;
+    if (techTable) {
+      const t = db.prepare("SELECT StixID, Name FROM ATTACKTECHNIQUE WHERE AttackID=? LIMIT 1").get(attackId) as Record<string, any> | undefined;
+      if (t) { stixId = t.StixID; name = t.Name; }
+    }
+    apId = (typeof stixId === "string" && stixId.startsWith("attack-pattern--")) ? stixId : `attack-pattern--${randomUUID()}`;
+    apByAttackId.set(attackId, apId);
+    objects.push({
+      type: "attack-pattern", spec_version: "2.1", id: apId, name: name || attackId,
+      external_references: [{ source_name: "mitre-attack", external_id: attackId }],
+    });
+    return apId;
+  };
+  const resolveCve = (cve: string): string => {
+    const key = cve.toUpperCase();
+    let vId = vulnByCve.get(key);
+    if (vId) return vId;
+    vId = `vulnerability--${randomUUID()}`;
+    vulnByCve.set(key, vId);
+    objects.push({
+      type: "vulnerability", spec_version: "2.1", id: vId, name: key,
+      external_references: [{ source_name: "cve", external_id: key }],
+    });
+    return vId;
+  };
+
+  const reports = db
+    .prepare("SELECT ThreatReportID, ThreatReportGUID, ThreatReportName, ThreatReportDescription, CreatedDate FROM THREATREPORT")
+    .all() as Record<string, any>[];
+  for (const r of reports) {
+    const id = `report--${uuidRe.test(r.ThreatReportGUID || "") ? r.ThreatReportGUID : randomUUID()}`;
+    const text = `${r.ThreatReportName || ""} ${r.ThreatReportDescription || ""}`;
+    const refs = new Set<string>();
+    for (const m of text.match(attackRe) || []) refs.add(resolveTechnique(m));
+    for (const m of text.match(cveRe) || []) refs.add(resolveCve(m));
+    const obj: Record<string, unknown> = {
+      type: "report", spec_version: "2.1", id,
+      name: r.ThreatReportName || `Report ${r.ThreatReportID}`,
+      report_types: ["threat-report"],
+      published: r.CreatedDate || new Date().toISOString(),
+      object_refs: refs.size ? [...refs] : [id], // STIX requires ≥1 ref
+    };
+    if (r.ThreatReportDescription) obj.description = r.ThreatReportDescription;
+    objects.push(obj);
+    for (const ref of refs) {
+      objects.push({ type: "relationship", spec_version: "2.1", id: `relationship--${randomUUID()}`, relationship_type: "refers-to", source_ref: id, target_ref: ref });
     }
   }
 

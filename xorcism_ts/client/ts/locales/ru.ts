@@ -128,6 +128,8 @@ export const ru: Record<string, string> = {
   "stix.xorcism": "Данные XORCISM",
   "stix.loadHunts": "🎯 Загрузить hunt-ы (XTHREAT)",
   "stix.loadHuntsHint": "Hunt-ы, связанные с техниками ATT&CK и IOC.",
+  "stix.loadReports": "📄 Загрузить отчёты (XTHREAT)",
+  "stix.loadReportsHint": "Отчёты, связанные с упомянутыми техниками ATT&CK и CVE.",
   "stix.examples": "Примеры (папка stix/)",
   "stix.upload": "файл .json",
   "stix.paste": "Вставить JSON (bundle / envelope / объект)",

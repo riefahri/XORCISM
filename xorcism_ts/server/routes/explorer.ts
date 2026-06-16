@@ -46,6 +46,7 @@ import {
   getD3fendMatrix,
   getA3mMatrix,
   getHuntsStixBundle,
+  getReportsStixBundle,
   getThreatTtps,
   setThreatTtps,
   incidentsByStatus,
@@ -636,7 +637,7 @@ router.post("/questionnaire-import", (req: Request, res: Response) => {
   const questions = Array.isArray(b.questions) ? (b.questions as Record<string, unknown>[]).slice(0, 5000) : [];
   if (!questions.length) return void res.status(400).json({ error: "Aucune question à importer" });
   try {
-    const r = importQuestionnaireFromExcel(name, fileName, questions);
+    const r = importQuestionnaireFromExcel(name, fileName, questions, sessionTenant(req));
     xid.addAudit({ userId: req.user?.UserID ?? null, action: "questionnaire_import", resourceType: "table",
       resourceKey: "XCOMPLIANCE.QUESTIONNAIRE", detail: `questionnaire=${r.questionnaireId} n=${r.questions}`, ip: clientIp(req) });
     res.json({ ok: true, ...r });
@@ -1354,6 +1355,16 @@ const STIX_DIR = path.resolve(__dirname, "../../../../stix");
 router.get("/stix/hunts", (_req: Request, res: Response) => {
   try {
     res.json(getHuntsStixBundle());
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// GET /api/stix/reports — STIX 2.1 bundle of the XTHREAT threat reports (report SDO)
+// linked to the ATT&CK techniques / CVEs they mention. For the STIX Graph page.
+router.get("/stix/reports", (_req: Request, res: Response) => {
+  try {
+    res.json(getReportsStixBundle());
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

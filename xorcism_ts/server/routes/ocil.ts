@@ -57,7 +57,7 @@ router.post("/ocil/import", (req: Request, res: Response) => {
   const xml = String((req.body as { xml?: string })?.xml || "");
   if (!xml.trim()) return void res.status(400).json({ error: "XML OCIL requis" });
   try {
-    const r = importOcil(xml);
+    const r = importOcil(xml, req.user?.tenantId ?? null);
     xid.addAudit({ userId: req.user?.UserID ?? null, action: "ocil_import", resourceType: "table",
       resourceKey: `${DB}.${TBL}`, detail: JSON.stringify(r), ip: clientIp(req) });
     res.json({ ok: true, ...r });

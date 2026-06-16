@@ -23,15 +23,15 @@ const MAX_BYTES = 15 * 1024 * 1024;
 // marked "not scanned" — we don't block the app if ClamAV is not installed.
 const AV_REQUIRED = (process.env.XORCISM_UPLOAD_AV_REQUIRED ?? "0") === "1";
 
-type AvStatus = "clean" | "infected" | "unavailable";
-interface AvResult { status: AvStatus; signature?: string; scanner?: string }
+export type AvStatus = "clean" | "infected" | "unavailable";
+export interface AvResult { status: AvStatus; signature?: string; scanner?: string }
 
 /**
  * Antivirus scan of the uploaded file with ClamAV (clamdscan via the daemon,
  * otherwise clamscan). Asynchronous (doesn't block the event loop).
  * ClamAV exit codes: 0 = clean, 1 = infected, 2 = error.
  */
-function clamScan(filePath: string): Promise<AvResult> {
+export function clamScan(filePath: string): Promise<AvResult> {
   const candidates: [string, string[]][] = [
     ["clamdscan", ["--no-summary", "--fdpass", filePath]],
     ["clamscan", ["--no-summary", filePath]],
