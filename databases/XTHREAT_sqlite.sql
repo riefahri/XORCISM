@@ -1208,7 +1208,8 @@ CREATE TABLE IF NOT EXISTS THREATREPORT (
   ThreatReportID INTEGER PRIMARY KEY,
   ThreatReportGUID TEXT, ThreatReportName TEXT, ThreatReportDescription TEXT,
   CreatedDate DATE, ValidFrom DATE, ValidUntil DATE, PersonID INTEGER,
-  ThreatReportFileName TEXT, ThreatReportSource TEXT);
+  ThreatReportFileName TEXT, ThreatReportSource TEXT, ThreatReportReference TEXT);
+CREATE INDEX IF NOT EXISTS ix_threatreport_ref ON THREATREPORT(ThreatReportReference);
 CREATE TABLE IF NOT EXISTS SIGMARULE (
   SigmaRuleID INTEGER PRIMARY KEY,
   SigmaRuleGUID TEXT, SigmaRuleName TEXT, SigmaRuleDescription TEXT,
@@ -1497,5 +1498,24 @@ CREATE TABLE IF NOT EXISTS A3MTECHNIQUE (
         A3MTechniqueID INTEGER PRIMARY KEY, AATID TEXT UNIQUE, Name TEXT, Description TEXT,
         TacticName TEXT, MatrixOrder INTEGER, URL TEXT);
 CREATE INDEX IF NOT EXISTS ix_a3mtech_tactic ON A3MTECHNIQUE(TacticName);
+-- SAIF — Google Secure AI Framework risk map (saif.google), populated by import_saif.py.
+CREATE TABLE IF NOT EXISTS SAIFCOMPONENT (
+        SaifComponentID INTEGER PRIMARY KEY, Name TEXT UNIQUE, Description TEXT,
+        MatrixOrder INTEGER, CreatedDate TEXT);
+CREATE TABLE IF NOT EXISTS SAIFCONTROL (
+        SaifControlID INTEGER PRIMARY KEY, Name TEXT UNIQUE, Category TEXT, Description TEXT,
+        CreatedDate TEXT);
+CREATE TABLE IF NOT EXISTS SAIFRISK (
+        SaifRiskID INTEGER PRIMARY KEY, SaifID TEXT, Name TEXT UNIQUE, Description TEXT,
+        Component TEXT, ResponsibleParty TEXT, Controls TEXT, MatrixOrder INTEGER, URL TEXT,
+        CreatedDate TEXT);
+CREATE INDEX IF NOT EXISTS ix_saifrisk_component ON SAIFRISK(Component);
+-- Curated CTI RSS feeds shown on /threat-feeds (seeded by seedThreatFeeds() in db.ts).
+CREATE TABLE IF NOT EXISTS THREATFEED (
+        ThreatFeedID INTEGER PRIMARY KEY,
+        ThreatFeedGUID TEXT, ThreatFeedName TEXT, FeedURL TEXT UNIQUE, SiteURL TEXT,
+        ThreatFeedDescription TEXT, Category TEXT, Vendor TEXT,
+        Enabled INTEGER DEFAULT 1, CreatedDate TEXT);
+CREATE INDEX IF NOT EXISTS ix_threatfeed_enabled ON THREATFEED(Enabled);
 
 COMMIT;

@@ -529,4 +529,69 @@ CREATE TABLE "INCIDENTTIMELINEUNIT"(
 
 ;
 
+/****** Object:  Table "ALERT"  (security alerts, optionally linked to an INCIDENT; tenant-scoped) ******/
+
+;
+CREATE TABLE IF NOT EXISTS "ALERT"(
+	"AlertID" INTEGER PRIMARY KEY,
+	"AlertGUID" TEXT NULL,
+	"AlertName" TEXT NULL,
+	"AlertDescription" TEXT NULL,
+	"Severity" TEXT NULL,
+	"Status" TEXT NULL,
+	"Category" TEXT NULL,
+	"AttackTechniques" TEXT NULL,
+	"RecommendedActions" TEXT NULL,
+	"ServiceSource" TEXT NULL DEFAULT 'XORCISM',
+	"DetectionSource" TEXT NULL DEFAULT 'Manual',
+	"Classification" TEXT NULL,
+	"Determination" TEXT NULL,
+	"AssignedTo" TEXT NULL,
+	"Tags" TEXT NULL,
+	"PersonID" INTEGER NULL,
+	"CreatedDate" DATE NULL,
+	"IncidentID" INTEGER NULL,
+	"TenantID" INTEGER NULL
+)
+
+;
+CREATE INDEX IF NOT EXISTS ix_alert_incident ON ALERT(IncidentID)
+
+;
+
+/****** Object:  Table "ALERTFORASSET"  (Defender "Select entities": impacted assets of an alert) ******/
+
+;
+CREATE TABLE IF NOT EXISTS "ALERTFORASSET"(
+	"AssetAlertID" INTEGER PRIMARY KEY,
+	"AlertID" INTEGER NULL,
+	"AssetID" INTEGER NULL,
+	"Relationship" TEXT NULL,
+	"CreatedDate" TEXT NULL,
+	"TenantID" INTEGER NULL,
+	UNIQUE("AlertID", "AssetID")
+)
+
+;
+CREATE INDEX IF NOT EXISTS ix_alertforasset_alert ON ALERTFORASSET(AlertID)
+
+;
+/****** Object:  Table "ALERTEVIDENCE"  (Defender "Select entities": related evidence of an alert) ******/
+
+;
+CREATE TABLE IF NOT EXISTS "ALERTEVIDENCE"(
+	"AlertEvidenceID" INTEGER PRIMARY KEY,
+	"AlertID" INTEGER NULL,
+	"EvidenceType" TEXT NULL,
+	"EvidenceValue" TEXT NULL,
+	"EvidenceDescription" TEXT NULL,
+	"CreatedDate" TEXT NULL,
+	"TenantID" INTEGER NULL
+)
+
+;
+CREATE INDEX IF NOT EXISTS ix_alertevidence_alert ON ALERTEVIDENCE(AlertID)
+
+;
+
 COMMIT;
