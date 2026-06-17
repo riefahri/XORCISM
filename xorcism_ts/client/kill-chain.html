@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Kill chain graph</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .kc-layout{display:flex;height:calc(100vh - 46px)}
+  .kc-side{width:290px;min-width:290px;background:#13162a;border-right:1px solid #2d3250;display:flex;flex-direction:column;overflow:auto}
+  .kc-side .sec{padding:12px 14px;border-bottom:1px solid #1e2133}
+  .kc-side h3{font-size:12px;color:#94a3b8;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em}
+  .kc-main{flex:1;position:relative;overflow:hidden;background:#0b0d18}
+  #kc-svg{width:100%;height:100%;display:block;cursor:grab}#kc-svg:active{cursor:grabbing}
+  .kc-side input[type=text]{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:12px;padding:7px}
+  .kc-side label{display:block;font-size:11px;color:#94a3b8;margin:8px 0 3px}
+  .kc-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .kc-cov{font-size:12px;color:#cbd5e1}.kc-cov b{color:#f59e0b}
+  .legend{display:flex;flex-direction:column;gap:5px}
+  .legend .it{display:flex;align-items:center;gap:6px;font-size:11px;color:#cbd5e1}
+  .legend .sw{width:16px;height:11px;border-radius:3px;flex:none}
+  .ph-head{cursor:default}
+  .ph-name{font-size:11px;font-weight:600;fill:#e2e8f0}
+  .ph-meta{font-size:9px;fill:#94a3b8}
+  .ph-order{font-size:9px;fill:#64748b;font-family:ui-monospace,monospace}
+  .tech{cursor:pointer}
+  .tech text{font-size:9px;fill:#cbd5e1}
+  .tech:hover text{fill:#fff}
+  .tech-id{font-size:8px;fill:#64748b;font-family:ui-monospace,monospace}
+  .spine{stroke:#475569;stroke-width:2px}
+  .tlink{stroke:#334155;stroke-width:1px}
+  #kc-toast{position:absolute;bottom:12px;left:12px;background:#7f1d1d;color:#fecaca;border-radius:6px;padding:7px 12px;font-size:12px;display:none}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/attack">&#127919; ATT&amp;CK</a>
+  <a href="/stix-graph">&#128376; STIX</a>
+  <span class="spacer"></span>
+  <span class="title">&#9876;&#65039; Kill chain graph</span>
+</div>
+
+<div class="kc-layout">
+  <div class="kc-side">
+    <div class="sec">
+      <h3>Adversary (ATT&amp;CK group)</h3>
+      <input type="text" id="kc-search" list="kc-groups" placeholder="e.g. APT29, Lazarus, FIN7…" autocomplete="off">
+      <datalist id="kc-groups"></datalist>
+      <div class="kc-btns">
+        <button class="btn btn-primary btn-sm" id="kc-apply">Map kill chain</button>
+        <button class="btn btn-ghost btn-sm" id="kc-clear">Clear</button>
+      </div>
+      <div class="kc-cov" id="kc-cov" style="margin-top:10px"></div>
+    </div>
+    <div class="sec">
+      <h3>Legend</h3>
+      <div class="legend">
+        <div class="it"><span class="sw" style="background:#ef4444"></span>Covered phase (adversary acts here)</div>
+        <div class="it"><span class="sw" style="background:#334155"></span>Phase not covered</div>
+        <div class="it"><span class="sw" style="background:#7c83fd"></span>Technique used</div>
+      </div>
+      <div class="kc-cov" style="margin-top:8px;color:#64748b">Phases left → right follow the ATT&amp;CK kill chain (Reconnaissance → Impact).</div>
+    </div>
+    <div class="sec">
+      <h3>Options</h3>
+      <div class="kc-btns">
+        <button class="btn btn-ghost btn-sm" id="kc-zin" title="Zoom in">＋</button>
+        <button class="btn btn-ghost btn-sm" id="kc-zout" title="Zoom out">－</button>
+        <button class="btn btn-ghost btn-sm" id="kc-fit">Fit</button>
+        <button class="btn btn-ghost btn-sm" id="kc-export">Export SVG</button>
+      </div>
+    </div>
+  </div>
+  <div class="kc-main">
+    <svg id="kc-svg"></svg>
+    <div id="kc-toast"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="/js/session-ui.js"></script>
+<script src="/js/kill-chain.js"></script>
+</body>
+</html>

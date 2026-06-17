@@ -3264,6 +3264,8 @@ async function selectTable(table: string): Promise<void> {
   if (osvBtn) osvBtn.style.display = isOsvTable() ? "" : "none";
   const circlBtn = document.getElementById("btn-circl");
   if (circlBtn) circlBtn.style.display = isOsvTable() ? "" : "none";
+  const edbBtn = document.getElementById("btn-exploitdb");
+  if (edbBtn) edbBtn.style.display = isOsvTable() ? "" : "none";
 
   // "Pentest Mode" button restricted to XORCISM.ASSET (if right granted)
   const isAssetView = currentDb === "XORCISM" && table === "ASSET";
@@ -3709,6 +3711,79 @@ function appendCirclSearchField(body: HTMLElement, prefix: string): void {
   div.appendChild(results);
   div.appendChild(status);
   body.appendChild(div);
+}
+
+// ── Exploit-DB search (local SearchSploit index) ──────────────────────────────
+// Injected into the VULNERABILITY form: looks up public exploits for the CVE,
+// links out to exploit-db.com, and can flag the vulnerability as exploitable.
+const CVE_RX = /CVE-\d{4}-\d{3,7}/i;
+function appendExploitDbSearchField(body: HTMLElement, prefix: string): void {
+  const div = document.createElement("div");
+  div.style.cssText = "margin-bottom:14px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)";
+  const label = document.createElement("label");
+  label.textContent = t("edb.vlabel");
+  label.style.cssText = "display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px";
+  const rowWrap = document.createElement("div"); rowWrap.style.cssText = "display:flex;gap:6px";
+  const input = document.createElement("input");
+  input.id = `${prefix}edb_q`; input.autocomplete = "off"; input.placeholder = "CVE-2017-0144";
+  input.style.cssText = FIELD_INPUT_CSS + ";flex:1";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "btn btn-ghost btn-sm"; btn.textContent = t("edb.search"); btn.style.flex = "0 0 auto";
+  const openBtn = document.createElement("button");
+  openBtn.type = "button"; openBtn.className = "btn btn-ghost btn-sm"; openBtn.textContent = t("edb.openPage"); openBtn.style.flex = "0 0 auto";
+  const results = document.createElement("div"); results.style.cssText = "margin-top:6px;max-height:220px;overflow:auto;display:none";
+  const status = document.createElement("div"); status.style.cssText = "font-size:11px;color:var(--text-dim);margin-top:4px";
+
+  function currentCve(): string {
+    for (const col of ["VULReferential", "VULName", "VULReferentialID", "VULDescription"]) {
+      const el = document.getElementById(`${prefix}${col}`) as HTMLInputElement | HTMLTextAreaElement | null;
+      const m = el?.value?.match(CVE_RX);
+      if (m) return m[0].toUpperCase();
+    }
+    return "";
+  }
+
+  async function run(): Promise<void> {
+    const m = input.value.trim().match(CVE_RX);
+    if (!m) { status.style.color = "var(--text-dim)"; status.textContent = t("edb.needCve"); return; }
+    const cve = m[0].toUpperCase();
+    btn.disabled = true; results.style.display = "none"; status.style.color = "var(--text-dim)"; status.textContent = t("edb.searching");
+    try {
+      const r = await api.exploitdbForCve(cve);
+      results.innerHTML = "";
+      if (!r.results.length) { status.textContent = t("edb.none"); }
+      else {
+        status.style.color = "var(--danger)";
+        status.textContent = `⚠️ ${r.results.length} ${t("edb.found")}`;
+        for (const e of r.results) {
+          const item = document.createElement("div");
+          item.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px";
+          const meta = document.createElement("div"); meta.style.cssText = "min-width:0;flex:1";
+          meta.innerHTML =
+            `<div style="font-size:12px;color:var(--text)">EDB-${e.id} <span style="font-size:10px;color:var(--text-dim)">${e.type}/${e.platform}</span></div>` +
+            `<div style="font-size:10px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.title}</div>`;
+          const open = document.createElement("a");
+          open.href = e.url; open.target = "_blank"; open.rel = "noopener noreferrer"; open.className = "btn btn-ghost btn-sm"; open.textContent = t("edb.view");
+          item.appendChild(meta); item.appendChild(open); results.appendChild(item);
+        }
+        const flag = document.createElement("button");
+        flag.type = "button"; flag.className = "btn btn-ghost btn-sm"; flag.textContent = t("edb.markExploitable"); flag.style.marginTop = "4px";
+        flag.onclick = () => { setFormField(prefix, "VULExploitable", "1"); setFormField(prefix, "Exploited", "1"); toast(t("edb.flagged"), "ok"); };
+        results.appendChild(flag);
+        results.style.display = "";
+      }
+    } catch (e) {
+      status.style.color = "var(--danger)"; status.textContent = (e as Error).message;
+    } finally { btn.disabled = false; }
+  }
+
+  btn.onclick = () => void run();
+  openBtn.onclick = () => { const cve = (input.value.trim().match(CVE_RX)?.[0] || currentCve()); window.open(`/exploitdb${cve ? `?cve=${encodeURIComponent(cve)}` : ""}`, "_blank", "noopener"); };
+  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); void run(); } };
+  rowWrap.appendChild(input); rowWrap.appendChild(btn); rowWrap.appendChild(openBtn);
+  div.appendChild(label); div.appendChild(rowWrap); div.appendChild(results); div.appendChild(status);
+  body.appendChild(div);
+  const cve = currentCve(); if (cve) { input.value = cve; void run(); }
 }
 
 // Toolbar button: imports a VULNERABILITY from CIRCL (KEV) by id.
@@ -4835,6 +4910,7 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
   if (isOsvTable()) {
     appendOsvEnrichField(body, "ef_", String(row["VULReferential"] ?? row["VULReferentialID"] ?? ""));
     appendCirclSearchField(body, "ef_");
+    appendExploitDbSearchField(body, "ef_");
   }
 
   reorderSchema(currentTable, schema).forEach((col) => {
@@ -8051,10 +8127,11 @@ async function openInsertModal(): Promise<void> {
   // Key column: declared PK if present, otherwise the 1st column (XORCISM convention)
   const keyColName = (schema.find((c) => c.pk === 1) ?? schema[0])?.name;
 
-  // OSV.dev enrichment + CIRCL search (KEV) at the top of the VULNERABILITY form
+  // OSV.dev enrichment + CIRCL search (KEV) + Exploit-DB lookup at the top of the VULNERABILITY form
   if (isOsvTable()) {
     appendOsvEnrichField(body, "f_", "");
     appendCirclSearchField(body, "f_");
+    appendExploitDbSearchField(body, "f_");
   }
 
   reorderSchema(currentTable, schema).forEach((col) => {
@@ -9145,6 +9222,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("pentest-agent")?.addEventListener("click", () => void bulkAgentScan());
   document.getElementById("pentest-cancel")?.addEventListener("click", togglePentestMode);
   $("btn-circl").onclick = importFromCircl;
+  document.getElementById("btn-exploitdb")?.addEventListener("click", () => window.open("/exploitdb", "_blank", "noopener"));
   $("btn-csv").onclick = exportCSV;
   $("btn-excel").onclick = exportExcel;
   $("modal-submit").onclick = submitInsert;

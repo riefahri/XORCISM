@@ -44,6 +44,8 @@ import {
   getAttackMatrix,
   getAttackCoverage,
   getLlmAttackLayer,
+  killChainGroups,
+  killChainGraph,
   searchAttackTechniques,
   getD3fendMatrix,
   getA3mMatrix,
@@ -603,6 +605,19 @@ router.get("/attack/llm-layer", (req: Request, res: Response) => {
     return deny(req, res, "read", "XTHREAT", "ATTACKTECHNIQUE");
   try { res.json(getLlmAttackLayer()); }
   catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// GET /api/kill-chain/groups — ATT&CK groups available as kill-chain overlay sources
+router.get("/kill-chain/groups", (req: Request, res: Response) => {
+  if (!userCan(req.user, "read", "XTHREAT", "ATTACKTECHNIQUE")) return deny(req, res, "read", "XTHREAT", "ATTACKTECHNIQUE");
+  try { res.json(killChainGroups()); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// GET /api/kill-chain?group=G0016 — kill-chain phases + an adversary's TTPs per phase
+router.get("/kill-chain", (req: Request, res: Response) => {
+  if (!userCan(req.user, "read", "XTHREAT", "ATTACKTECHNIQUE")) return deny(req, res, "read", "XTHREAT", "ATTACKTECHNIQUE");
+  const g = req.query.group ? String(req.query.group) : null;
+  try { res.json(killChainGraph(g)); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
 // GET /api/d3fend/matrix — MITRE D3FEND matrix (tactics → techniques → sub-techniques)

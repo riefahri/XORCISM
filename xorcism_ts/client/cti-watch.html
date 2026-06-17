@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — CTI watch</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ct-wrap{max-width:1040px;margin:0 auto;padding:18px}
+  .ct-head h1{font-size:20px;margin:0 0 2px}
+  .ct-sub{color:#94a3b8;font-size:13px;margin-bottom:14px;max-width:820px}
+  .ct-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .pill{font-size:12px;border-radius:6px;padding:3px 9px}
+  .p-kev{background:#7f1d1d;color:#fecaca}.p-rep{background:#581c87;color:#e9d5ff}.p-ast{background:#0f1117;color:#cbd5e1;border:1px solid #2d3250}
+  .m{border:1px solid #2d3250;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#13162a}
+  .m .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .m .cve a{font-size:15px;font-weight:600;color:#7c83fd;font-family:ui-monospace,monospace}
+  .sev{font-size:11px;border-radius:6px;padding:2px 8px;font-weight:600}
+  .sev-Critical{background:#7f1d1d;color:#fecaca}.sev-High{background:#7c2d12;color:#fed7aa}
+  .reason{display:inline-block;font-size:11px;border-radius:5px;padding:1px 7px;margin:4px 4px 0 0;background:#1e2133;color:#cbd5e1}
+  .reason.kev{background:#7f1d1d;color:#fecaca}
+  .assets{font-size:12px;color:#cbd5e1;margin-top:6px}
+  .assets a,.rep a{color:#93c5fd}
+  .rep{font-size:11px;color:#94a3b8;margin-top:3px}
+  .act{margin-left:auto}
+  .muted{color:#64748b}.ct-empty{color:#64748b;padding:30px;text-align:center}
+  #ct-toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#064e3b;color:#6ee7b7;border-radius:8px;padding:9px 14px;font-size:13px;display:none}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/exposure">&#127919; Exposures</a>
+  <span class="spacer"></span>
+  <span class="title">&#128225; CTI watch</span>
+</div>
+
+<div class="ct-wrap">
+  <div class="ct-head">
+    <h1>Threat intel that affects you</h1>
+    <div class="ct-sub">Cross-references live intelligence — <b>CISA KEV</b> (actively exploited) and your ingested <b>threat reports</b> — against your asset inventory, and surfaces only what hits <b>your</b> estate. One click opens a ticket.</div>
+  </div>
+  <div class="ct-stats" id="ct-stats"></div>
+  <div id="ct-body"><div class="ct-empty">Matching intel against your inventory…</div></div>
+</div>
+<div id="ct-toast"></div>
+
+<script src="/js/session-ui.js"></script>
+<script src="/js/cti-watch.js"></script>
+</body>
+</html>

@@ -11,7 +11,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { getDb, tableHasTenantCol, rowTenant, TENANT_COL } from "../db";
+import { getDb, tableHasTenantCol, rowTenant, TENANT_COL, biaDependencyGraph, ensureBiaDependency } from "../db";
 import { clientIp } from "../auth";
 import * as xid from "../xid";
 import { tr } from "../i18n";
@@ -347,6 +347,49 @@ router.get("/persons", (req: Request, res: Response) => {
     )
     .all(q, q);
   res.json(rows);
+});
+
+// ── Dependency graph ─────────────────────────────────────────────────────────
+// GET /api/bia/graph?auditId=N — BIA entries + dependency edges for one audit.
+router.get("/graph", (req: Request, res: Response) => {
+  const auditId = Number(req.query.auditId);
+  if (!Number.isInteger(auditId) || auditId <= 0) return void res.status(400).json({ error: "auditId required" });
+  try { res.json(biaDependencyGraph(biaScope(req), auditId)); }
+  catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// POST /api/bia/dependencies { auditId, fromEntryId, toEntryId, type } — "From depends on To".
+router.post("/dependencies", (req: Request, res: Response) => {
+  const b = req.body as { auditId?: unknown; fromEntryId?: unknown; toEntryId?: unknown; type?: unknown };
+  const auditId = Number(b.auditId), from = Number(b.fromEntryId), to = Number(b.toEntryId);
+  if (![auditId, from, to].every((n) => Number.isInteger(n) && n > 0))
+    return void res.status(400).json({ error: "auditId, fromEntryId, toEntryId required" });
+  if (from === to) return void res.status(400).json({ error: "a node cannot depend on itself" });
+  const pt = parentAuditTenant(req, res, auditId); if (!pt) return;
+  ensureBiaDependency();
+  const d = db();
+  const inAudit = (id: number): boolean => !!d.prepare("SELECT 1 FROM BIAENTRY WHERE BIAEntryID=? AND BIAAuditID=?").get(id, auditId);
+  if (!inAudit(from) || !inAudit(to)) return void res.status(400).json({ error: "both entries must belong to the audit" });
+  const dup = d.prepare("SELECT BIADependencyID FROM BIADEPENDENCY WHERE BIAAuditID=? AND FromEntryID=? AND ToEntryID=?").get(auditId, from, to) as { BIADependencyID: number } | undefined;
+  if (dup) return void res.json({ ok: true, id: dup.BIADependencyID });
+  d.prepare(`INSERT INTO BIADEPENDENCY (BIADependencyID, BIAAuditID, FromEntryID, ToEntryID, DependencyType, CreatedDate, "${TENANT_COL}")
+    VALUES ((SELECT COALESCE(MAX(BIADependencyID),0)+1 FROM BIADEPENDENCY), ?, ?, ?, ?, ?, ?)`)
+    .run(auditId, from, to, String(b.type || "depends-on").slice(0, 60), now(), pt.tenant);
+  const id = (d.prepare("SELECT MAX(BIADependencyID) m FROM BIADEPENDENCY WHERE BIAAuditID=? AND FromEntryID=? AND ToEntryID=?").get(auditId, from, to) as { m: number }).m;
+  xid.addAudit({ userId: req.user!.UserID, action: "bia_dependency_add", resourceType: "table", resourceKey: `XORCISM.BIADEPENDENCY#${id}`, ip: clientIp(req) });
+  res.json({ ok: true, id });
+});
+
+// DELETE /api/bia/dependencies/:id
+router.delete("/dependencies/:id", (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  ensureBiaDependency();
+  const d = db();
+  const row = d.prepare("SELECT BIAAuditID FROM BIADEPENDENCY WHERE BIADependencyID=?").get(id) as { BIAAuditID: number } | undefined;
+  if (!row) return void res.json({ ok: true });
+  const pt = parentAuditTenant(req, res, row.BIAAuditID); if (!pt) return;
+  d.prepare("DELETE FROM BIADEPENDENCY WHERE BIADependencyID=?").run(id);
+  res.json({ ok: true });
 });
 
 export default router;

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — BIA dependency graph</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .bg-layout{display:flex;height:calc(100vh - 46px)}
+  .bg-side{width:300px;min-width:300px;background:#13162a;border-right:1px solid #2d3250;display:flex;flex-direction:column;overflow:auto}
+  .bg-side .sec{padding:12px 14px;border-bottom:1px solid #1e2133}
+  .bg-side h3{font-size:12px;color:#94a3b8;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em}
+  .bg-main{flex:1;position:relative;overflow:hidden;background:#0b0d18}
+  #bg-svg{width:100%;height:100%;display:block;cursor:grab}#bg-svg:active{cursor:grabbing}
+  .bg-side select,.bg-side input[type=text]{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:12px;padding:7px}
+  .bg-side label{display:block;font-size:11px;color:#94a3b8;margin:8px 0 3px}
+  .bg-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .node circle{stroke:#0b0d18;stroke-width:1.5px;cursor:pointer}
+  .node text{font-size:9px;fill:#cbd5e1;pointer-events:none}
+  .node.sel circle{stroke:#fff;stroke-width:2.5px}
+  .node.impacted circle{stroke:#fca5a5;stroke-width:2.5px}
+  .node.dim{opacity:.18}
+  .link{stroke:#475569;stroke-width:1.4px;cursor:pointer}
+  .link.impacted{stroke:#ef4444;stroke-width:2.2px}
+  .link.dim{opacity:.12}
+  .linklabel{font-size:8px;fill:#7c83fd;pointer-events:none}
+  .legend{display:flex;flex-direction:column;gap:4px}
+  .legend .it{display:flex;align-items:center;gap:6px;font-size:11px;color:#cbd5e1}
+  .legend .dot{width:11px;height:11px;border-radius:50%}
+  .bg-stat{font-size:11px;color:#64748b}
+  #bg-impact{font-size:12px;color:#cbd5e1}#bg-impact b{color:#fca5a5}
+  #bg-details{position:absolute;top:10px;right:10px;width:300px;max-height:calc(100% - 20px);overflow:auto;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px;display:none;font-size:12px}
+  #bg-details h4{margin:0 0 6px;font-size:13px}#bg-details .close{float:right;cursor:pointer;color:#94a3b8}
+  #bg-details .kv{display:grid;grid-template-columns:120px 1fr;gap:3px 8px;margin-top:6px}
+  #bg-details .kv .k{color:#64748b}
+  #bg-toast{position:absolute;bottom:12px;left:12px;background:#7f1d1d;color:#fecaca;border-radius:6px;padding:7px 12px;font-size:12px;display:none}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/bia">&#128196; BIA</a>
+  <a href="/dashboard" data-i18n="nav.dashboard">&#128202; Dashboard</a>
+  <span class="spacer"></span>
+  <span class="title">&#128376;&#65039; BIA dependency graph</span>
+</div>
+
+<div class="bg-layout">
+  <div class="bg-side">
+    <div class="sec">
+      <h3>BIA study</h3>
+      <select id="bg-audit"><option value="">—</option></select>
+      <div class="bg-stat" id="bg-counts" style="margin-top:8px"></div>
+    </div>
+    <div class="sec">
+      <h3>Impact analysis</h3>
+      <div id="bg-impact" class="bg-stat">Click an entry to see what fails if it goes down.</div>
+    </div>
+    <div class="sec">
+      <h3>Add dependency</h3>
+      <label>This entry…</label><select id="bg-from"></select>
+      <label>…depends on</label><select id="bg-to"></select>
+      <label>Type</label><input id="bg-type" type="text" placeholder="depends-on" value="depends-on">
+      <div class="bg-btns"><button class="btn btn-primary btn-sm" id="bg-add">＋ Add dependency</button></div>
+      <div class="bg-stat" style="margin-top:6px">Tip: click an edge to remove it.</div>
+    </div>
+    <div class="sec">
+      <h3>Criticality</h3>
+      <div class="legend" id="bg-legend"></div>
+    </div>
+    <div class="sec">
+      <h3>Options</h3>
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="bg-labels" checked style="width:auto"> <span>Dependency labels</span></label>
+      <div class="bg-btns">
+        <button class="btn btn-ghost btn-sm" id="bg-zin" title="Zoom in">＋</button>
+        <button class="btn btn-ghost btn-sm" id="bg-zout" title="Zoom out">－</button>
+        <button class="btn btn-ghost btn-sm" id="bg-fit">Fit</button>
+        <button class="btn btn-ghost btn-sm" id="bg-export">Export SVG</button>
+        <button class="btn btn-ghost btn-sm" id="bg-reload">Reload</button>
+      </div>
+    </div>
+  </div>
+  <div class="bg-main">
+    <svg id="bg-svg"></svg>
+    <div id="bg-details"></div>
+    <div id="bg-toast"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="/js/session-ui.js"></script>
+<script src="/js/bia-graph.js"></script>
+</body>
+</html>

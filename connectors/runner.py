@@ -740,8 +740,10 @@ def process_job(job: sqlite3.Row) -> None:
             result = run_module(manifest, params, workdir)
 
         counts = import_result(manifest.get("mapping", manifest["id"]), result)
+        # Retain the normalized result so the tool-chaining engine (chain.ts) can read
+        # the facts (open ports / services / detected tech / vulns) of a finished job.
         update_job(jid, status="done", finished_at=_now(), exit_code=exit_code,
-                   result_summary=json.dumps(counts))
+                   result_summary=json.dumps(counts), result_json=json.dumps(result)[:500000])
         append_log(jid, f"\n[import] {json.dumps(counts)}\n")
     except FileNotFoundError as e:
         update_job(jid, status="failed", finished_at=_now(), error=f"binaire introuvable: {e}")

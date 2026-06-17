@@ -3,7 +3,10 @@
  * and OCIL answer suggestion. All the routes are authenticated (mounted under /api).
  */
 import { Router, Request, Response } from "express";
-import { askThreatModel, suggestOcilAnswer, ollamaStatus, enrichThreatReport, triageVulnerability, buildIntelBrief } from "../ai";
+import { askThreatModel, suggestOcilAnswer, ollamaStatus, enrichThreatReport, triageVulnerability, buildIntelBrief, analyzeAttackChain, exposureBrief } from "../ai";
+import { userCan } from "../auth";
+import { getRun } from "../chain";
+import { getEngagement } from "../engagements";
 
 const router = Router();
 
@@ -77,6 +80,32 @@ router.post("/ai/brief", async (req: Request, res: Response) => {
   const focus = body?.focus ? String(body.focus).slice(0, 500) : undefined;
   try {
     res.json(await buildIntelBrief(reportIds, focus));
+  } catch (e) {
+    res.status(502).json({ error: aiError(e) });
+  }
+});
+
+// POST /api/ai/chain/:runId/analyze — AI red/blue analysis of a tool-chaining run
+router.post("/ai/chain/:runId/analyze", async (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  const runId = Number(req.params.runId);
+  const run = Number.isInteger(runId) ? getRun(runId) : undefined;
+  const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
+  if (!run || !getEngagement(run.AuditID, tenant)) return void res.status(404).json({ error: "run not found" });
+  try {
+    res.json(await analyzeAttackChain(runId));
+  } catch (e) {
+    res.status(502).json({ error: aiError(e) });
+  }
+});
+
+// POST /api/ai/exposure-brief — AI CISO briefing over the fusion worklist + attack paths
+router.post("/ai/exposure-brief", async (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "read", "XVULNERABILITY", "VULNERABILITY")) return void res.status(403).json({ error: "forbidden" });
+  const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
+  try {
+    res.json(await exposureBrief(tenant));
   } catch (e) {
     res.status(502).json({ error: aiError(e) });
   }

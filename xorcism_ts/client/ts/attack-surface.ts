@@ -222,6 +222,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   $("as-all").onclick = () => void load(null);
   $("as-reload").onclick = () => void load(currentAsset);
+  $("as-zin").onclick = () => { if (zoomB) d3.select($("as-svg")).transition().duration(200).call(zoomB.scaleBy, 1.3); };
+  $("as-zout").onclick = () => { if (zoomB) d3.select($("as-svg")).transition().duration(200).call(zoomB.scaleBy, 0.75); };
   $("as-fit").onclick = fitView;
   $("as-export").onclick = exportSvg;
   ($("as-labels") as HTMLInputElement).onchange = () => {

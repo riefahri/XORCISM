@@ -26237,6 +26237,18 @@ CREATE TABLE IF NOT EXISTS "BIAENTRY" (
     "ModifiedDate"         TEXT, "TenantID" INTEGER,
     FOREIGN KEY (BIAAuditID) REFERENCES BIAAUDIT(BIAAuditID)
 );
+-- Directed dependency edges between BIA entries ("From depends on To"), drives the BIA dependency graph.
+CREATE TABLE IF NOT EXISTS "BIADEPENDENCY" (
+    "BIADependencyID"      INTEGER PRIMARY KEY,
+    "BIAAuditID"           INTEGER,
+    "FromEntryID"          INTEGER,
+    "ToEntryID"            INTEGER,
+    "DependencyType"       TEXT,
+    "Notes"                TEXT,
+    "CreatedDate"          TEXT,
+    "TenantID"             INTEGER
+);
+CREATE INDEX IF NOT EXISTS ix_biadep_audit ON BIADEPENDENCY(BIAAuditID);
 CREATE TABLE IF NOT EXISTS "ACCOUNTTYPE"(
     "AccountTypeID" INTEGER NOT NULL,
     "AccountTypeName" TEXT NULL,
@@ -26395,5 +26407,30 @@ ALTER TABLE "TRAININGFORPERSON" ADD COLUMN "ConfidenceLevel" INTEGER;
 ALTER TABLE "TRAININGFORPERSON" ADD COLUMN "ValidFrom" DATE;
 ALTER TABLE "TRAININGFORPERSON" ADD COLUMN "ValidUntil" TEXT;
 ALTER TABLE "TRAININGFORPERSON" ADD COLUMN "TenantID" INTEGER;
+
+-- Pentest tool-chaining ("attack playbooks") — see xorcism_ts/server/chain.ts (ensureChainTables).
+-- A playbook is a rule graph; a run executes it from a seed target; each step is a tool run
+-- whose facts (ports/services/tech/vulns) trigger the follow-on tools.
+CREATE TABLE IF NOT EXISTS "XCHAINPLAYBOOK" (
+  "PlaybookID" INTEGER PRIMARY KEY, "PlaybookGUID" TEXT, "Name" TEXT, "Description" TEXT,
+  "Definition" TEXT, "Builtin" INTEGER DEFAULT 0, "TenantID" INTEGER, "CreatedDate" TEXT, "CreatedBy" INTEGER);
+CREATE TABLE IF NOT EXISTS "XCHAINRUN" (
+  "ChainRunID" INTEGER PRIMARY KEY, "ChainRunGUID" TEXT, "AuditID" INTEGER, "PlaybookID" INTEGER,
+  "PlaybookName" TEXT, "Name" TEXT, "SeedTarget" TEXT, "SeedKind" TEXT, "Mode" TEXT,
+  "Status" TEXT DEFAULT 'running', "TenantID" INTEGER, "CreatedDate" TEXT, "CreatedBy" INTEGER,
+  "FinishedDate" TEXT, "StepsTotal" INTEGER DEFAULT 0, "FindingsTotal" INTEGER DEFAULT 0,
+  "BackingEngagementID" INTEGER);
+CREATE TABLE IF NOT EXISTS "XCHAINSTEP" (
+  "ChainStepID" INTEGER PRIMARY KEY, "ChainRunID" INTEGER, "ParentStepID" INTEGER, "Depth" INTEGER,
+  "Connector" TEXT, "Target" TEXT, "RuleID" TEXT, "RuleLabel" TEXT, "JobID" INTEGER,
+  "Status" TEXT DEFAULT 'pending', "FactsJSON" TEXT, "Summary" TEXT, "CreatedDate" TEXT, "FinishedDate" TEXT);
+CREATE INDEX IF NOT EXISTS ix_chainrun_audit ON XCHAINRUN(AuditID);
+CREATE INDEX IF NOT EXISTS ix_chainstep_run ON XCHAINSTEP(ChainRunID);
+
+-- Attack-surface drift snapshots — see xorcism_ts/server/drift.ts (ensureDriftTable).
+CREATE TABLE IF NOT EXISTS "XSURFACESNAPSHOT" (
+  "SnapshotID" INTEGER PRIMARY KEY, "TenantID" INTEGER, "CreatedDate" TEXT, "CreatedBy" INTEGER,
+  "AssetCount" INTEGER, "ExposedCount" INTEGER, "Payload" TEXT);
+CREATE INDEX IF NOT EXISTS ix_surfsnap_tenant ON XSURFACESNAPSHOT(TenantID, SnapshotID);
 
 COMMIT;

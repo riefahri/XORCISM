@@ -403,6 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("btn-add-row-bottom").onclick = addRow;
   $("btn-csv").onclick = exportCSV;
   $("btn-excel").onclick = exportExcel;
+  $("btn-depgraph").onclick = () => { if (currentAuditId) window.open(`/bia-graph?audit=${currentAuditId}`, "_blank", "noopener"); };
   $("btn-finalize").onclick = () => updateAuditStatus("Final");
   $("filter-crit").onchange = renderTable;
 

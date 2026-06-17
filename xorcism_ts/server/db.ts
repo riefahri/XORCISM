@@ -3839,6 +3839,126 @@ export function getLlmAttackLayer(): {
   return { byAttackId: out, techniques: Object.keys(out).length, maxPrevalence: max, meta: LLM_ATTACK_META };
 }
 
+// ── BIA dependency graph (XORCISM.BIADEPENDENCY between BIAENTRY rows) ─────────
+/** Idempotent: directed dependency edges between BIA entries within a BIA audit. */
+export function ensureBiaDependency(): void {
+  const db = getDb("XORCISM");
+  db.exec(`CREATE TABLE IF NOT EXISTS BIADEPENDENCY (
+    BIADependencyID INTEGER PRIMARY KEY,
+    BIAAuditID INTEGER, FromEntryID INTEGER, ToEntryID INTEGER,
+    DependencyType TEXT, Notes TEXT, CreatedDate TEXT, TenantID INTEGER)`);
+  db.exec("CREATE INDEX IF NOT EXISTS ix_biadep_audit ON BIADEPENDENCY(BIAAuditID)");
+}
+
+export interface BiaNode {
+  id: number; label: string; type: string; criticality: string; rto: string; rpo: string; mtd: string;
+  riskLevel: string; owner: string; impacts: { fin: string; ops: string; legal: string; rep: string };
+}
+export interface BiaLink { id: number; source: number; target: number; type: string }
+
+/**
+ * Dependency graph for one BIA audit: nodes = BIA entries (assets/processes,
+ * with criticality + RTO/RPO/MTD + impact), edges = BIADEPENDENCY (From depends
+ * on To). Tenant-scoped via the parent audit. Empty if the audit isn't visible.
+ */
+export function biaDependencyGraph(tenant: number | null, auditId: number): {
+  audit: { BIAAuditID: number; BIAAuditName: string } | null; nodes: BiaNode[]; links: BiaLink[];
+} {
+  const db = getDb("XORCISM");
+  ensureBiaDependency();
+  const aWhere = ["BIAAuditID = ?"]; const aArgs: number[] = [auditId];
+  if (tenant != null && tableHasTenantCol("XORCISM", "BIAAUDIT")) {
+    aWhere.push(`("${TENANT_COL}" = ? OR "${TENANT_COL}" IS NULL)`); aArgs.push(tenant);
+  }
+  const audit = db.prepare(`SELECT BIAAuditID, BIAAuditName FROM BIAAUDIT WHERE ${aWhere.join(" AND ")}`)
+    .get(...aArgs) as { BIAAuditID: number; BIAAuditName: string } | undefined;
+  if (!audit) return { audit: null, nodes: [], links: [] };
+
+  const nodes = (db.prepare(
+    `SELECT BIAEntryID, AssetName, AssetType, CriticalityLevel, RTO, RPO, MTD, RiskLevel, OwnerName,
+            ImpactFinancial, ImpactOperational, ImpactLegal, ImpactReputational
+     FROM BIAENTRY WHERE BIAAuditID = ? ORDER BY BIAEntryID`
+  ).all(auditId) as Record<string, unknown>[]).map((r) => ({
+    id: Number(r.BIAEntryID), label: String(r.AssetName || `Entry #${r.BIAEntryID}`), type: String(r.AssetType || ""),
+    criticality: String(r.CriticalityLevel || ""), rto: String(r.RTO ?? ""), rpo: String(r.RPO ?? ""), mtd: String(r.MTD ?? ""),
+    riskLevel: String(r.RiskLevel || ""), owner: String(r.OwnerName || ""),
+    impacts: { fin: String(r.ImpactFinancial || ""), ops: String(r.ImpactOperational || ""), legal: String(r.ImpactLegal || ""), rep: String(r.ImpactReputational || "") },
+  }));
+  const ids = new Set(nodes.map((n) => n.id));
+  const links = (db.prepare(
+    "SELECT BIADependencyID, FromEntryID, ToEntryID, DependencyType FROM BIADEPENDENCY WHERE BIAAuditID = ?"
+  ).all(auditId) as Record<string, unknown>[])
+    .filter((r) => ids.has(Number(r.FromEntryID)) && ids.has(Number(r.ToEntryID)))
+    .map((r) => ({ id: Number(r.BIADependencyID), source: Number(r.FromEntryID), target: Number(r.ToEntryID), type: String(r.DependencyType || "depends-on") }));
+  return { audit, nodes, links };
+}
+
+// ── Kill chain graph (ATT&CK tactics as ordered phases + an adversary's TTPs) ──
+export interface KcTech { attackId: string; name: string }
+export interface KcPhase { order: number; attackId: string; name: string; shortName: string; url: string; total: number; used: KcTech[] }
+
+/** ATT&CK groups (intrusion sets) that have at least one "uses" technique — the kill-chain overlay sources. */
+export function killChainGroups(): { attackId: string; name: string }[] {
+  const db = getDb("XTHREAT");
+  try {
+    return db.prepare(
+      `SELECT g.AttackID AS attackId, g.Name AS name FROM ATTACKGROUP g
+       WHERE COALESCE(g.Deprecated,0)=0 AND g.StixID IN
+         (SELECT DISTINCT SourceStixID FROM ATTACKRELATIONSHIP WHERE RelationshipType='uses')
+       ORDER BY g.Name`
+    ).all() as { attackId: string; name: string }[];
+  } catch { return []; }
+}
+
+/**
+ * Kill chain: the enterprise ATT&CK tactics in matrix order (the phases of the
+ * kill chain) with the techniques an adversary (ATT&CK group) employs in each.
+ * `groupRef` = a group AttackID (e.g. "G0016") or StixID; omitted = the empty
+ * backbone (phases + total technique counts only).
+ */
+export function killChainGraph(groupRef?: string | null): {
+  phases: KcPhase[]; group: { attackId: string; name: string; description: string } | null;
+  coverage: { covered: number; total: number; techniques: number };
+} {
+  const db = getDb("XTHREAT");
+  const tactics = db.prepare(
+    "SELECT AttackTacticID, AttackID, Name, ShortName, MatrixOrder, URL FROM ATTACKTACTIC WHERE Domain='enterprise' ORDER BY MatrixOrder"
+  ).all() as { AttackTacticID: number; AttackID: string; Name: string; ShortName: string; MatrixOrder: number; URL: string }[];
+  const totals = new Map<number, number>();
+  for (const r of db.prepare(
+    "SELECT AttackTacticID aid, COUNT(DISTINCT AttackTechniqueID) c FROM ATTACKTECHNIQUETACTIC WHERE Domain='enterprise' GROUP BY AttackTacticID"
+  ).all() as { aid: number; c: number }[]) totals.set(r.aid, r.c);
+
+  const used = new Map<number, KcTech[]>();
+  let group: { attackId: string; name: string; description: string } | null = null;
+  let techCount = 0;
+  if (groupRef) {
+    const g = db.prepare("SELECT StixID, AttackID, Name, Description FROM ATTACKGROUP WHERE AttackID=? OR StixID=?")
+      .get(groupRef, groupRef) as { StixID: string; AttackID: string; Name: string; Description: string } | undefined;
+    if (g) {
+      group = { attackId: g.AttackID, name: g.Name, description: String(g.Description || "").slice(0, 600) };
+      const rows = db.prepare(
+        `SELECT DISTINCT tt.AttackTacticID tac, te.AttackID tid, te.Name tname
+         FROM ATTACKRELATIONSHIP r
+         JOIN ATTACKTECHNIQUE te ON te.StixID = r.TargetStixID
+         JOIN ATTACKTECHNIQUETACTIC tt ON tt.AttackTechniqueID = te.AttackTechniqueID
+         JOIN ATTACKTACTIC ta ON ta.AttackTacticID = tt.AttackTacticID AND ta.Domain='enterprise'
+         WHERE r.RelationshipType='uses' AND r.SourceStixID = ? ORDER BY te.AttackID`
+      ).all(g.StixID) as { tac: number; tid: string; tname: string }[];
+      const seen = new Set<string>();
+      for (const r of rows) {
+        (used.get(r.tac) || used.set(r.tac, []).get(r.tac)!).push({ attackId: r.tid, name: r.tname });
+        if (!seen.has(r.tid)) { seen.add(r.tid); techCount++; }
+      }
+    }
+  }
+  const phases: KcPhase[] = tactics.map((t) => ({
+    order: t.MatrixOrder, attackId: t.AttackID, name: t.Name, shortName: t.ShortName, url: t.URL,
+    total: totals.get(t.AttackTacticID) || 0, used: used.get(t.AttackTacticID) || [],
+  }));
+  return { phases, group, coverage: { covered: phases.filter((p) => p.used.length).length, total: phases.length, techniques: techCount } };
+}
+
 /**
  * Advanced GRC: extends the existing GRC base (XCOMPLIANCE risk register / audit findings,
  * XORCISM policies) without duplicating it.

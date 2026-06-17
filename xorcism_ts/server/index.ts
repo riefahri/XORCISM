@@ -22,8 +22,19 @@ import ocilRouter from "./routes/ocil";
 import osvRouter from "./routes/osv";
 import pentestRouter from "./routes/pentest";
 import { ensurePentestColumns } from "./engagements";
+import { ensureChainTables, startChainEngine } from "./chain";
 import screenshotRouter from "./routes/screenshot";
 import circlRouter from "./routes/circl";
+import exploitdbRouter from "./routes/exploitdb";
+import fusionRouter from "./routes/fusion";
+import attackPathRouter from "./routes/attackpath";
+import purpleTeamRouter from "./routes/purpleteam";
+import ransomwareRouter from "./routes/ransomware";
+import assuranceRouter from "./routes/assurance";
+import ctiRouter from "./routes/cti";
+import driftRouter from "./routes/drift";
+import contentRouter from "./routes/content";
+import { ensureDriftTable } from "./drift";
 import aiRouter from "./routes/ai";
 import uploadRouter, { UPLOAD_DIR } from "./routes/upload";
 import threatReportRouter from "./routes/threatreport";
@@ -129,6 +140,15 @@ app.use("/api", osvRouter); // OSV.dev integration (lookup + VULNERABILITY impor
 app.use("/api", pentestRouter); // Pentest mode: bulk scan of assets
 app.use("/api", screenshotRouter); // URL screenshot (ASSET websiteurl → AssetImage)
 app.use("/api", circlRouter); // CIRCL vulnerability-lookup (KEV search + import)
+app.use("/api", exploitdbRouter); // Exploit-DB search (local SearchSploit index) + CVE→exploit lookup
+app.use("/api", fusionRouter); // exploitability & relevance fusion score + prioritized exposure worklist
+app.use("/api", attackPathRouter); // attack-path & choke-point graph (reachability entry→crown-jewel)
+app.use("/api", purpleTeamRouter); // purple-team: chain ATT&CK detection coverage (Sigma) + rule generation
+app.use("/api", ransomwareRouter); // ransomware-to-$ scenario simulator (BIA/FAIR impact + D3FEND controls)
+app.use("/api", assuranceRouter); // continuously-proven compliance (control assurance from live telemetry)
+app.use("/api", ctiRouter); // "CTI that acts": intel cross-referenced with inventory + auto-ticket
+app.use("/api", driftRouter); // attack-surface drift (snapshot + diff)
+app.use("/api", contentRouter); // content hub exports (OpenVEX, Sigma bundle)
 app.use("/api", aiRouter); // local AI (Ollama): "Ask the threat model" + OCIL suggestion
 app.use("/api", uploadRouter); // file upload (evidence, etc.)
 app.use("/api", threatReportRouter); // THREATREPORT PDF ingestion → IOC / THREATACTOR
@@ -181,6 +201,9 @@ app.get("/bia", pageGuard("/bia"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "bia.html"));
 });
 
+app.get("/bia-graph", pageGuard("/bia"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "bia-graph.html"));
+});
 app.get("/dashboard", pageGuard("/dashboard"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "dashboard.html"));
 });
@@ -191,6 +214,9 @@ app.get("/threat-feeds", pageGuard("/"), (_req: Request, res: Response) => {
 
 app.get("/attack", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "attack.html"));
+});
+app.get("/kill-chain", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "kill-chain.html"));
 });
 app.get("/d3fend", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "d3fend.html"));
@@ -222,6 +248,36 @@ app.get("/pentest", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/pentest/report", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "pentest-report.html"));
 });
+app.get("/pentest/chain", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "chain.html"));
+});
+app.get("/exploitdb", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "exploitdb.html"));
+});
+app.get("/exposure", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "exposure.html"));
+});
+app.get("/attack-path", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "attack-path.html"));
+});
+app.get("/purple-team", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "purple-team.html"));
+});
+app.get("/ransomware", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "ransomware.html"));
+});
+app.get("/assurance", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "assurance.html"));
+});
+app.get("/cti-watch", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "cti-watch.html"));
+});
+app.get("/drift", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "drift.html"));
+});
+app.get("/content", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "content.html"));
+});
 
 app.get("/vault", requireAdmin, (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "vault.html"));
@@ -246,6 +302,8 @@ ensureSchemaDbs(); // creates the "schema" databases (XORCISM, XVULNERABILITY, X
 seedAdmin();
 ensureComplianceDb(); // creates the XCOMPLIANCE.db database (AUDIT, AUDITFINDING, AUDITREPORT)
 ensurePentestColumns(); // links AUDITFINDING to its engagement (AUDIT type=Pentest) — must run after ensureComplianceDb
+ensureChainTables(); // tool-chaining playbooks: XCHAINPLAYBOOK / XCHAINRUN / XCHAINSTEP (+ seeds builtins)
+ensureDriftTable(); // attack-surface drift snapshots (XSURFACESNAPSHOT)
 ensureTicketDb(); // creates the XTICKET.db database (TICKET, TICKETCOMMENT, TICKETCATEGORY, TICKETATTACHMENT)
 getAgentDb(); // creates the XAGENT.db database (XOR agents, events, IOC) if needed
 ensureThreatModelTables(); // creates the THREATMODEL* tables (XORCISM.db) if needed
@@ -264,6 +322,7 @@ seedData(); // pre-inserts reference data (e.g. VOCABULARY "XORCISM") — idempo
 startScheduler(); // fires the connectors' scheduled tasks (XSCHEDULE)
 startThreatFeedPoller(); // periodically turns CTI RSS feed items into THREATREPORT entries
 startRiskScoreLoop(); // recomputes ASSET.RiskScore every 30 s
+startChainEngine(); // advances active tool-chaining runs (pentest playbooks)
 purgeExpiredSessions();
 setInterval(purgeExpiredSessions, 60 * 60 * 1000).unref();
 

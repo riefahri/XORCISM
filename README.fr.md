@@ -32,6 +32,12 @@ de l'exposition** derrière une seule application pilotée par le schéma et un 
 modèle d'identité : chaque actif, CVE, mesure de sécurité, acteur de menace et
 incident vit au même endroit et alimente le même score de risque.
 
+Et cela ne s'arrête pas à l'inventaire : une **boucle offensive-défensive**
+intégrée enchaîne les outils de reconnaissance et d'exploitation, priorise ce qui
+est *réellement* exploitable, valide les chemins d'attaque vers vos joyaux,
+quantifie l'impact financier et prouve vos mesures de sécurité — en continu, de
+l'OSINT jusqu'au comité de direction.
+
 La plateforme est **entièrement auto-hébergée** : un serveur Node.js/TypeScript
 au-dessus d'une famille de bases SQLite, avec des importeurs et connecteurs
 Python optionnels. Pas de SaaS, pas de télémétrie : vos données ne quittent
@@ -45,7 +51,7 @@ jamais votre infrastructure.
 | **VOC / Analyste vulnérabilités** | Inventaire d'actifs, triage CVE/KEV/EPSS, ingestion de scans via connecteurs |
 | **GRC / Auditeur** | Politiques et mesures, audits, preuves, workflow des constats, questionnaires OCIL |
 | **CTI / Analyste menaces** | Entités STIX, matrices ATT&CK/D3FEND/A3M, chasses, hypothèses, graphe de menaces |
-| **Red / Purple team** | Engagements de pentest, couverture d'émulation d'adversaire (BAS), programmes de bug bounty |
+| **Red / Purple team** | Playbooks d'attaque chaînés (OSINT→exploit, Metasploit), analyse des chemins d'attaque et points de passage, couverture de détection purple-team, émulation BAS, programmes de bug bounty |
 | **SOC / Blue team** | Gestion des alertes et incidents, ticketing, de la détection à la réponse |
 
 ### Pourquoi XORCISM
@@ -53,6 +59,12 @@ jamais votre infrastructure.
 - **Un seul modèle de risque.** Actifs, vulnérabilités et valeur se combinent en
   un `RiskScore` par actif et un `EnterpriseRiskScore` par locataire, recalculés
   toutes les 30 s.
+- **Gestion de l'exposition en boucle fermée.** Un flux continu — **découvrir**
+  (chaîne OSINT + auto-inventaire) → **prioriser** (fusion d'exploitabilité) →
+  **valider** (chemins d'attaque et purple-team) → **quantifier** (impact $ d'un
+  ransomware) → **défendre** (couverture de détection, D3FEND) → **se conformer**
+  (mesures prouvées en direct par la télémétrie). Sans recoller les outils ni
+  passer par des tableurs.
 - **Explorateur piloté par le schéma.** Chaque table génère un formulaire et une
   grille ; ajoutez une table à la base et elle apparaît dans l'UI après un
   redémarrage — sans code.
@@ -81,8 +93,42 @@ jamais votre infrastructure.
   focus sur un actif ou tout le locataire, filtre par type, lien direct vers chaque formulaire).
 - **Gestion de la configuration** — nommage CPE, définitions et audits **OVAL**.
 - **Gestion des vulnérabilités** — CVE avec **KEV**, **CVSS** et **EPSS** ;
-  recherches CIRCL et OSV ; lien direct SOCRadar IOC-Radar pour les références
-  CVE ; suivi des programmes et soumissions de **bug bounty**.
+  recherches CIRCL et OSV ; **recherche Exploit-DB** (index SearchSploit, recherche
+  CVE→exploit public sur le formulaire VULNERABILITY avec « marquer exploitable » en
+  un clic) ; lien direct SOCRadar IOC-Radar pour les références CVE ; suivi des
+  programmes et soumissions de **bug bounty**.
+- **Expositions prioritaires (score de fusion)** — un **score unique d'exploitabilité
+  et de pertinence** par vulnérabilité (`/exposure`) fusionnant EPSS + CVSS + **CISA
+  KEV** + **exploits publics (Exploit-DB)** + **CTI « dans la nature »** + **rayon
+  d'impact** (actifs affectés × valeur métier), classé en liste « corriger en premier ».
+- **Chemins d'attaque & points d'étranglement** — graphe d'accessibilité (`/attack-path`)
+  reliant actifs exposés sur Internet → joyaux de la couronne (liens sous-réseau + BIA,
+  coût pondéré par l'exploitabilité de fusion) ; Dijkstra cartographie le chemin le plus
+  facile vers chaque joyau et désigne le **point d'étranglement** — le correctif unique
+  qui coupe le plus de routes d'attaque.
+- **Scénario rançongiciel → $** — rejouez les TTP d'un vrai groupe de rançongiciel
+  ATT&CK (`/ransomware`) sur votre parc et quantifiez l'**impact financier** via un
+  modèle FAIR transparent : **SLE** (perte primaire = valeur à risque + rançon +
+  reprise), **ALE** (× un ARO majoré par l'exposition Internet et les KEV), et le
+  **résiduel avec contrôles** (sauvegardes hors ligne + segmentation). Affiche les
+  phases de la kill chain couvertes, le rayon d'impact (actifs valorisés en $) et les
+  **contre-mesures D3FEND** qui brisent la chaîne — le pont sécurité↔métier pour le conseil.
+- **Conformité prouvée en continu** — chaque objectif de contrôle est évalué **en
+  direct depuis votre télémétrie de sécurité** (`/assurance`), au lieu de captures
+  d'écran annuelles : couverture de détection (Sigma), exposition KEV/exploit,
+  classification des actifs, exposition Internet, récence des pentests, clôture des
+  constats et **défense informée par la menace (ATT&CK/D3FEND)** — mappés à **ISO
+  27001 / NIST CSF** avec un statut prouvé/partiel/lacune et un honnête « attestation
+  requise » là où la télémétrie ne peut décider. Une conformité qui se reprouve à chaque chargement.
+- **Veille CTI qui agit** — `/cti-watch` recoupe le renseignement en direct (**CISA
+  KEV** + rapports de menace ingérés) avec votre inventaire d'actifs et ne fait
+  remonter **que ce qui vous concerne**, avec **ouverture de ticket en un clic** (XTICKET).
+- **Dérive de surface d'attaque** — `/drift` capture votre surface externe et compare
+  les captures successives : actifs **apparus, disparus, ou nouvellement exposés sur
+  Internet**. Se marie à la chaîne de découverte OSINT pour une surveillance continue.
+- **Hub de contenu** — `/content` partage/réutilise le contenu en fichiers portables :
+  **playbooks d'attaque** (import de recettes communautaires), **bundle de règles
+  Sigma**, et un document **OpenVEX**.
 - **Tableau de bord exécutif** — score de risque d'entreprise, répartition des
   vulnérabilités, valeur financière, **exposition au risque = risque × valeur**,
   nuage d'étiquettes d'actifs, tendances d'incidents (Chart.js).
@@ -102,7 +148,10 @@ jamais votre infrastructure.
 - **Questionnaires OCIL** — création compatible OCIL 2.0, import/export XML et un
   bouton « suggérer une réponse » par IA (optionnel).
 - **Analyse d'impact métier (BIA)** — audits et entrées avec listes d'actifs
-  éditables.
+  éditables, ainsi qu'un **graphe de dépendances** : une carte des entrées BIA
+  (colorées par criticité) et de leurs dépendances, avec **propagation
+  d'impact** — cliquez sur une entrée pour voir tout ce qui tombe si elle
+  défaille, le RTO le plus serré et la pire criticité impactée.
 
 ### 🔭 Menaces et détection
 
@@ -126,6 +175,29 @@ jamais votre infrastructure.
   Anthropic 2026. Activable sur `/attack` à côté de la couche de couverture BAS.
 - **Émulation d'adversaire (BAS)** — plans d'émulation, tests atomiques et
   exécuteurs, et une **heatmap de couverture ATT&CK** superposée à la matrice.
+- **Enchaînement d'outils (playbooks d'attaque)** — indiquez une cible et XORCISM
+  imite un engagement complet : un outil s'exécute (ex. **nmap**), son résultat est
+  analysé en *faits* (ports/services ouverts, technologies, vulnérabilités), et des
+  règles lancent automatiquement l'outil suivant — un scanner web sur 80/443
+  (**WhatWeb, Nikto, Nuclei**), **WPScan** si WordPress est détecté, **sslyze** sur
+  TLS — récursivement, jusqu'à épuisement des règles. L'exécution est dessinée en
+  **arbre temps réel** et les constats remontent à l'engagement. **Bibliothèque
+  prédéfinie** de playbooks — pentest externe complet, évaluation d'app web,
+  reconnaissance réseau, web-recon par sous-domaines (subfinder → httpx par hôte),
+  **Exploitation externe (Metasploit)**, **Balayage AD/SMB interne (Metasploit +
+  CrackMapExec)**, durcissement TLS/SSL, et **Recon externe → surface d'attaque
+  (OSINT)** — un parcours d'attaquant passif d'abord depuis un domaine (subfinder ·
+  theHarvester · Shodan · HIBP → sonde → scan web) qui, en mode **Réel**, **alimente
+  automatiquement l'inventaire d'actifs** avec les hôtes découverts (découverte
+  continue de surface d'attaque) — avec **import/export** des playbooks en JSON
+  portable. **Couverture de détection purple-team** : chaque exécution de chaîne
+  devient un rapport de couverture ATT&CK **fondé sur des preuves** (`/purple-team`) —
+  chaque outil est mappé à sa technique, puis vérifié contre votre **bibliothèque
+  de règles Sigma** (3 750+) ; les techniques sans règle sont des lacunes, comblées
+  en **générant la règle Sigma manquante** (IA locale, squelette déterministe en repli).
+  Deux modes : **Simulation** (sûr, sans scan réel) et **Réel** (jobs
+  de connecteurs, périmètre uniquement, ROE appliqué). Localisé dans les 10 langues.
+  Voir `/pentest` → carte « Chaîne d'attaque ».
 - **Graphe de relations STIX** — graphe interactif reliant chasses ↔ techniques ↔
   acteurs ; les nœuds renvoient directement à leurs formulaires.
 - **Modélisation des menaces** — périmètre STRIDE, actifs, menaces et mesures.
@@ -147,7 +219,12 @@ jamais votre infrastructure.
 - **IA locale (Ollama)** — assistants entièrement hors ligne : **« Ask the threat
   model »** (RAG sur vos données XORCISM), un **générateur de note de synthèse**,
   un **agent de triage de vulnérabilités** (KEV/EPSS + rayon d'impact sur les
-  actifs touchés), un **assistant de chasse**, et des suggestions de réponses OCIL.
+  actifs touchés), un **assistant de chasse**, des suggestions de réponses OCIL, et
+  des **copilotes red/blue** — un **analyste IA de chaîne d'attaque** (lecture d'une
+  exécution : chemin critique, constats, prochaines étapes offensives + défenses
+  ATT&CK·D3FEND) et une **synthèse d'exposition IA** (niveau RSSI sur la liste de
+  fusion + chemins d'attaque). Chaque copilote bascule sur une synthèse déterministe
+  des données quand l'IA locale est hors ligne — rien ne bloque ; aucune donnée ne quitte la machine.
 - **Importeurs Python** — chargent les données de référence : ATT&CK, D3FEND,
   CAPEC, CVE/NVD, KEV, ISO 27001, NIST 800-53, CCE, OVAL, MAEC, Atomic Red Team,
   A3M, **règles Sigma**, chasses, **rapports de menaces et IOC**, **outils OSINT**.
@@ -383,6 +460,15 @@ externe** :
 | **Gestion des actifs** | explorer | Inventaire, propriétaires, valeur, étiquettes, exposition, scoring |
 | **Gestion de la configuration** | explorer | Nommage CPE, définitions et audits OVAL |
 | **Gestion des vulnérabilités** | explorer | CVE/KEV/CVSS/EPSS, CIRCL/OSV, bug bounty |
+| **Recherche Exploit-DB** | `/exploitdb` | Recherche de l'index SearchSploit local par mot-clé/CVE ; recherche CVE→exploit public sur le formulaire VULNERABILITY |
+| **Expositions prioritaires** | `/exposure` | Score de fusion exploitabilité & pertinence — liste de travail « corriger en premier » (EPSS+KEV+exploit+CTI+rayon d'impact) |
+| **Chemins d'attaque** | `/attack-path` | Graphe d'accessibilité entrée→joyau (liens sous-réseau + BIA, pondérés par la fusion) + analyse des points d'étranglement |
+| **Couverture de détection** | `/purple-team` | Purple-team : outils de chaîne → ATT&CK → couverture par la bibliothèque Sigma + génération de la règle manquante |
+| **Impact $ rançongiciel** | `/ransomware` | Rejoue les TTP d'un groupe de rançongiciel → impact $ SLE/ALE, rayon d'impact, contrôles D3FEND |
+| **Assurance des contrôles** | `/assurance` | Conformité prouvée en continu — contrôles évalués en direct depuis la télémétrie, mappés ISO 27001 / NIST CSF |
+| **Veille CTI** | `/cti-watch` | « CTI qui agit » — KEV + rapports recoupés avec l'inventaire + ouverture de ticket en un clic |
+| **Dérive de surface** | `/drift` | Capture & comparaison de la surface d'attaque — apparu/disparu/nouvellement exposé |
+| **Hub de contenu** | `/content` | Export/import de contenu portable — playbooks d'attaque, bundle Sigma, OpenVEX |
 | **Conformité (GRC)** | explorer | Politiques, mesures, audits, preuves, constats, CRQ/FAIR |
 | **EBIOS Risk Manager** | `/ebios` | 5 ateliers ANSSI, valeurs métier, événements redoutés, écosystème |
 | **TPRM** | `/tprm` | Évaluations de risque tiers / fournisseurs et questionnaires |
@@ -400,9 +486,11 @@ externe** :
 | **ATT&CK** | `/attack` | Enterprise / Mobile / ICS / ATLAS + surcouches couverture BAS & **LLM-enabled (Anthropic)** |
 | **D3FEND** | `/d3fend` | Contre-mesures défensives mappées à ATT&CK et aux mesures |
 | **A3M** | `/a3m` | Agentic AI Attack Matrix |
+| **Kill chain** | `/kill-chain` | Tactiques ATT&CK en phases ordonnées de la kill chain + surcouche TTP d'un adversaire |
 | **Graphe STIX** | `/stix-graph` | Graphe de relations ; les nœuds renvoient aux formulaires |
 | **Graphe de surface d'attaque** | `/attack-surface` | Graphe centré sur l'actif — applications, CPE, vulns, organisations, personnes, menaces, incidents, étiquettes |
 | **Pentest** | `/pentest` | Engagements (AUDIT type=Pentest) cadrés sur des actifs ; connecteurs d'outils ; constats, vulnérabilités et **rapport PDF** |
+| **Chaîne d'attaque** | `/pentest/chain` | Exécution d'un playbook d'enchaînement d'outils — arbre temps réel (nmap → scanners web → WPScan), piloté par les faits, constats remontés |
 
 ---
 

@@ -369,6 +369,8 @@ document.addEventListener("DOMContentLoaded", () => {
     $("sg-counts").textContent = "";
     $("sg-details").style.display = "none";
   };
+  $("sg-zin").onclick = () => { if (zoomB) d3.select($("sg-svg")).transition().duration(200).call(zoomB.scaleBy, 1.3); };
+  $("sg-zout").onclick = () => { if (zoomB) d3.select($("sg-svg")).transition().duration(200).call(zoomB.scaleBy, 0.75); };
   $("sg-fit").onclick = fitView;
   $("sg-export").onclick = exportSvg;
 

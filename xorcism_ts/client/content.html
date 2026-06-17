@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Content hub</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .co-wrap{max-width:1000px;margin:0 auto;padding:18px}
+  .co-head h1{font-size:20px;margin:0 0 2px}
+  .co-sub{color:#94a3b8;font-size:13px;margin-bottom:18px;max-width:820px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .cc{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px}
+  .cc .ic{font-size:22px}
+  .cc h2{font-size:15px;margin:6px 0 4px;color:#e2e8f0}
+  .cc p{font-size:12px;color:#94a3b8;margin:0 0 10px;min-height:34px}
+  .cc .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .cc .cnt{font-size:11px;color:#64748b}
+  #co-toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#064e3b;color:#6ee7b7;border-radius:8px;padding:9px 14px;font-size:13px;display:none}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/pentest">&#129529; Pentesting</a>
+  <span class="spacer"></span>
+  <span class="title">&#129513; Content hub</span>
+</div>
+
+<div class="co-wrap">
+  <div class="co-head">
+    <h1>Content hub</h1>
+    <div class="co-sub">Share and reuse XORCISM content as portable files — attack playbooks, the Sigma detection library, and an OpenVEX document. Import playbooks from teammates or the community.</div>
+  </div>
+  <div class="grid">
+    <div class="cc">
+      <div class="ic">🔗</div><h2>Attack playbooks</h2>
+      <p>Tool-chaining playbooks (recon → exploit → impact). Portable JSON; import community recipes.</p>
+      <div class="acts">
+        <button class="btn btn-primary btn-sm" data-export="/api/pentest/playbooks/export" data-name="xorcism-attack-chains.json">⬇ Export</button>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0">⬆ Import<input type="file" accept="application/json,.json" id="co-pb-import" style="display:none"></label>
+      </div>
+      <div class="cnt" id="co-pb-cnt"></div>
+    </div>
+    <div class="cc">
+      <div class="ic">🛡️</div><h2>Sigma detection rules</h2>
+      <p>Your detection library — share rules (with ATT&CK tags, log sources, queries) as a bundle.</p>
+      <div class="acts"><button class="btn btn-primary btn-sm" data-export="/api/content/sigma-export" data-name="xorcism-sigma-rules.json">⬇ Export bundle</button></div>
+      <div class="cnt" id="co-sig-cnt"></div>
+    </div>
+    <div class="cc">
+      <div class="ic">📄</div><h2>OpenVEX</h2>
+      <p>Vulnerability Exploitability eXchange — which CVEs affect your products vs false-positives/fixed.</p>
+      <div class="acts"><button class="btn btn-primary btn-sm" data-export="/api/vex/export" data-name="xorcism-openvex.json">⬇ Export VEX</button></div>
+    </div>
+  </div>
+</div>
+<div id="co-toast"></div>
+
+<script src="/js/session-ui.js"></script>
+<script src="/js/content.js"></script>
+</body>
+</html>

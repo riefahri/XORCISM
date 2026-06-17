@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Attack chain</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ch-layout{display:flex;height:calc(100vh - 46px)}
+  .ch-side{width:320px;min-width:320px;background:#13162a;border-right:1px solid #2d3250;display:flex;flex-direction:column;overflow:auto}
+  .ch-side .sec{padding:12px 14px;border-bottom:1px solid #1e2133}
+  .ch-side h3{font-size:12px;color:#94a3b8;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em}
+  .ch-main{flex:1;position:relative;overflow:hidden;background:#0b0d18}
+  #ch-svg{width:100%;height:100%;display:block;cursor:grab}#ch-svg:active{cursor:grabbing}
+  .kv{display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1;margin:3px 0}
+  .kv b{color:#e2e8f0;font-weight:600}
+  .badge{display:inline-block;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600}
+  .b-run{background:#78350f;color:#fcd34d}.b-done{background:#064e3b;color:#6ee7b7}.b-stop{background:#334155;color:#cbd5e1}.b-err{background:#7f1d1d;color:#fecaca}
+  .b-sim{background:#1e3a8a;color:#bfdbfe}.b-live{background:#7f1d1d;color:#fecaca}
+  .legend{display:flex;flex-direction:column;gap:5px}
+  .legend .it{display:flex;align-items:center;gap:6px;font-size:11px;color:#cbd5e1}
+  .legend .sw{width:14px;height:14px;border-radius:4px;flex:none;border:1px solid #0008}
+  .ch-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .nlink{fill:none;stroke:#3b4263;stroke-width:1.6px}
+  .node rect{rx:8;stroke-width:1.5px}
+  .node .tool{font-size:11px;font-weight:700;fill:#f1f5f9}
+  .node .tgt{font-size:9px;fill:#cbd5e1;font-family:ui-monospace,monospace}
+  .node .sum{font-size:9px;fill:#94a3b8}
+  .node .rule{font-size:8.5px;fill:#7c83fd}
+  .node{cursor:pointer}
+  #ch-detail{font-size:12px;color:#cbd5e1}
+  #ch-detail .t{color:#e2e8f0;font-weight:600;margin:8px 0 3px}
+  #ch-detail .chip{display:inline-block;background:#0f1117;border:1px solid #2d3250;border-radius:5px;padding:1px 6px;margin:2px 3px 0 0;font-size:11px}
+  #ch-detail .v{display:block;font-size:11px;margin:2px 0;color:#fca5a5}
+  #ch-toast{position:absolute;bottom:12px;left:12px;background:#7f1d1d;color:#fecaca;border-radius:6px;padding:7px 12px;font-size:12px;display:none}
+  .muted{color:#64748b}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .pulsing{animation:pulse 1.1s ease-in-out infinite}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/pentest" id="ch-back">&#129529; Pentesting</a>
+  <span class="spacer"></span>
+  <span class="title">&#128279; Attack chain</span>
+</div>
+
+<div class="ch-layout">
+  <div class="ch-side">
+    <div class="sec">
+      <h3 id="ch-run-name">Attack chain</h3>
+      <div id="ch-meta"></div>
+      <div class="ch-btns">
+        <button class="btn btn-ghost btn-sm" id="ch-stop" style="display:none">Stop</button>
+        <button class="btn btn-ghost btn-sm" id="ch-ai">🧠 AI analysis</button>
+        <button class="btn btn-ghost btn-sm" id="ch-purple">🛡️ Detection coverage</button>
+        <button class="btn btn-ghost btn-sm" id="ch-zin" title="Zoom in">＋</button>
+        <button class="btn btn-ghost btn-sm" id="ch-zout" title="Zoom out">－</button>
+        <button class="btn btn-ghost btn-sm" id="ch-fit">Fit</button>
+        <button class="btn btn-ghost btn-sm" id="ch-export">Export SVG</button>
+      </div>
+    </div>
+    <div class="sec">
+      <h3>Legend</h3>
+      <div class="legend">
+        <div class="it"><span class="sw" style="background:#475569"></span>Pending</div>
+        <div class="it"><span class="sw" style="background:#f59e0b"></span>Running</div>
+        <div class="it"><span class="sw" style="background:#22c55e"></span>Done</div>
+        <div class="it"><span class="sw" style="background:#22c55e;border:2px solid #ef4444"></span>Done — vulnerabilities found</div>
+        <div class="it"><span class="sw" style="background:#ef4444"></span>Error</div>
+      </div>
+      <div class="muted" style="margin-top:8px">Each tool feeds the next: a node's discovered ports / tech / vulns trigger the follow-on tools.</div>
+    </div>
+    <div class="sec">
+      <h3>Step detail</h3>
+      <div id="ch-detail"><span class="muted">Click a node to inspect its findings.</span></div>
+    </div>
+  </div>
+  <div class="ch-main">
+    <svg id="ch-svg"></svg>
+    <div id="ch-toast"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="/js/session-ui.js"></script>
+<script src="/js/chain.js"></script>
+</body>
+</html>

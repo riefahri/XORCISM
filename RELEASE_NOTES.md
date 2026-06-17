@@ -2,6 +2,98 @@
 
 ---
 
+## v1.1.0-beta — Offensive automation & continuous assurance
+
+**Release date:** 2026-06-18
+**Status:** Public beta · self-hosted · open-source
+
+This release adds the **offensive‑to‑defensive closed loop** on top of the
+`v1.0.0` foundation: discover your attack surface, prioritize what's truly
+exploitable, validate it, quantify the business impact, prove your defenses, and
+keep compliance continuously evidenced — all under one schema, with a local‑AI
+layer and zero data leaving your infrastructure.
+
+> Upgrade is in‑place: new tables (`XCHAIN*`, `XSURFACESNAPSHOT`) are created
+> automatically on first start; existing data is untouched.
+
+### Highlights
+
+- **From OSINT to impact to compliance — one loop.** A continuous chain:
+  *Discover → Prioritize → Validate → Quantify → Defend → Comply*, each stage a
+  real feature backed by your own data.
+- **Tool‑chaining "attack playbooks."** Seed a target, a tool runs, its result is
+  parsed into facts, and the next tool fires automatically — mimicking a full
+  engagement, drawn as a live tree.
+- **Exploitability you can defend.** One fused score (EPSS + CVSS + KEV + public
+  exploit + CTI + blast radius) ranks the work; attack paths show how an attacker
+  reaches the crown jewels.
+- **Local‑AI copilots & evidence‑based compliance.** Red/blue analysis, a CISO
+  briefing, purple‑team detection coverage, and compliance controls proven live
+  from telemetry — not annual screenshots.
+
+### New in this release
+
+#### Offensive automation
+- **Tool‑chaining engine (attack playbooks)** — `/pentest` → "Attack chain": seed
+  a target → run a tool → parse facts (ports/services/tech/vulns) → auto‑launch the
+  right follow‑on tool, recursively. **Two backends:** *Simulate* (safe, no real
+  scanning) and *Live* (real connector jobs, in‑scope only, ROE‑enforced). Live
+  tree viewer at `/pentest/chain`.
+- **Predefined playbook library (8)** incl. **External exploitation (Metasploit)**,
+  **Internal AD/SMB sweep (Metasploit + CrackMapExec)**, **External recon → attack
+  surface (OSINT)**, web‑recon, TLS audit — plus **import/export** as portable JSON.
+- **OSINT discovery chain + auto‑inventory** — seed a *domain*: subfinder ·
+  theHarvester · Shodan · HIBP → probe → web scan; in Live mode, discovered hosts
+  **auto‑populate the asset inventory** (continuous ASM).
+- **Exploit‑DB search** — `/exploitdb` (local SearchSploit index) and a CVE→public‑
+  exploit lookup on the VULNERABILITY form with one‑click "mark exploitable".
+
+#### Prioritization & attack paths
+- **Top exposures (fusion score)** — `/exposure`: one exploitability & relevance
+  score per vulnerability (EPSS + CVSS + KEV + Exploit‑DB + in‑the‑wild CTI + blast
+  radius), ranked into a "fix this first" worklist.
+- **Attack paths & choke points** — `/attack-path`: reachability graph from
+  internet‑exposed assets to crown jewels (subnet + BIA edges, fusion‑weighted),
+  with the single **choke point** that severs the most paths.
+
+#### Detection & defense (purple team)
+- **Detection coverage** — `/purple-team`: maps a chain run's tools to ATT&CK and
+  checks your **Sigma library** for a detection; gaps can be closed by **generating
+  the missing Sigma rule** (local AI, deterministic skeleton fallback).
+- **AI red/blue copilots** — an **attack‑chain analyst** and a CISO‑level **exposure
+  briefing**, on the local Ollama; both degrade gracefully to a data summary offline.
+
+#### Business impact & compliance
+- **Ransomware‑to‑$ scenario** — `/ransomware`: replay an ATT&CK ransomware group's
+  TTPs across your estate → **SLE / ALE** dollar impact (FAIR‑style, transparent),
+  blast radius, kill‑chain coverage, and the **D3FEND** controls that break the chain.
+- **Continuously‑proven compliance** — `/assurance`: control objectives evaluated
+  **live from telemetry** (detection, exposure, findings, pentest, threat‑informed
+  defense), mapped to **ISO 27001 / NIST CSF**, with an honest "attestation required"
+  where telemetry can't decide.
+
+#### Operational force‑multipliers
+- **CTI that acts** — `/cti-watch`: CISA KEV + ingested threat reports matched to
+  your inventory → only what affects you → **one‑click ticketing**.
+- **Attack‑surface drift** — `/drift`: snapshot and diff the external surface
+  (appeared / vanished / newly exposed).
+- **Content hub & OpenVEX** — `/content`: export/import attack playbooks, share the
+  Sigma rule bundle, and export an **OpenVEX** document.
+
+#### UX
+- **Graph zoom controls** — explicit ＋/− zoom buttons on every d3 graph
+  (attack‑surface, BIA, kill‑chain, STIX, attack‑chain, attack‑path).
+- **Configurable main menu** — **drag‑to‑reorder** the landing cards; the order is
+  saved per user and reapplied on every visit.
+- New UI strings localized **FR + EN** (other languages fall back to English).
+
+> New connectors and Python importers were also added (e.g. `import_exploitdb.py`,
+> OSINT tool‑runners, `import_atomics`/group importers). Offensive/scanning
+> connectors remain **authorized‑use‑only** and configured via environment
+> variables; Live chain runs are ROE‑enforced.
+
+---
+
 ## v1.0.0-beta — First public release (beta)
 
 **Release date:** 2026-06-15

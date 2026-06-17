@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Attack paths</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ap-layout{display:flex;height:calc(100vh - 46px)}
+  .ap-side{width:330px;min-width:330px;background:#13162a;border-right:1px solid #2d3250;display:flex;flex-direction:column;overflow:auto}
+  .ap-side .sec{padding:12px 14px;border-bottom:1px solid #1e2133}
+  .ap-side h3{font-size:12px;color:#94a3b8;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em}
+  .ap-main{flex:1;position:relative;overflow:hidden;background:#0b0d18}
+  #ap-svg{width:100%;height:100%;display:block;cursor:grab}#ap-svg:active{cursor:grabbing}
+  .kv{display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1;margin:3px 0}.kv b{color:#e2e8f0}
+  .legend .it{display:flex;align-items:center;gap:6px;font-size:11px;color:#cbd5e1;margin:3px 0}
+  .legend .sw{width:14px;height:14px;border-radius:50%;flex:none;border:1px solid #0008}
+  .choke,.path{font-size:12px;border:1px solid #2d3250;border-radius:6px;padding:6px 8px;margin-bottom:5px;cursor:pointer;color:#cbd5e1}
+  .choke:hover,.path:hover{background:#1b2036}
+  .choke b{color:#f59e0b}.path .c{color:#fca5a5;font-family:ui-monospace,monospace}
+  .path .route{font-size:10px;color:#94a3b8;margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+  .node-label{font-size:9px;fill:#cbd5e1;pointer-events:none}
+  .muted{color:#64748b}
+  #ap-toast{position:absolute;bottom:12px;left:12px;background:#7f1d1d;color:#fecaca;border-radius:6px;padding:7px 12px;font-size:12px;display:none}
+  .ap-btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/exposure">&#127919; Exposures</a>
+  <span class="spacer"></span>
+  <span class="title">&#128737;&#65039; Attack paths</span>
+</div>
+
+<div class="ap-layout">
+  <div class="ap-side">
+    <div class="sec">
+      <h3 data-i18n="ap.title">Attack paths</h3>
+      <div id="ap-stats"></div>
+      <div class="ap-btns">
+        <button class="btn btn-ghost btn-sm" id="ap-zin" title="Zoom in">＋</button>
+        <button class="btn btn-ghost btn-sm" id="ap-zout" title="Zoom out">－</button>
+        <button class="btn btn-ghost btn-sm" id="ap-fit" data-i18n="ap.fit">Fit</button>
+        <button class="btn btn-ghost btn-sm" id="ap-export" data-i18n="ap.export">Export SVG</button>
+      </div>
+    </div>
+    <div class="sec">
+      <h3 data-i18n="ap.legend">Legend</h3>
+      <div class="legend">
+        <div class="it"><span class="sw" style="background:#3b82f6"></span><span data-i18n="ap.entry">Internet-exposed (entry)</span></div>
+        <div class="it"><span class="sw" style="background:#f59e0b"></span><span data-i18n="ap.jewel">Crown jewel (high value)</span></div>
+        <div class="it"><span class="sw" style="background:#475569"></span><span data-i18n="ap.host">Host</span></div>
+        <div class="it"><span class="sw" style="background:#ef4444;border-radius:3px"></span><span data-i18n="ap.choke">Choke point</span></div>
+      </div>
+      <div class="muted" style="margin-top:8px" data-i18n="ap.legendNote">Node size = exploitability. Red links = on an easiest attack path to a crown jewel.</div>
+    </div>
+    <div class="sec">
+      <h3 data-i18n="ap.chokes">Choke points</h3>
+      <div id="ap-chokes"><span class="muted" data-i18n="ap.none">—</span></div>
+    </div>
+    <div class="sec">
+      <h3 data-i18n="ap.paths">Easiest paths to crown jewels</h3>
+      <div id="ap-paths"><span class="muted" data-i18n="ap.none">—</span></div>
+    </div>
+  </div>
+  <div class="ap-main">
+    <svg id="ap-svg"></svg>
+    <div id="ap-toast"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="/js/session-ui.js"></script>
+<script src="/js/attack-path.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+/**
+ * fusion.ts — Exploitability & relevance fusion score.
+ *
+ * Answers "is THIS exposure actually dangerous to ME?" by fusing every signal XORCISM
+ * already holds into one 0–100 score + a transparent breakdown:
+ *   EPSS (probability) · CVSS (severity) · KEV (known-exploited) · public exploit
+ *   (Exploit-DB) · in-the-wild (CTI/INTELEXCHANGE) — then weighted by blast radius
+ *   (how many assets, and their business value). No competitor has all these inputs
+ *   under one roof, so none can compute this in one number.
+ */
+import { getDb } from "./db";
+import { exploitsForCve } from "./exploitdb";
+
+export interface FusionScore {
+  VulnerabilityID: number; ref: string; cvss: number | null; kev: number; epss: number | null;
+  exploits: number; itw: boolean; assets: number; maxValue: number | null;
+  score: number; priority: number; factors: string[];
+}
+
+const CVE_RX = /CVE-\d{4}-\d{3,7}/i;
+
+function colset(db: ReturnType<typeof getDb>, table: string): Set<string> {
+  try { return new Set((db.prepare(`PRAGMA table_info("${table}")`).all() as { name: string }[]).map((c) => c.name)); } catch { return new Set(); }
+}
+
+/** Compute the fused score + breakdown from the raw signals. */
+function fuse(v: { VulnerabilityID: number; ref: string; cvss: number | null; kev: number; epss: number | null; exploits: number; itw: boolean; assets: number; maxValue: number | null }): FusionScore {
+  const factors: string[] = [];
+  let score = 0;
+  if (v.epss != null && v.epss > 0) { const p = Math.round(v.epss * 40); score += p; factors.push(`EPSS ${(v.epss * 100).toFixed(1)}% (+${p})`); }
+  if (v.cvss != null && v.cvss > 0) { const p = Math.round((v.cvss / 10) * 20); score += p; factors.push(`CVSS ${v.cvss} (+${p})`); }
+  if (v.kev) { score += 25; factors.push("KEV — known exploited (+25)"); }
+  if (v.exploits > 0) { score += 20; factors.push(`${v.exploits} public exploit${v.exploits > 1 ? "s" : ""} on Exploit-DB (+20)`); }
+  if (v.itw) { score += 10; factors.push("Seen in CTI / in the wild (+10)"); }
+  score = Math.min(100, score);
+  const blast = Math.min(18, v.assets * 3);
+  const valPts = v.maxValue && v.maxValue > 0 ? Math.min(18, Math.log10(v.maxValue + 1) * 6) : 0;
+  const priority = Math.min(100, Math.round(score * 0.7 + blast + valPts));
+  if (v.assets) factors.push(`${v.assets} affected asset${v.assets > 1 ? "s" : ""}`);
+  return { ...v, score, priority, factors };
+}
+
+function cveOf(ref: string): string | null { const m = (ref || "").match(CVE_RX); return m ? m[0].toUpperCase() : null; }
+
+/** In-the-wild CVE set from XTHREAT.INTELEXCHANGE (CTI). Best-effort. */
+function itwCves(cves: string[]): Set<string> {
+  const out = new Set<string>();
+  if (!cves.length) return out;
+  try {
+    const xt = getDb("XTHREAT");
+    if (!colset(xt, "INTELEXCHANGE").has("CveTags")) return out;
+    const rows = xt.prepare("SELECT CveTags FROM INTELEXCHANGE WHERE CveTags IS NOT NULL AND CveTags<>''").all() as { CveTags: string }[];
+    const hay = rows.map((r) => r.CveTags.toUpperCase()).join(" ");
+    for (const c of cves) if (hay.includes(c)) out.add(c);
+  } catch { /* XTHREAT unavailable */ }
+  return out;
+}
+
+/** Fusion score for a single vulnerability (id). */
+export function fusionForVuln(vid: number): FusionScore | null {
+  const xo = getDb("XORCISM");
+  const agg = xo.prepare(
+    `SELECT COUNT(DISTINCT av.AssetID) assets, MAX(COALESCE(a.BusinessValue, a.RiskScore, 0)) maxValue
+     FROM ASSETVULNERABILITY av JOIN ASSET a ON a.AssetID=av.AssetID
+     WHERE av.VulnerabilityID=? AND COALESCE(av.FalsePositive,0)=0`
+  ).get(vid) as { assets: number; maxValue: number | null } | undefined;
+  let ref = `Vuln #${vid}`, cvss: number | null = null, kev = 0, epss: number | null = null;
+  try {
+    const xv = getDb("XVULNERABILITY");
+    const m = xv.prepare(
+      `SELECT COALESCE(NULLIF(VULReferential,''), NULLIF(VULName,''), 'Vuln #'||VulnerabilityID) ref, CVSSBaseScore cvss, KEV kev, EPSS epss
+       FROM VULNERABILITY WHERE VulnerabilityID=?`
+    ).get(vid) as { ref: string; cvss: number | null; kev: unknown; epss: number | null } | undefined;
+    if (m) { ref = m.ref; cvss = m.cvss; kev = Number(m.kev) || 0; epss = m.epss; }
+  } catch { /* */ }
+  const cve = cveOf(ref);
+  const exploits = cve ? exploitsForCve(cve).length : 0;
+  const itw = cve ? itwCves([cve]).has(cve) : false;
+  return fuse({ VulnerabilityID: vid, ref, cvss, kev, epss, exploits, itw, assets: agg?.assets || 0, maxValue: agg?.maxValue ?? null });
+}
+
+/** Per-vuln exploitability (0–100, no blast radius) for a set of ids. Reused by the attack-path engine. */
+export function vulnExploitability(vids: number[]): Map<number, number> {
+  const out = new Map<number, number>();
+  const ids = [...new Set(vids.filter((n) => Number.isInteger(n) && n > 0))];
+  if (!ids.length) return out;
+  const meta = new Map<number, { ref: string; cvss: number | null; kev: number; epss: number | null }>();
+  try {
+    const xv = getDb("XVULNERABILITY");
+    for (let i = 0; i < ids.length; i += 800) {
+      const chunk = ids.slice(i, i + 800); const ph = chunk.map(() => "?").join(",");
+      for (const m of xv.prepare(
+        `SELECT VulnerabilityID id, COALESCE(NULLIF(VULReferential,''), NULLIF(VULName,''), 'Vuln #'||VulnerabilityID) ref, CVSSBaseScore cvss, KEV kev, EPSS epss
+         FROM VULNERABILITY WHERE VulnerabilityID IN (${ph})`
+      ).all(...chunk) as { id: number; ref: string; cvss: number | null; kev: unknown; epss: number | null }[]) {
+        meta.set(m.id, { ref: m.ref, cvss: m.cvss, kev: Number(m.kev) || 0, epss: m.epss });
+      }
+    }
+  } catch { /* XVULNERABILITY unavailable */ }
+  const cves = [...new Set(ids.map((id) => cveOf(meta.get(id)?.ref || "")).filter(Boolean) as string[])];
+  const itw = itwCves(cves);
+  for (const id of ids) {
+    const m = meta.get(id);
+    const cve = cveOf(m?.ref || "");
+    let score = 0;
+    if (m?.epss != null && m.epss > 0) score += m.epss * 40;
+    if (m?.cvss != null && m.cvss > 0) score += (m.cvss / 10) * 20;
+    if (m?.kev) score += 25;
+    if (cve && exploitsForCve(cve).length) score += 20;
+    if (cve && itw.has(cve)) score += 10;
+    out.set(id, Math.min(100, Math.round(score)));
+  }
+  return out;
+}
+
+/** The prioritized exposure worklist: top vulns (on in-scope assets) by fused priority. */
+export function topExposures(tenant: number | null, limit = 50): { results: FusionScore[]; scanned: number } {
+  const xo = getDb("XORCISM");
+  const aCols = colset(xo, "ASSET");
+  const tenantClause = tenant != null && aCols.has("TenantID") ? "AND (a.TenantID = ? OR a.TenantID IS NULL)" : "";
+  const args = tenant != null && aCols.has("TenantID") ? [tenant] : [];
+  const agg = xo.prepare(
+    `SELECT av.VulnerabilityID vid, COUNT(DISTINCT av.AssetID) assets, MAX(COALESCE(a.BusinessValue, a.RiskScore, 0)) maxValue
+     FROM ASSETVULNERABILITY av JOIN ASSET a ON a.AssetID=av.AssetID
+     WHERE COALESCE(av.FalsePositive,0)=0 ${tenantClause}
+     GROUP BY av.VulnerabilityID LIMIT 8000`
+  ).all(...args) as { vid: number; assets: number; maxValue: number | null }[];
+  if (!agg.length) return { results: [], scanned: 0 };
+
+  const meta = new Map<number, { ref: string; cvss: number | null; kev: number; epss: number | null }>();
+  try {
+    const xv = getDb("XVULNERABILITY");
+    const ids = agg.map((r) => r.vid);
+    for (let i = 0; i < ids.length; i += 800) {
+      const chunk = ids.slice(i, i + 800);
+      const ph = chunk.map(() => "?").join(",");
+      for (const m of xv.prepare(
+        `SELECT VulnerabilityID id, COALESCE(NULLIF(VULReferential,''), NULLIF(VULName,''), 'Vuln #'||VulnerabilityID) ref, CVSSBaseScore cvss, KEV kev, EPSS epss
+         FROM VULNERABILITY WHERE VulnerabilityID IN (${ph})`
+      ).all(...chunk) as { id: number; ref: string; cvss: number | null; kev: unknown; epss: number | null }[]) {
+        meta.set(m.id, { ref: m.ref, cvss: m.cvss, kev: Number(m.kev) || 0, epss: m.epss });
+      }
+    }
+  } catch { /* XVULNERABILITY unavailable */ }
+
+  const cves = [...new Set(agg.map((r) => cveOf(meta.get(r.vid)?.ref || "")).filter(Boolean) as string[])];
+  const itw = itwCves(cves);
+
+  const results = agg.map((r) => {
+    const m = meta.get(r.vid);
+    const ref = m?.ref || `Vuln #${r.vid}`;
+    const cve = cveOf(ref);
+    return fuse({
+      VulnerabilityID: r.vid, ref, cvss: m?.cvss ?? null, kev: m?.kev || 0, epss: m?.epss ?? null,
+      exploits: cve ? exploitsForCve(cve).length : 0, itw: cve ? itw.has(cve) : false,
+      assets: r.assets, maxValue: r.maxValue,
+    });
+  }).sort((a, b) => b.priority - a.priority || b.score - a.score || b.assets - a.assets).slice(0, Math.min(Math.max(1, limit), 500));
+
+  return { results, scanned: agg.length };
+}

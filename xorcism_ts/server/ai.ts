@@ -8,17 +8,21 @@
  * No data leaves the machine: everything goes through the local Ollama server.
  */
 import { getDb, assetRiskExposure, extractCves } from "./db";
+import { getRun, getRunSteps } from "./chain";
+import { topExposures } from "./fusion";
+import { attackPathGraph } from "./attackpath";
 
 const OLLAMA_URL = (process.env.OLLAMA_URL || "http://localhost:11434").replace(/\/$/, "");
 export const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
 
 interface ChatMsg { role: "system" | "user" | "assistant"; content: string }
 
-export async function ollamaChat(messages: ChatMsg[], temperature = 0.2): Promise<string> {
+export async function ollamaChat(messages: ChatMsg[], temperature = 0.2, timeoutMs = 90000): Promise<string> {
   const r = await fetch(`${OLLAMA_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model: OLLAMA_MODEL, messages, stream: false, options: { temperature } }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!r.ok) throw new Error(`Ollama HTTP ${r.status}`);
   const data = (await r.json()) as { message?: { content?: string }; error?: string };
@@ -28,7 +32,8 @@ export async function ollamaChat(messages: ChatMsg[], temperature = 0.2): Promis
 
 export async function ollamaStatus(): Promise<{ reachable: boolean; url: string; model: string; models: string[] }> {
   try {
-    const r = await fetch(`${OLLAMA_URL}/api/tags`);
+    // short timeout so "is the local AI up?" fails fast (offline fallback) instead of hanging
+    const r = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(2500) });
     if (!r.ok) return { reachable: false, url: OLLAMA_URL, model: OLLAMA_MODEL, models: [] };
     const d = (await r.json()) as { models?: { name: string }[] };
     return { reachable: true, url: OLLAMA_URL, model: OLLAMA_MODEL, models: (d.models || []).map((m) => m.name) };
@@ -223,4 +228,95 @@ export async function buildIntelBrief(reportIds: number[], focus?: string): Prom
   const user = `${focus ? `FOCUS: ${focus}\n\n` : ""}REPORTS:\n${blocks.join("\n\n")}`;
   const brief = await ollamaChat([{ role: "system", content: system }, { role: "user", content: user.slice(0, 12000) }]);
   return { brief, sources: [...new Set(sources)], model: OLLAMA_MODEL };
+}
+
+// ── Red/blue copilots over the closed-loop data ───────────────────────────────
+interface Sev { Severity: string | null; FindingName: string }
+function flat(steps: { FactsJSON: string | null }[]): { services: any[]; vulns: any[]; leaks: any[]; hosts: Set<string>; emails: Set<string>; tech: Set<string> } {
+  const o = { services: [] as any[], vulns: [] as any[], leaks: [] as any[], hosts: new Set<string>(), emails: new Set<string>(), tech: new Set<string>() };
+  for (const s of steps) {
+    let f: any = {}; try { f = JSON.parse(s.FactsJSON || "{}"); } catch { /* */ }
+    for (const x of f.services || []) o.services.push(x);
+    for (const x of f.vulns || []) o.vulns.push(x);
+    for (const x of f.leaks || []) o.leaks.push(x);
+    for (const x of f.hosts || []) o.hosts.add(String(x));
+    for (const x of f.emails || []) o.emails.add(String(x));
+    for (const x of f.tech || []) o.tech.add(String(x));
+  }
+  return o;
+}
+
+/** AI attack-chain analyst: red+blue read-out of a tool-chaining run. Falls back to a
+ *  deterministic data summary when the local AI is offline. */
+export async function analyzeAttackChain(runId: number): Promise<{ analysis: string; model: string; offline: boolean }> {
+  const run = getRun(runId);
+  if (!run) throw new Error("run not found");
+  const steps = getRunSteps(runId);
+  const tools = [...new Set(steps.map((s) => s.Connector))];
+  const f = flat(steps);
+  const findings = getDb("XCOMPLIANCE").prepare(
+    "SELECT Severity, FindingName FROM AUDITFINDING WHERE AuditID=? ORDER BY CASE LOWER(COALESCE(Severity,'')) WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END",
+  ).all(run.AuditID) as Sev[];
+  const crit = findings.filter((x) => /critical|high/i.test(x.Severity || ""));
+  const context =
+    `Playbook: ${run.PlaybookName}\nSeed: ${run.SeedTarget} (mode: ${run.Mode})\n` +
+    `Steps: ${steps.length} · Tools: ${tools.join(", ")}\n` +
+    `Discovered: ${f.hosts.size} hosts, ${f.emails.size} emails, ${f.services.length} services` +
+    (f.tech.size ? `, tech: ${[...f.tech].slice(0, 8).join(", ")}` : "") + "\n" +
+    `Findings (${findings.length}):\n${findings.slice(0, 25).map((x) => `- [${x.Severity || "?"}] ${x.FindingName}`).join("\n")}`;
+
+  const det = [
+    `### Attack-chain analysis — ${run.PlaybookName}`,
+    `Data summary — local AI unavailable.\n`,
+    `**Seed** \`${run.SeedTarget}\` (${run.Mode}) · **${steps.length}** steps · **${findings.length}** findings · tools: ${tools.join(", ")}.`,
+    f.hosts.size || f.emails.size ? `\n**Recon surface:** ${f.hosts.size} hosts, ${f.emails.size} emails discovered.` : "",
+    `\n**Critical/high findings (${crit.length}):**\n${(crit.length ? crit : findings).slice(0, 12).map((x) => `- [${x.Severity || "?"}] ${x.FindingName}`).join("\n") || "- none"}`,
+    `\n**Recommended actions:** patch the critical/high findings above first; segment any internet-exposed host that reaches sensitive services; rotate/protect any leaked credentials; add detections for the techniques used (${tools.join(", ")}).`,
+  ].filter(Boolean).join("\n");
+  const status = await ollamaStatus();
+  if (status.reachable) {
+    const sys =
+      "You are a senior penetration tester and purple-team analyst. Given an attack-chain run, write a concise Markdown analysis with sections: " +
+      "## What the attacker achieved (the critical path), ## Most serious findings (and why), ## Recommended next offensive steps, ## Top defensive actions & detections (map to MITRE ATT&CK techniques and D3FEND where relevant). Be specific, prioritized, and under 400 words.";
+    try {
+      const analysis = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: context.slice(0, 12000) }], 0.3);
+      if (analysis) return { analysis, model: OLLAMA_MODEL, offline: false };
+    } catch { /* slow/failed model → fall back to det */ }
+  }
+  return { analysis: det, model: status.reachable ? "fallback" : "offline", offline: true };
+}
+
+/** AI exposure briefing: CISO-level read-out of the fusion worklist + attack paths.
+ *  Falls back to a deterministic summary when the local AI is offline. */
+export async function exposureBrief(tenant: number | null): Promise<{ brief: string; model: string; offline: boolean }> {
+  const top = topExposures(tenant, 15).results;
+  const ap = attackPathGraph(tenant);
+  const kev = top.filter((t) => t.kev).length, withExp = top.filter((t) => t.exploits > 0).length;
+  const context =
+    `Top exposures (priority/score · signals):\n${top.slice(0, 12).map((t) => `- ${t.ref}: prio ${t.priority}/score ${t.score} (KEV=${t.kev ? "yes" : "no"}, exploits=${t.exploits}, EPSS=${t.epss != null ? (t.epss * 100).toFixed(0) + "%" : "-"}, ${t.assets} assets)`).join("\n")}\n\n` +
+    `Attack surface: ${ap.stats.entries} internet-exposed assets, ${ap.stats.jewels} crown jewels, ${ap.stats.pathsFound} attack paths to crown jewels.\n` +
+    `Top choke points: ${ap.chokepoints.slice(0, 3).map((c) => `${c.label} (${c.paths} paths)`).join(", ") || "none"}.`;
+
+  const top5 = top.slice(0, 5).map((t) => `- **${t.ref}** — priority ${t.priority}${t.kev ? " · ⚠️ KEV" : ""}${t.exploits ? ` · ${t.exploits} public exploit(s)` : ""} (${t.assets} asset${t.assets > 1 ? "s" : ""})`);
+  const choke = ap.chokepoints[0];
+  const det = [
+    `### Exposure briefing`,
+    `Data summary — local AI unavailable.\n`,
+    `Across the prioritized worklist: **${kev}** known-exploited (KEV), **${withExp}** with public exploits.`,
+    `\n**Top risks:**\n${top5.join("\n") || "- none"}`,
+    `\n**Attack surface:** ${ap.stats.entries} internet-exposed assets → ${ap.stats.pathsFound} path(s) to ${ap.stats.jewels} crown jewel(s).`,
+    choke ? `\n**Highest-leverage fix:** segment/patch **${choke.label}** — it sits on ${choke.paths} attack path(s) to crown jewels.` : "",
+    `\n**Prioritized actions:** 1) remediate the KEV + public-exploit vulnerabilities above; 2) reduce the internet-exposed surface; 3) segment the top choke point to break crown-jewel paths.`,
+  ].filter(Boolean).join("\n");
+  const status = await ollamaStatus();
+  if (status.reachable) {
+    const sys =
+      "You are a CISO security advisor. From the exposure worklist and attack-path data, write a concise executive Markdown briefing with sections: " +
+      "## Bottom line, ## Biggest risks (plain language, name the CVEs), ## Crown-jewel attack paths, ## The single highest-leverage fix (choke point), ## Prioritized actions. Under 350 words.";
+    try {
+      const brief = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: context.slice(0, 12000) }], 0.3);
+      if (brief) return { brief, model: OLLAMA_MODEL, offline: false };
+    } catch { /* slow/failed model → fall back to det */ }
+  }
+  return { brief: det, model: status.reachable ? "fallback" : "offline", offline: true };
 }

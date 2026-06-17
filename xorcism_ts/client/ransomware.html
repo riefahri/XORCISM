@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Ransomware impact</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .rw-wrap{max-width:1080px;margin:0 auto;padding:18px}
+  .rw-head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:6px}
+  .rw-head h1{font-size:20px;margin:0}
+  .rw-head select{background:#0f1117;border:1px solid #2d3250;border-radius:8px;color:#e2e8f0;font-size:13px;padding:8px 10px;min-width:220px}
+  .rw-sub{color:#94a3b8;font-size:13px;margin-bottom:16px}
+  .hero{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px}
+  .hcard{flex:1;min-width:230px}
+  .hcard .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8}
+  .hcard .big{font-size:30px;font-weight:700;margin:2px 0}
+  .hcard .note{font-size:12px;color:#94a3b8}
+  .sle .big{color:#ef4444}.ale .big{color:#f59e0b}.res .big{color:#22c55e}
+  .brk{display:flex;flex-direction:column;gap:6px;font-size:13px}
+  .brk .r{display:flex;justify-content:space-between}.brk .r b{color:#e2e8f0}
+  .brk .tot{border-top:1px solid #2d3250;padding-top:6px;margin-top:2px;font-weight:600;color:#fca5a5}
+  .phases{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .ph{font-size:11px;border-radius:6px;padding:2px 8px;background:#1e2133;color:#64748b}
+  .ph.on{background:#7f1d1d;color:#fecaca}
+  h3{font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;margin:18px 0 8px}
+  table.rw{width:100%;border-collapse:collapse;font-size:13px}
+  table.rw th{text-align:left;color:#94a3b8;font-size:11px;text-transform:uppercase;border-bottom:1px solid #2d3250;padding:7px 8px}
+  table.rw td{border-bottom:1px solid #1e2133;padding:7px 8px}
+  table.rw td.v{text-align:right;font-family:ui-monospace,monospace;color:#fca5a5}
+  .ctl{font-size:13px;padding:6px 0;border-bottom:1px solid #1e2133;color:#cbd5e1}
+  .ctl b{color:#e2e8f0}.ctl .src{font-size:10px;background:#0f1117;border:1px solid #2d3250;border-radius:5px;padding:1px 5px;color:#94a3b8;margin-left:6px}
+  .assume{font-size:11px;color:#64748b;margin-top:14px;line-height:1.5}
+  .muted{color:#64748b}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/exposure">&#127919; Exposures</a>
+  <span class="spacer"></span>
+  <span class="title">&#128176; Ransomware impact</span>
+</div>
+
+<div class="rw-wrap">
+  <div class="rw-head">
+    <h1>Ransomware impact simulator</h1>
+    <select id="rw-group"></select>
+  </div>
+  <div class="rw-sub" id="rw-sub">Replays a ransomware group's ATT&amp;CK TTPs across your asset estate and quantifies the dollar impact — with the controls that break the chain.</div>
+  <div id="rw-body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
+</div>
+
+<script src="/js/session-ui.js"></script>
+<script src="/js/ransomware.js"></script>
+</body>
+</html>

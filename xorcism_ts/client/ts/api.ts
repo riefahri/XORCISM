@@ -240,6 +240,11 @@ export const api = {
     request<{ action: "inserted" | "updated"; vulnerabilityId: number; referential: string; kev: boolean }>(
       "/api/circl/import", "POST", { id }
     ),
+  // Exploit-DB search (local SearchSploit index)
+  exploitdbForCve: (cve: string) =>
+    request<{ cve: string; results: { id: string; title: string; date: string; type: string; platform: string; port: string; cves: string[]; url: string }[] }>(
+      `/api/exploitdb/cve/${encodeURIComponent(cve)}`
+    ),
   // THREATAGENT ↔ CATEGORY (vocabulary-dependent)
   getThreatAgentCategories: (vocabId: number) =>
     request<{ id: number; label: string }[]>(
