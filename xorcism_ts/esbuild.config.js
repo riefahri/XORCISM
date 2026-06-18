@@ -33,6 +33,7 @@ const entryPoints = [
   "client/ts/assurance.ts",
   "client/ts/sla.ts",
   "client/ts/pir.ts",
+  "client/ts/identities.ts",
   "client/ts/api-keys.ts",
   "client/ts/api-docs.ts",
   "client/ts/webhooks.ts",

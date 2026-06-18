@@ -1,0 +1,3 @@
+finding_type,source,engines,url,snippet,discovered_at,external_seen_at
+aws_access_key,virustotal,VirusTotal,http://dev.example.com/old/config.js,AKIAIOSFODNN7EXAMPLE,2026-06-01,2026-06-01
+slack_token,wayback,Wayback,https://api.example.com/v1/debug,xoxb-1234567890-abcdefghijklmnop,2026-06-01,2026-06-01

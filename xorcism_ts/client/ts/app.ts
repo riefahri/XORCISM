@@ -1016,6 +1016,22 @@ interface GridDisplaySpec extends NameHintSpec {
   srcCol: string; colLabel: string; yesno?: boolean; keyCol?: string; emptyLabel?: string;
 }
 const GRID_DISPLAY_COLUMNS: Record<string, GridDisplaySpec[]> = {
+  // ASSETCONTROL: resolved asset & control names, shown right after AssetID / ControlID.
+  ASSETCONTROL: [
+    { db: "XORCISM", table: "ASSET", idCol: "AssetID", labelCol: "AssetName", hintLabel: "AssetName", srcCol: "AssetID", colLabel: "AssetName" },
+    { db: "XORCISM", table: "CONTROL", idCol: "ControlID", labelCol: "ControlName", hintLabel: "ControlName", srcCol: "ControlID", colLabel: "ControlName" },
+    { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", hintLabel: "PersonName", srcCol: "PersonID", colLabel: "PersonName" },
+  ],
+  // IDENTITY: resolved owner & bound-asset names, shown right after OwnerPersonID / AssetID.
+  IDENTITY: [
+    { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", hintLabel: "OwnerName", srcCol: "OwnerPersonID", colLabel: "OwnerName" },
+    { db: "XORCISM", table: "ASSET", idCol: "AssetID", labelCol: "AssetName", hintLabel: "AssetName", srcCol: "AssetID", colLabel: "AssetName" },
+  ],
+  // IDENTITYPERSON: resolved identity & person names, shown right after IdentityID / PersonID.
+  IDENTITYPERSON: [
+    { db: "XORCISM", table: "IDENTITY", idCol: "IdentityID", labelCol: "IdentityName", hintLabel: "IdentityName", srcCol: "IdentityID", colLabel: "IdentityName" },
+    { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", hintLabel: "PersonName", srcCol: "PersonID", colLabel: "PersonName" },
+  ],
   // OVALCRITERIA: resolved operator (AND/OR…), shown right after OperatorEnumerationID.
   OVALCRITERIA: [
     {
@@ -2235,6 +2251,28 @@ STATIC_DATALIST_COLUMNS["ASSETCONTROL.Status"] = ["Planned", "Implemented", "Par
 STATIC_DATALIST_DEFAULTS["ASSETCONTROL.Status"] = "Planned";
 STATIC_DATALIST_COLUMNS["ASSETCONTROL.ConfidenceLevel"] = ["High", "Medium", "Low"];
 STATIC_DATALIST_DEFAULTS["ASSETCONTROL.ConfidenceLevel"] = "Medium";
+
+// IDENTITY (IAM) — human + non-human identity registry: owner/asset FK pickers + governance dropdowns.
+FK_COLUMNS["IDENTITY.OwnerPersonID"] = { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", searchLabel: "Owner", distinct: true };
+FK_COLUMNS["IDENTITY.AssetID"] = { db: "XORCISM", table: "ASSET", idCol: "AssetID", labelCol: "AssetName", distinct: true };
+STATIC_DATALIST_COLUMNS["IDENTITY.IdentityType"] = ["Human", "AI Agent", "API", "Container", "Service Account", "Hardcoded Credential", "Certificate", "Device", "Workload", "Bot", "Token", "Service Principal"];
+STATIC_DATALIST_DEFAULTS["IDENTITY.IdentityType"] = "Service Account";
+STATIC_DATALIST_COLUMNS["IDENTITY.IdentityClass"] = ["Human", "Non-Human"];
+STATIC_DATALIST_DEFAULTS["IDENTITY.IdentityClass"] = "Non-Human";
+STATIC_DATALIST_COLUMNS["IDENTITY.Status"] = ["Active", "Inactive", "Disabled", "Orphaned", "Compromised", "Retired"];
+STATIC_DATALIST_DEFAULTS["IDENTITY.Status"] = "Active";
+STATIC_DATALIST_COLUMNS["IDENTITY.PrivilegeLevel"] = ["Standard", "Privileged", "Admin", "Root", "Owner"];
+STATIC_DATALIST_DEFAULTS["IDENTITY.PrivilegeLevel"] = "Standard";
+STATIC_DATALIST_COLUMNS["IDENTITY.Environment"] = ["Production", "Staging", "Development", "Test"];
+STATIC_DATALIST_COLUMNS["IDENTITY.CredentialType"] = ["None", "Password", "API Key", "Certificate", "Token", "SSH Key", "OAuth Secret"];
+STATIC_DATALIST_COLUMNS["IDENTITY.MFAEnabled"] = ["Yes", "No", "N/A"];
+STATIC_DATALIST_COLUMNS["IDENTITY.RiskLevel"] = ["Critical", "High", "Medium", "Low"];
+STATIC_DATALIST_COLUMNS["IDENTITY.Provider"] = ["Entra ID", "Okta", "Active Directory", "AWS IAM", "GCP IAM", "Azure", "Kubernetes", "GitHub", "GitLab", "HashiCorp Vault", "Manual"];
+// IDENTITYPERSON — human identity ↔ person mapping.
+FK_COLUMNS["IDENTITYPERSON.IdentityID"] = { db: "XORCISM", table: "IDENTITY", idCol: "IdentityID", labelCol: "IdentityName", distinct: true };
+FK_COLUMNS["IDENTITYPERSON.PersonID"] = { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", distinct: true };
+STATIC_DATALIST_COLUMNS["IDENTITYPERSON.RelationshipType"] = ["Owner", "Primary", "Member", "Delegate", "Manager"];
+STATIC_DATALIST_DEFAULTS["IDENTITYPERSON.RelationshipType"] = "Owner";
 // OpenCTI properties on the emulation scenario (TLP / Confidence / Labels).
 STATIC_DATALIST_COLUMNS["EMULATIONSCENARIO.TLP"] = OPENCTI_TLP_VALUES;
 STATIC_DATALIST_DEFAULTS["EMULATIONSCENARIO.TLP"] = "TLP:AMBER";

@@ -1,0 +1,14 @@
+{
+  "id": "scoptix",
+  "name": "SCOPTIX — passive attack-surface recon",
+  "type": "import",
+  "category": "Recon",
+  "description": "Imports passive attack-surface findings from SCOPTIX (https://github.com/Omnitarium/scoptix). Discovered subdomains / IPs become ASSETs (and host facts for the tool-chaining engine), URLs become web SERVICEs, and exposed secrets / API keys / credentials become VULNERABILITY findings — the secret value/snippet is REDACTED; only its type and location are recorded. SCOPTIX is a web dashboard with no CLI, so this connector is import-only: export a scan from SCOPTIX (CSV per type — findings / subdomains / urls / ips — or the 'all' ZIP) and pass the file. No DB access in run.py (worker-safe).",
+  "intrusive": false,
+  "permission": "connector:scoptix",
+  "run": "run.py",
+  "mapping": "scoptix",
+  "parameters": [
+    { "name": "file", "type": "file", "required": true, "help": "Path on the worker to a SCOPTIX CSV export (findings/subdomains/urls/ips.csv) or the 'all' ZIP." }
+  ]
+}

@@ -59,3 +59,8 @@ def parse(path_or_text: str, params: Optional[Dict[str, Any]] = None) -> Dict[st
         add((info or {}).get("vulnerabilities"), f"theme {name}")
 
     return {"assets": list(assets.values()), "services": [], "cpes": [], "vulns": vulns}
+
+
+if __name__ == "__main__":
+    import sys
+    print(json.dumps(parse(sys.argv[1]), indent=2, ensure_ascii=False))

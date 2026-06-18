@@ -1,5 +1,6 @@
 """parse_whatweb.py — Parses the WhatWeb output (--log-json) → technologies as CPE.
-Normalized result: {assets:[{hostname,key}], services:[{asset,cpe,name}], cpes:[...], vulns:[]}."""
+Skips metadata plugins (country, headers, …) and captures the resolved IP.
+Normalized result: {assets:[{hostname,ip,key}], services:[{asset,cpe,name}], cpes:[...], vulns:[]}."""
 from __future__ import annotations
 import json
 import os
@@ -7,12 +8,27 @@ import sys
 import urllib.parse
 from typing import Any, Dict, List, Optional
 
+# WhatWeb plugins that are metadata / response headers, not technologies — kept
+# out of the tech & CPE component list to avoid polluting the asset inventory.
+_META = {
+    "ip", "country", "title", "uncommonheaders", "cookies", "email", "html5",
+    "redirectlocation", "object", "frame", "script", "meta-author", "meta-refresh",
+    "via-proxy", "x-frame-options", "strict-transport-security", "x-xss-protection",
+    "content-security-policy", "access-control-allow-origin", "httponly",
+    "x-content-type-options", "allow", "ipaddress",
+}
+
 
 def _hostname(t: str) -> Optional[str]:
     if not t:
         return None
     u = urllib.parse.urlparse(t if "://" in t else "//" + t)
     return u.hostname or t
+
+
+def _first(info: Any, key: str) -> str:
+    v = (info or {}).get(key) or []
+    return str(v[0]) if v else ""
 
 
 def parse(path_or_text: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -32,8 +48,14 @@ def parse(path_or_text: str, params: Optional[Dict[str, Any]] = None) -> Dict[st
         host = _hostname(e.get("target", ""))
         if not host:
             continue
-        assets.setdefault(host, {"hostname": host, "key": host})
-        for plugin, info in (e.get("plugins") or {}).items():
+        plugins = e.get("plugins") or {}
+        asset = assets.setdefault(host, {"hostname": host, "key": host})
+        ip = _first(plugins.get("IP"), "string")  # WhatWeb resolves the target IP
+        if ip and not asset.get("ip"):
+            asset["ip"] = ip
+        for plugin, info in plugins.items():
+            if str(plugin).lower() in _META:
+                continue
             versions = (info or {}).get("version") or []
             if versions:
                 for v in versions:

@@ -1,0 +1,4 @@
+url,hostname,category,extension,observed_at
+https://api.example.com/v1/users,api.example.com,api,,2026-06-01
+http://dev.example.com/old/login.php,dev.example.com,code,php,2026-06-01
+https://staging.example.com/.git/config,staging.example.com,config,,2026-06-01

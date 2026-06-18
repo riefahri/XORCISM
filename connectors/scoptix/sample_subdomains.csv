@@ -1,0 +1,4 @@
+hostname,first_seen_at,last_seen_at
+api.example.com,2026-01-01,2026-06-01
+dev.example.com,2026-02-01,2026-06-01
+staging.example.com,2026-03-01,2026-06-01

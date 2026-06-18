@@ -26452,4 +26452,44 @@ CREATE TABLE IF NOT EXISTS "ASSETCONTROL" (
 CREATE INDEX IF NOT EXISTS ix_assetcontrol_asset ON "ASSETCONTROL"("AssetID");
 CREATE INDEX IF NOT EXISTS ix_assetcontrol_control ON "ASSETCONTROL"("ControlID");
 
+-- Identity & Access Management (IAM) registry: human + non-human identities.
+CREATE TABLE IF NOT EXISTS "IDENTITY" (
+  "IdentityID" INTEGER PRIMARY KEY,
+  "IdentityGUID" TEXT,
+  "IdentityName" TEXT,
+  "IdentityType" TEXT,
+  "IdentityClass" TEXT,
+  "Description" TEXT,
+  "Status" TEXT,
+  "OwnerPersonID" INTEGER,
+  "AssetID" INTEGER,
+  "Provider" TEXT,
+  "ExternalID" TEXT,
+  "PrivilegeLevel" TEXT,
+  "Environment" TEXT,
+  "CredentialType" TEXT,
+  "MFAEnabled" TEXT,
+  "LastRotatedDate" DATE,
+  "ExpiryDate" DATE,
+  "LastUsedDate" DATE,
+  "RiskLevel" TEXT,
+  "CreatedDate" DATE,
+  "ModifiedDate" DATE,
+  "TenantID" INTEGER);
+CREATE INDEX IF NOT EXISTS ix_identity_owner ON "IDENTITY"("OwnerPersonID");
+CREATE INDEX IF NOT EXISTS ix_identity_asset ON "IDENTITY"("AssetID");
+CREATE INDEX IF NOT EXISTS ix_identity_type ON "IDENTITY"("IdentityType");
+
+-- Junction: human identity <-> PERSON (a person may hold several identities).
+CREATE TABLE IF NOT EXISTS "IDENTITYPERSON" (
+  "IdentityPersonID" INTEGER PRIMARY KEY,
+  "IdentityPersonGUID" TEXT,
+  "IdentityID" INTEGER,
+  "PersonID" INTEGER,
+  "RelationshipType" TEXT,
+  "CreatedDate" DATE,
+  "TenantID" INTEGER);
+CREATE INDEX IF NOT EXISTS ix_identityperson_identity ON "IDENTITYPERSON"("IdentityID");
+CREATE INDEX IF NOT EXISTS ix_identityperson_person ON "IDENTITYPERSON"("PersonID");
+
 COMMIT;

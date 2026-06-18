@@ -724,6 +724,8 @@ export function getSchema(dbName: string, table: string): object[] {
 export const TENANT_SCOPED_TABLES = new Set<string>([
   "XORCISM.ASSET",
   "XORCISM.ASSETCONTROL",
+  "XORCISM.IDENTITY",
+  "XORCISM.IDENTITYPERSON",
   "XORCISM.BIAAUDIT",
   "XORCISM.BIAENTRY",
   "XORCISM.CPEFORASSET",
@@ -4082,6 +4084,72 @@ export function ensureAssetColumns(): void {
       db.exec(`ALTER TABLE "ASSETFORORGANISATION" ADD COLUMN "Relationship" TEXT`);
     }
   }
+}
+
+/**
+ * Identity & Access Management (IAM) registry — XORCISM.IDENTITY + the
+ * XORCISM.IDENTITYPERSON junction. One inventory for BOTH human identities
+ * (mapped to PERSON via IDENTITYPERSON) and non-human identities / NHI
+ * (AI agents, APIs, containers, service accounts, hardcoded credentials,
+ * certificates, devices, workloads…). Non-human identities can bind to a
+ * host ASSET (AssetID) and are made accountable through an OwnerPersonID.
+ * Tenant-isolated (both tables in TENANT_SCOPED_TABLES) + GUIDs for
+ * cross-system identity. Idempotent: CREATE IF NOT EXISTS + conditional ALTER.
+ */
+export function ensureIdentityTables(): void {
+  const db = getDb("XORCISM");
+  db.exec(`CREATE TABLE IF NOT EXISTS "IDENTITY" (
+    "IdentityID" INTEGER PRIMARY KEY,
+    "IdentityGUID" TEXT,
+    "IdentityName" TEXT,
+    "IdentityType" TEXT,
+    "IdentityClass" TEXT,
+    "Description" TEXT,
+    "Status" TEXT,
+    "OwnerPersonID" INTEGER,
+    "AssetID" INTEGER,
+    "Provider" TEXT,
+    "ExternalID" TEXT,
+    "PrivilegeLevel" TEXT,
+    "Environment" TEXT,
+    "CredentialType" TEXT,
+    "MFAEnabled" TEXT,
+    "LastRotatedDate" DATE,
+    "ExpiryDate" DATE,
+    "LastUsedDate" DATE,
+    "RiskLevel" TEXT,
+    "CreatedDate" DATE,
+    "ModifiedDate" DATE,
+    "TenantID" INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS ix_identity_owner ON "IDENTITY"("OwnerPersonID");
+  CREATE INDEX IF NOT EXISTS ix_identity_asset ON "IDENTITY"("AssetID");
+  CREATE INDEX IF NOT EXISTS ix_identity_type ON "IDENTITY"("IdentityType");
+
+  CREATE TABLE IF NOT EXISTS "IDENTITYPERSON" (
+    "IdentityPersonID" INTEGER PRIMARY KEY,
+    "IdentityPersonGUID" TEXT,
+    "IdentityID" INTEGER,
+    "PersonID" INTEGER,
+    "RelationshipType" TEXT,
+    "CreatedDate" DATE,
+    "TenantID" INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS ix_identityperson_identity ON "IDENTITYPERSON"("IdentityID");
+  CREATE INDEX IF NOT EXISTS ix_identityperson_person ON "IDENTITYPERSON"("PersonID");`);
+
+  // Idempotent adds for tables created before a column existed.
+  const addCols = (table: string, cols: Record<string, string>): void => {
+    const have = new Set((db.prepare(`PRAGMA table_info("${table}")`).all() as { name: string }[]).map((c) => c.name));
+    for (const [n, t] of Object.entries(cols)) if (!have.has(n)) db.exec(`ALTER TABLE "${table}" ADD COLUMN "${n}" ${t}`);
+  };
+  addCols("IDENTITY", {
+    IdentityGUID: "TEXT", IdentityClass: "TEXT", Status: "TEXT", OwnerPersonID: "INTEGER", AssetID: "INTEGER",
+    Provider: "TEXT", ExternalID: "TEXT", PrivilegeLevel: "TEXT", Environment: "TEXT", CredentialType: "TEXT",
+    MFAEnabled: "TEXT", LastRotatedDate: "DATE", ExpiryDate: "DATE", LastUsedDate: "DATE", RiskLevel: "TEXT",
+    ModifiedDate: "DATE", TenantID: "INTEGER",
+  });
+  addCols("IDENTITYPERSON", { IdentityPersonGUID: "TEXT", RelationshipType: "TEXT", TenantID: "INTEGER" });
 }
 
 /**
