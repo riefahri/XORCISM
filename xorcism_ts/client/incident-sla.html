@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Incident SLAs</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .sl-wrap{max-width:1080px;margin:0 auto;padding:18px}
+  .sl-head h1{font-size:20px;margin:0 0 2px}
+  .sl-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:860px}
+  .sl-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .sl-card{flex:1;min-width:150px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .sl-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .sl-card .val{font-size:26px;font-weight:700;margin-top:3px}
+  .sl-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  table.sl{width:100%;border-collapse:collapse;font-size:13px}
+  table.sl th,table.sl td{text-align:left;padding:8px 10px;border-bottom:1px solid #1e2133}
+  table.sl th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  table.sl td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .badge{font-size:11px;border-radius:6px;padding:2px 8px;font-weight:600;white-space:nowrap}
+  .b-breached{background:#7f1d1d;color:#fecaca}.b-met{background:#064e3b;color:#6ee7b7}
+  .b-no-target{background:#1e2133;color:#94a3b8}.b-no-duration{background:#78350f;color:#fcd34d}
+  .sev{font-size:11px;color:#cbd5e1}
+  .over-late{color:#f87171;font-weight:600}.over-ok{color:#34d399}
+  .muted{color:#64748b}
+  .legend{font-size:11px;color:#64748b;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/?db=XINCIDENT&amp;table=INCIDENT">&#128737;&#65039; Incidents</a>
+  <a href="/?db=XORCISM&amp;table=ASSET">&#128230; Assets</a>
+  <a href="/bia">&#128202; BIA</a>
+  <span class="spacer"></span>
+  <span class="title">&#9201;&#65039; Incident SLAs &amp; RTOs</span>
+</div>
+
+<div class="sl-wrap">
+  <div class="sl-head">
+    <h1>Incidents vs asset SLAs &amp; BIA RTOs</h1>
+    <div class="sl-sub">Each incident's <b>Duration</b> (hours to resolve) is measured against two recovery targets on
+      every affected asset: the <b>resolution SLA</b> (<code>ASSET.SLAResolutionHours</code>) and the
+      <b>Recovery Time Objective</b> from its BIA entry (<code>BIAENTRY.RTO</code>). Breaches of either surface here.</div>
+  </div>
+  <div id="sl-body"><div class="muted" style="padding:24px;text-align:center">Measuring SLAs…</div></div>
+</div>
+
+<script src="/js/session-ui.js"></script>
+<script src="/js/sla.js"></script>
+</body>
+</html>

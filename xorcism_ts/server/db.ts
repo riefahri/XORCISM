@@ -7,6 +7,7 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
+import { TOOL_SEED } from "./data/toolsSeed";
 import * as vault from "./vault";
 
 // Location of the SQLite databases. OUTSIDE OneDrive: OneDrive replaces the files
@@ -152,6 +153,37 @@ export function seedData(): void {
     } catch (e) {
       console.warn(`[seed] ${s.db}.${s.table} : ${(e as Error).message}`);
     }
+  }
+  seedTools(); // populate the TOOL catalogue on a fresh install
+}
+
+/**
+ * Seeds the XORCISM.TOOL catalogue (security tools) on first run. Idempotent and
+ * non-destructive: only runs when the table exists and is EMPTY, so it never
+ * overwrites a user's curated tools. TOOL is a global (non-tenant-scoped) reference.
+ */
+export function seedTools(): void {
+  try {
+    const db = getDb("XORCISM");
+    if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='TOOL'").get()) return;
+    if ((db.prepare("SELECT COUNT(*) AS c FROM TOOL").get() as { c: number }).c > 0) return; // already populated
+    const cols = new Set((db.prepare(`PRAGMA table_info("TOOL")`).all() as { name: string }[]).map((c) => c.name));
+    const now = nowTs();
+    const insert = db.prepare(
+      `INSERT INTO "TOOL" (ToolID, ToolGUID, ToolName, ToolDescription, Category, ToolURL, CreatedDate, ValidFromDate, VocabularyID, isEncrypted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`
+    );
+    const tx = db.transaction((tools: { name: string; description: string; category: string; url: string }[]) => {
+      let id = 1;
+      for (const t of tools) {
+        insert.run(id++, randomUUID(), t.name.slice(0, 200), t.description || null,
+          cols.has("Category") ? (t.category || null) : null, cols.has("ToolURL") ? (t.url || null) : null, now, now);
+      }
+    });
+    tx(TOOL_SEED);
+    console.log(`[seed] XORCISM.TOOL ← ${TOOL_SEED.length} tools`);
+  } catch (e) {
+    console.warn(`[seed] TOOL: ${(e as Error).message}`);
   }
 }
 

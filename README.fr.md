@@ -618,6 +618,40 @@ La connexion accepte **mot de passe**, **clés d'accès (WebAuthn)** et SSO
 
 ---
 
+## 🧩 API REST
+
+Une API REST, en lecture/écriture et cloisonnée par locataire, expose les données
+de la plateforme (actifs, incidents, expositions, posture SLA/RTO, score de risque)
+pour les SIEM, tableaux de bord, pipelines CI et l'automatisation.
+
+- **URL de base :** `/api/v1` · **Spéc. :** `GET /api/v1/openapi.json` (OpenAPI 3)
+- **Doc interactive :** **`/api-docs`** · **Clés :** **`/api-keys`** · **Webhooks :** **`/webhooks`**
+- **Auth :** clé API (`Authorization: Bearer xor_…` ou `X-API-Key: xor_…`) ; une clé
+  agit comme son utilisateur (mêmes droits RBAC + locataire), seul le SHA-256 est stocké.
+  Les clés portent des **portées** (`read`/`write` ou granulaires comme `incidents:write`)
+  et une **expiration** optionnelle.
+
+| Méthode | Chemin | Description |
+|---|---|---|
+| `GET` | `/api/v1/health` | Sonde de vivacité (sans auth) |
+| `GET` | `/api/v1/me` | Identité derrière la clé |
+| `GET` · `PATCH` | `/api/v1/assets` · `/assets/{id}` | Inventaire des actifs (paginé) ; SLA/valeurs |
+| `GET` · `POST` · `PATCH` | `/api/v1/incidents` · `/incidents/{id}` | Lister / créer / mettre à jour des incidents |
+| `GET` | `/api/v1/incident-sla` | Durées d'incident vs SLA des actifs & RTO des BIA |
+| `GET` | `/api/v1/exposures` | Top expositions (score d'exploitabilité fusionné) |
+| `GET` | `/api/v1/risk` | Score de risque d'entreprise |
+
+- **Webhooks :** enregistrez des points de terminaison HTTPS sur **`/webhooks`** pour
+  recevoir un `POST` JSON signé (`X-XORCISM-Signature`) sur `incident.created` /
+  `incident.updated` / `asset.updated`.
+
+```bash
+export XORCISM_API_KEY=xor_…
+curl -s https://votre-hote/api/v1/incident-sla -H "Authorization: Bearer $XORCISM_API_KEY" | jq '.summary'
+```
+
+Référence complète, exemples et signature des webhooks : **[API.md](API.md)**.
+
 ## 🛠️ Dépannage
 
 | Symptôme | Cause / correctif |

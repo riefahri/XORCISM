@@ -614,6 +614,38 @@ Sign-in supports **password**, **passkeys (WebAuthn)** and optional **OIDC** SSO
 
 ---
 
+## 🧩 REST API
+
+A read-only, tenant-scoped REST API exposes the platform's data (assets,
+incidents, exposures, SLA/RTO posture, enterprise risk score) for SIEMs,
+dashboards, CI pipelines and automation.
+
+- **Base URL:** `/api/v1` · **Spec:** `GET /api/v1/openapi.json` (OpenAPI 3)
+- **Interactive docs:** **`/api-docs`** · **Manage keys:** **`/api-keys`**
+- **Auth:** API key (`Authorization: Bearer xor_…` or `X-API-Key: xor_…`); a key
+  acts as its owning user with the same RBAC + tenant scope. SHA-256 stored only.
+  Keys hold **scopes** (`read`/`write` or granular like `incidents:write`) and an
+  optional **expiry**.
+- **Webhooks:** register HTTPS endpoints at **`/webhooks`** to receive an HMAC-signed
+  (`X-XORCISM-Signature`) JSON `POST` on `incident.created` / `incident.updated` / `asset.updated`.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/health` | Liveness probe (no auth) |
+| `GET` | `/api/v1/me` | Identity behind the key |
+| `GET` · `PATCH` | `/api/v1/assets` · `/assets/{id}` | Asset inventory (paginated); set SLA/value fields |
+| `GET` · `POST` · `PATCH` | `/api/v1/incidents` · `/incidents/{id}` | List / create / update incidents |
+| `GET` | `/api/v1/incident-sla` | Incident durations vs asset SLAs & BIA RTOs |
+| `GET` | `/api/v1/exposures` | Top exposures (fusion exploitability score) |
+| `GET` | `/api/v1/risk` | Enterprise risk score |
+
+```bash
+export XORCISM_API_KEY=xor_…
+curl -s https://your-host/api/v1/incident-sla -H "Authorization: Bearer $XORCISM_API_KEY" | jq '.summary'
+```
+
+Full reference, examples and the roadmap: **[API.md](API.md)**.
+
 ## 🛠️ Troubleshooting
 
 | Symptom | Cause / fix |

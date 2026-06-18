@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — API documentation</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ad-wrap{max-width:960px;margin:0 auto;padding:18px}
+  .ad-wrap h1{font-size:22px;margin:0 0 2px}
+  .ad-sub{color:#94a3b8;font-size:13px;margin-bottom:14px;max-width:760px}
+  .ad-auth{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px}
+  .ad-auth code{background:#0f1117;border:1px solid #2d3250;border-radius:4px;padding:1px 5px;font-size:12px}
+  .ad-grp{margin:18px 0 6px;font-size:13px;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px}
+  .op{border:1px solid #2d3250;border-radius:10px;margin-bottom:10px;overflow:hidden;background:#13162a}
+  .op>summary{cursor:pointer;list-style:none;padding:10px 12px;display:flex;align-items:center;gap:10px}
+  .op>summary::-webkit-details-marker{display:none}
+  .m{font-size:11px;font-weight:700;border-radius:5px;padding:2px 8px;min-width:46px;text-align:center}
+  .m-get{background:#0c4a6e;color:#bae6fd}.m-post{background:#064e3b;color:#6ee7b7}.m-delete{background:#7f1d1d;color:#fecaca}
+  .op .path{font-family:ui-monospace,monospace;font-size:13px;color:#e2e8f0}
+  .op .sum{color:#94a3b8;font-size:12px;margin-left:auto}
+  .op .body{padding:0 14px 12px;font-size:13px}
+  .op table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+  .op th,.op td{text-align:left;padding:5px 8px;border-bottom:1px solid #1e2133}
+  .op th{color:#94a3b8;font-weight:600}
+  pre.curl{background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:10px;font-size:12px;overflow:auto;color:#cbd5e1}
+  .lock{font-size:11px;color:#64748b}
+  .scope{font-size:10px;background:#0c4a6e;color:#bae6fd;border-radius:5px;padding:1px 6px;font-family:ui-monospace,monospace}
+  .muted{color:#64748b}
+  a.btnlink{font-size:12px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/api-keys">&#128273; API keys</a>
+  <a href="/webhooks">&#128279; Webhooks</a>
+  <a href="/api/v1/openapi.json" target="_blank" rel="noopener">openapi.json</a>
+  <span class="spacer"></span>
+  <span class="title">&#128221; API documentation</span>
+</div>
+
+<div class="ad-wrap">
+  <div id="ad-head"></div>
+  <div id="ad-body"><div class="muted" style="padding:24px;text-align:center">Loading API spec…</div></div>
+</div>
+
+<script src="/js/session-ui.js"></script>
+<script src="/js/api-docs.js"></script>
+</body>
+</html>

@@ -124,6 +124,21 @@ function ensureSchema(db: Database.Database): void {
       PRIMARY KEY (UserID, PrefKey)
     );
 
+    -- Programmatic API keys (REST API auth). The raw key is shown once; only its
+    -- SHA-256 is stored. A key acts as its owning user (same RBAC + tenant scope).
+    CREATE TABLE IF NOT EXISTS XAPIKEY (
+      KeyID INTEGER PRIMARY KEY AUTOINCREMENT,
+      UserID INTEGER NOT NULL,
+      TenantID INTEGER,
+      Name TEXT NOT NULL,
+      Prefix TEXT NOT NULL,            -- displayable head, e.g. "xor_3f9a…"
+      KeyHash TEXT NOT NULL UNIQUE,    -- SHA-256(raw key)
+      Scopes TEXT,                     -- reserved (CSV); null = read
+      CreatedDate TEXT NOT NULL,
+      LastUsedDate TEXT,
+      Revoked INTEGER NOT NULL DEFAULT 0
+    );
+
     -- Passkeys (WebAuthn / FIDO2): credentials registered per user
     CREATE TABLE IF NOT EXISTS XWEBAUTHN (
       CredentialID TEXT PRIMARY KEY,   -- credential identifier (base64url)
@@ -136,6 +151,22 @@ function ensureSchema(db: Database.Database): void {
       Name TEXT,
       CreatedDate TEXT,
       LastUsedDate TEXT
+    );
+
+    -- Outbound webhooks: notify external URLs on events (incident.created, …).
+    -- Payloads are signed with HMAC-SHA256 of the per-hook Secret.
+    CREATE TABLE IF NOT EXISTS XWEBHOOK (
+      WebhookID INTEGER PRIMARY KEY AUTOINCREMENT,
+      UserID INTEGER NOT NULL,
+      TenantID INTEGER,
+      Url TEXT NOT NULL,
+      Secret TEXT NOT NULL,              -- HMAC-SHA256 signing secret
+      Events TEXT NOT NULL,              -- CSV of subscribed event names ("*" = all)
+      Active INTEGER NOT NULL DEFAULT 1,
+      CreatedDate TEXT NOT NULL,
+      LastStatus INTEGER,                -- last HTTP status (0 = network error)
+      LastDeliveryDate TEXT,
+      FailureCount INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE INDEX IF NOT EXISTS ix_userrole_user ON XUSERROLE(UserID);
@@ -152,7 +183,9 @@ function ensureSchema(db: Database.Database): void {
   addColumnIfMissing(db, "XUSER", "TenantID", "INTEGER");
   addColumnIfMissing(db, "XUSER", "PinHash", "TEXT"); // PIN (scrambled keypad)
   addColumnIfMissing(db, "XAUDITLOG", "TenantID", "INTEGER");
+  addColumnIfMissing(db, "XAPIKEY", "ExpiresDate", "TEXT"); // optional key expiry (null = never)
   db.exec("CREATE INDEX IF NOT EXISTS ix_user_tenant ON XUSER(TenantID);");
+  db.exec("CREATE INDEX IF NOT EXISTS ix_webhook_user ON XWEBHOOK(UserID);");
 }
 
 function addColumnIfMissing(
@@ -826,4 +859,78 @@ export function listAudit(limit = 200, tenantId?: number | null): Record<string,
        ORDER BY a.AuditID DESC LIMIT ?`
     )
     .all(limit) as Record<string, unknown>[];
+}
+
+// ── API keys ──────────────────────────────────────────────────────────────────
+export interface ApiKeyRow {
+  KeyID: number; UserID: number; TenantID: number | null; Scopes: string | null;
+  Name: string; Prefix: string; CreatedDate: string; ExpiresDate: string | null; LastUsedDate: string | null; Revoked: number;
+}
+const KEY_FIELDS = "KeyID, UserID, TenantID, Scopes, Name, Prefix, CreatedDate, ExpiresDate, LastUsedDate, Revoked";
+
+export function createApiKey(opts: { userId: number; tenantId: number | null; name: string; prefix: string; keyHash: string; scopes?: string; expiresInDays?: number | null }): ApiKeyRow {
+  const db = getXidDb();
+  const scopes = (opts.scopes && opts.scopes.trim()) || "read";
+  const expires = opts.expiresInDays && opts.expiresInDays > 0
+    ? new Date(Date.now() + opts.expiresInDays * 86_400_000).toISOString() : null;
+  const info = db
+    .prepare(`INSERT INTO XAPIKEY (UserID, TenantID, Name, Prefix, KeyHash, Scopes, CreatedDate, ExpiresDate, Revoked) VALUES (?,?,?,?,?,?,?,?,0)`)
+    .run(opts.userId, opts.tenantId, opts.name, opts.prefix, opts.keyHash, scopes, new Date().toISOString(), expires);
+  return db.prepare(`SELECT ${KEY_FIELDS} FROM XAPIKEY WHERE KeyID = ?`).get(Number(info.lastInsertRowid)) as ApiKeyRow;
+}
+
+export function listApiKeys(userId: number): ApiKeyRow[] {
+  return getXidDb().prepare(`SELECT ${KEY_FIELDS} FROM XAPIKEY WHERE UserID = ? ORDER BY KeyID DESC`).all(userId) as ApiKeyRow[];
+}
+
+// ── Webhooks ──────────────────────────────────────────────────────────────────
+export interface WebhookRow {
+  WebhookID: number; UserID: number; TenantID: number | null; Url: string;
+  Events: string; Active: number; CreatedDate: string; LastStatus: number | null; LastDeliveryDate: string | null; FailureCount: number;
+}
+const WH_FIELDS = "WebhookID, UserID, TenantID, Url, Events, Active, CreatedDate, LastStatus, LastDeliveryDate, FailureCount";
+
+export function createWebhook(opts: { userId: number; tenantId: number | null; url: string; secret: string; events: string }): WebhookRow {
+  const db = getXidDb();
+  const info = db.prepare(`INSERT INTO XWEBHOOK (UserID, TenantID, Url, Secret, Events, Active, CreatedDate, FailureCount) VALUES (?,?,?,?,?,1,?,0)`)
+    .run(opts.userId, opts.tenantId, opts.url, opts.secret, opts.events, new Date().toISOString());
+  return db.prepare(`SELECT ${WH_FIELDS} FROM XWEBHOOK WHERE WebhookID = ?`).get(Number(info.lastInsertRowid)) as WebhookRow;
+}
+export function listWebhooks(userId: number): WebhookRow[] {
+  return getXidDb().prepare(`SELECT ${WH_FIELDS} FROM XWEBHOOK WHERE UserID = ? ORDER BY WebhookID DESC`).all(userId) as WebhookRow[];
+}
+export function getWebhookOwned(id: number, userId: number): (WebhookRow & { Secret: string }) | undefined {
+  return getXidDb().prepare(`SELECT * FROM XWEBHOOK WHERE WebhookID = ? AND UserID = ?`).get(id, userId) as (WebhookRow & { Secret: string }) | undefined;
+}
+export function deleteWebhook(id: number, userId: number): boolean {
+  return getXidDb().prepare(`DELETE FROM XWEBHOOK WHERE WebhookID = ? AND UserID = ?`).run(id, userId).changes > 0;
+}
+/** Active webhooks (incl. Secret) that subscribe to `event` and match the event's tenant. */
+export function webhooksForEvent(event: string, tenant: number | null): (WebhookRow & { Secret: string })[] {
+  const rows = getXidDb().prepare(`SELECT * FROM XWEBHOOK WHERE Active = 1`).all() as (WebhookRow & { Secret: string })[];
+  return rows.filter((w) => {
+    const ev = (w.Events || "").split(",").map((s) => s.trim());
+    if (!(ev.includes("*") || ev.includes(event))) return false;
+    if (w.TenantID == null) return true;       // system/global hook → all events
+    return w.TenantID === tenant;              // tenant hook → only its tenant's events
+  });
+}
+export function recordWebhookDelivery(id: number, status: number): void {
+  const fail = status >= 200 && status < 300 ? 0 : 1;
+  getXidDb().prepare(`UPDATE XWEBHOOK SET LastStatus = ?, LastDeliveryDate = ?, FailureCount = CASE WHEN ? = 0 THEN 0 ELSE FailureCount + 1 END WHERE WebhookID = ?`)
+    .run(status, new Date().toISOString(), fail, id);
+}
+
+/** Look up an active key by its SHA-256 hash (used by the API-key auth middleware). */
+export function getApiKeyByHash(hash: string): (ApiKeyRow & { KeyHash: string }) | undefined {
+  return getXidDb().prepare(`SELECT * FROM XAPIKEY WHERE KeyHash = ? AND Revoked = 0`).get(hash) as (ApiKeyRow & { KeyHash: string }) | undefined;
+}
+
+export function touchApiKey(keyId: number): void {
+  getXidDb().prepare(`UPDATE XAPIKEY SET LastUsedDate = ? WHERE KeyID = ?`).run(new Date().toISOString(), keyId);
+}
+
+/** Revoke a key (only the owning user can). Returns true if a row changed. */
+export function revokeApiKey(keyId: number, userId: number): boolean {
+  return getXidDb().prepare(`UPDATE XAPIKEY SET Revoked = 1 WHERE KeyID = ? AND UserID = ?`).run(keyId, userId).changes > 0;
 }

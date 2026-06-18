@@ -112,6 +112,29 @@ tr:hover td{background:var(--row-hover)}
 .modal input:focus{outline:none;border-color:var(--accent)}
 .modal-footer{display:flex;gap:8px;margin-top:18px}
 
+/* Long-form modals (insert / edit): scrollable body + pinned footer so the
+   Save button never scrolls out of reach on tables with many columns. */
+#insert-modal .modal,#edit-modal .modal{display:flex;flex-direction:column;overflow:hidden}
+#modal-body,#edit-modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding-right:4px}
+#insert-modal .modal-footer,#edit-modal .modal-footer{flex:0 0 auto;margin-top:0;padding-top:14px;border-top:1px solid var(--border)}
+
+/* Collapsible form sections (required → details → advanced) */
+.form-section{margin:0 0 12px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.form-section>summary{cursor:pointer;list-style:none;padding:9px 12px;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg);display:flex;align-items:center;justify-content:space-between;user-select:none}
+.form-section>summary::-webkit-details-marker{display:none}
+.form-section>summary:hover{color:var(--text)}
+.form-section .fs-h{display:flex;align-items:center}
+.form-section .fs-chev{display:inline-block;margin-right:7px;font-size:10px;transition:transform .15s}
+.form-section[open]>summary .fs-chev{transform:rotate(90deg)}
+.form-section .fs-n{font-size:11px;opacity:.6;font-weight:500}
+.form-section .fs-body{padding:12px 12px 2px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px;align-items:start}
+.form-section .fs-body>.fs-wide,
+.form-section .fs-body>div[id$="_namehint"],
+.form-section .fs-body>div[id$="_search"],
+.form-section .fs-body>div[id$="_vulnsearch"]{grid-column:1 / -1}
+.form-field-filter{margin:0 0 12px}
+.field-invalid{outline:1px solid var(--danger);outline-offset:3px;border-radius:6px}
+
 /* Cards */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:18px}
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}

@@ -31,6 +31,12 @@ import attackPathRouter from "./routes/attackpath";
 import purpleTeamRouter from "./routes/purpleteam";
 import ransomwareRouter from "./routes/ransomware";
 import assuranceRouter from "./routes/assurance";
+import slaRouter from "./routes/sla";
+import { ensureSlaColumns } from "./sla";
+import v1Router from "./routes/v1";
+import apikeysRouter from "./routes/apikeys";
+import webhooksRouter from "./routes/webhooks";
+import { apiKeyAuth } from "./apikey";
 import ctiRouter from "./routes/cti";
 import driftRouter from "./routes/drift";
 import contentRouter from "./routes/content";
@@ -124,6 +130,10 @@ app.use("/api/auth", oidcRouter); // OAuth/OIDC (public login + callback)
 app.use("/api", workerApiRouter);
 app.use("/api", agentTokenRouter);
 
+// API-key auth: populates req.user from Authorization: Bearer xor_… / X-API-Key
+// when there's no session, so the REST API works for programmatic clients.
+app.use(apiKeyAuth);
+
 // ── Authentication gate (everything else requires a session) ─────────────────
 app.use(requireAuthGate);
 
@@ -146,6 +156,10 @@ app.use("/api", attackPathRouter); // attack-path & choke-point graph (reachabil
 app.use("/api", purpleTeamRouter); // purple-team: chain ATT&CK detection coverage (Sigma) + rule generation
 app.use("/api", ransomwareRouter); // ransomware-to-$ scenario simulator (BIA/FAIR impact + D3FEND controls)
 app.use("/api", assuranceRouter); // continuously-proven compliance (control assurance from live telemetry)
+app.use("/api", slaRouter); // incident SLA view: incidents measured against asset-defined resolution SLAs
+app.use("/api/v1", v1Router); // public REST API v1 (API-key auth, read-only, tenant-scoped)
+app.use("/api", apikeysRouter); // manage your own API keys (session-authenticated)
+app.use("/api", webhooksRouter); // manage outbound webhooks (session-authenticated)
 app.use("/api", ctiRouter); // "CTI that acts": intel cross-referenced with inventory + auto-ticket
 app.use("/api", driftRouter); // attack-surface drift (snapshot + diff)
 app.use("/api", contentRouter); // content hub exports (OpenVEX, Sigma bundle)
@@ -269,6 +283,18 @@ app.get("/ransomware", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/assurance", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "assurance.html"));
 });
+app.get("/incident-sla", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "incident-sla.html"));
+});
+app.get("/api-docs", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "api-docs.html"));
+});
+app.get("/api-keys", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "api-keys.html"));
+});
+app.get("/webhooks", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "webhooks.html"));
+});
 app.get("/cti-watch", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "cti-watch.html"));
 });
@@ -312,6 +338,7 @@ ensureIncidentTables(); // creates the XINCIDENT.ALERT table if needed
 ensureOpenctiColumns(); // adapts the XTHREAT tables to OpenCTI properties (Confidence/TLP/Sighting…)
 ensureEmulationTables(); // adversary emulation / validation (BAS) module: EMULATION*/ATOMICTEST
 ensureAssetColumns(); // adds ASSET.BusinessValue (and future core ASSET fields) if missing
+ensureSlaColumns(); // ASSET.SLAResponseHours/SLAResolutionHours + INCIDENT.Duration (SLA breach view)
 ensureVulnerabilityColumns(); // adds VULNERABILITY.EPSS (Exploit Prediction Scoring System) if missing
 ensureGrcColumns(); // advanced GRC: CRQ/FAIR (risk register), findings workflow, policy lifecycle
 ensureBugBountyTables(); // Bug Bounty program management (XVULNERABILITY): BUGBOUNTY*

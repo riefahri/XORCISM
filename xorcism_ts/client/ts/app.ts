@@ -4893,6 +4893,173 @@ async function appendThreatAgentCategory(prefix: string, currentCategoryId: numb
   await populate(currentCategoryId);
 }
 
+// ── Long-form UX: readable labels, required markers, sectioning ──────────
+// DB columns are English PascalCase (e.g. "BusinessImpactAnalysisID"). These
+// helpers turn them into readable labels and split long forms into collapsible
+// sections (required first, optional/system collapsed) — driven entirely by the
+// schema metadata already on ColumnInfo (notnull / dflt_value / pk).
+
+const LABEL_ACRONYMS = new Set([
+  "ID", "CVE", "CPE", "CWE", "CCE", "IP", "MAC", "OS", "URL", "URI", "DNS", "TLS", "SSL",
+  "CVSS", "EPSS", "KEV", "TLP", "RPO", "RTO", "SLA", "SLE", "ALE", "BIA", "TTP", "IOC",
+  "STIX", "OCIL", "OVAL", "GRC", "TPRM", "EBIOS", "UUID", "API", "UI", "AI", "XDR", "EDR",
+  "SIEM", "VUL", "MFA", "OTP", "PII", "VLAN", "CIDR", "ASN", "ISO", "NIST", "CIS", "XML",
+]);
+
+function humanizeColumn(name: string): string {
+  const acro = name.match(/^([A-Z]{2,})ID$/); // all-caps PKs: CWEID → CWE
+  if (acro && LABEL_ACRONYMS.has(acro[1])) return acro[1];
+  const parts = name
+    .replace(/_/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length > 1 && /^id$/i.test(parts[parts.length - 1])) parts.pop(); // drop trailing "ID"
+  const words = parts.map((w, i) => {
+    if (LABEL_ACRONYMS.has(w.toUpperCase())) return w.toUpperCase();
+    const lower = w.toLowerCase();
+    return i === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+  });
+  return words.join(" ") || name;
+}
+
+// A column the user MUST fill in: NOT NULL, no DB default, not the primary key.
+function isRequiredFormCol(col: ColumnInfo): boolean {
+  return col.pk !== 1 && col.notnull === 1 && col.dflt_value == null;
+}
+
+// System / audit / computed columns → collapsed "Advanced" section.
+function isAdvancedFormCol(table: string, col: ColumnInfo): boolean {
+  if (isReadonlyFormColumn(table, col.name)) return true;
+  return /^(Created|Modified|Updated|Deleted|Last)[A-Z]/.test(col.name)
+    || /(CreatedBy|ModifiedBy|CreatedDate|ModifiedDate|UpdatedDate)$/.test(col.name)
+    || col.name === "TenantID" || col.name === "RowVersion";
+}
+
+// Sets a form-field label: readable text + PK key + required "*"; raw name on hover.
+function setFieldLabel(label: HTMLElement, col: ColumnInfo, opts?: { pkSuffix?: string }): void {
+  label.textContent = humanizeColumn(col.name) + (opts?.pkSuffix ?? (col.pk ? " 🔑" : ""));
+  label.title = col.name; // power users keep the raw column name on hover
+  // No "required *" on the (often auto-filled) key column — pkSuffix marks it.
+  if (!opts?.pkSuffix && isRequiredFormCol(col)) {
+    const star = document.createElement("span");
+    star.textContent = " *";
+    star.style.color = "var(--danger)";
+    star.title = "Required";
+    label.appendChild(star);
+  }
+}
+
+// Tracks whether the user typed in the current insert/edit form (unsaved-changes guard).
+let formDirty = false;
+
+// A field that should span the full form width (textareas, rich text, file pickers,
+// multi-control rows like the labels chips). Short scalars stay half-width.
+function isWideField(el: HTMLElement): boolean {
+  if (el.querySelector('textarea, [contenteditable], input[type="file"]')) return true;
+  return el.querySelectorAll("input, select, textarea").length >= 2;
+}
+
+// Splits a long form into collapsible sections (required → details → advanced)
+// by reparenting the per-column wrappers (id "<prefix>field_<col>", incl. the
+// "_search"/"_vulnsearch" helpers). Adds a field filter + responsive 2-col layout.
+// Call it right after the field loop, before appendNameHints() so hints land
+// inside their section next to the field.
+function groupFormFields(prefix: string, table: string): void {
+  const body = document.getElementById(prefix === "ef_" ? "edit-modal-body" : "modal-body");
+  if (!body) return;
+  const tag = `${prefix}field_`;
+  const fieldEls = ([...body.children] as HTMLElement[]).filter((el) => el.id && el.id.startsWith(tag));
+  if (fieldEls.length < 8) return; // short forms stay flat — grouping only helps long ones
+  const colOf = (el: HTMLElement): string => el.id.slice(tag.length).replace(/_(search|vulnsearch)$/, "");
+  const byName = new Map(schema.map((c) => [c.name, c] as const));
+
+  const required: HTMLElement[] = [];
+  const details: HTMLElement[] = [];
+  const advanced: HTMLElement[] = [];
+  for (const el of fieldEls) {
+    const ci = byName.get(colOf(el));
+    if (ci && isAdvancedFormCol(table, ci)) advanced.push(el);
+    else if (ci && isRequiredFormCol(ci)) required.push(el);
+    else details.push(el);
+  }
+  if (!required.length && !advanced.length) return; // nothing to gain by sectioning
+
+  const marker = document.createComment("form-fields");
+  body.insertBefore(marker, fieldEls[0]);
+  const frag = document.createDocumentFragment();
+
+  // Field filter: type to show only matching fields, auto-expanding their sections.
+  const filter = document.createElement("input");
+  filter.className = "form-field-filter";
+  filter.type = "search";
+  filter.placeholder = "🔍 Filter fields…";
+  filter.autocomplete = "off";
+  frag.appendChild(filter);
+
+  const addSection = (title: string, els: HTMLElement[], collapsed: boolean): void => {
+    if (!els.length) return;
+    const det = document.createElement("details");
+    det.open = !collapsed;
+    det.dataset.defaultOpen = collapsed ? "0" : "1";
+    det.className = "form-section";
+    const sum = document.createElement("summary");
+    sum.innerHTML = `<span class="fs-h"><span class="fs-chev">▸</span>${title}</span><span class="fs-n">${els.length}</span>`;
+    const wrap = document.createElement("div");
+    wrap.className = "fs-body";
+    for (const el of els) { if (isWideField(el)) el.classList.add("fs-wide"); wrap.appendChild(el); }
+    det.appendChild(sum);
+    det.appendChild(wrap);
+    frag.appendChild(det);
+  };
+  addSection("Required", required, false);
+  addSection("Details", details, false);
+  addSection("Advanced & system", advanced, true);
+
+  filter.addEventListener("input", () => {
+    const q = filter.value.trim().toLowerCase();
+    body.querySelectorAll<HTMLElement>(".form-section").forEach((sec) => {
+      let anyVisible = false;
+      sec.querySelectorAll<HTMLElement>(".fs-body > div").forEach((f) => {
+        const hay = ((f.querySelector("label")?.textContent || "") + " " + f.id).toLowerCase();
+        const show = !q || hay.includes(q);
+        f.style.display = show ? "" : "none";
+        if (show) anyVisible = true;
+      });
+      sec.style.display = !q || anyVisible ? "" : "none";
+      (sec as HTMLDetailsElement).open = q ? anyVisible : sec.dataset.defaultOpen === "1";
+    });
+  });
+
+  body.insertBefore(frag, marker);
+  marker.remove();
+}
+
+// Pre-submit check: flag empty required fields, reveal + scroll to the first one.
+function validateRequiredForm(prefix: string, table: string): boolean {
+  let firstBad: HTMLElement | null = null;
+  for (const c of schema) {
+    if (isHiddenFormColumn(c.name) || !isRequiredFormCol(c) || isReadonlyFormColumn(table, c.name)) continue;
+    const wrap = document.getElementById(`${prefix}field_${c.name}`);
+    const input = document.getElementById(`${prefix}${c.name}`) as HTMLInputElement | null;
+    if (!wrap || !input) continue;
+    if (input.type === "checkbox" || input.type === "file") { wrap.classList.remove("field-invalid"); continue; }
+    const empty = !(input.value || "").trim();
+    wrap.classList.toggle("field-invalid", empty);
+    if (empty && !firstBad) firstBad = wrap;
+  }
+  if (firstBad) {
+    const det = firstBad.closest("details") as HTMLDetailsElement | null;
+    if (det) det.open = true;
+    firstBad.scrollIntoView({ behavior: "smooth", block: "center" });
+    (firstBad.querySelector("input,select,textarea") as HTMLElement | null)?.focus();
+    toast("Please fill the required fields (*)", "err");
+    return false;
+  }
+  return true;
+}
+
 async function openEditModal(row: Record<string, unknown>): Promise<void> {
   editRowId = Number(row["rowid"]);
   editIncidentId = Number(row["IncidentID"]) || 0;
@@ -4935,7 +5102,7 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
     div.id = `ef_field_${col.name}`;
     div.style.marginBottom = "10px";
     const label = document.createElement("label");
-    label.textContent = col.name + (col.pk ? " 🔑" : "");
+    setFieldLabel(label, col);
     label.style.cssText = "display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px";
     div.appendChild(label);
 
@@ -5082,6 +5249,9 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
     body.appendChild(div);
   });
 
+  // Split a long form into collapsible sections (required → details → advanced)
+  groupFormFields("ef_", currentTable);
+
   // Shows the label (e.g. AssetName) after the relevant identifier fields
   await appendNameHints("ef_");
 
@@ -5221,10 +5391,12 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
   }
 
   applyConditionalFields("ef_");
+  formDirty = false; // fresh form — ignore the programmatic value sets above
   showModalAtTop("edit-modal");
 }
 
 async function submitEdit(): Promise<void> {
+  if (!validateRequiredForm("ef_", currentTable)) return;
   const row: Record<string, string> = {};
   schema
     .filter((col) => col.pk !== 1 && !isReadonlyFormColumn(currentTable, col.name))
@@ -8157,7 +8329,7 @@ async function openInsertModal(): Promise<void> {
     // Primary key (by convention: 1st column)
     if (col.name === keyColName) {
       const isAutoInt = nextPk.column === col.name && nextPk.value != null;
-      label.textContent = col.name + (isAutoInt ? " 🔑 (auto)" : " 🔑");
+      setFieldLabel(label, col, { pkSuffix: isAutoInt ? " 🔑 (auto)" : " 🔑" });
       const input = document.createElement("input");
       input.id = `f_${col.name}`;
       input.placeholder = col.type;
@@ -8176,7 +8348,7 @@ async function openInsertModal(): Promise<void> {
       return;
     }
 
-    label.textContent = col.name;
+    setFieldLabel(label, col);
     div.appendChild(label);
 
     // Selector + file upload (e.g. EVIDENCE.EvidenceFile, ASSET.AssetImage)
@@ -8327,6 +8499,9 @@ async function openInsertModal(): Promise<void> {
     body.appendChild(div);
   });
 
+  // Split a long form into collapsible sections (required → details → advanced)
+  groupFormFields("f_", currentTable);
+
   // Shows the label (e.g. AssetName) after the relevant identifier fields
   await appendNameHints("f_");
 
@@ -8439,6 +8614,7 @@ async function openInsertModal(): Promise<void> {
   }
 
   applyConditionalFields("f_");
+  formDirty = false; // fresh form — ignore the programmatic value sets above
   showModalAtTop("insert-modal");
 }
 
@@ -8464,6 +8640,8 @@ async function submitInsert(): Promise<void> {
     }
     return;
   }
+
+  if (!validateRequiredForm("f_", currentTable)) return;
 
   const row: Record<string, string> = {};
   // Includes all columns, including the primary key (auto-incremented
@@ -9229,6 +9407,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("modal-json").onclick = () => downloadFormJson("f_");
   $("modal-excel").onclick = () => downloadFormExcel("f_");
   $("modal-cancel").onclick = () => {
+    if (formDirty && !confirm(t("modal.discard"))) return;
     ($("insert-modal") as HTMLElement).style.display = "none";
     if (foreignInsertReturn) { foreignInsertReturn(); foreignInsertReturn = null; } // foreign creation: restores the context
   };
@@ -9236,9 +9415,28 @@ document.addEventListener("DOMContentLoaded", () => {
   $("edit-modal-json").onclick = () => downloadFormJson("ef_");
   $("edit-modal-excel").onclick = () => downloadFormExcel("ef_");
   $("edit-modal-cancel").onclick = () => {
+    if (formDirty && !confirm(t("modal.discard"))) return;
     ($("edit-modal") as HTMLElement).style.display = "none";
     if (foreignEditReturn) { foreignEditReturn(); foreignEditReturn = null; } // foreign editing: restores the context
   };
+  // Keyboard: Ctrl/Cmd+Enter saves, Esc cancels (long forms — the buttons may be scrolled away)
+  $("edit-modal").addEventListener("keydown", (e) => {
+    const ev = e as KeyboardEvent;
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); void submitEdit(); }
+    else if (ev.key === "Escape") { ev.preventDefault(); ($("edit-modal-cancel") as HTMLElement).click(); }
+  });
+  $("insert-modal").addEventListener("keydown", (e) => {
+    const ev = e as KeyboardEvent;
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") { ev.preventDefault(); void submitInsert(); }
+    else if (ev.key === "Escape") { ev.preventDefault(); ($("modal-cancel") as HTMLElement).click(); }
+  });
+  // Unsaved-changes guard: mark dirty only on real user input (isTrusted), not programmatic value sets.
+  for (const bid of ["modal-body", "edit-modal-body"]) {
+    const el = document.getElementById(bid);
+    if (!el) continue;
+    el.addEventListener("input", (e) => { if (e.isTrusted) formDirty = true; });
+    el.addEventListener("change", (e) => { if (e.isTrusted) formDirty = true; });
+  }
   $("cpe-modal-submit").onclick = submitCpe;
   $("cpe-modal-cancel").onclick = () => { ($("cpe-modal") as HTMLElement).style.display = "none"; };
   ($("cpe-filter") as HTMLInputElement).oninput = (e) => filterCpeList((e.target as HTMLInputElement).value);

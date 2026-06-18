@@ -178,10 +178,17 @@ export function loadUser(req: Request, res: Response, next: NextFunction): void 
     xid.touchSession(sessionId); // sliding inactivity
   }
 
+  req.user = buildUserContext(u);
+  next();
+}
+
+/** Builds the req.user context (roles, tenant, super-admin) from a user row.
+ *  Shared by the session loader (loadUser) and the API-key authenticator. */
+export function buildUserContext(u: xid.XUser): SessionUser {
   const roles = xid.getUserRoles(u.UserID).map((r) => r.RoleName);
   const isAdmin = roles.includes("Admin");
   const tenant = u.TenantID != null ? xid.getTenantById(u.TenantID) : undefined;
-  req.user = {
+  return {
     UserID: u.UserID,
     Email: u.Email,
     DisplayName: u.DisplayName,
@@ -192,7 +199,6 @@ export function loadUser(req: Request, res: Response, next: NextFunction): void 
     tenantName: tenant?.TenantName ?? null,
     isSuperAdmin: isAdmin && !!tenant && tenant.IsSystem === 1,
   };
-  next();
 }
 
 // ── Authentication gate (pages + API) ─────────────────────────────────────
@@ -200,6 +206,7 @@ const PUBLIC_PATHS = new Set<string>(["/login", "/register", "/forgot", "/reset"
 const PUBLIC_API = new Set<string>([
   "/api/auth/login", "/api/auth/me",
   "/api/auth/register", "/api/auth/forgot", "/api/auth/reset",
+  "/api/v1/health", // API liveness probe (no secrets)
 ]);
 
 export function requireAuthGate(req: Request, res: Response, next: NextFunction): void {

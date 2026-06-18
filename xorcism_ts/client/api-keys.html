@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — API keys</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ak-wrap{max-width:860px;margin:0 auto;padding:18px}
+  .ak-wrap h1{font-size:20px;margin:0 0 2px}
+  .ak-sub{color:#94a3b8;font-size:13px;margin-bottom:16px}
+  .ak-new{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .ak-new input{flex:1;min-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px}
+  .reveal{background:#064e3b;border:1px solid #10b981;border-radius:8px;padding:12px 14px;margin-bottom:16px}
+  .reveal .k{font-family:ui-monospace,monospace;font-size:13px;color:#d1fae5;word-break:break-all}
+  .reveal .warn{font-size:12px;color:#6ee7b7;margin-top:6px}
+  table.ak{width:100%;border-collapse:collapse;font-size:13px}
+  table.ak th,table.ak td{text-align:left;padding:8px 10px;border-bottom:1px solid #1e2133}
+  table.ak th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .mono{font-family:ui-monospace,monospace;color:#cbd5e1}
+  .revoked{opacity:.5;text-decoration:line-through}
+  .muted{color:#64748b}
+  .pill-rev{font-size:11px;background:#7f1d1d;color:#fecaca;border-radius:6px;padding:2px 8px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/api-docs">&#128221; API docs</a>
+  <a href="/webhooks">&#128279; Webhooks</a>
+  <span class="spacer"></span>
+  <span class="title">&#128273; API keys</span>
+</div>
+
+<div class="ak-wrap">
+  <h1>API keys</h1>
+  <div class="ak-sub">Keys authenticate the XORCISM REST API as you (same role &amp; tenant). Send as
+    <code>Authorization: Bearer xor_…</code> or <code>X-API-Key: xor_…</code>. See the
+    <a href="/api-docs">API docs</a>.</div>
+
+  <div class="ak-new">
+    <input id="ak-name" placeholder="Key name (e.g. CI pipeline, Splunk)" maxlength="80" autocomplete="off">
+    <select id="ak-scope" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px">
+      <option value="read">Read-only</option>
+      <option value="write">Read &amp; write</option>
+      <option value="custom">Custom scopes…</option>
+    </select>
+    <select id="ak-expiry" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px">
+      <option value="0">No expiry</option>
+      <option value="30">Expires 30d</option>
+      <option value="90">Expires 90d</option>
+      <option value="365">Expires 1y</option>
+    </select>
+    <button class="btn btn-primary" id="ak-create">Create key</button>
+  </div>
+  <div id="ak-custom" style="display:none;margin:-8px 0 14px;font-size:12px;color:#94a3b8"></div>
+  <div id="ak-reveal"></div>
+  <div id="ak-list"><div class="muted" style="padding:16px">Loading…</div></div>
+</div>
+
+<script src="/js/session-ui.js"></script>
+<script src="/js/api-keys.js"></script>
+</body>
+</html>
