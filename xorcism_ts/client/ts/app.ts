@@ -2227,6 +2227,14 @@ STATIC_DATALIST_DEFAULTS["PIR.Priority"] = "Medium";
 STATIC_DATALIST_COLUMNS["PIR.Status"] = ["Active", "Satisfied", "On Hold", "Retired", "Draft"];
 STATIC_DATALIST_DEFAULTS["PIR.Status"] = "Active";
 FK_COLUMNS["PIR.PersonID"] = { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", distinct: true };
+// ASSETCONTROL — asset↔control mapping: FK pickers (asset/control/owner) + status & confidence dropdowns.
+FK_COLUMNS["ASSETCONTROL.AssetID"] = { db: "XORCISM", table: "ASSET", idCol: "AssetID", labelCol: "AssetName", distinct: true };
+FK_COLUMNS["ASSETCONTROL.ControlID"] = { db: "XORCISM", table: "CONTROL", idCol: "ControlID", labelCol: "ControlName", distinct: true };
+FK_COLUMNS["ASSETCONTROL.PersonID"] = { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", distinct: true };
+STATIC_DATALIST_COLUMNS["ASSETCONTROL.Status"] = ["Planned", "Implemented", "Partial", "Verified", "Failed", "Not Applicable", "Retired"];
+STATIC_DATALIST_DEFAULTS["ASSETCONTROL.Status"] = "Planned";
+STATIC_DATALIST_COLUMNS["ASSETCONTROL.ConfidenceLevel"] = ["High", "Medium", "Low"];
+STATIC_DATALIST_DEFAULTS["ASSETCONTROL.ConfidenceLevel"] = "Medium";
 // OpenCTI properties on the emulation scenario (TLP / Confidence / Labels).
 STATIC_DATALIST_COLUMNS["EMULATIONSCENARIO.TLP"] = OPENCTI_TLP_VALUES;
 STATIC_DATALIST_DEFAULTS["EMULATIONSCENARIO.TLP"] = "TLP:AMBER";

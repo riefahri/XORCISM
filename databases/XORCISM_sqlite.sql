@@ -26435,4 +26435,21 @@ CREATE TABLE IF NOT EXISTS "XSURFACESNAPSHOT" (
   "AssetCount" INTEGER, "ExposedCount" INTEGER, "Payload" TEXT);
 CREATE INDEX IF NOT EXISTS ix_surfsnap_tenant ON XSURFACESNAPSHOT(TenantID, SnapshotID);
 
+-- ASSET ↔ CONTROL mapping (which security controls apply to which asset) — see ensureAssetColumns().
+CREATE TABLE IF NOT EXISTS "ASSETCONTROL" (
+  "AssetControlID" INTEGER PRIMARY KEY,
+  "AssetControlGUID" TEXT,
+  "AssetID" INTEGER,
+  "ControlID" INTEGER,
+  "CreatedDate" DATE,
+  "PersonID" INTEGER,
+  "Status" TEXT,
+  "ValidFrom" DATE,
+  "ValidUntil" DATE,
+  "ConfidenceLevel" TEXT,
+  "ConfidenceReasonID" INTEGER,
+  "TenantID" INTEGER);
+CREATE INDEX IF NOT EXISTS ix_assetcontrol_asset ON "ASSETCONTROL"("AssetID");
+CREATE INDEX IF NOT EXISTS ix_assetcontrol_control ON "ASSETCONTROL"("ControlID");
+
 COMMIT;

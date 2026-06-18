@@ -723,6 +723,7 @@ export function getSchema(dbName: string, table: string): object[] {
 // Key = "DB.TABLE" in UPPERCASE.
 export const TENANT_SCOPED_TABLES = new Set<string>([
   "XORCISM.ASSET",
+  "XORCISM.ASSETCONTROL",
   "XORCISM.BIAAUDIT",
   "XORCISM.BIAENTRY",
   "XORCISM.CPEFORASSET",
@@ -4030,6 +4031,31 @@ export function killChainGraph(groupRef?: string | null): {
  */
 export function ensureAssetColumns(): void {
   const db = getDb("XORCISM");
+  // ASSET ↔ CONTROL mapping: which security controls apply to which asset.
+  // Tenant-isolated (XORCISM.ASSETCONTROL in TENANT_SCOPED_TABLES; TenantID added
+  // by ensureTenantColumns) + a GUID for STIX/cross-system identity.
+  db.exec(`CREATE TABLE IF NOT EXISTS "ASSETCONTROL" (
+    "AssetControlID" INTEGER PRIMARY KEY,
+    "AssetControlGUID" TEXT,
+    "AssetID" INTEGER,
+    "ControlID" INTEGER,
+    "CreatedDate" DATE,
+    "PersonID" INTEGER,
+    "Status" TEXT,
+    "ValidFrom" DATE,
+    "ValidUntil" DATE,
+    "ConfidenceLevel" TEXT,
+    "ConfidenceReasonID" INTEGER,
+    "TenantID" INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS ix_assetcontrol_asset ON "ASSETCONTROL"("AssetID");
+  CREATE INDEX IF NOT EXISTS ix_assetcontrol_control ON "ASSETCONTROL"("ControlID");`);
+  // Idempotent adds for an ASSETCONTROL created before GUID/TenantID existed.
+  {
+    const acCols = new Set((db.prepare(`PRAGMA table_info("ASSETCONTROL")`).all() as { name: string }[]).map((c) => c.name));
+    if (!acCols.has("AssetControlGUID")) db.exec(`ALTER TABLE "ASSETCONTROL" ADD COLUMN "AssetControlGUID" TEXT`);
+    if (!acCols.has("TenantID")) db.exec(`ALTER TABLE "ASSETCONTROL" ADD COLUMN "TenantID" INTEGER`);
+  }
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ASSET'").get()) return;
   const existing = new Set(
     (db.prepare(`PRAGMA table_info("ASSET")`).all() as { name: string }[]).map((c) => c.name)
