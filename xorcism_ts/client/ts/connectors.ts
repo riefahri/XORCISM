@@ -6,6 +6,9 @@
 import { initI18n, t } from "./i18n";
 
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
+// Escapes HTML metacharacters before interpolation into innerHTML (stored-XSS guard
+// for user-controlled values: scan targets, worker names, cron, connector data).
+function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
 function toast(msg: string, type: "ok" | "err" = "ok"): void {
   const el = $("toast"); el.textContent = msg;
   el.className = type === "err" ? "toast-err" : "toast-ok";
@@ -105,7 +108,7 @@ function renderConnectorList(query: string): void {
       it.className = "cn-item"; it.dataset.id = c.id;
       if (selected && selected.id === c.id) it.classList.add("sel");
       it.innerHTML =
-        `<span><span class="nm">${c.name}</span><div class="meta">${c.type}</div></span>` +
+        `<span><span class="nm">${esc(c.name)}</span><div class="meta">${esc(c.type)}</div></span>` +
         (c.intrusive ? `<span class="pill intr">intrusif</span>` : "");
       it.onclick = () => selectConnector(c, it);
       host.appendChild(it);
@@ -219,8 +222,8 @@ async function loadSchedules(): Promise<void> {
     const tr = document.createElement("tr");
     const on = Number(s.enabled) === 1;
     tr.innerHTML =
-      `<td>${s.connector}</td><td>${s.target ?? ""}</td>` +
-      `<td style="font-family:monospace;font-size:11px">${s.cron}</td>` +
+      `<td>${esc(s.connector)}</td><td>${esc(s.target ?? "")}</td>` +
+      `<td style="font-family:monospace;font-size:11px">${esc(s.cron)}</td>` +
       `<td><span class="st ${on ? "running" : "queued"}">${on ? t("conn.schedOn") : t("conn.schedOff")}</span></td>`;
     const td = document.createElement("td");
     const toggle = document.createElement("button");
@@ -298,8 +301,8 @@ async function loadWorkers(): Promise<void> {
   }
   workers.forEach((w) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${w.name}</td><td><span class="st ${w.status || "queued"}">${w.status || "?"}</span></td>` +
-      `<td class="hint">${w.last_seen || "—"}</td>`;
+    tr.innerHTML = `<td>${esc(w.name)}</td><td><span class="st ${esc(w.status || "queued")}">${esc(w.status || "?")}</span></td>` +
+      `<td class="hint">${esc(w.last_seen || "—")}</td>`;
     const td = document.createElement("td");
     const b = document.createElement("button");
     b.className = "btn btn-ghost btn-sm"; b.style.cssText = "padding:2px 7px;font-size:11px";
@@ -337,8 +340,8 @@ async function loadJobs(): Promise<void> {
   jobs.forEach((j) => {
     const tr = document.createElement("tr");
     tr.innerHTML =
-      `<td>${j.JobID}</td><td>${j.connector}</td><td>${j.target ?? ""}</td>` +
-      `<td><span class="st ${j.status}">${j.status}</span></td>`;
+      `<td>${j.JobID}</td><td>${esc(j.connector)}</td><td>${esc(j.target ?? "")}</td>` +
+      `<td><span class="st ${esc(j.status)}">${esc(j.status)}</span></td>`;
     const td = document.createElement("td");
     const b = document.createElement("button");
     b.className = "btn btn-ghost btn-sm"; b.style.cssText = "padding:2px 7px;font-size:11px";
