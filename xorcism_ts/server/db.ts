@@ -4163,7 +4163,13 @@ export function ensureVulnerabilityColumns(): void {
   const existing = new Set(
     (db.prepare(`PRAGMA table_info("VULNERABILITY")`).all() as { name: string }[]).map((c) => c.name)
   );
-  const cols: Record<string, string> = { EPSS: "REAL", FalsePositive: "INTEGER DEFAULT 0" };
+  const cols: Record<string, string> = {
+    EPSS: "REAL", FalsePositive: "INTEGER DEFAULT 0",
+    // SSVC (CISA Stakeholder-Specific Vulnerability Categorization) — the 4 decision
+    // points + the computed CISA-level decision (Track / Track* / Attend / Act) + vector.
+    SsvcExploitation: "TEXT", SsvcAutomatable: "TEXT", SsvcTechnicalImpact: "TEXT",
+    SsvcMissionWellbeing: "TEXT", SsvcDecision: "TEXT", SsvcVector: "TEXT", SsvcDecisionDate: "DATE",
+  };
   for (const [n, t] of Object.entries(cols)) {
     if (!existing.has(n)) db.exec(`ALTER TABLE "VULNERABILITY" ADD COLUMN "${n}" ${t}`);
   }

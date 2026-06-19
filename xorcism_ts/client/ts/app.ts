@@ -2273,6 +2273,16 @@ FK_COLUMNS["IDENTITYPERSON.IdentityID"] = { db: "XORCISM", table: "IDENTITY", id
 FK_COLUMNS["IDENTITYPERSON.PersonID"] = { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", distinct: true };
 STATIC_DATALIST_COLUMNS["IDENTITYPERSON.RelationshipType"] = ["Owner", "Primary", "Member", "Delegate", "Manager"];
 STATIC_DATALIST_DEFAULTS["IDENTITYPERSON.RelationshipType"] = "Owner";
+
+// SSVC (CISA Stakeholder-Specific Vulnerability Categorization) — decision-point
+// dropdowns on the VULNERABILITY form (the inline calculator computes SsvcDecision).
+STATIC_DATALIST_COLUMNS["VULNERABILITY.SsvcExploitation"] = ["none", "public poc", "active"];
+STATIC_DATALIST_COLUMNS["VULNERABILITY.SsvcAutomatable"] = ["no", "yes"];
+STATIC_DATALIST_COLUMNS["VULNERABILITY.SsvcTechnicalImpact"] = ["partial", "total"];
+STATIC_DATALIST_COLUMNS["VULNERABILITY.SsvcMissionWellbeing"] = ["low", "medium", "high"];
+STATIC_DATALIST_DEFAULTS["VULNERABILITY.SsvcMissionWellbeing"] = "medium";
+STATIC_DATALIST_COLUMNS["VULNERABILITY.SsvcDecision"] = ["Track", "Track*", "Attend", "Act"];
+
 // OpenCTI properties on the emulation scenario (TLP / Confidence / Labels).
 STATIC_DATALIST_COLUMNS["EMULATIONSCENARIO.TLP"] = OPENCTI_TLP_VALUES;
 STATIC_DATALIST_DEFAULTS["EMULATIONSCENARIO.TLP"] = "TLP:AMBER";
@@ -3598,6 +3608,86 @@ function appendAiActionButton(body: HTMLElement, label: string, run: () => Promi
   wrap.appendChild(btn);
   wrap.appendChild(out);
   body.appendChild(wrap);
+}
+
+// ── SSVC (CISA Stakeholder-Specific Vulnerability Categorization) calculator ──
+// CISA "Coordinator" decision table v2.0.3 (verbatim 36-row lookup, matches
+// CERTCC/SSVC and the import_nvd_cve.py / ssvc.py Python engine).
+const SSVC_TABLE: Map<string, string> = new Map(
+  `none,no,partial,low,Track|none,no,partial,medium,Track|none,no,partial,high,Track|none,no,total,low,Track|none,no,total,medium,Track|none,no,total,high,Track*|none,yes,partial,low,Track|none,yes,partial,medium,Track|none,yes,partial,high,Attend|none,yes,total,low,Track|none,yes,total,medium,Track|none,yes,total,high,Attend|public poc,no,partial,low,Track|public poc,no,partial,medium,Track|public poc,no,partial,high,Track*|public poc,no,total,low,Track|public poc,no,total,medium,Track*|public poc,no,total,high,Attend|public poc,yes,partial,low,Track|public poc,yes,partial,medium,Track|public poc,yes,partial,high,Attend|public poc,yes,total,low,Track|public poc,yes,total,medium,Track*|public poc,yes,total,high,Attend|active,no,partial,low,Track|active,no,partial,medium,Track|active,no,partial,high,Attend|active,no,total,low,Track|active,no,total,medium,Attend|active,no,total,high,Act|active,yes,partial,low,Attend|active,yes,partial,medium,Attend|active,yes,partial,high,Act|active,yes,total,low,Attend|active,yes,total,medium,Act|active,yes,total,high,Act`
+    .split("|").map((r) => { const p = r.split(","); return [`${p[0]}|${p[1]}|${p[2]}|${p[3]}`, p[4]] as [string, string]; })
+);
+const SSVC_ALIAS: Record<string, string> = { poc: "public poc", "public-poc": "public poc", exploited: "active", complete: "total", full: "total" };
+function ssvcNorm(v: unknown, allowed: string[], def: string): string {
+  let s = String(v ?? "").trim().toLowerCase(); s = SSVC_ALIAS[s] ?? s;
+  return allowed.includes(s) ? s : def;
+}
+function ssvcDecide(e: string, a: string, t: string, m: string): string {
+  return SSVC_TABLE.get(`${ssvcNorm(e, ["none", "public poc", "active"], "none")}|${ssvcNorm(a, ["no", "yes"], "no")}|${ssvcNorm(t, ["partial", "total"], "partial")}|${ssvcNorm(m, ["low", "medium", "high"], "medium")}`) ?? "Track";
+}
+function ssvcVectorOf(e: string, a: string, t: string, m: string, d: string): string {
+  const E: Record<string, string> = { none: "N", "public poc": "P", active: "A" };
+  const A: Record<string, string> = { no: "N", yes: "Y" }, T: Record<string, string> = { partial: "P", total: "T" }, M: Record<string, string> = { low: "L", medium: "M", high: "H" };
+  const date = new Date().toISOString().slice(0, 10);
+  return `SSVCv2/E:${E[ssvcNorm(e, ["none", "public poc", "active"], "none")]}/Au:${A[ssvcNorm(a, ["no", "yes"], "no")]}/T:${T[ssvcNorm(t, ["partial", "total"], "partial")]}/M:${M[ssvcNorm(m, ["low", "medium", "high"], "medium")]}/D:${d}/${date}/`;
+}
+const SSVC_DECISION_COLOR: Record<string, string> = { Act: "#f87171", Attend: "#fb923c", "Track*": "#fbbf24", Track: "#34d399" };
+
+/** Inline SSVC calculator on the VULNERABILITY form: live decision from the four
+ *  decision-point dropdowns (writes SsvcDecision + SsvcVector), plus a one-click
+ *  "Suggest from CVSS / KEV / EPSS" that derives the inputs (mirrors ssvc.py). */
+function appendSsvcCalculator(body: HTMLElement, prefix: string): void {
+  const fld = (c: string): HTMLInputElement | null => document.getElementById(`${prefix}${c}`) as HTMLInputElement | null;
+  if (!fld("SsvcDecision") || (body.dataset.ssvcWired === "1")) return; // SSVC columns present?
+  body.dataset.ssvcWired = "1";
+  const g = (c: string): string => (fld(c)?.value || "").trim();
+
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg)";
+  const head = document.createElement("div");
+  head.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px";
+  const title = document.createElement("span");
+  title.innerHTML = "🧮 <b>SSVC</b> <span style='color:var(--text-muted);font-size:11px'>CISA Stakeholder-Specific Vulnerability Categorization</span>";
+  const suggest = document.createElement("button");
+  suggest.type = "button"; suggest.className = "btn btn-ghost btn-sm"; suggest.textContent = "⤓ Suggest from CVSS / KEV / EPSS";
+  suggest.title = "Derive the four decision points from this CVE's KEV flag, EPSS and CVSS metrics";
+  const badge = document.createElement("span");
+  badge.style.cssText = "margin-left:auto;font-weight:700;border-radius:6px;padding:3px 12px;color:#0b0e14;font-size:14px";
+  const vec = document.createElement("div");
+  vec.style.cssText = "font-family:ui-monospace,monospace;font-size:11px;color:var(--text-muted);margin-top:4px;word-break:break-all";
+  head.appendChild(title); head.appendChild(suggest); head.appendChild(badge);
+  wrap.appendChild(head); wrap.appendChild(vec);
+  body.appendChild(wrap);
+
+  const recompute = (): void => {
+    const e = g("SsvcExploitation") || "none", a = g("SsvcAutomatable") || "no";
+    const t = g("SsvcTechnicalImpact") || "partial", m = g("SsvcMissionWellbeing") || "medium";
+    const d = ssvcDecide(e, a, t, m);
+    const v = ssvcVectorOf(e, a, t, m, d);
+    badge.textContent = d; badge.style.background = SSVC_DECISION_COLOR[d] || "#94a3b8";
+    vec.textContent = v;
+    const dec = fld("SsvcDecision"); if (dec) dec.value = d;
+    const vfld = fld("SsvcVector"); if (vfld) vfld.value = v;
+  };
+  for (const c of ["SsvcExploitation", "SsvcAutomatable", "SsvcTechnicalImpact", "SsvcMissionWellbeing"]) {
+    const el = fld(c); if (el) { el.addEventListener("input", recompute); el.addEventListener("change", recompute); }
+  }
+  suggest.onclick = (): void => {
+    const truthy = (x: string): boolean => ["1", "true", "yes", "y", "t"].includes(x.trim().toLowerCase());
+    const hi = (x: string): boolean => ["HIGH", "COMPLETE"].includes(x.trim().toUpperCase());
+    const e = (truthy(g("KEV")) || truthy(g("Exploited"))) ? "active" : (truthy(g("EasilyExploitable")) || truthy(g("VULExploitable"))) ? "public poc" : "none";
+    const base = parseFloat(g("CVSSBaseScore")) || 0;
+    const t = ((hi(g("CVSSMetricConfImpact")) && hi(g("CVSSMetricIntegImpact")) && hi(g("CVSSMetricAvailImpact"))) || base >= 9) ? "total" : "partial";
+    const av = g("CVSSMetricAccessVector").toUpperCase(), ac = g("CVSSMetricAccessComplexity").toUpperCase(), au = g("CVSSMetricAuthentication").toUpperCase();
+    const epss = parseFloat(g("EPSS")) || 0;
+    const a = (((av === "NETWORK" || av === "N") && (ac === "LOW" || ac === "L") && (au === "NONE" || au === "N")) || epss >= 0.5) ? "yes" : "no";
+    const setF = (c: string, val: string): void => { const el = fld(c); if (el && !el.value.trim()) el.value = val; else if (el && c !== "SsvcMissionWellbeing") el.value = val; };
+    setF("SsvcExploitation", e); setF("SsvcAutomatable", a); setF("SsvcTechnicalImpact", t);
+    if (!g("SsvcMissionWellbeing")) { const el = fld("SsvcMissionWellbeing"); if (el) el.value = "medium"; }
+    recompute();
+    toast("SSVC decision points derived from CVSS / KEV / EPSS.");
+  };
+  recompute();
 }
 
 function appendEpssButton(prefix: string): void {
@@ -5315,6 +5405,7 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
   // SOCRadar IOC Radar: search a CVE (VULNERABILITY form)
   if (isOsvTable()) {
     appendSocradarIocField("ef_"); appendEpssButton("ef_"); appendDatePicker("ef_", "ValidUntilDate");
+    appendSsvcCalculator(body, "ef_"); // CISA SSVC decision calculator (Track/Track*/Attend/Act)
     appendAiActionButton(body, "🧠 AI triage (KEV / EPSS / affected assets)", async () => {
       const vid = Number((document.getElementById("ef_VulnerabilityID") as HTMLInputElement)?.value) || undefined;
       const cve = ((document.getElementById("ef_VULReferential") as HTMLInputElement)?.value || "").trim() || undefined;

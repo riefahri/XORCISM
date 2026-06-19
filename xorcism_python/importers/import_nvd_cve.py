@@ -342,6 +342,22 @@ def import_nvd(
         except Exception as e:  # noqa: BLE001
             log(MODULE, f"KEV sync ignorée (erreur : {e})")
 
+    # CISA SSVC: derive the four decision points (Exploitation from KEV/Exploited,
+    # Technical Impact + Automatable from CVSS, Mission & Well-being default) and
+    # compute the CISA-level decision for the freshly imported CVEs + every KEV row
+    # (so a newly active-exploited CVE is re-scored). Best-effort, runs after KEV sync.
+    if kev_sync:
+        try:
+            try:
+                from .ssvc import recompute_ssvc
+            except ImportError:
+                from ssvc import recompute_ssvc
+            with session_scope("XVULNERABILITY") as ssvc_session:
+                n = recompute_ssvc(ssvc_session, where="SsvcDecision IS NULL OR SsvcDecision = '' OR KEV = 1")
+            log(MODULE, f"SSVC calculé pour {n} vulnérabilité(s) (CISA Track/Track*/Attend/Act)")
+        except Exception as e:  # noqa: BLE001
+            log(MODULE, f"Calcul SSVC ignoré (erreur : {e})")
+
 
 # ---------------------------------------------------------------------------
 # CLI
