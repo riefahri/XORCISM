@@ -35,6 +35,7 @@ import slaRouter from "./routes/sla";
 import { ensureSlaColumns } from "./sla";
 import pirRouter from "./routes/pir";
 import identitiesRouter from "./routes/identities";
+import assetsRouter from "./routes/assets";
 import v1Router from "./routes/v1";
 import apikeysRouter from "./routes/apikeys";
 import webhooksRouter from "./routes/webhooks";
@@ -161,6 +162,7 @@ app.use("/api", assuranceRouter); // continuously-proven compliance (control ass
 app.use("/api", slaRouter); // incident SLA view: incidents measured against asset-defined resolution SLAs
 app.use("/api", pirRouter); // Priority Intelligence Requirements coverage register
 app.use("/api", identitiesRouter); // IAM: identity inventory (human + non-human) + governance findings
+app.use("/api", assetsRouter); // Asset Management: asset inventory + governance worklist
 app.use("/api/v1", v1Router); // public REST API v1 (API-key auth, read-only, tenant-scoped)
 app.use("/api", apikeysRouter); // manage your own API keys (session-authenticated)
 app.use("/api", webhooksRouter); // manage outbound webhooks (session-authenticated)
@@ -295,6 +297,9 @@ app.get("/pir", pageGuard("/"), (_req: Request, res: Response) => {
 });
 app.get("/identities", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "identities.html"));
+});
+app.get("/asset-management", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "asset-management.html"));
 });
 app.get("/api-docs", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "api-docs.html"));

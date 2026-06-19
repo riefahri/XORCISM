@@ -9,6 +9,8 @@ import { getDb, insertRow, updateRow } from "../db";
 import { topExposures } from "../fusion";
 import { incidentSlaView } from "../sla";
 import { computeEnterpriseRiskScore } from "../riskscore";
+import { identityInventory } from "../identities";
+import { assetInventory } from "../assets";
 import { buildOpenApi } from "../openapi";
 import { dispatchWebhook } from "../webhook";
 
@@ -193,6 +195,23 @@ router.get("/risk", (req: Request, res: Response) => {
   if (!gate(req, res, "risk:read")) return;
   const tenant = tenantOf(req);
   res.json({ tenantId: tenant, enterpriseRiskScore: computeEnterpriseRiskScore(tenant) });
+});
+
+// ── Governance (inventory + worklists) ─────────────────────────────────────────
+// GET /api/v1/asset-management — asset inventory + governance findings (owner / exposure /
+// backup / controls / BIA / KEV-critical vulns) with a 0-100 risk score per asset.
+router.get("/asset-management", (req: Request, res: Response) => {
+  if (!gate(req, res, "assets:read")) return;
+  if (!userCan(req.user!, "read", "XORCISM", "ASSET")) return void res.status(403).json({ error: "forbidden" });
+  res.json(assetInventory(tenantOf(req)));
+});
+
+// GET /api/v1/identities — IAM inventory (human + non-human) + governance findings
+// (orphaned NHI / privileged / stale / expiring credentials / missing MFA) with a risk score.
+router.get("/identities", (req: Request, res: Response) => {
+  if (!gate(req, res, "identities:read")) return;
+  if (!userCan(req.user!, "read", "XORCISM", "IDENTITY")) return void res.status(403).json({ error: "forbidden" });
+  res.json(identityInventory(tenantOf(req)));
 });
 
 export default router;

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Asset Management</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .am-wrap{max-width:1280px;margin:0 auto;padding:18px}
+  .am-wrap h1{font-size:20px;margin:0 0 2px}
+  .am-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:940px}
+  .am-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .am-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .am-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .am-card .val{font-size:26px;font-weight:700;margin-top:3px}
+  .am-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .am-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .breakdown{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .bd{font-size:12px;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:3px 9px;color:#cbd5e1}
+  .bd b{color:#e2e8f0}
+  table.am{width:100%;border-collapse:collapse;font-size:13px}
+  table.am th,table.am td{text-align:left;padding:8px 10px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.am th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .crit{font-size:11px;font-weight:600;border-radius:5px;padding:2px 8px;white-space:nowrap}
+  .c-critical{background:#7f1d1d;color:#fecaca}.c-high{background:#7c2d12;color:#fed7aa}
+  .c-medium{background:#78350f;color:#fcd34d}.c-low{background:#1e2133;color:#94a3b8}.c-unrated{background:#1e2133;color:#64748b}
+  .pill{font-size:11px;border-radius:5px;padding:2px 7px;white-space:nowrap;display:inline-block}
+  .exp-internet{background:#3b1d2f;color:#fda4af}.exp-internal{background:#1e2133;color:#94a3b8}
+  .ok{color:#34d399}.no{color:#f87171}.muted{color:#64748b}
+  .flag{font-size:11px;background:#3f1d1d;border:1px solid #7f1d1d;border-radius:5px;padding:1px 6px;margin:0 4px 4px 0;display:inline-block;color:#fca5a5}
+  .vbadge{font-size:11px;border-radius:5px;padding:1px 6px;margin-right:4px;display:inline-block}
+  .v-kev{background:#7f1d1d;color:#fecaca}.v-crit{background:#7c2d12;color:#fed7aa}.v-open{background:#1e2133;color:#cbd5e1}
+  .sev-Critical{color:#f87171;font-weight:700}.sev-High{color:#fb923c;font-weight:700}.sev-Medium{color:#fbbf24}.sev-Low{color:#94a3b8}
+  .sev-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .dot-Critical{background:#f87171}.dot-High{background:#fb923c}.dot-Medium{background:#fbbf24}.dot-Low{background:#94a3b8}
+  .aname{font-weight:600;color:#e2e8f0}
+  .score{font-weight:700}.s-hi{color:#f87171}.s-md{color:#fbbf24}.s-lo{color:#64748b}
+  .findings{list-style:none;margin:0;padding:0}
+  .findings li{padding:6px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .legend{font-size:11px;color:#64748b;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/?db=XORCISM&amp;table=ASSET">&#9881;&#65039; Manage assets</a>
+  <a href="/bia">&#128196; BIA</a>
+  <a href="/?db=XORCISM&amp;table=BACKUPPLAN">&#128190; Backup plans</a>
+  <a href="/dashboard">&#128202; Dashboard</a>
+  <span class="spacer"></span>
+  <span class="title">&#128187; Asset Management</span>
+</div>
+
+<div class="am-wrap">
+  <div>
+    <h1>Asset Management</h1>
+    <div class="am-sub">One governance view over your asset estate — ownership, exposure, backup posture,
+      control &amp; BIA coverage, and open vulnerability load (KEV / critical). Each asset is checked for
+      the hygiene gaps that matter: <b>crown jewels exposed to the Internet</b>, <b>critical assets with no
+      backup</b>, <b>owner-less</b> assets, <b>KEV/critical vulnerabilities</b>, missing controls or BIA,
+      PII at risk, and stale / end-of-life assets. Manage entries under
+      <a href="/?db=XORCISM&amp;table=ASSET">Manage assets</a>.</div>
+  </div>
+  <div id="am-body"><div class="muted" style="padding:24px;text-align:center">Building the inventory…</div></div>
+</div>
+
+<script src="/js/session-ui.js"></script>
+<script src="/js/asset-management.js"></script>
+</body>
+</html>

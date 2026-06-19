@@ -37,6 +37,7 @@ export function buildOpenApi(): Record<string, unknown> {
       { name: "Assets", description: "Asset inventory" },
       { name: "Incidents", description: "Incidents & SLA/RTO posture" },
       { name: "Exposure", description: "Vulnerability exposure & risk" },
+      { name: "Governance", description: "Asset & identity inventory with governance worklists" },
     ],
     paths: {
       "/health": {
@@ -106,6 +107,20 @@ export function buildOpenApi(): Record<string, unknown> {
           responses: { "200": ok("Risk"), ...errors },
         },
       },
+      "/asset-management": {
+        get: {
+          tags: ["Governance"],
+          summary: "Asset inventory + governance worklist (owner / exposure / backup / controls / BIA / KEV-critical vulns), with a 0-100 risk score per asset",
+          responses: { "200": ok("AssetInventory"), ...errors },
+        },
+      },
+      "/identities": {
+        get: {
+          tags: ["Governance"],
+          summary: "Identity inventory (human + non-human) + governance findings (orphaned NHI / privileged / stale / expiring credentials / missing MFA), with a risk score (scope: identities:read)",
+          responses: { "200": ok("IdentityInventory"), ...errors },
+        },
+      },
     },
     components: {
       securitySchemes: {
@@ -140,6 +155,8 @@ export function buildOpenApi(): Record<string, unknown> {
         Exposure: { type: "object", properties: { vulnerabilityId: { type: "integer" }, cve: { type: "string", nullable: true }, score: { type: "number" }, priority: { type: "number" }, kev: { type: "boolean" }, epss: { type: "number", nullable: true } } },
         ExposureList: { type: "object", properties: { scanned: { type: "integer" }, items: { type: "array", items: { $ref: "#/components/schemas/Exposure" } } } },
         Risk: { type: "object", properties: { tenantId: { type: "integer", nullable: true }, enterpriseRiskScore: { type: "integer" } } },
+        AssetInventory: { type: "object", properties: { rows: { type: "array", items: { type: "object" } }, findings: { type: "array", items: { type: "object" } }, summary: { type: "object", description: "total, crownJewels, internetFacing, pii, unbackedCritical, noOwner, withCriticalVulns, stale, byCriticality, byEnvironment" } } },
+        IdentityInventory: { type: "object", properties: { rows: { type: "array", items: { type: "object" } }, findings: { type: "array", items: { type: "object" } }, summary: { type: "object", description: "total, human, nonHuman, privileged, orphaned, stale, expiring, hardcoded, compromised, mfaGaps, byType, byClass" } } },
         IncidentCreate: {
           type: "object", required: ["name"],
           properties: { name: { type: "string" }, severity: { type: "string" }, status: { type: "string" }, synopsis: { type: "string" }, durationHours: { type: "number" } },

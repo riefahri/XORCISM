@@ -1,9 +1,9 @@
 # XORCISM REST API
 
 A read-only, tenant-scoped REST API over the XORCISM platform. It exposes the
-same data the UI shows — assets, incidents, exposures, SLA/RTO posture and the
-enterprise risk score — for integration with SIEMs, dashboards, CI pipelines and
-automation.
+same data the UI shows — assets, incidents, exposures, SLA/RTO posture, the
+enterprise risk score, and the **asset & identity governance** inventories — for
+integration with SIEMs, dashboards, CI pipelines and automation.
 
 - **Base URL:** `/api/v1` (e.g. `https://your-host/api/v1`)
 - **Format:** JSON
@@ -33,7 +33,8 @@ leaked key cannot mint more keys.
 
 **Scopes & expiry.** Each key holds scopes — the presets **read-only** /
 **read+write**, or fine-grained tokens (`assets:read`, `assets:write`,
-`incidents:read`, `incidents:write`, `exposure:read`, `risk:read`). An endpoint
+`incidents:read`, `incidents:write`, `exposure:read`, `risk:read`,
+`identities:read`). An endpoint
 returns `403` if the key lacks its scope (e.g. `POST /incidents` needs
 `incidents:write`). Rules: `write` grants everything; `read` grants all `*:read`;
 `<res>:write` implies `<res>:read`. Writes are *also* governed by the user's RBAC.
@@ -95,6 +96,21 @@ plus a `summary` with per-target breach rates.
 | `GET` | `/exposures?limit=` | key | Top vulnerabilities by fusion exploitability score |
 | `GET` | `/risk` | key | Enterprise risk score for the caller's tenant |
 
+### Governance
+
+Inventory + worklist views with a derived 0–100 risk score per item — the same
+data behind the in-app **Asset Management** and **Identities & IAM** pages.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/asset-management` | `assets:read` | Asset inventory + governance findings (owner / Internet exposure / backup / controls / BIA / KEV-critical vulns) |
+| `GET` | `/identities` | `identities:read` | Identity inventory (human + non-human) + findings (orphaned NHI / privileged / stale / expiring credentials / missing MFA) |
+
+Each returns `{ rows, findings, summary }`: `rows` is the scored inventory,
+`findings` is the severity-sorted worklist, and `summary` holds the headline
+counters (e.g. `crownJewels`, `internetFacing`, `withCriticalVulns` for assets;
+`nonHuman`, `privileged`, `orphaned`, `mfaGaps` for identities).
+
 ---
 
 ## Examples
@@ -114,6 +130,14 @@ curl -s https://your-host/api/v1/incident-sla \
 # Highest-priority exposures
 curl -s "https://your-host/api/v1/exposures?limit=5" \
   -H "Authorization: Bearer $XORCISM_API_KEY" | jq '.items[].cve'
+
+# Asset governance worklist (top findings + headline counters)
+curl -s https://your-host/api/v1/asset-management \
+  -H "X-API-Key: $XORCISM_API_KEY" | jq '{summary, top: .findings[:5]}'
+
+# Identity inventory summary (needs identities:read)
+curl -s https://your-host/api/v1/identities \
+  -H "Authorization: Bearer $XORCISM_API_KEY" | jq '.summary'
 
 # Create an incident (needs a write-scoped key)
 curl -s -X POST https://your-host/api/v1/incidents \

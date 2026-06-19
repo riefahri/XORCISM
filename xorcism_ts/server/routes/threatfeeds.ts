@@ -55,7 +55,9 @@ router.get("/threatfeeds/latest", async (req: Request, res: Response) => {
     ok++;
     for (const it of s.value.items.slice(0, 6)) merged.push({ ...it, source: s.value.f.name });
   }
-  merged.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  // Sort by parsed timestamp (newest first); undated/unparseable items sink to the end.
+  const ts = (d?: string): number => { const t = Date.parse(d || ""); return isNaN(t) ? -Infinity : t; };
+  merged.sort((a, b) => ts(b.date) - ts(a.date));
   res.json({ feeds: feeds.length, fetched: ok, items: merged.slice(0, limit) });
 });
 

@@ -50,11 +50,23 @@ function tagText(block: string, name: string): string {
   const m = block.match(new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
   return m ? m[1] : "";
 }
+// RFC822 named timezones JS Date() can't parse (e.g. CERT-EU emits "… CEST").
+// Mapped to numeric offsets so the date parses and sorts chronologically.
+const TZ_ABBR: Record<string, string> = {
+  UT: "+0000", GMT: "+0000", UTC: "+0000", Z: "+0000",
+  WET: "+0000", WEST: "+0100", BST: "+0100", CET: "+0100", CEST: "+0200",
+  EET: "+0200", EEST: "+0300", MSK: "+0300", IST: "+0530", JST: "+0900",
+  EST: "-0500", EDT: "-0400", CST: "-0600", CDT: "-0500",
+  MST: "-0700", MDT: "-0600", PST: "-0800", PDT: "-0700",
+};
 function toIso(s: string): string {
-  const v = unescape(s).trim();
+  let v = unescape(s).trim();
   if (!v) return "";
+  // Replace a trailing named timezone abbreviation with its numeric offset.
+  const m = v.match(/\s([A-Z]{2,5})$/);
+  if (m && TZ_ABBR[m[1]]) v = v.slice(0, m.index) + " " + TZ_ABBR[m[1]];
   const d = new Date(v);
-  return isNaN(d.getTime()) ? v : d.toISOString();
+  return isNaN(d.getTime()) ? "" : d.toISOString();
 }
 export function parseFeed(xml: string, limit: number): FeedItem[] {
   const out: FeedItem[] = [];

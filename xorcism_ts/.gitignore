@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.js.map
 .env
+
+# agentic-security scanner local state (any depth)
+.agentic-security/

@@ -34,6 +34,7 @@ const entryPoints = [
   "client/ts/sla.ts",
   "client/ts/pir.ts",
   "client/ts/identities.ts",
+  "client/ts/asset-management.ts",
   "client/ts/api-keys.ts",
   "client/ts/api-docs.ts",
   "client/ts/webhooks.ts",
