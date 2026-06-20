@@ -21,9 +21,19 @@ ENUM_MAP mapping table: enum → (table, Name column, database). The Description
 column is derived ("…Name" → "…Description") and validated against the model
 (fixing 4 typos from the original C# along the way).
 
+MAEC 5.0 (latest) — the current MAEC dropped the XSD for a STIX-style JSON
+representation; its 17 "open vocabularies" (suffix "-ov") are defined in vocabs.json
+as JSON-schema string enums. `--maec5` parses vocabs.json and loads each vocabulary
+into its own XMALWARE table (created on demand; see OV_MAP), recording
+VOCABULARY MAEC/5.0, VERSION 5.0 and one ENUMERATIONVERSION per vocabulary in
+XORCISM (idempotent, keyed by value + EnumerationVersionID). MAEC 5.0 vocabs carry
+no per-value documentation, so the …Description columns stay NULL.
+
 Usage:
-    python import_maec.py --xsd maec_default_vocabularies.xsd
-    python import_maec.py --download
+    python import_maec.py --maec5 --download                  # MAEC 5.0 (latest), fetch vocabs.json
+    python import_maec.py --maec5 --json maec_vocabs.json     # MAEC 5.0 from a local copy
+    python import_maec.py --xsd maec_default_vocabularies.xsd # MAEC 4.1 (legacy XSD)
+    python import_maec.py --download                          # MAEC 4.1, fetch the XSD
 """
 
 import argparse
@@ -44,12 +54,15 @@ from xorcism_python.models import xmalware as M_XMALWARE
 from xorcism_python.utils import log
 
 MODULE = "ImportMAEC"
-MAEC_VERSION = "4.1"  # MAEC vocabulary version (HARDCODED in the C#)
-# MAEC schema archived on GitHub (may move — provide the local file if needed).
+MAEC_VERSION = "4.1"   # legacy MAEC vocabulary version (XSD; HARDCODED in the C#)
+MAEC5_VERSION = "5.0"  # latest MAEC specification (JSON open vocabularies)
+# MAEC 4.1 default vocabularies XSD lives on the v4.1-release branch (master is now MAEC 5 JSON).
 MAEC_URL = (
-    "https://raw.githubusercontent.com/MAECProject/schemas/master/"
+    "https://raw.githubusercontent.com/MAECProject/schemas/v4.1-release/"
     "maec_default_vocabularies.xsd"
 )
+# MAEC 5.0 open vocabularies (machine-readable JSON-schema enums) on master.
+MAEC5_URL = "https://raw.githubusercontent.com/MAECProject/schemas/master/vocabs.json"
 
 XSD_NS = "http://www.w3.org/2001/XMLSchema"
 
@@ -179,6 +192,32 @@ ENUM_MAP = [
 ENUM_BY_NAME = {row[0]: row[1:] for row in ENUM_MAP}
 
 
+# ─── MAEC 5.0 open vocabularies (vocabs.json) → XMALWARE tables ──────────────
+# The latest MAEC drops the XSD for a STIX-style JSON representation. Its 17 "open
+# vocabularies" (suffix "-ov") are defined in vocabs.json as JSON-schema string enums.
+# Each lands in its own XMALWARE table (created on demand), mirroring the 4.1 layout:
+#   (open-vocabulary id, table, column base) → columns <base>ID/<base>Name/<base>Description.
+OV_MAP = [
+    ("analysis-conclusion-type-ov",          "MAECANALYSISCONCLUSIONTYPE",        "AnalysisConclusionType"),
+    ("analysis-environment-ov",              "MAECANALYSISENVIRONMENT",           "AnalysisEnvironment"),
+    ("analysis-type-ov",                     "MAECANALYSISTYPE",                  "AnalysisType"),
+    ("behavior-ov",                          "MAECBEHAVIOR",                      "Behavior"),
+    ("capability-ov",                        "MAECCAPABILITY",                    "Capability"),
+    ("common-attribute-ov",                  "MAECCOMMONATTRIBUTE",               "CommonAttribute"),
+    ("confidence-measure-ov",                "MAECCONFIDENCEMEASURE",             "ConfidenceMeasure"),
+    ("delivery-vector-ov",                   "MAECDELIVERYVECTOR",                "DeliveryVector"),
+    ("entity-association-ov",                "MAECENTITYASSOCIATION",             "EntityAssociation"),
+    ("malware-action-ov",                    "MAECMALWAREACTION",                 "MalwareAction"),
+    ("malware-configuration-parameter-ov",   "MAECMALWARECONFIGURATIONPARAMETER", "MalwareConfigurationParameter"),
+    ("malware-label-ov",                     "MAECMALWARELABEL",                  "MalwareLabel"),
+    ("obfuscation-method-ov",                "MAECOBFUSCATIONMETHOD",             "ObfuscationMethod"),
+    ("operating-system-ov",                  "MAECOPERATINGSYSTEM",               "OperatingSystem"),
+    ("os-features-ov",                       "MAECOSFEATURES",                    "OsFeatures"),
+    ("processor-architecture-ov",            "MAECPROCESSORARCHITECTURE",         "ProcessorArchitecture"),
+    ("refined-capability-ov",                "MAECREFINEDCAPABILITY",             "RefinedCapability"),
+]
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _local(tag: str) -> str:
@@ -242,9 +281,9 @@ def _resolve_desc_col(model, name_col: str) -> Optional[str]:
 
 # ─── Download ────────────────────────────────────────────────────────────────
 
-def download_maec(dest: str) -> None:
-    log(MODULE, f"Téléchargement de {MAEC_URL}")
-    resp = requests.get(MAEC_URL, timeout=180)
+def download_maec(dest: str, url: str = MAEC_URL) -> None:
+    log(MODULE, f"Téléchargement de {url}")
+    resp = requests.get(url, timeout=180)
     resp.raise_for_status()
     with open(dest, "wb") as f:
         f.write(resp.content)
@@ -253,20 +292,20 @@ def download_maec(dest: str) -> None:
 
 # ─── VOCABULARY / VERSION / ENUMERATIONVERSION ───────────────────────────────
 
-def _setup_vocabulary(xorcism_session) -> int:
+def _setup_vocabulary(xorcism_session, version: str = MAEC_VERSION) -> int:
     from xorcism_python.models.xorcism import VOCABULARY
     vocab = xorcism_session.query(VOCABULARY).filter_by(
-        VocabularyName="MAEC", VocabularyVersion=MAEC_VERSION
+        VocabularyName="MAEC", VocabularyVersion=version
     ).first()
     if vocab is None:
         vocab = VOCABULARY(
             VocabularyName="MAEC",
-            VocabularyVersion=MAEC_VERSION,
+            VocabularyVersion=version,
             CreatedDate=_now(),
         )
         xorcism_session.add(vocab)
         xorcism_session.flush()
-        log(MODULE, f"VOCABULARY MAEC créé (ID={vocab.VocabularyID})")
+        log(MODULE, f"VOCABULARY MAEC {version} créé (ID={vocab.VocabularyID})")
     return vocab.VocabularyID
 
 
@@ -417,22 +456,117 @@ def parse_maec_xsd(xsd_path: str) -> None:
                 f"({n_skipped} simpleType ignorés).")
 
 
+# ─── MAEC 5.0 (JSON open vocabularies) ───────────────────────────────────────
+
+def _ddl_maec5(table: str, base: str) -> str:
+    """CREATE TABLE for one MAEC 5.0 open-vocabulary (idempotent). The id column is a
+    real INTEGER PRIMARY KEY so SQLite auto-assigns it on insert."""
+    return (
+        f'CREATE TABLE IF NOT EXISTS "{table}" ('
+        f'"{base}ID" INTEGER PRIMARY KEY, '
+        f'"{base}Name" TEXT, '
+        f'"{base}Description" TEXT, '
+        f'"OpenVocabulary" TEXT, '
+        f'"EnumerationVersionID" INTEGER, '
+        f'"VocabularyID" INTEGER, '
+        f'"CreatedDate" TEXT)'
+    )
+
+
+def parse_maec5_json(json_path: str) -> None:
+    """Import the MAEC 5.0 open vocabularies (vocabs.json) into XMALWARE.db.
+
+    Each "-ov" vocabulary becomes a dedicated table (created on demand); each enum
+    value becomes a row. VOCABULARY (MAEC/5.0), VERSION (5.0) and one
+    ENUMERATIONVERSION per vocabulary are recorded in XORCISM.db (as for 4.1).
+    Idempotent: rows are keyed by (<base>Name, EnumerationVersionID)."""
+    import json as _json
+    log(MODULE, f"Parsing {json_path} (MAEC {MAEC5_VERSION})")
+    with open(json_path, "r", encoding="utf-8") as fh:
+        data = _json.load(fh)
+    defs = data.get("definitions") or data.get("$defs") or data
+    if not isinstance(defs, dict):
+        raise RuntimeError("vocabs.json: 'definitions' introuvable")
+
+    # 1) bookkeeping in XORCISM: VOCABULARY / VERSION / ENUMERATIONVERSION (capture ids as ints)
+    ev_ids: dict = {}
+    with session_scope("XORCISM") as xs:
+        vocab_id = _setup_vocabulary(xs, MAEC5_VERSION)
+        version_id = _ensure_version(xs, MAEC5_VERSION, vocab_id)
+        xs.flush()
+        for ov_id, _table, _base in OV_MAP:
+            if ov_id not in defs:
+                continue
+            ev_ids[ov_id] = _ensure_enumeration_version(xs, ov_id, version_id, vocab_id)
+        xs.commit()
+
+    now = _now().strftime("%Y-%m-%d %H:%M:%S")
+    n_vocab = n_values = n_new = n_skipped = 0
+    # 2) values in XMALWARE (raw SQL: the tables are created here, not in the ORM)
+    with session_scope("XMALWARE") as ms:
+        conn = ms
+        for ov_id, table, base in OV_MAP:
+            v = defs.get(ov_id)
+            if not isinstance(v, dict):
+                log(MODULE, f"[WARN] vocabulaire absent : {ov_id} (ignoré)")
+                n_skipped += 1
+                continue
+            enum = v.get("enum") or []
+            conn.execute(text(_ddl_maec5(table, base)))
+            ev_id = ev_ids.get(ov_id)
+            ins = text(
+                f'INSERT INTO "{table}" ("{base}Name","{base}Description","OpenVocabulary",'
+                f'"EnumerationVersionID","VocabularyID","CreatedDate") '
+                f'VALUES (:n,:d,:o,:e,:vi,:c)'
+            )
+            sel = text(f'SELECT 1 FROM "{table}" WHERE "{base}Name"=:n AND "EnumerationVersionID" IS :e')
+            for val in enum:
+                val = (str(val) or "").strip()
+                if not val:
+                    continue
+                exists = conn.execute(sel, {"n": val, "e": ev_id}).first()
+                if not exists:
+                    conn.execute(ins, {"n": val[:4000], "d": None, "o": ov_id,
+                                       "e": ev_id, "vi": vocab_id, "c": now})
+                    n_new += 1
+                n_values += 1
+            n_vocab += 1
+            log(MODULE, f"  {table}: {len(enum)} valeur(s)")
+        ms.commit()
+
+    log(MODULE, f"Import MAEC {MAEC5_VERSION} terminé : {n_vocab} vocabulaire(s), "
+                f"{n_values} valeur(s) ({n_new} nouvelles, {n_skipped} ignorés).")
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Import MAEC (vocabulaires XSD) dans XORCISM.db / XMALWARE.db")
+    parser = argparse.ArgumentParser(description="Import MAEC vocabularies into XORCISM.db / XMALWARE.db (4.1 XSD or 5.0 JSON)")
+    parser.add_argument(
+        "--maec5", action="store_true",
+        help="Importer les vocabulaires ouverts MAEC 5.0 (JSON vocabs.json) — la dernière version"
+    )
+    parser.add_argument(
+        "--json", default="maec_vocabs.json",
+        help="Chemin vers vocabs.json (MAEC 5.0 ; défaut : maec_vocabs.json)"
+    )
     parser.add_argument(
         "--xsd", default="maec_default_vocabularies.xsd",
-        help="Chemin vers le XSD MAEC (défaut : maec_default_vocabularies.xsd)"
+        help="Chemin vers le XSD MAEC 4.1 (défaut : maec_default_vocabularies.xsd)"
     )
     parser.add_argument(
         "--download", action="store_true",
-        help="Télécharger le XSD depuis le dépôt MAEC si absent"
+        help="Télécharger le schéma depuis le dépôt MAEC si absent (XSD 4.1 ou vocabs.json 5.0)"
     )
     args = parser.parse_args()
 
+    if args.maec5:
+        if args.download or not os.path.exists(args.json):
+            download_maec(args.json, MAEC5_URL)
+        parse_maec5_json(args.json)
+        return
+
     if args.download or not os.path.exists(args.xsd):
         if not os.path.exists(args.xsd):
-            download_maec(args.xsd)
-
+            download_maec(args.xsd, MAEC_URL)
     parse_maec_xsd(args.xsd)
 
 

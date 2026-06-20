@@ -5849,7 +5849,65 @@ CREATE TABLE "COMPLIANCETAG"(
 
 ;
 CREATE TABLE "COMPONENT"(
-	"ComponentID" INTEGER NOT NULL
+	"ComponentID" INTEGER PRIMARY KEY,
+	"ComponentGUID" TEXT NULL,
+	"SbomID" INTEGER NULL,
+	"Name" TEXT NULL,
+	"Version" TEXT NULL,
+	"ComponentType" TEXT NULL,
+	"PURL" TEXT NULL,
+	"CPE" TEXT NULL,
+	"CPEID" INTEGER NULL,
+	"Supplier" TEXT NULL,
+	"Publisher" TEXT NULL,
+	"Group" TEXT NULL,
+	"License" TEXT NULL,
+	"Hash" TEXT NULL,
+	"BOMRef" TEXT NULL,
+	"Scope" TEXT NULL,
+	"Description" TEXT NULL,
+	"AssetID" INTEGER NULL,
+	"CreatedDate" TEXT NULL,
+	"TenantID" INTEGER NULL
+)
+
+;
+/****** Object:  Table "SBOM" (Software Composition Analysis — CycloneDX/SPDX) ******/
+
+;
+CREATE TABLE "SBOM"(
+	"SbomID" INTEGER PRIMARY KEY,
+	"SbomGUID" TEXT NULL,
+	"Name" TEXT NULL,
+	"Format" TEXT NULL,
+	"SpecVersion" TEXT NULL,
+	"SerialNumber" TEXT NULL,
+	"SubjectName" TEXT NULL,
+	"SubjectVersion" TEXT NULL,
+	"AssetID" INTEGER NULL,
+	"ApplicationID" INTEGER NULL,
+	"ComponentCount" INTEGER NULL,
+	"VulnerableCount" INTEGER NULL,
+	"LicenseCount" INTEGER NULL,
+	"Source" TEXT NULL,
+	"ToolName" TEXT NULL,
+	"Notes" TEXT NULL,
+	"PersonID" INTEGER NULL,
+	"CreatedDate" TEXT NULL,
+	"TenantID" INTEGER NULL
+)
+
+;
+/****** Object:  Table "COMPONENTDEPENDENCY" (SBOM dependency edges) ******/
+
+;
+CREATE TABLE "COMPONENTDEPENDENCY"(
+	"DependencyID" INTEGER PRIMARY KEY,
+	"SbomID" INTEGER NULL,
+	"FromRef" TEXT NULL,
+	"ToRef" TEXT NULL,
+	"CreatedDate" TEXT NULL,
+	"TenantID" INTEGER NULL
 )
 
 ;
