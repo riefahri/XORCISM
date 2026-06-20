@@ -38,6 +38,26 @@
   .sev-Critical{color:#f87171;font-weight:700}.sev-High{color:#fb923c;font-weight:700}.sev-Medium{color:#fbbf24}.sev-Low{color:#94a3b8}.sev-Info{color:#64748b}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
   .legend{font-size:11px;color:#64748b;margin-top:12px}
+  /* New-risk modal */
+  .rr-modal-bg{position:fixed;inset:0;background:rgba(4,6,15,.66);display:none;align-items:flex-start;justify-content:center;z-index:1000;overflow:auto;padding:40px 16px}
+  .rr-modal-bg.open{display:flex}
+  .rr-modal{background:#13162a;border:1px solid #2d3250;border-radius:14px;width:600px;max-width:100%;padding:22px 24px}
+  .rr-modal h3{margin:0 0 4px;font-size:17px;color:#e2e8f0}
+  .rr-modal .lead{font-size:12.5px;color:#94a3b8;margin:0 0 16px}
+  .rr-modal .fld{margin-bottom:13px}
+  .rr-modal .row2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  .rr-modal .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px}
+  .rr-modal label{display:block;font-size:12px;color:#94a3b8;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+  .rr-modal label .req{color:#f87171}
+  .rr-modal input,.rr-modal select,.rr-modal textarea{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:9px 11px;color:#e2e8f0;font-size:13px;font-family:inherit}
+  .rr-modal input:focus,.rr-modal select:focus,.rr-modal textarea:focus{outline:none;border-color:#7c83fd}
+  .rr-modal textarea{resize:vertical;min-height:60px}
+  .rr-risk-preview{font-size:12px;border:1px solid #2d3250;border-radius:8px;padding:8px 11px;margin-top:2px;color:#cbd5e1;background:#0f1117}
+  .rr-risk-preview b{color:#e2e8f0}
+  .rr-modal-foot{display:flex;align-items:center;gap:10px;margin-top:18px}
+  .rr-err{color:#f87171;font-size:12px;min-height:16px}
+  .btn-newrisk{background:#7c83fd;color:#0b0d18;border:none;border-radius:8px;font-size:13px;font-weight:700;padding:8px 14px;cursor:pointer}
+  .btn-newrisk:hover{background:#9aa0ff}
 </style>
 </head>
 <body>
@@ -53,8 +73,11 @@
 </div>
 
 <div class="rr-wrap">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <h1 style="flex:1">Risk Register</h1>
+    <button class="btn-newrisk" id="rr-new">+ New risk</button>
+  </div>
   <div>
-    <h1>Risk Register</h1>
     <div class="rr-sub">One governance view over the risk register — every risk's
       <b>inherent &rarr; current &rarr; residual</b> level, its <b>treatment</b> (strategy, plan, owner,
       review) and its <b>CRQ/FAIR</b> quantification (<i>Annualized Loss Expectancy</i>). Each risk carries
@@ -67,6 +90,80 @@
   <div id="rr-body"><div class="muted" style="padding:24px;text-align:center">Building the risk posture…</div></div>
 </div>
 
+<!-- Guided "new risk" modal -->
+<div class="rr-modal-bg" id="rr-modal">
+  <div class="rr-modal">
+    <h3>New risk</h3>
+    <p class="lead">Register a risk with a guided form — its inherent likelihood × impact set the initial level (residual is refined later as you treat it).</p>
+    <div class="fld">
+      <label>Title <span class="req">*</span></label>
+      <input id="rr-f-title" type="text" placeholder="e.g. Ransomware encrypts production file servers" maxlength="300" autocomplete="off">
+    </div>
+    <div class="row2">
+      <div class="fld">
+        <label>Category</label>
+        <select id="rr-f-category">
+          <option value="">— select —</option>
+          <option>Cyber / Information security</option>
+          <option>Operational</option>
+          <option>Strategic</option>
+          <option>Compliance / Legal</option>
+          <option>Financial</option>
+          <option>Third-party / Supply chain</option>
+          <option>Privacy</option>
+          <option>Technology</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>Risk owner (optional)</label>
+        <select id="rr-f-owner"><option value="">— none —</option></select>
+      </div>
+    </div>
+    <div class="row3">
+      <div class="fld">
+        <label>Likelihood (1–5)</label>
+        <select id="rr-f-prob"><option value="">—</option><option value="1">1 · Rare</option><option value="2">2 · Unlikely</option><option value="3">3 · Possible</option><option value="4">4 · Likely</option><option value="5">5 · Almost certain</option></select>
+      </div>
+      <div class="fld">
+        <label>Impact (1–5)</label>
+        <select id="rr-f-impact"><option value="">—</option><option value="1">1 · Insignificant</option><option value="2">2 · Minor</option><option value="3">3 · Moderate</option><option value="4">4 · Major</option><option value="5">5 · Severe</option></select>
+      </div>
+      <div class="fld">
+        <label>Inherent level</label>
+        <div class="rr-risk-preview" id="rr-f-preview">Set likelihood × impact</div>
+      </div>
+    </div>
+    <div class="row3">
+      <div class="fld">
+        <label>Treatment</label>
+        <select id="rr-f-treatment"><option value="">— select —</option><option>Mitigate</option><option>Accept</option><option>Transfer</option><option>Avoid</option></select>
+      </div>
+      <div class="fld">
+        <label>Status</label>
+        <select id="rr-f-status"><option>Open</option><option>Assessed</option><option>Treatment in progress</option><option>Mitigated</option><option>Accepted</option><option>Closed</option></select>
+      </div>
+      <div class="fld">
+        <label>Asset (optional)</label>
+        <select id="rr-f-asset"><option value="">— none —</option></select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="fld"><label>Review date (optional)</label><input id="rr-f-review" type="date"></div>
+      <div class="fld"><label>Target date (optional)</label><input id="rr-f-target" type="date"></div>
+    </div>
+    <div class="fld">
+      <label>Description (optional)</label>
+      <textarea id="rr-f-desc" placeholder="Cause, consequence, context…" maxlength="4000"></textarea>
+    </div>
+    <div class="rr-modal-foot">
+      <span class="rr-err" id="rr-f-err" style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" id="rr-cancel">Cancel</button>
+      <button class="btn-newrisk" id="rr-create">Create risk</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 <script src="/js/session-ui.js"></script>
 <script src="/js/risk-register.js"></script>
 </body>

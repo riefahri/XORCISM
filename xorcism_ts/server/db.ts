@@ -4693,6 +4693,44 @@ export function getEbiosDashboard(): { studies: Record<string, unknown>[]; stats
 }
 
 /**
+ * Create a RISKASSESSMENT (risk-assessment study) from a guided form — the friendly path that
+ * replaces dumping the user into the raw explorer insert. Sets Methodology (so EBIOS studies
+ * surface on the EBIOS dashboard, which filters Methodology LIKE 'EBIOS%') and, for EBIOS,
+ * starts at Workshop 1. Column-aware (only writes columns the table actually has) + GUID + tenant.
+ */
+export function createRiskAssessment(
+  p: { name: string; description?: string; methodology?: string; status?: string; expressMode?: boolean;
+       authorPersonId?: number | null; perimeterId?: number | null; version?: string; date?: string },
+  tenant: number | null,
+): { id: number } {
+  ensureEbiosTables(); // make sure Methodology/Workshop/ExpressMode exist before inserting
+  const db = getDb("XCOMPLIANCE");
+  const cols = new Set((db.prepare(`PRAGMA table_info("RISKASSESSMENT")`).all() as { name: string }[]).map((c) => c.name));
+  const now = new Date().toISOString();
+  const methodology = (p.methodology || "EBIOS RM").trim();
+  const isEbios = /^ebios/i.test(methodology);
+  const candidate: Record<string, unknown> = {
+    RiskAssessmentGUID: randomUUID(),
+    Name: (p.name || "Untitled risk assessment").slice(0, 300),
+    Description: p.description ? String(p.description).slice(0, 4000) : null,
+    Methodology: methodology.slice(0, 120),
+    Status: (p.status || "Draft").slice(0, 60),
+    ExpressMode: p.expressMode ? 1 : 0,
+    Workshop: isEbios ? 1 : null,
+    AuthorPersonID: p.authorPersonId ?? null,
+    PerimeterID: p.perimeterId ?? null,
+    Version: (p.version || "").slice(0, 40) || null,
+    Date: p.date || now.slice(0, 10),
+    CreatedDate: now,
+    TenantID: tenant,
+  };
+  const keys = Object.keys(candidate).filter((k) => cols.has(k));
+  const sql = `INSERT INTO RISKASSESSMENT (${keys.map((k) => `"${k}"`).join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`;
+  const r = db.prepare(sql).run(...keys.map((k) => candidate[k]));
+  return { id: Number(r.lastInsertRowid) };
+}
+
+/**
  * TPRM (Third-Party Risk Management) dashboard: third-party assessments based on
  * QUESTIONNAIREFORORGANISATION (XCOMPLIANCE). Resolves the organisation/questionnaire/
  * owner names (cross-database) + number of questions, and aggregates statistics.

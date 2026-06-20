@@ -104,6 +104,7 @@ import {
   setOvalDefinitionTags,
   getTprmDashboard,
   getEbiosDashboard,
+  createRiskAssessment,
   threatAgentCategoryOptions,
   getThreatAgentCategory,
   setThreatAgentCategory,
@@ -735,6 +736,32 @@ router.get("/ebios/dashboard", (req: Request, res: Response) => {
     return deny(req, res, "read", "XCOMPLIANCE", "RISKASSESSMENT");
   try { res.json(getEbiosDashboard()); }
   catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// POST /api/ebios/assessment — guided creation of a RISKASSESSMENT (risk-assessment study)
+router.post("/ebios/assessment", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "create", "XCOMPLIANCE", "RISKASSESSMENT"))
+    return deny(req, res, "create", "XCOMPLIANCE", "RISKASSESSMENT");
+  const b = (req.body || {}) as Record<string, unknown>;
+  const name = String(b.name ?? "").trim();
+  if (!name) return void res.status(400).json({ error: "name required" });
+  const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
+  try {
+    const out = createRiskAssessment({
+      name,
+      description: b.description ? String(b.description) : undefined,
+      methodology: b.methodology ? String(b.methodology) : undefined,
+      status: b.status ? String(b.status) : undefined,
+      expressMode: !!b.expressMode,
+      authorPersonId: b.authorPersonId != null && String(b.authorPersonId) !== "" ? Number(b.authorPersonId) : null,
+      version: b.version ? String(b.version) : undefined,
+      date: b.date ? String(b.date) : undefined,
+    }, tenant);
+    xid.addAudit({ userId: req.user.UserID ?? null, action: "risk_assessment_create", resourceType: "RISKASSESSMENT",
+      resourceKey: String(out.id), detail: `name="${name}" methodology="${String(b.methodology || "EBIOS RM")}"`, ip: clientIp(req) });
+    res.json({ ok: true, ...out });
+  } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
 });
 
 // GET /api/a3m/matrix — A3M matrix (Agentic AI Attack Matrix): tactics → AAT techniques

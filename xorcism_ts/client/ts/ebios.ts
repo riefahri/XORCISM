@@ -99,8 +99,102 @@ async function load(): Promise<void> {
   }
 }
 
+// ── Guided "new risk assessment" modal ───────────────────────────────────────
+const METHOD_NOTE: Record<string, { text: string; cls: string }> = {
+  "EBIOS RM": { text: "EBIOS RM — this study appears on this dashboard; continue with its 5 workshops.", cls: "info" },
+  "ISO/IEC 27005": { text: "General risk assessment — manage scenarios in the Risk explorer.", cls: "muted" },
+  "NIST SP 800-30": { text: "General risk assessment — manage scenarios in the Risk explorer.", cls: "muted" },
+  FAIR: { text: "Quantitative — pair with FAIR-MAM for a $ materiality breakdown.", cls: "fair" },
+  Custom: { text: "Custom methodology — a general risk assessment in the Risk explorer.", cls: "muted" },
+};
+let ownersLoaded = false;
+
+function methodNote(): void {
+  const m = ($("eb-f-method") as HTMLSelectElement).value;
+  const note = $("eb-method-note");
+  const info = METHOD_NOTE[m];
+  note.className = "eb-method-note" + (info ? " show" : "");
+  note.style.color = info?.cls === "info" ? "#7dd3fc" : info?.cls === "fair" ? "#6ee7b7" : "#94a3b8";
+  note.style.background = info ? "#0f1117" : "";
+  note.style.border = info ? "1px solid #2d3250" : "";
+  note.textContent = info ? info.text : "";
+  // Express mode is EBIOS-specific
+  ($("eb-express-wrap") as HTMLElement).style.display = /^ebios/i.test(m) ? "" : "none";
+}
+
+async function loadOwners(): Promise<void> {
+  if (ownersLoaded) return;
+  ownersLoaded = true;
+  try {
+    const r = await fetch("/api/lookup?db=XORCISM&table=PERSON&idCol=PersonID&labelCol=FullName");
+    if (!r.ok) return;
+    const list = (await r.json()) as { id: unknown; label: unknown }[];
+    const sel = $("eb-f-owner") as HTMLSelectElement;
+    for (const o of (Array.isArray(list) ? list : []).slice(0, 500)) {
+      if (o.label == null || String(o.label).trim() === "") continue;
+      const opt = document.createElement("option");
+      opt.value = String(o.id); opt.textContent = String(o.label);
+      sel.appendChild(opt);
+    }
+  } catch { /* optional */ }
+}
+
+function openModal(): void {
+  ($("eb-f-name") as HTMLInputElement).value = "";
+  ($("eb-f-desc") as HTMLTextAreaElement).value = "";
+  ($("eb-f-method") as HTMLSelectElement).value = "EBIOS RM";
+  ($("eb-f-status") as HTMLSelectElement).value = "Draft";
+  ($("eb-f-owner") as HTMLSelectElement).value = "";
+  ($("eb-f-express") as HTMLInputElement).checked = false;
+  ($("eb-f-date") as HTMLInputElement).value = new Date().toISOString().slice(0, 10);
+  $("eb-f-err").textContent = ""; $("eb-f-err2").textContent = "";
+  methodNote();
+  void loadOwners();
+  $("eb-modal").classList.add("open");
+  ($("eb-f-name") as HTMLInputElement).focus();
+}
+function closeModal(): void { $("eb-modal").classList.remove("open"); }
+
+function toast(html: string): void {
+  const el = $("toast");
+  el.innerHTML = html;
+  el.style.cssText = "position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#13162a;border:1px solid #34d399;color:#e2e8f0;border-radius:10px;padding:11px 16px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.5);z-index:1100";
+  window.setTimeout(() => { el.innerHTML = ""; el.style.cssText = ""; }, 8000);
+}
+
+async function createStudy(): Promise<void> {
+  const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
+  const name = v("eb-f-name").trim();
+  const err = $("eb-f-err");
+  if (!name) { err.textContent = t("ebios.modal.err.name"); ($("eb-f-name") as HTMLInputElement).focus(); return; }
+  const btn = $("eb-create") as HTMLButtonElement;
+  btn.disabled = true; err.textContent = ""; $("eb-f-err2").textContent = t("ebios.modal.creating");
+  try {
+    const body = {
+      name, description: v("eb-f-desc").trim() || undefined, methodology: v("eb-f-method"),
+      status: v("eb-f-status"), expressMode: ($("eb-f-express") as HTMLInputElement).checked,
+      authorPersonId: v("eb-f-owner") || undefined, date: v("eb-f-date") || undefined,
+    };
+    const r = await fetch("/api/ebios/assessment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    closeModal();
+    await load();
+    const link = `/?db=XCOMPLIANCE&table=RISKASSESSMENT&editCol=RiskAssessmentID&editVal=${d.id}`;
+    toast(`✅ ${esc(t("ebios.modal.created"))} — <a href="${link}" style="color:#7dd3fc">${esc(t("ebios.modal.open"))} ↗</a>`);
+  } catch (e) { $("eb-f-err2").textContent = ""; err.textContent = `⚠️ ${e}`; }
+  finally { btn.disabled = false; }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initI18n();
   ($("eb-search") as HTMLInputElement).oninput = applyFilter;
+  $("eb-new").addEventListener("click", openModal);
+  $("eb-cancel").addEventListener("click", closeModal);
+  $("eb-create").addEventListener("click", () => void createStudy());
+  ($("eb-f-method") as HTMLSelectElement).addEventListener("change", methodNote);
+  $("eb-modal").addEventListener("click", (e) => { if (e.target === $("eb-modal")) closeModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+  ($("eb-f-name") as HTMLInputElement)?.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") void createStudy(); });
   void load();
 });

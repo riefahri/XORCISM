@@ -8,6 +8,7 @@
  * without justification, overdue reviews, treatments past their target date and unowned risks.
  * Each risk gets a 0-100 priority score. Read-only; CRUD stays in the schema-driven explorer.
  */
+import { randomUUID } from "crypto";
 import { getDb } from "./db";
 
 export interface RiskRow {
@@ -193,4 +194,50 @@ export function riskRegisterInventory(tenant: number | null): RiskInventory {
       riskScore: wScore,
     },
   };
+}
+
+/**
+ * Create a RISKREGISTERENTRY from a guided form — the friendly path that replaces dumping the
+ * user into the raw explorer insert. Captures the essentials (title, category, owner, asset,
+ * inherent likelihood × impact, treatment, status, dates), computes InherentRiskLevel = P×I so
+ * the posture rolls up immediately (residual falls back to inherent until assessed). Column-aware
+ * INSERT + GUID + tenant. RiskRegisterEntryID is a real INTEGER PRIMARY KEY (lastInsertRowid).
+ */
+export function createRiskRegisterEntry(
+  p: { title: string; description?: string; category?: string; ref?: string;
+       ownerPersonId?: number | null; assetId?: number | null; probability?: number | null;
+       impact?: number | null; treatment?: string; status?: string; reviewDate?: string; targetDate?: string },
+  tenant: number | null,
+): { id: number } {
+  const cc = getDb("XCOMPLIANCE");
+  const rc = cols("RISKREGISTERENTRY");
+  if (!rc.size) throw new Error("RISKREGISTERENTRY table not available");
+  const clamp = (v: unknown): number | null => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null;
+  };
+  const prob = clamp(p.probability), impact = clamp(p.impact);
+  const now = new Date().toISOString();
+  const candidate: Record<string, unknown> = {
+    RiskRegisterEntryGUID: randomUUID(),
+    Ref: p.ref ? String(p.ref).slice(0, 60) : null,
+    Title: (p.title || "Untitled risk").slice(0, 300),
+    Description: p.description ? String(p.description).slice(0, 4000) : null,
+    Category: p.category ? String(p.category).slice(0, 120) : null,
+    RiskOwnerPersonID: p.ownerPersonId ?? null,
+    AssetID: p.assetId ?? null,
+    InherentProbability: prob, InherentImpact: impact,
+    InherentRiskLevel: prob != null && impact != null ? prob * impact : null,
+    TreatmentStrategy: p.treatment ? String(p.treatment).slice(0, 60) : null,
+    Status: (p.status || "Open").slice(0, 60),
+    IdentifiedDate: now.slice(0, 10),
+    ReviewDate: p.reviewDate || null,
+    TargetDate: p.targetDate || null,
+    CreatedDate: now,
+    TenantID: tenant,
+  };
+  const keys = Object.keys(candidate).filter((k) => rc.has(k));
+  const sql = `INSERT INTO RISKREGISTERENTRY (${keys.map((k) => `"${k}"`).join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`;
+  const r = cc.prepare(sql).run(...keys.map((k) => candidate[k]));
+  return { id: Number(r.lastInsertRowid) };
 }
