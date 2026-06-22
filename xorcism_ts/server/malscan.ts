@@ -18,6 +18,8 @@
  */
 import { createHash, randomUUID } from "crypto";
 import { getDb } from "./db";
+import { syncObservableById } from "./stixstore";
+import { readBlob } from "./blobstore";
 
 export type TargetType = "hash" | "url" | "domain" | "ip" | "file";
 export type Verdict = "clean" | "suspicious" | "malicious" | "unknown" | "unconfigured" | "error";
@@ -255,6 +257,7 @@ function createObservable(res: ScanResult, tenant: number | null): number | null
         VALUES (?,?,?,?,?,?,?,?,?)`)
       .run(id, randomUUID(), obsType, res.target, `Multi-engine scan: ${res.summary}`.slice(0, 500),
         res.verdict === "malicious" ? "malicious-activity" : null, score, "malware-scan", now);
+    try { syncObservableById(id); } catch { /* STIX store best-effort */ } // retain + index the IOC losslessly
     return id;
   } catch { return null; }
 }
@@ -262,11 +265,15 @@ function createObservable(res: ScanResult, tenant: number | null): number | null
 // ── document scan ────────────────────────────────────────────────────────────────
 export function documentHashes(documentId: number): { md5?: string; sha1?: string; sha256?: string; name?: string; hasBlob: boolean } {
   const db = getDb("XORCISM");
-  const row = db.prepare('SELECT DocumentName, "BLOB" AS blob FROM DOCUMENT WHERE DocumentID = ?').get(documentId) as { DocumentName?: string; blob?: Buffer | string } | undefined;
+  const row = db.prepare('SELECT DocumentName, "BLOB" AS blob, BlobSha256 FROM DOCUMENT WHERE DocumentID = ?').get(documentId) as { DocumentName?: string; blob?: Buffer | string; BlobSha256?: string } | undefined;
   if (!row) throw new Error("document not found");
-  const blob = row.blob;
-  if (blob == null || (typeof blob === "string" && blob === "")) return { name: row.DocumentName, hasBlob: false };
-  const buf = Buffer.isBuffer(blob) ? blob : Buffer.from(String(blob));
+  // bytes may live in the content-addressed store (offloaded) or still in the row's BLOB column
+  let buf = row.BlobSha256 ? readBlob(row.BlobSha256) : null;
+  if (!buf) {
+    const blob = row.blob;
+    if (blob == null || (typeof blob === "string" && blob === "")) return { name: row.DocumentName, hasBlob: false };
+    buf = Buffer.isBuffer(blob) ? blob : Buffer.from(String(blob));
+  }
   return {
     md5: createHash("md5").update(buf).digest("hex"),
     sha1: createHash("sha1").update(buf).digest("hex"),

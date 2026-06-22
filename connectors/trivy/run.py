@@ -69,7 +69,10 @@ def _parse(data: Any, project_override: str) -> Dict[str, Any]:
                 if comp not in seen_c:
                     seen_c.add(comp)
                     components.append({"name": pkg, "version": str(v.get("InstalledVersion") or "")})
-    return {"project": project, "assets": [{"hostname": project, "key": project}],
+    # Trivy's ArtifactType (container_image / filesystem / repository / vm…) lets DevSecOps classify the
+    # scan class (Container vs SCA). See connectors/runner.record_devsecops_scan.
+    artifact_type = str(data.get("ArtifactType") or data.get("artifactType") or "")
+    return {"project": project, "artifact_type": artifact_type, "assets": [{"hostname": project, "key": project}],
             "services": [], "cpes": [], "components": components, "vulns": vulns}
 
 

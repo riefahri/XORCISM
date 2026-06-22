@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "id": "c4f8a1e2-0001-4a11-9b22-aa1122334455",
+      "tinyId": "832",
+      "message": "Firewall: outbound C2 beacon blocked to known-bad IP",
+      "description": "NGFW blocked repeated beaconing from 10.20.4.55 to a Cobalt Strike C2 on the threat feed.",
+      "status": "open",
+      "priority": "P2",
+      "tags": ["firewall", "c2", "T1071"],
+      "owner": "soc_oncall@acme.io",
+      "source": "10.20.4.55",
+      "createdAt": "2026-06-21T09:05:00Z"
+    },
+    {
+      "id": "c4f8a1e2-0002-4a11-9b22-bb2233445566",
+      "tinyId": "835",
+      "message": "Cloud: public S3 bucket with PII detected",
+      "description": "CSPM found a newly public S3 bucket containing files matching PII patterns.",
+      "status": "open",
+      "priority": "P1",
+      "tags": ["cspm", "exposure", "data"],
+      "owner": "cloudsec@acme.io",
+      "source": "aws:s3:acme-customer-exports",
+      "createdAt": "2026-06-21T13:40:00Z"
+    }
+  ]
+}

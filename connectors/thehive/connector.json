@@ -1,25 +1,16 @@
 {
   "id": "thehive",
-  "name": "TheHive",
+  "name": "TheHive — alerts / cases import",
   "type": "import",
   "category": "DFIR",
-  "description": "Scalable, collaborative security incident-response platform. Tool: https://thehive-project.org. [SCAFFOLD generated from XORCISM.TOOL #149 by tool_to_connector.py — implement run() in run.py to map TheHive output to the XORCISM findings model {assets, services, cpes, vulns}.]",
+  "description": "Imports alerts (and cases) from TheHive (the open-source SOAR / case-management platform) into XORCISM as security alerts (XINCIDENT.ALERT, the Defender-XDR-aligned layer that feeds incidents). Each TheHive alert/case becomes an ALERT (idempotent by source ref); impacted hosts are linked to their ASSET. Config (worker environment variables): THEHIVE_URL (e.g. https://thehive.lab), THEHIVE_API_KEY (Bearer). Offline: pass `file` = a TheHive alert-export JSON, or run with no config to import the bundled sample.",
   "intrusive": false,
   "permission": "connector:thehive",
   "run": "run.py",
   "mapping": "thehive",
   "parameters": [
-    {
-      "name": "target",
-      "type": "string",
-      "required": false,
-      "help": "Host, URL or path the tool acts on. When implementing, consider type 'target' or 'url' so the runner enforces the engagement scope."
-    },
-    {
-      "name": "file",
-      "type": "file",
-      "required": false,
-      "help": "Offline mode: a saved TheHive output file to parse instead of running it live."
-    }
+    { "name": "limit", "type": "int", "default": 200, "min": 1, "max": 1000, "help": "Maximum number of alerts to import" },
+    { "name": "kind", "type": "string", "default": "alert", "help": "alert | case" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved TheHive export JSON to parse instead of the live API" }
   ]
 }

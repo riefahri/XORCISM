@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — CTEM Exposure Management</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1060px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}.sec .spacer{flex:1}
+  table.t{width:100%;border-collapse:collapse;font-size:13px}table.t th,table.t td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:middle}table.t th{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .nm{font-weight:600;color:#e2e8f0}.muted{color:#64748b}.mono{font-family:ui-monospace,monospace;font-size:12px;color:#a5b4fc}
+  .sev{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}.sv-Critical{background:#7f1d1d;color:#fecaca}.sv-High{background:#78350f;color:#fcd34d}.sv-Medium{background:#1e3a5f;color:#bfdbfe}.sv-Low{background:#1e2133;color:#94a3b8}.sv-Info{background:#1e2133;color:#94a3b8}
+  .stg{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px}.stg-Discover{background:#1e3a5f;color:#bfdbfe}.stg-Prioritize{background:#78350f;color:#fcd34d}.stg-Remediate{background:#14532d;color:#bbf7d0}
+  .st{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;background:#1e2133;color:#cbd5e1}.st.done{background:#14532d;color:#bbf7d0}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .flow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+  .stage{flex:1;min-width:150px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px;position:relative}
+  .stage .n{font-size:28px;font-weight:800}.stage .t{font-size:13px;font-weight:700;color:#e2e8f0}.stage .d{font-size:11px;color:#64748b;margin-top:2px}
+  .stage.s-Discover{border-top:3px solid #60a5fa}.stage.s-Prioritize{border-top:3px solid #fbbf24}.stage.s-Remediate{border-top:3px solid #4ade80}
+  .arrow{display:flex;align-items:center;color:#475569;font-size:20px}
+  .catgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+  .catcard{background:#13162a;border:1px solid #2d3250;border-radius:9px;padding:10px 12px}
+  .catcard .cn{font-size:12.5px;font-weight:700;color:#e2e8f0}.catcard .cc{font-size:11px;color:#64748b;margin-top:2px}
+  .catcard .badge{display:inline-block;font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;margin-top:6px}.b-open{background:#7f1d1d;color:#fecaca}.b-clear{background:#14532d;color:#bbf7d0}
+  details.cat{background:#13162a;border:1px solid #2d3250;border-radius:9px;margin-bottom:8px}
+  details.cat>summary{cursor:pointer;padding:9px 12px;font-size:13px;font-weight:700;color:#cbd5e1;list-style:none;display:flex;align-items:center;gap:8px}
+  details.cat>summary::-webkit-details-marker{display:none}
+  details.cat .ident{padding:7px 12px;border-top:1px solid #1e2133;font-size:12.5px}
+  details.cat .ident .iid{font-family:ui-monospace,monospace;color:#a5b4fc;font-weight:700;font-size:11px}
+  details.cat .ident .it{color:#e2e8f0;font-weight:600}.details .id desc{}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:3px 9px;cursor:pointer}.btn-sm2:hover{border-color:#fb923c}
+  .lic{font-size:11px;color:#64748b;margin-top:20px;border-top:1px solid #1e2133;padding-top:10px}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/exposure">&#127919; Exposure</a><a href="/voc">&#129657; VOC</a><a href="/attack-surface">&#127760; Surface</a><span class="spacer"></span><span class="title">&#128376;&#65039; CTEM Exposure Management</span></div>
+<div class="mw">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex:1">
+      <h1>CTEM — Continuous Threat Exposure Management</h1>
+      <div class="sub">Support for the <b>ctem.org</b> (SecureCoders) standardized <b>exposure-identifier taxonomy</b> — a vendor-neutral
+        <i>“CVE/CWE for exposures”</i>: identifiers <span class="mono">CTEM-&lt;CAT&gt;-&lt;n&gt;</span> across 8 categories, run through the
+        3-stage CTEM program <b>Discover → Prioritize → Remediate</b>. Classify your observed exposures against the standard, track
+        them through the stages, and measure category coverage.</div>
+    </div>
+    <div style="display:flex;gap:8px;padding-top:4px">
+      <button class="btn-sm2" id="btn-discover" title="Classify internet-exposed assets as CTEM exposures">&#128270; Discover from assets</button>
+    </div>
+  </div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading CTEM…</div></div>
+</div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/ctem.js"></script></body></html>

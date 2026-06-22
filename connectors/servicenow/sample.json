@@ -1,0 +1,40 @@
+{
+  "result": [
+    {
+      "number": "INC0012045",
+      "sys_id": "a1b2c3d4e5f6",
+      "short_description": "Phishing email reported by Finance — credential harvesting link",
+      "description": "User reported an email impersonating the CFO with a link to a fake O365 login. 3 recipients clicked.",
+      "priority": "2",
+      "state": "2",
+      "category": "Security",
+      "assigned_to": "SOC Tier 1",
+      "cmdb_ci": "MAIL-GW-01",
+      "opened_at": "2026-06-21 07:55:12"
+    },
+    {
+      "number": "INC0012061",
+      "sys_id": "f6e5d4c3b2a1",
+      "short_description": "Endpoint isolated — Cobalt Strike beacon detected",
+      "description": "EDR auto-isolated WKS-DEV-19 after detecting a Cobalt Strike named-pipe beacon.",
+      "priority": "1",
+      "state": "2",
+      "category": "Security",
+      "assigned_to": "IR Team",
+      "cmdb_ci": "WKS-DEV-19",
+      "opened_at": "2026-06-21 10:22:40"
+    },
+    {
+      "number": "INC0012077",
+      "sys_id": "0099aabbccdd",
+      "short_description": "Expired TLS certificate on partner portal",
+      "description": "Monitoring flagged an expired certificate on portal.example.com causing browser warnings.",
+      "priority": "3",
+      "state": "1",
+      "category": "Infrastructure",
+      "assigned_to": "Platform Ops",
+      "cmdb_ci": "portal.example.com",
+      "opened_at": "2026-06-21 12:10:05"
+    }
+  ]
+}

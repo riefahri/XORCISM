@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — CTI-Expert (AI OSINT Investigation)</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1060px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}.sec .spacer{flex:1}
+  table.t{width:100%;border-collapse:collapse;font-size:13px}table.t th,table.t td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}table.t th{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .nm{font-weight:600;color:#e2e8f0}.muted{color:#64748b}.mono{font-family:ui-monospace,monospace;font-size:12px;color:#a5b4fc}
+  .sev{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .sv-CRITICAL{background:#7f1d1d;color:#fecaca}.sv-HIGH{background:#78350f;color:#fcd34d}.sv-NOTABLE{background:#1e3a5f;color:#bfdbfe}.sv-MINOR{background:#1e2133;color:#94a3b8}
+  .rel{font-size:10px;font-weight:800;border-radius:5px;padding:1px 6px;font-family:ui-monospace,monospace}
+  .rel-A{background:#14532d;color:#bbf7d0}.rel-B{background:#14532d;color:#bbf7d0}.rel-C{background:#1e3a5f;color:#bfdbfe}.rel-D{background:#78350f;color:#fcd34d}.rel-E{background:#78350f;color:#fcd34d}.rel-F{background:#1e2133;color:#94a3b8}
+  .ph{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px}.ph-Acquire{background:#1e3a5f;color:#bfdbfe}.ph-Enrich{background:#3b2f63;color:#ddd6fe}.ph-Assess{background:#78350f;color:#fcd34d}.ph-Deliver{background:#14532d;color:#bbf7d0}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .flow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-bottom:6px}
+  .stage{flex:1;min-width:150px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .stage .n{font-size:28px;font-weight:800}.stage .t{font-size:13px;font-weight:700;color:#e2e8f0}.stage .d{font-size:11px;color:#64748b;margin-top:2px}
+  .stage.s-Acquire{border-top:3px solid #60a5fa}.stage.s-Enrich{border-top:3px solid #a78bfa}.stage.s-Assess{border-top:3px solid #fbbf24}.stage.s-Deliver{border-top:3px solid #4ade80}
+  .gauge{display:inline-flex;align-items:center;justify-content:center;width:72px;height:72px;border-radius:50%;font-size:22px;font-weight:800;color:#e2e8f0}
+  .inp{background:#0f1117;border:1px solid #2d3250;border-radius:7px;padding:8px 11px;color:#e2e8f0;font-size:13px}
+  .inp:focus{outline:none;border-color:#d946ef}
+  .btn{background:#d946ef;border:none;color:#fff;border-radius:7px;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer}.btn:hover{background:#c026d3}.btn:disabled{opacity:.5;cursor:default}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:3px 9px;cursor:pointer}.btn-sm2:hover{border-color:#d946ef}
+  .md{font-size:13px;line-height:1.5;color:#cbd5e1}.md h2,.md h3{color:#e2e8f0;font-size:14px;margin:10px 0 5px}.md code{font-family:ui-monospace,monospace;background:#0f1117;border:1px solid #2d3250;border-radius:4px;padding:0 4px;color:#a5b4fc}.md ul{margin:5px 0;padding-left:20px}.md strong{color:#e2e8f0}
+  .chip{display:inline-block;font-size:11px;background:#1e2440;border:1px solid #2d3250;border-radius:20px;padding:2px 9px;margin:2px;color:#cbd5e1}
+  .tcat{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+  .tc{background:#13162a;border:1px solid #2d3250;border-radius:8px;padding:8px 11px}.tc .tn{font-size:12.5px;font-weight:600;color:#e2e8f0}.tc .tm{font-size:11px;color:#64748b;margin-top:3px}
+  .ai-badge{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;background:#3b2f63;color:#ddd6fe}
+  .lic{font-size:11px;color:#64748b;margin-top:20px;border-top:1px solid #1e2133;padding-top:10px}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/osint-graph">&#128376;&#65039; OSINT Graph</a><a href="/ask">&#129302; Ask the model</a><a href="/stix-graph">&#128376; STIX</a><span class="spacer"></span><span class="title">&#129523; CTI-Expert · AI OSINT Investigation</span></div>
+<div class="mw">
+  <h1>CTI-Expert — AI-orchestrated OSINT investigation</h1>
+  <div class="sub">A port of the <span class="mono">cti-expert</span> analyst skill to XORCISM's <b>local AI</b> (Ollama). Give a target (domain, email, username, IP, person, org, phone, crypto wallet); the local LLM runs the CTI methodology — <b>Acquire → Enrich → Assess → Deliver</b> — over the matching XORCISM OSINT connectors, grades each finding's source reliability (A–F), scores exposure 0–100, and writes STIX 2.1 observables + an INTSUM into your threat-intel exchange. Private by design — nothing leaves your infrastructure.</div>
+  <div class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+    <input class="inp" id="t-target" placeholder="target — e.g. example.com, alice@acme.io, jdoe, 203.0.113.4" style="flex:1;min-width:240px">
+    <select class="inp" id="t-kind">
+      <option value="">auto-detect type</option>
+      <option value="domain">domain</option><option value="email">email</option><option value="username">username</option>
+      <option value="ip">IP</option><option value="person">person</option><option value="org">organization</option>
+      <option value="phone">phone</option><option value="crypto">crypto wallet</option>
+    </select>
+    <button class="btn" id="t-go">&#128269; Investigate</button>
+  </div>
+  <div id="result"></div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading CTI-Expert…</div></div>
+  <div class="lic">CTI-Expert methodology &amp; technique catalogue adapted from <a href="https://github.com/7onez/cti-expert" target="_blank" rel="noopener">github.com/7onez/cti-expert</a> (MIT, by Hieu Ngo). Analysis runs on your local Ollama model; collection uses XORCISM's existing OSINT connectors.</div>
+</div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/cti-expert.js"></script></body></html>

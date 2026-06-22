@@ -1,0 +1,15 @@
+{
+  "id": "cyera",
+  "name": "Cyera — Data Security Posture (DSPM)",
+  "type": "import",
+  "category": "Cloud Security",
+  "description": "Imports data stores and data-security risks from Cyera (DSPM — Data Security Posture Management; discovers, classifies and protects sensitive data across cloud / SaaS / on-prem). Each Cyera data store becomes an ASSET (with its engine/cloud + sensitivity tags); each data risk/issue becomes a finding attached to its store. Config (worker environment variables): CYERA_API_URL (default https://api.cyera.io), CYERA_CLIENT_ID, CYERA_CLIENT_SECRET (OAuth2 client-credentials → JWT). Offline: pass `file` = a Cyera export JSON, or run with no config for the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:cyera",
+  "run": "run.py",
+  "mapping": "cyera",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 500, "min": 1, "max": 5000, "help": "Maximum data stores / issues to import" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved Cyera export JSON to parse instead of the live API" }
+  ]
+}

@@ -2393,7 +2393,7 @@ FK_COLUMNS["AUDITFINDING.RemediationOwnerPersonID"] = { db: "XORCISM", table: "P
 
 // ── Policy & document management metadata (ISO 42001 / 27001 / NIST AI RMF …) ──
 const DOC_LANGUAGES = ["en", "fr", "de", "es", "it", "nl", "pt", "ar"];
-const DOC_FRAMEWORKS = ["ISO/IEC 42001:2023", "ISO/IEC 27001:2022", "ISO/IEC 27031:2011", "ISO/IEC 27701:2019", "NIST AI RMF 1.0", "NIST SP 800-53", "Secure Controls Framework (SCF)", "CSA CCM v4", "EU AI Act", "DORA (EU 2022/2554)", "NIS2", "SOC 2", "GDPR"];
+const DOC_FRAMEWORKS = ["ISO/IEC 42001:2023", "ISO/IEC 27001:2022", "ISO/IEC 27031:2011", "ISO/IEC 27701:2019", "NIST AI RMF 1.0", "NIST SP 800-53", "Secure Controls Framework (SCF)", "CSA CCM v4", "OWASP ASVS 4.0.3", "ITMG IRCF v1.0", "EU AI Act", "DORA (EU 2022/2554)", "NIS2", "SOC 2", "GDPR"];
 const DOC_CLASSIFICATION = ["Public", "Internal", "Confidential", "Restricted"];
 const DOC_CATEGORIES = ["AI Management System", "Information Security", "Privacy", "Data Governance", "Risk Management", "Operations", "Human Resources"];
 const DOC_TYPES = ["Policy", "Procedure", "Standard", "Guideline", "Record", "Report", "Evidence", "Form", "Plan"];
@@ -2758,6 +2758,63 @@ function mkFileUpload(
     reader.readAsDataURL(f);
   });
 
+  return wrap;
+}
+
+// A BlobSha256 column stores a content-addressed "hash pointer" — the form offers a file upload that
+// pushes the bytes to the object store (/api/blob) and keeps only the returned sha256.
+function isCasUploadCol(col: string): boolean { return col === "BlobSha256"; }
+
+/** "Upload a file into the content-addressed store" widget: POSTs to /api/blob and stores the returned
+ *  sha256 in the hidden field (read at submission like any other value). */
+function mkCasUpload(hiddenId: string, currentVal: unknown): HTMLElement {
+  const wrap = document.createElement("div");
+  const hidden = document.createElement("input");
+  hidden.type = "hidden"; hidden.id = hiddenId; hidden.value = currentVal == null ? "" : String(currentVal);
+  wrap.appendChild(hidden);
+  const file = document.createElement("input");
+  file.type = "file";
+  file.style.cssText = "width:100%;font-size:13px;color:var(--text)";
+  wrap.appendChild(file);
+  const status = document.createElement("div");
+  status.style.cssText = "font-size:12px;margin-top:4px;color:var(--text-muted)";
+  wrap.appendChild(status);
+  const render = (): void => {
+    const sha = hidden.value.trim(); status.innerHTML = ""; status.style.color = "var(--text-muted)";
+    if (!sha) { status.textContent = "Aucun fichier (object store)."; return; }
+    const a = document.createElement("a");
+    a.href = `/api/blob/${encodeURIComponent(sha)}`; a.target = "_blank"; a.rel = "noopener";
+    a.textContent = "🗄️ " + sha.slice(0, 12) + "…"; a.style.color = "var(--accent)"; a.title = sha;
+    const clear = document.createElement("button");
+    clear.type = "button"; clear.textContent = "✕"; clear.title = "Retirer";
+    clear.style.cssText = "margin-left:8px;background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px";
+    clear.onclick = () => { hidden.value = ""; file.value = ""; render(); };
+    status.appendChild(a); status.appendChild(clear);
+  };
+  render();
+  file.addEventListener("change", () => {
+    const f = file.files && file.files[0]; if (!f) return;
+    if (f.size > UPLOAD_MAX_BYTES) { status.style.color = "var(--danger)"; status.textContent = "Fichier trop volumineux (max 15 Mo)."; file.value = ""; return; }
+    status.style.color = "var(--text-muted)"; status.textContent = "Téléversement (object store)…";
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const dataBase64 = String(reader.result).replace(/^data:[^;]*;base64,/, "");
+        const res = await fetch("/api/blob", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: f.name, contentType: f.type, dataBase64 }) });
+        const ct = res.headers.get("content-type") || "";
+        if (!ct.includes("application/json")) throw new Error(res.status === 404 ? "endpoint /api/blob introuvable (redémarrez le serveur)" : `réponse inattendue (HTTP ${res.status})`);
+        const j = (await res.json()) as { sha256?: string; size?: number; dedup?: boolean; error?: string };
+        if (!res.ok || !j.sha256) throw new Error(j.error || "échec du téléversement");
+        hidden.value = j.sha256; render();
+        const note = document.createElement("span");
+        note.style.cssText = "margin-left:8px;font-size:11px;color:var(--text-muted)";
+        note.textContent = `${j.size ?? 0} o${j.dedup ? " · dédupliqué" : ""}`;
+        status.appendChild(note);
+      } catch (e) { status.style.color = "var(--danger)"; status.textContent = "Échec : " + (e as Error).message; }
+    };
+    reader.onerror = () => { status.style.color = "var(--danger)"; status.textContent = "Lecture du fichier impossible."; };
+    reader.readAsDataURL(f);
+  });
   return wrap;
 }
 
@@ -5452,6 +5509,13 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
           imageOnly: isImageUploadCol(currentTable, col.name),
         })
       );
+      body.appendChild(div);
+      return;
+    }
+
+    // Content-addressed object-store upload (BlobSha256 hash-pointer columns)
+    if (isCasUploadCol(col.name)) {
+      div.appendChild(mkCasUpload(`ef_${col.name}`, currentVal));
       body.appendChild(div);
       return;
     }
@@ -8707,6 +8771,13 @@ async function openInsertModal(): Promise<void> {
           imageOnly: isImageUploadCol(currentTable, col.name),
         })
       );
+      body.appendChild(div);
+      return;
+    }
+
+    // Content-addressed object-store upload (BlobSha256 hash-pointer columns)
+    if (isCasUploadCol(col.name)) {
+      div.appendChild(mkCasUpload(`f_${col.name}`, undefined));
       body.appendChild(div);
       return;
     }

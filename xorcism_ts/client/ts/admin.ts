@@ -424,6 +424,42 @@ async function loadAudit(): Promise<void> {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+// ── Menu access control (per group/card → allowed NICE profiles) ──
+function maEsc(s: string): string { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string)); }
+async function loadLandingAccess(): Promise<void> {
+  const host = document.getElementById("menuaccess-body"); if (!host) return;
+  let data: any;
+  try { data = await jget("/api/admin/landing-access"); } catch { host.textContent = ""; return; }
+  const profiles: string[] = data.profiles || [];
+  const restr = new Map<string, string[]>();
+  for (const r of data.restrictions || []) restr.set(r.itemType + ":" + r.itemKey, r.profiles || []);
+  const byGroup: Record<string, any[]> = {};
+  for (const c of (data.cards || [])) (byGroup[c.group] ||= []).push(c);
+  const chips = (type: string, key: string): string => {
+    const sel = new Set(restr.get(type + ":" + key) || []);
+    return `<div class="ma-chips">` + profiles.map((p) => `<label class="ma-chip${sel.has(p) ? " on" : ""}"><input type="checkbox" data-type="${type}" data-key="${maEsc(key)}" value="${maEsc(p)}" ${sel.has(p) ? "checked" : ""}>${maEsc(p)}</label>`).join("") + `</div>`;
+  };
+  let html = "";
+  for (const g of (data.groups || [])) {
+    html += `<div class="ma-group"><div class="ma-grouphead"><b>${maEsc(g.label)}</b> <span style="color:#64748b;font-size:11px">${maEsc(g.id)}</span>${chips("group", g.id)}</div>`;
+    for (const c of (byGroup[g.id] || [])) html += `<div class="ma-card"><span class="ma-cardlabel">${maEsc(c.label)}</span><span class="ma-href">${maEsc(c.href)}</span>${chips("card", c.href)}</div>`;
+    html += `</div>`;
+  }
+  host.innerHTML = html;
+  host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener("change", async () => {
+      const type = cb.dataset.type!, key = cb.dataset.key!;
+      const checked = [...host.querySelectorAll<HTMLInputElement>(`input[data-type="${type}"][data-key="${(window as any).CSS?.escape ? CSS.escape(key) : key}"]:checked`)].map((x) => x.value);
+      cb.closest(".ma-chip")?.classList.toggle("on", cb.checked);
+      try {
+        const r = await fetch("/api/admin/landing-access", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemType: type, itemKey: key, profiles: checked }) });
+        if (!r.ok) throw new Error(String(r.status));
+        toast(t("admin.saved") || "Saved");
+      } catch { toast(t("toast.errSave") || "Failed", "err"); cb.checked = !cb.checked; cb.closest(".ma-chip")?.classList.toggle("on", cb.checked); }
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   initI18n();
   try {
@@ -445,6 +481,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     await loadUsers();
     await loadAudit();
+    await loadLandingAccess();
   } catch (e) {
     toast(t("toast.errInit") + " " + e, "err");
   }

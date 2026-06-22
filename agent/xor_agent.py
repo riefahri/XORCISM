@@ -1213,12 +1213,15 @@ def _running_exe_paths():
     return paths
 
 
-# ── BAS atomic-test execution (opt-in, read-only recon ONLY) ─────────────────────
-# Executing attacker procedures on an endpoint is sensitive: emulation runs only when the
-# operator opts in (XOR_ALLOW_EMULATION=1), and even then ONLY commands on a conservative
-# read-only-recon allowlist are run. Everything else (writes, persistence, downloads,
-# credential dumping, exec chains, anything with shell metacharacters) is reported as
-# "Skipped" for manual execution — the agent never auto-runs destructive injects.
+# ── BAS atomic-test execution (opt-in) ───────────────────────────────────────────
+# Executing attacker procedures on an endpoint is sensitive, so it is opt-in at two levels:
+#   • XOR_ALLOW_EMULATION=1   — run injects, but ONLY commands on a conservative read-only-recon
+#                               allowlist (whoami/ipconfig/netstat/…); everything else is "Skipped".
+#   • XOR_ALLOW_ATOMIC_EXEC=1 — (stronger; implies emulation) run the FULL atomic-test command for
+#                               every assigned inject — real ATT&CK procedures, for authorized BAS/AEV
+#                               on this host. The operator must set this env var ON THE AGENT HOST, so
+#                               execution is authorized per host; the admin still controls which
+#                               scenario/techniques are assigned. Manual-only injects stay "Skipped".
 _EMU_SAFE = [
     r"^whoami(\s+/[a-z]+)?$", r"^hostname$", r"^systeminfo$", r"^ver$", r"^ipconfig(\s+/all)?$",
     r"^getmac$", r"^arp\s+-a$", r"^route\s+print$", r"^tasklist$", r"^klist$",
@@ -1257,8 +1260,11 @@ def _emu_exec(test):
         return "Skipped", f"platform mismatch (test={want or 'n/a'}, host={host})"
     if executor in ("manual", "") or command.startswith("#"):
         return "Skipped", "manual inject — run by hand and record the outcome"
-    if not _emu_is_safe(command, executor):
-        return "Skipped", "not auto-run (only read-only recon is executed automatically) — run manually"
+    # Default: only the read-only-recon allowlist auto-runs. With XOR_ALLOW_ATOMIC_EXEC=1 the agent
+    # runs the FULL atomic test (the command shipped by the server = the Atomic Red Team procedure).
+    if not _emu_is_safe(command, executor) and os.environ.get("XOR_ALLOW_ATOMIC_EXEC") != "1":
+        return "Skipped", ("not auto-run (only read-only recon runs by default) — set "
+                           "XOR_ALLOW_ATOMIC_EXEC=1 on this host to execute the full atomic test, or run it manually")
     try:
         if executor == "powershell":
             cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", command]
@@ -1921,7 +1927,8 @@ class XorAgent:
         """Execute a BAS emulation scenario's atomic-test injects and post outcomes to
         /api/agent/emulation (→ EMULATIONRUN/EMULATIONRESULT). Closes the Threat-Informed
         Defense loop: techniques go from 'test defined' to 'test executed / validated'.
-        Execution is opt-in (XOR_ALLOW_EMULATION=1) and limited to read-only recon — see _emu_exec."""
+        Execution is opt-in: XOR_ALLOW_EMULATION=1 runs the read-only-recon allowlist;
+        XOR_ALLOW_ATOMIC_EXEC=1 (stronger) runs the FULL atomic-test command — see _emu_exec."""
         if not scenario_id:
             print("[emulate] aucun scenarioId — rien à exécuter", file=sys.stderr)
             return 0
@@ -1930,17 +1937,18 @@ class XorAgent:
             print(f"[emulate] récupération scénario {scenario_id} : {st} {d.get('error')}", file=sys.stderr)
             return 0
         tests = d.get("tests", [])
-        allow = os.environ.get("XOR_ALLOW_EMULATION") == "1"
+        atomic_exec = os.environ.get("XOR_ALLOW_ATOMIC_EXEC") == "1"
+        allow = atomic_exec or os.environ.get("XOR_ALLOW_EMULATION") == "1"
         results = []
         for t in tests:
             detected_by = None
             if not allow:
-                outcome, notes = "Skipped", "execution disabled — set XOR_ALLOW_EMULATION=1 to run the safe injects"
+                outcome, notes = "Skipped", "execution disabled — set XOR_ALLOW_EMULATION=1 (recon) or XOR_ALLOW_ATOMIC_EXEC=1 (full atomic)"
             else:
                 start = datetime.now(timezone.utc) - timedelta(seconds=2)
                 outcome, notes = _emu_exec(t)
                 cu = (t.get("cleanup") or "").strip()
-                if outcome == "Executed" and cu and not cu.startswith("#") and _emu_is_safe(cu, t.get("executor")):
+                if outcome == "Executed" and cu and not cu.startswith("#") and (atomic_exec or _emu_is_safe(cu, t.get("executor"))):
                     try:
                         _emu_exec({"command": cu, "executor": t.get("executor"), "platform": t.get("platform")})
                     except Exception:  # noqa: BLE001

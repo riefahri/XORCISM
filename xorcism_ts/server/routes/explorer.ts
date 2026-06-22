@@ -127,6 +127,7 @@ import {
 } from "../db";
 import { userCan, clientIp, deniedFields } from "../auth";
 import * as xid from "../xid";
+import { readBlob } from "../blobstore";
 import { tr } from "../i18n";
 import { computeEnterpriseRiskScore, enterpriseRiskBreakdown, recordOrganisationRiskScore, organisationRiskHistory } from "../riskscore";
 import { levelInfo } from "../riskregister";
@@ -1697,9 +1698,14 @@ router.get("/oval-xml", (req: Request, res: Response) => {
   if (!/^oval:[A-Za-z0-9_.\-]+:def:[0-9]+$/i.test(id))
     return void res.status(400).json({ error: "Identifiant OVAL invalide." });
   const audit = (detail: string): void => { xid.addAudit({ userId: req.user?.UserID ?? null, action: "oval_xml_view", resourceType: "table", resourceKey: "XOVAL.OVALDEFINITION", detail, ip: clientIp(req) }); };
-  // Primary source: the definition's raw XML stored in OVALDEFINITION.BLOB by import_oval.py.
+  // Primary source: the definition's raw XML stored in OVALDEFINITION.BLOB by import_oval.py, or in the
+  // content-addressed store (BlobSha256 pointer) once the BLOB has been offloaded there.
   try {
-    const row = getDb("XOVAL").prepare(`SELECT "BLOB" AS xml FROM OVALDEFINITION WHERE OVALDefinitionIDPattern = ? AND "BLOB" IS NOT NULL AND "BLOB" <> '' LIMIT 1`).get(id) as { xml: string } | undefined;
+    const row = getDb("XOVAL").prepare(`SELECT "BLOB" AS xml, BlobSha256 FROM OVALDEFINITION WHERE OVALDefinitionIDPattern = ? LIMIT 1`).get(id) as { xml?: string; BlobSha256?: string } | undefined;
+    if (row?.BlobSha256) {
+      const buf = readBlob(row.BlobSha256);
+      if (buf) { audit(`${id} (cas)`); res.setHeader("Content-Type", "application/xml; charset=utf-8"); return void res.send(buf); }
+    }
     if (row?.xml) {
       audit(`${id} (blob)`);
       res.setHeader("Content-Type", "application/xml; charset=utf-8");

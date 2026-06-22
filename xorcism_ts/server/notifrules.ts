@@ -14,6 +14,8 @@
  */
 import { randomUUID } from "crypto";
 import { getDb, createNotification } from "./db";
+import { notifyTeams } from "./teams";
+import { emitLoopEvent } from "./croc";
 
 export type Level = "info" | "success" | "warning" | "error";
 const LEVEL_RANK: Record<string, number> = { info: 0, success: 1, warning: 2, error: 3 };
@@ -48,6 +50,8 @@ export const EVENT_TYPES: EventType[] = [
     label: "Phishing simulation clicked", description: "A user clicked a link in a phishing-simulation campaign." },
   { key: "monitoring.down", category: "Operations", level: "error", default: true,
     label: "Monitored asset down", description: "An uptime/health monitor detected that an asset is down." },
+  { key: "croc.resilience_degraded", category: "Operations", level: "warning", default: true,
+    label: "CROC loop resilience degraded", description: "The continuous defense loop regressed vs its baseline or breached its resilience SLA (machine-speed dropped, backlog ballooned, latency spiked, or the loop went still)." },
   { key: "journey.step_overdue", category: "Compliance", level: "warning", default: false,
     label: "Compliance journey step overdue", description: "A step in a compliance journey passed its target date." },
   { key: "compliance.audit_due", category: "Compliance", level: "info", default: false,
@@ -136,5 +140,12 @@ export function dispatchEvent(eventKey: string, opts: DispatchOpts): { created: 
     createNotification({ userId: uid, title: opts.title.slice(0, 300), message: opts.message ?? null, level, link: opts.link ?? null, source: eventKey, tenantId: opts.tenant ?? null });
     created++;
   }
+  // Fan the same event out to the tenant's Microsoft Teams channel(s) — independent of the per-user
+  // in-app rules (a Teams channel is an org-level delivery target). Best-effort, never blocks/throws.
+  void notifyTeams(eventKey, { tenant: opts.tenant ?? null, title: opts.title, message: opts.message ?? null, level, link: opts.link ?? null, source: eventKey })
+    .catch(() => { /* distribution is best-effort */ });
+  // Record the event on the Continuous Defense Loop (CROC) so it can move + trigger pre-authorized
+  // policies at machine speed. Synchronous + best-effort (emitLoopEvent never throws).
+  emitLoopEvent({ type: eventKey, source: "dispatchEvent", summary: opts.title, severity: level, tenant: opts.tenant ?? null });
   return { created, skipped };
 }

@@ -3598,8 +3598,12 @@ export function ensureIncidentTables(): void {
       Severity TEXT, Status TEXT, Category TEXT, AttackTechniques TEXT, RecommendedActions TEXT,
       ServiceSource TEXT DEFAULT 'XORCISM', DetectionSource TEXT DEFAULT 'Manual',
       Classification TEXT, Determination TEXT, AssignedTo TEXT, Tags TEXT,
+      ExternalID TEXT, ExternalUrl TEXT,
       PersonID INTEGER, CreatedDate DATE, IncidentID INTEGER, TenantID INTEGER);
     CREATE INDEX IF NOT EXISTS ix_alert_incident ON ALERT(IncidentID);
+    -- (DetectionSource, ExternalID) = the idempotency key for connector-imported alerts
+    -- (SOC tools: TheHive / ServiceNow / PagerDuty / Opsgenie / Zammad → runner.import_incidents).
+    CREATE INDEX IF NOT EXISTS ix_alert_extid ON ALERT(DetectionSource, ExternalID);
     -- Defender "Select entities": impacted assets + related evidence on an alert.
     CREATE TABLE IF NOT EXISTS ALERTFORASSET (
       AssetAlertID INTEGER PRIMARY KEY, AlertID INTEGER, AssetID INTEGER,
@@ -3623,7 +3627,7 @@ export function ensureIncidentTables(): void {
     ["Severity", "TEXT"], ["Status", "TEXT"], ["Category", "TEXT"], ["AttackTechniques", "TEXT"],
     ["RecommendedActions", "TEXT"], ["ServiceSource", "TEXT DEFAULT 'XORCISM'"],
     ["DetectionSource", "TEXT DEFAULT 'Manual'"], ["Classification", "TEXT"], ["Determination", "TEXT"],
-    ["AssignedTo", "TEXT"], ["Tags", "TEXT"],
+    ["AssignedTo", "TEXT"], ["Tags", "TEXT"], ["ExternalID", "TEXT"], ["ExternalUrl", "TEXT"],
   ] as [string, string][]) addCol("ALERT", c, t);
   // INCIDENT (legacy): Defender-aligned metadata added by ALTER.
   for (const [c, t] of [
@@ -4769,6 +4773,17 @@ export function ensureFairMamTables(): void {
       Minimum REAL, MostLikely REAL, Maximum REAL, Notes TEXT, TenantID INTEGER);
     CREATE INDEX IF NOT EXISTS ix_fairmamlineitem_assessment ON FAIRMAMLINEITEM(AssessmentID);
     CREATE INDEX IF NOT EXISTS ix_fairmamassessment_tenant ON FAIRMAMASSESSMENT(TenantID);
+    -- FAIR frequency side: Threat/Loss Event Frequency estimation by Monte Carlo over PERT factors.
+    -- LEF = TEF × Vulnerability ; TEF = Contact Frequency × Probability of Action ;
+    -- Vulnerability = P(Threat Capability > Resistance Strength). Optional loss magnitude → ALE.
+    CREATE TABLE IF NOT EXISTS FAIRTEFASSESSMENT (
+      AssessmentID INTEGER PRIMARY KEY, AssessmentGUID TEXT, Name TEXT, ScenarioRef TEXT,
+      RiskRegisterEntryID INTEGER, FairMamAssessmentID INTEGER, ThreatCommunity TEXT, Iterations INTEGER, Currency TEXT,
+      CfMin REAL, CfMl REAL, CfMax REAL, PoaMin REAL, PoaMl REAL, PoaMax REAL,
+      TcapMin REAL, TcapMl REAL, TcapMax REAL, RsMin REAL, RsMl REAL, RsMax REAL,
+      LossMagnitude REAL, TefMean REAL, VulnMean REAL, LefMean REAL, LefP10 REAL, LefP50 REAL, LefP90 REAL,
+      AleMean REAL, AleP90 REAL, Status TEXT, PersonID INTEGER, CreatedDate TEXT, TenantID INTEGER);
+    CREATE INDEX IF NOT EXISTS ix_fairtefassessment_tenant ON FAIRTEFASSESSMENT(TenantID);
   `);
 
   // Seed the FAIR-MAM taxonomy once (idempotent: only when empty). 10 primary categories
@@ -5973,6 +5988,122 @@ export function ensureVocTables(): void {
       CREATE INDEX IF NOT EXISTS ix_vocsla_tenant ON VOCSLATIER(TenantID);
       CREATE INDEX IF NOT EXISTS ix_voccamp_tenant ON VOCCAMPAIGN(TenantID);
       CREATE INDEX IF NOT EXISTS ix_vocexc_tenant ON VOCEXCEPTION(TenantID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Vulnerability-management posture history (XVULNERABILITY) — one row per (tenant, day) capturing
+ * the day's headline VM KPIs (open backlog, KEV/exploitable/critical open, risk-weighted exposure,
+ * SLA compliance %, overdue, MTTR, remediation coverage, unassigned). Written on first sight of a
+ * day then kept fresh — a clean daily time series that turns the point-in-time VOC into trend lines.
+ * Feeds the /vm-report executive briefing (risk-reduction-over-time + data-driven myth-busting).
+ */
+export function ensureVmTrendsTables(): void {
+  try {
+    getDb("XVULNERABILITY").exec(`
+      CREATE TABLE IF NOT EXISTS VMSNAPSHOT (
+        SnapshotID INTEGER PRIMARY KEY, TenantID INTEGER, SnapshotDate TEXT,
+        OpenCount INTEGER, TotalCount INTEGER, RemediatedCount INTEGER,
+        KevOpen INTEGER, ExploitableOpen INTEGER, CriticalOpen INTEGER, HighOpen INTEGER,
+        RiskExposure REAL, SlaCompliance INTEGER, OverdueCount INTEGER, MttrDays INTEGER,
+        Coverage INTEGER, UnassignedOpen INTEGER, Source TEXT, CreatedDate TEXT);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_vmsnapshot ON VMSNAPSHOT(TenantID, SnapshotDate);
+      CREATE INDEX IF NOT EXISTS ix_vmsnapshot_tenant ON VMSNAPSHOT(TenantID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * CTEM — Continuous Threat Exposure Management (XVULNERABILITY). Support for the ctem.org
+ * (SecureCoders) standardized exposure-identifier taxonomy: a "CVE/CWE for exposures" — vendor-neutral
+ * identifiers (CTEM-<CAT>-<n>) across 8 categories, run through a 3-stage program (Discover →
+ * Prioritize → Remediate). CTEMIDENTIFIER = the reference catalogue (global, seeded from the embedded
+ * list / refreshed from ctem.org/source.json). CTEMEXPOSURE = the tenant's observed exposures
+ * classified against an identifier and tracked through the stages. Surfaced at /ctem.
+ */
+export function ensureCtemTables(): void {
+  try {
+    getDb("XVULNERABILITY").exec(`
+      CREATE TABLE IF NOT EXISTS CTEMIDENTIFIER (
+        CtemIdentifierID INTEGER PRIMARY KEY, CtemId TEXT, Title TEXT, CategoryCode TEXT, Category TEXT,
+        Description TEXT, Link TEXT, Version TEXT, UpdatedDate TEXT, CreatedDate TEXT);
+      CREATE TABLE IF NOT EXISTS CTEMEXPOSURE (
+        ExposureID INTEGER PRIMARY KEY, ExposureGUID TEXT, CtemId TEXT, Title TEXT, CategoryCode TEXT,
+        Stage TEXT, Severity TEXT, Status TEXT, AssetID INTEGER, RemediationOwnerPersonID INTEGER,
+        Source TEXT, Evidence TEXT, FirstSeen TEXT, LastSeen TEXT, DiscoveredDate TEXT, RemediatedDate TEXT,
+        TenantID INTEGER, CreatedDate TEXT);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_ctemidentifier ON CTEMIDENTIFIER(CtemId);
+      CREATE INDEX IF NOT EXISTS ix_ctemexposure_tenant ON CTEMEXPOSURE(TenantID);
+      CREATE INDEX IF NOT EXISTS ix_ctemexposure_ctemid ON CTEMEXPOSURE(CtemId);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Lossless STIX / IOC retention (XTHREAT). XORCISM normalizes STIX into relational tables, which is
+ * great for joins but loses the original object (any unmodeled property/extension is dropped). This
+ * adds the "store the original, index what you query" layer:
+ *   - a RawJson column on the CTI tables (OBSERVABLE / IOC / INTELEXCHANGE) for inline retention;
+ *   - a central STIXOBJECT store keyed by StixID holding the full original object;
+ *   - an FTS5 full-text index (STIXOBJECT_FTS) over name / value / the whole payload, so IOC values
+ *     and any nested field are searchable.
+ * Powers GET /api/stix/object/:stixId, GET /api/stix/search and POST /api/stix/ingest (see stixstore.ts).
+ */
+export function ensureStixObjectStore(): void {
+  try {
+    const db = getDb("XTHREAT");
+    const addRaw = (t: string): void => {
+      try {
+        if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t)) return;
+        const have = new Set((db.prepare(`PRAGMA table_info("${t}")`).all() as { name: string }[]).map((c) => c.name));
+        if (!have.has("RawJson")) db.exec(`ALTER TABLE "${t}" ADD COLUMN "RawJson" TEXT`);
+      } catch { /* table absent on this deployment */ }
+    };
+    addRaw("OBSERVABLE"); addRaw("IOC"); addRaw("INTELEXCHANGE");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS STIXOBJECT (
+        StixObjectID INTEGER PRIMARY KEY, StixID TEXT, StixType TEXT, SpecVersion TEXT, Name TEXT,
+        RawJson TEXT, Source TEXT, TenantID INTEGER, CreatedDate TEXT, ModifiedDate TEXT);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_stixobject ON STIXOBJECT(StixID);
+      CREATE INDEX IF NOT EXISTS ix_stixobject_type ON STIXOBJECT(StixType);
+      CREATE INDEX IF NOT EXISTS ix_stixobject_tenant ON STIXOBJECT(TenantID);`);
+    try { db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS STIXOBJECT_FTS USING fts5(stixId UNINDEXED, stixType, name, value, content, tokenize='porter unicode61');`); }
+    catch (e) { console.warn(`[stix] FTS5 unavailable, search disabled: ${(e as Error).message}`); }
+  } catch { /* best-effort */ }
+}
+
+/**
+ * DevSecOps operations (XORCISM) — manage security in the SDLC/CI-CD pipeline as an operational
+ * function. DEVSECOPSAPP = an application / repository under DevSecOps (optionally linked to the
+ * existing APPLICATION + ASSET). DEVSECOPSSCAN = a pipeline security scan across the standard scan
+ * classes (SAST / DAST / SCA / Secrets / IaC / Container) with a tool (semgrep, gitleaks, trivy,
+ * burpwn, …) and per-severity finding counts + gate result. DEVSECOPSGATE = the security-gate policy
+ * (per app or global) — the max allowed severity per scan class and whether it blocks the pipeline.
+ * Surfaced at /devsecops.
+ */
+export function ensureDevSecOpsTables(): void {
+  try {
+    const db = getDb("XORCISM");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS DEVSECOPSAPP (
+        AppID INTEGER PRIMARY KEY, AppGUID TEXT, Name TEXT, Repo TEXT, Language TEXT, Team TEXT,
+        OwnerPersonID INTEGER, Criticality TEXT, PipelineUrl TEXT, DefaultBranch TEXT,
+        ApplicationID INTEGER, AssetID INTEGER, AsvsLevel INTEGER, Status TEXT, TenantID INTEGER, CreatedDate TEXT);
+      CREATE TABLE IF NOT EXISTS DEVSECOPSSCAN (
+        ScanID INTEGER PRIMARY KEY, ScanGUID TEXT, AppID INTEGER, ScanType TEXT, Tool TEXT, Status TEXT,
+        Critical INTEGER DEFAULT 0, High INTEGER DEFAULT 0, Medium INTEGER DEFAULT 0, Low INTEGER DEFAULT 0,
+        Findings INTEGER DEFAULT 0, GatePassed INTEGER, Branch TEXT, Ref TEXT, Url TEXT, RanAt TEXT,
+        DurationSec INTEGER, Source TEXT, TenantID INTEGER, CreatedDate TEXT);
+      CREATE TABLE IF NOT EXISTS DEVSECOPSGATE (
+        GateID INTEGER PRIMARY KEY, AppID INTEGER, ScanType TEXT, MaxSeverity TEXT,
+        BlockOnFail INTEGER DEFAULT 1, Enabled INTEGER DEFAULT 1, TenantID INTEGER, CreatedDate TEXT);
+      CREATE TABLE IF NOT EXISTS DEVSECOPSASVS (
+        DevsecopsAsvsID INTEGER PRIMARY KEY, AppID INTEGER, Shortcode TEXT, Status TEXT, Notes TEXT,
+        VerifiedDate TEXT, TenantID INTEGER, CreatedDate TEXT);
+      CREATE INDEX IF NOT EXISTS ix_devsecopsapp_tenant ON DEVSECOPSAPP(TenantID);
+      CREATE INDEX IF NOT EXISTS ix_devsecopsscan_app ON DEVSECOPSSCAN(AppID);
+      CREATE INDEX IF NOT EXISTS ix_devsecopsgate_tenant ON DEVSECOPSGATE(TenantID);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_devsecopsasvs ON DEVSECOPSASVS(AppID, Shortcode);`);
+    // AsvsLevel added after the table shipped → column-aware ALTER for existing deployments
+    try { const have = new Set((db.prepare(`PRAGMA table_info("DEVSECOPSAPP")`).all() as { name: string }[]).map((c) => c.name)); if (!have.has("AsvsLevel")) db.exec(`ALTER TABLE DEVSECOPSAPP ADD COLUMN AsvsLevel INTEGER`); } catch { /* */ }
   } catch { /* best-effort */ }
 }
 

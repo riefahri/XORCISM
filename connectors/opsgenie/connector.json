@@ -1,0 +1,16 @@
+{
+  "id": "opsgenie",
+  "name": "Opsgenie — alerts import",
+  "type": "import",
+  "category": "Incident Response",
+  "description": "Imports alerts from Atlassian Opsgenie (on-call alerting & incident management) via the REST API into XORCISM as security alerts (XINCIDENT.ALERT). Each Opsgenie alert becomes an ALERT (idempotent by its id); priority P1-P5 maps to severity, tags and owner are carried over. Config (worker environment variables): OPSGENIE_API_KEY (API integration key); optional OPSGENIE_EU=1 for the EU region endpoint. Offline: pass `file` = a /v2/alerts export JSON, or run with no config for the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:opsgenie",
+  "run": "run.py",
+  "mapping": "opsgenie",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 200, "min": 1, "max": 1000, "help": "Maximum number of alerts to import" },
+    { "name": "query", "type": "string", "default": "status: open", "help": "Opsgenie search query, e.g. 'status: open AND priority < P3'" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved /v2/alerts export JSON to parse instead of the live API" }
+  ]
+}

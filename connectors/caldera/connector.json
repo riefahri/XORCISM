@@ -1,15 +1,23 @@
 {
   "id": "caldera",
-  "name": "MITRE Caldera — adversary emulation (agents & opérations)",
+  "name": "MITRE Caldera — adversary-emulation automation",
   "type": "import",
-  "category": "adversary-emulation",
-  "description": "Se connecte à un serveur MITRE Caldera (API v2) : importe les agents déployés en ASSET et les abilities exécutées lors des opérations en findings (technique ATT&CK liée à l'hôte). Lecture seule. Config UNIQUEMENT par variables d'environnement : CALDERA_URL + CALDERA_API_KEY.",
-  "intrusive": false,
+  "category": "Adversary Emulation",
+  "description": "Automates adversary emulation against a remote MITRE Caldera server (v2 API). action=import (default, READ-ONLY) reads existing operations: agents → ASSET, executed abilities → findings AND → emulation_results (EMULATIONRUN/EMULATIONRESULT → the ATT&CK validation-coverage heatmap). action=launch creates + starts an operation (adversary vs. an agent group) on the remote host — automated offensive emulation (admin-only; blast radius = the Caldera agent group you deployed), optionally `wait` then import its results. Target any remote Caldera host via caldera_url; schedulable (XSCHEDULE) for recurring automation. Key stays in the worker env. Config: CALDERA_URL + CALDERA_API_KEY.",
+  "intrusive": true,
   "permission": "connector:caldera",
   "run": "run.py",
   "mapping": "caldera",
   "parameters": [
-    { "name": "operation", "type": "string", "help": "Filtre par nom ou ID d'opération (vide = toutes les opérations)" },
-    { "name": "agents_only", "type": "bool", "default": false, "help": "N'importer que l'inventaire des agents (ignore les résultats d'opérations)" }
+    { "name": "action", "type": "enum", "default": "import", "values": ["import", "launch"], "help": "import = read operations (read-only); launch = create + start an operation on the remote host" },
+    { "name": "caldera_url", "type": "string", "default": "", "help": "Remote Caldera base URL (overrides CALDERA_URL) — target different remote hosts. e.g. https://caldera.lab:8888" },
+    { "name": "operation", "type": "string", "default": "", "help": "Import filter: operation name or ID (empty = all operations)" },
+    { "name": "adversary", "type": "string", "default": "", "help": "launch: adversary id or name to emulate" },
+    { "name": "group", "type": "string", "default": "red", "help": "launch: Caldera agent group to run against" },
+    { "name": "planner", "type": "string", "default": "atomic", "help": "launch: planner id or name (atomic / batch / …)" },
+    { "name": "name", "type": "string", "default": "", "help": "launch: operation name (default auto-generated)" },
+    { "name": "wait", "type": "int", "default": 0, "min": 0, "max": 3600, "help": "launch: seconds to wait for the operation to finish before importing results" },
+    { "name": "agents_only", "type": "bool", "default": false, "help": "Import only the agent inventory (skip operation results)" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved Caldera operation export JSON to parse (no server needed)" }
   ]
 }

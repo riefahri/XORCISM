@@ -15,6 +15,7 @@ export interface FusionScore {
   VulnerabilityID: number; ref: string; cvss: number | null; kev: number; epss: number | null;
   exploits: number; itw: boolean; assets: number; maxValue: number | null;
   score: number; priority: number; factors: string[];
+  assetIds?: number[]; // the AssetIDs this exposure sits on (for attack-path reachability)
 }
 
 const CVE_RX = /CVE-\d{4}-\d{3,7}/i;
@@ -120,11 +121,12 @@ export function topExposures(tenant: number | null, limit = 50): { results: Fusi
   const tenantClause = tenant != null && aCols.has("TenantID") ? "AND (a.TenantID = ? OR a.TenantID IS NULL)" : "";
   const args = tenant != null && aCols.has("TenantID") ? [tenant] : [];
   const agg = xo.prepare(
-    `SELECT av.VulnerabilityID vid, COUNT(DISTINCT av.AssetID) assets, MAX(COALESCE(a.BusinessValue, a.RiskScore, 0)) maxValue
+    `SELECT av.VulnerabilityID vid, COUNT(DISTINCT av.AssetID) assets, MAX(COALESCE(a.BusinessValue, a.RiskScore, 0)) maxValue,
+            GROUP_CONCAT(DISTINCT av.AssetID) assetIds
      FROM ASSETVULNERABILITY av JOIN ASSET a ON a.AssetID=av.AssetID
      WHERE COALESCE(av.FalsePositive,0)=0 ${tenantClause}
      GROUP BY av.VulnerabilityID LIMIT 8000`
-  ).all(...args) as { vid: number; assets: number; maxValue: number | null }[];
+  ).all(...args) as { vid: number; assets: number; maxValue: number | null; assetIds: string | null }[];
   if (!agg.length) return { results: [], scanned: 0 };
 
   const meta = new Map<number, { ref: string; cvss: number | null; kev: number; epss: number | null }>();
@@ -150,11 +152,13 @@ export function topExposures(tenant: number | null, limit = 50): { results: Fusi
     const m = meta.get(r.vid);
     const ref = m?.ref || `Vuln #${r.vid}`;
     const cve = cveOf(ref);
-    return fuse({
+    const fs = fuse({
       VulnerabilityID: r.vid, ref, cvss: m?.cvss ?? null, kev: m?.kev || 0, epss: m?.epss ?? null,
       exploits: cve ? exploitsForCve(cve).length : 0, itw: cve ? itw.has(cve) : false,
       assets: r.assets, maxValue: r.maxValue,
     });
+    fs.assetIds = String(r.assetIds || "").split(",").map((x) => Number(x)).filter((n) => Number.isInteger(n) && n > 0).slice(0, 50);
+    return fs;
   }).sort((a, b) => b.priority - a.priority || b.score - a.score || b.assets - a.assets).slice(0, Math.min(Math.max(1, limit), 500));
 
   return { results, scanned: agg.length };

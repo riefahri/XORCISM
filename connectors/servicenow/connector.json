@@ -1,0 +1,16 @@
+{
+  "id": "servicenow",
+  "name": "ServiceNow — ITSM / SecOps incidents import",
+  "type": "import",
+  "category": "ITSM",
+  "description": "Imports incidents / security incidents from ServiceNow (the market-leading ITSM platform) via the Table API into XORCISM as security alerts (XINCIDENT.ALERT). Each ServiceNow record becomes an ALERT (idempotent by its number), priority maps to severity, and the impacted CI is linked to its ASSET. Config (worker environment variables): SERVICENOW_INSTANCE (e.g. dev12345.service-now.com), SERVICENOW_USER, SERVICENOW_PASSWORD (basic auth); optional SERVICENOW_TABLE (default incident; use sn_si_incident for Security Incident Response). Offline: pass `file` = a Table-API export JSON, or run with no config for the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:servicenow",
+  "run": "run.py",
+  "mapping": "servicenow",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 200, "min": 1, "max": 1000, "help": "Maximum number of records to import" },
+    { "name": "query", "type": "string", "default": "active=true", "help": "ServiceNow encoded query (sysparm_query), e.g. active=true^priority<=2" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved Table-API export JSON to parse instead of the live API" }
+  ]
+}

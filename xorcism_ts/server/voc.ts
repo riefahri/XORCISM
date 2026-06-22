@@ -31,10 +31,10 @@ export function slaPolicy(tenant: number | null): { tier: string; days: number; 
   return DEFAULT_TIERS.map((t) => ({ ...t, label: "" }));
 }
 
-interface Inst { id: number; assetId: number; vulnId: number; cve: string; name: string; asset: string; severity: string; kev: boolean; cvss: number | null; epss: number | null;
+export interface Inst { id: number; assetId: number; vulnId: number; cve: string; name: string; asset: string; severity: string; kev: boolean; cvss: number | null; epss: number | null;
   patched: boolean; patchStatus: string; ageDays: number | null; dueDate: string | null; slaStatus: string; overdueDays: number; owner: string | null; createdMs: number | null; patchedMs: number | null; }
 
-function backlog(tenant: number | null): { rows: Inst[]; sla: Map<string, number> } {
+export function backlog(tenant: number | null): { rows: Inst[]; sla: Map<string, number> } {
   const xo = getDb("XORCISM"), now = Date.now();
   const sla = new Map(slaPolicy(tenant).map((t) => [t.tier, t.days]));
   const avc = cols("XORCISM", "ASSETVULNERABILITY");

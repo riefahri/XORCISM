@@ -1,0 +1,32 @@
+[
+  {
+    "_id": "~40988",
+    "title": "Suspicious PowerShell encoded command on FIN-WKS-08",
+    "description": "EDR flagged a base64-encoded PowerShell one-liner spawning from Office. Possible initial access.",
+    "severity": 3,
+    "status": "New",
+    "tags": ["edr", "T1059.001", "powershell"],
+    "date": "2026-06-21 08:42:00",
+    "observables": [{ "dataType": "hostname", "data": "FIN-WKS-08" }]
+  },
+  {
+    "_id": "~41020",
+    "title": "Multiple failed VPN logons then success — geo-improbable",
+    "description": "12 failed then 1 successful VPN auth for user j.doe from two countries within 5 minutes.",
+    "severity": 2,
+    "status": "InProgress",
+    "tags": ["identity", "T1110", "impossible-travel"],
+    "date": "2026-06-21 09:15:00",
+    "observables": [{ "dataType": "ip", "data": "203.0.113.44" }]
+  },
+  {
+    "_id": "~41077",
+    "title": "Ransomware note dropped on file server SRV-FS-02",
+    "description": "Mass file rename with .lockbit extension and HOW_TO_DECRYPT.txt across three shares.",
+    "severity": 4,
+    "status": "New",
+    "tags": ["ransomware", "T1486", "lockbit"],
+    "date": "2026-06-21 11:03:00",
+    "observables": [{ "dataType": "hostname", "data": "SRV-FS-02" }]
+  }
+]

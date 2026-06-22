@@ -335,6 +335,10 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
     (detections.ai…) return an "intel" list → import_threat_intel (XTHREAT). A
     result may carry both; counts are merged."""
     counts: Dict[str, int] = {}
+    # Outbound / action connectors (e.g. ChatOps: Slack / Mattermost) don't import data — they
+    # report what they sent via "notify". Short-circuit so the importer never touches a DB.
+    if "notify" in result:
+        return {"notified": int(result.get("notify") or 0)}
     if result.get("intel"):
         counts.update(import_threat_intel(result))
     if result.get("euvd"):
@@ -351,8 +355,19 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
         counts.update(import_documents(result))
     if result.get("netflow"):
         counts.update(import_netflow(result))
+    if result.get("alerts") or result.get("incidents"):
+        counts.update(import_incidents(result))
+    if result.get("emulation_results"):
+        counts.update(import_emulation(result))
     if any(result.get(k) for k in ("assets", "vulns", "cpes", "components", "services", "project")):
         counts.update(import_findings(result))
+    # DevSecOps: a SAST/Secrets/SCA/DAST connector result is also a pipeline security scan — recorded
+    # here (not at a single call site) so EVERY import path (worker, local run, attack-chain step) counts.
+    if mapping in _DEVSECOPS_TOOLS:
+        try:
+            counts.update(record_devsecops_scan(mapping, result))
+        except Exception:  # noqa: BLE001
+            pass
     if counts:
         return counts
     # nothing matched a specialized mapping → treat as findings (back-compat)
@@ -371,6 +386,9 @@ _INTEL_COLUMNS = {
     "IntelSource": "TEXT", "AttackTags": "TEXT", "ActorTags": "TEXT",
     "MalwareTags": "TEXT", "CveTags": "TEXT", "IntelTags": "TEXT",
     "Views": "INTEGER", "ValidFrom": "DATE", "ValidUntil": "DATE",
+    # lossless retention of the connector's original normalized item (indexed into STIXOBJECT by the
+    # in-process STIX-store sweeper, see stixstore.ts) — keeps anything not mapped to a column above
+    "RawJson": "TEXT",
 }
 
 
@@ -416,16 +434,20 @@ def import_threat_intel(result: Dict[str, Any]) -> Dict[str, int]:
         if not ref:
             continue
         row = cur.execute("SELECT IntelID FROM INTELEXCHANGE WHERE IntelReference=?", (ref,)).fetchone()
+        try:
+            raw_json = json.dumps(it, default=str)
+        except Exception:
+            raw_json = None
         common = (it.get("name"), it.get("description"), ref, it.get("external_id"),
                   it.get("author"), it.get("date"), src, it.get("attack_tags"),
                   it.get("actor_tags"), it.get("malware_tags"), it.get("cve_tags"),
-                  it.get("tags"), it.get("views"))
+                  it.get("tags"), it.get("views"), raw_json)
         if row:
             intel_id = row[0]
             cur.execute(
                 """UPDATE INTELEXCHANGE SET IntelName=?, IntelDescription=?, IntelReference=?,
                      IntelExternalID=?, IntelAuthor=?, IntelDate=?, IntelSource=?, AttackTags=?,
-                     ActorTags=?, MalwareTags=?, CveTags=?, IntelTags=?, Views=? WHERE IntelID=?""",
+                     ActorTags=?, MalwareTags=?, CveTags=?, IntelTags=?, Views=?, RawJson=? WHERE IntelID=?""",
                 (*common, intel_id),
             )
             counts["intel_updated"] += 1
@@ -434,8 +456,8 @@ def import_threat_intel(result: Dict[str, Any]) -> Dict[str, int]:
                 """INSERT INTO INTELEXCHANGE
                      (IntelName, IntelDescription, IntelReference, IntelExternalID, IntelAuthor,
                       IntelDate, IntelSource, AttackTags, ActorTags, MalwareTags, CveTags,
-                      IntelTags, Views, IntelGUID, CreatedDate)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      IntelTags, Views, RawJson, IntelGUID, CreatedDate)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (*common, str(uuid4()), _now()),
             )
             intel_id = cur.lastrowid
@@ -1063,6 +1085,314 @@ def import_netflow(result: Dict[str, Any]) -> Dict[str, int]:
     con.commit()
     con.close()
     return counts
+
+
+# XINCIDENT.ALERT schema (kept in sync with ensureIncidentTables() in db.ts). Connector-imported
+# SOC alerts/tickets/cases land here (the Defender-XDR-aligned alert layer that feeds incidents).
+_ALERT_COLS = {
+    "AlertID": "INTEGER PRIMARY KEY", "AlertGUID": "TEXT", "AlertName": "TEXT", "AlertDescription": "TEXT",
+    "Severity": "TEXT", "Status": "TEXT", "Category": "TEXT", "AttackTechniques": "TEXT",
+    "RecommendedActions": "TEXT", "ServiceSource": "TEXT", "DetectionSource": "TEXT",
+    "Classification": "TEXT", "Determination": "TEXT", "AssignedTo": "TEXT", "Tags": "TEXT",
+    "ExternalID": "TEXT", "ExternalUrl": "TEXT", "PersonID": "INTEGER", "CreatedDate": "DATE",
+    "IncidentID": "INTEGER", "TenantID": "INTEGER",
+}
+
+
+def import_incidents(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import normalized SOC alerts/tickets/cases into XINCIDENT.ALERT (the Defender-XDR-aligned
+    alert layer that feeds incidents). Used by the SOC-tool connectors — TheHive, ServiceNow,
+    PagerDuty, Opsgenie, Zammad, … — which return an "alerts" list. Idempotent by
+    (DetectionSource, ExternalID): an existing alert is updated, a new one inserted. Impacted
+    assets (item "asset"/"assets") are resolved by name to ALERTFORASSET links (assets created by
+    import_findings). Stamps XORCISM_IMPORT_TENANT_ID so tenant-scoped users see the rows.
+
+    Each alert item (dict):
+        {"name"|"title", "description", "severity" (crit/high/medium/low/info), "status",
+         "category" (Ticket/Case/Incident/Alert/Offense…), "external_id" (unique per source),
+         "url", "attack" (ATT&CK ids csv/list), "assignee", "tags" (csv/list), "actions",
+         "classification", "determination", "asset"|"assets" (name or [names]), "created"}
+    result-level "source" sets DetectionSource (default "Connector"). Self-creates/ALTERs the
+    table so it runs against any DB version. Worker-safe (no db.ts import)."""
+    from uuid import uuid4
+
+    items = result.get("alerts") or result.get("incidents") or []
+    counts = {"alerts": 0, "alerts_updated": 0, "alert_assets": 0}
+    if not items:
+        return counts
+
+    def _csv(v: Any) -> Optional[str]:
+        if v is None:
+            return None
+        if isinstance(v, (list, tuple, set)):
+            return ", ".join(str(x).strip() for x in v if str(x).strip()) or None
+        return str(v).strip() or None
+
+    tid = _import_tenant_id()
+    source = str(result.get("source") or "Connector").strip() or "Connector"
+    con = sqlite3.connect(os.path.join(_db_dir(), "XINCIDENT.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    cols_sql = ", ".join(f"{n} {t}" for n, t in _ALERT_COLS.items())
+    cur.execute(f"CREATE TABLE IF NOT EXISTS ALERT ({cols_sql})")
+    existing = {r[1] for r in cur.execute("PRAGMA table_info(ALERT)").fetchall()}
+    for name, typ in _ALERT_COLS.items():
+        if name not in existing:
+            cur.execute(f"ALTER TABLE ALERT ADD COLUMN {name} {typ.replace(' PRIMARY KEY', '')}")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_alert_extid ON ALERT(DetectionSource, ExternalID)")
+    # ALERTFORASSET (impacted-asset links) — best-effort, only if the table & assets exist.
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS ALERTFORASSET (
+             AssetAlertID INTEGER PRIMARY KEY, AlertID INTEGER, AssetID INTEGER,
+             Relationship TEXT, CreatedDate TEXT, TenantID INTEGER, UNIQUE(AlertID, AssetID))"""
+    )
+    have_asset_db = os.path.isfile(os.path.join(_db_dir(), "XORCISM.db"))
+    acon = sqlite3.connect(os.path.join(_db_dir(), "XORCISM.db"), timeout=15) if have_asset_db else None
+
+    def _asset_id(name: Optional[str]) -> Optional[int]:
+        if not name or not acon:
+            return None
+        try:
+            r = acon.execute("SELECT AssetID FROM ASSET WHERE AssetName=? LIMIT 1", (str(name),)).fetchone()
+            return r[0] if r else None
+        except sqlite3.Error:
+            return None
+
+    for it in items:
+        ext = it.get("external_id") or it.get("id")
+        if not ext:
+            continue
+        ext = str(ext)
+        name = str(it.get("name") or it.get("title") or ext)[:300]
+        common = (
+            name, str(it.get("description") or "")[:4000] or None, _norm_sev(it.get("severity")),
+            it.get("status"), it.get("category") or "Alert", _csv(it.get("attack") or it.get("techniques")),
+            _csv(it.get("actions") or it.get("recommended_actions")), source, source,
+            it.get("classification"), it.get("determination"), it.get("assignee") or it.get("assigned_to"),
+            _csv(it.get("tags")), ext, it.get("url") or it.get("external_url"),
+        )
+        row = cur.execute(
+            "SELECT AlertID FROM ALERT WHERE DetectionSource=? AND ExternalID=?", (source, ext)
+        ).fetchone()
+        if row:
+            aid = row[0]
+            cur.execute(
+                """UPDATE ALERT SET AlertName=?, AlertDescription=?, Severity=?, Status=?, Category=?,
+                     AttackTechniques=?, RecommendedActions=?, ServiceSource=?, DetectionSource=?,
+                     Classification=?, Determination=?, AssignedTo=?, Tags=?, ExternalID=?, ExternalUrl=?
+                   WHERE AlertID=?""",
+                (*common, aid),
+            )
+            counts["alerts_updated"] += 1
+        else:
+            cur.execute(
+                """INSERT INTO ALERT (AlertName, AlertDescription, Severity, Status, Category,
+                     AttackTechniques, RecommendedActions, ServiceSource, DetectionSource,
+                     Classification, Determination, AssignedTo, Tags, ExternalID, ExternalUrl,
+                     AlertGUID, CreatedDate, TenantID)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (*common, str(uuid4()), it.get("created") or _now(), tid),
+            )
+            aid = cur.lastrowid
+            counts["alerts"] += 1
+        # Link impacted assets (by name) → ALERTFORASSET.
+        names = it.get("assets") if isinstance(it.get("assets"), (list, tuple)) else [it.get("asset")]
+        for nm in names or []:
+            asid = _asset_id(nm)
+            if asid:
+                cur.execute(
+                    "INSERT OR IGNORE INTO ALERTFORASSET (AlertID, AssetID, Relationship, CreatedDate, TenantID) VALUES (?,?,?,?,?)",
+                    (aid, asid, "impacted", _now(), tid),
+                )
+                if cur.rowcount:
+                    counts["alert_assets"] += 1
+    con.commit()
+    con.close()
+    if acon:
+        acon.close()
+    return counts
+
+
+# XTHREAT emulation schema (kept in sync with ensureEmulationTables() in db.ts). BAS/AEV atomic-test
+# runs (atomic-red-team connector → remote worker) land here and feed the ATT&CK coverage heatmap.
+_ATOMIC_COLS = {
+    "AtomicTestID": "INTEGER PRIMARY KEY", "AtomicGUID": "TEXT UNIQUE", "Name": "TEXT", "Description": "TEXT",
+    "AttackID": "TEXT", "AttackTechniqueID": "INTEGER", "Platform": "TEXT", "Executor": "TEXT",
+    "Command": "TEXT", "Cleanup": "TEXT", "Source": "TEXT", "ExternalReferences": "TEXT", "CreatedDate": "DATE",
+}
+_EMRUN_COLS = {
+    "RunID": "INTEGER PRIMARY KEY", "RunGUID": "TEXT", "ScenarioID": "INTEGER", "Name": "TEXT",
+    "TargetAssetID": "INTEGER", "Status": "TEXT", "RunDate": "DATE", "Score": "INTEGER", "CreatedDate": "DATE",
+}
+_EMRES_COLS = {
+    "EmulationResultID": "INTEGER PRIMARY KEY", "RunID": "INTEGER", "AtomicTestID": "INTEGER",
+    "AttackID": "TEXT", "Outcome": "TEXT", "DetectedBy": "TEXT", "Notes": "TEXT", "CreatedDate": "DATE",
+}
+
+
+def import_emulation(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import a BAS/AEV atomic-test run (atomic-red-team connector) into XTHREAT: one EMULATIONRUN +
+    one EMULATIONRESULT per atomic. Each `emulation_results` item: {technique, atomic_guid, name,
+    executor, outcome, detail, host}. Resolves/creates ATOMICTEST by AtomicGUID (AttackTechniqueID
+    from ATTACKTECHNIQUE), the run's TargetAssetID from the host name (XORCISM.ASSET), and a Score =
+    % of tests that executed (= a coverage gap unless a control prevented/detected them). Each run is
+    a distinct timestamped evaluation (not idempotent — that's correct for BAS). Worker-safe."""
+    from uuid import uuid4
+
+    items = result.get("emulation_results") or []
+    counts = {"emulation_runs": 0, "emulation_results": 0, "atomic_tests": 0}
+    if not items:
+        return counts
+
+    con = sqlite3.connect(os.path.join(_db_dir(), "XTHREAT.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    for tbl, cols in (("ATOMICTEST", _ATOMIC_COLS), ("EMULATIONRUN", _EMRUN_COLS), ("EMULATIONRESULT", _EMRES_COLS)):
+        cur.execute(f"CREATE TABLE IF NOT EXISTS {tbl} ({', '.join(f'{n} {t}' for n, t in cols.items())})")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_atomic_attack ON ATOMICTEST(AttackID)")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_emresult_run ON EMULATIONRESULT(RunID)")
+
+    host = str(result.get("host") or "")
+    # resolve the target asset by host name (best-effort, from XORCISM.ASSET)
+    target_aid = None
+    try:
+        acon = sqlite3.connect(os.path.join(_db_dir(), "XORCISM.db"), timeout=10)
+        r = acon.execute("SELECT AssetID FROM ASSET WHERE AssetName=? LIMIT 1", (host,)).fetchone()
+        target_aid = r[0] if r else None
+        acon.close()
+    except sqlite3.Error:
+        pass
+
+    executed = sum(1 for it in items if str(it.get("outcome", "")).lower().startswith("execut"))
+    score = round(executed / len(items) * 100) if items else 0
+    planned = all("plan" in str(it.get("outcome", "")).lower() or "simulat" in str(it.get("outcome", "")).lower() for it in items)
+    run_id = (cur.execute("SELECT COALESCE(MAX(RunID),0)+1 AS n FROM EMULATIONRUN").fetchone()[0])
+    cur.execute(
+        "INSERT INTO EMULATIONRUN (RunID, RunGUID, Name, TargetAssetID, Status, RunDate, Score, CreatedDate) VALUES (?,?,?,?,?,?,?,?)",
+        (run_id, str(uuid4()), str(result.get("scenario") or "Atomic Red Team run")[:200], target_aid,
+         "Planned" if planned else "Completed", _now()[:10], score, _now()),
+    )
+    counts["emulation_runs"] += 1
+
+    def _atomic_id(it: Dict[str, Any]) -> int:
+        guid = str(it.get("atomic_guid") or "") or f"{it.get('technique', 'T0000')}-{uuid4()}"
+        row = cur.execute("SELECT AtomicTestID FROM ATOMICTEST WHERE AtomicGUID=?", (guid,)).fetchone()
+        if row:
+            return row[0]
+        aid = (cur.execute("SELECT COALESCE(MAX(AtomicTestID),0)+1 AS n FROM ATOMICTEST").fetchone()[0])
+        attack = str(it.get("technique") or "")
+        tech_id = None
+        try:
+            tr = cur.execute("SELECT AttackTechniqueID FROM ATTACKTECHNIQUE WHERE AttackID=? LIMIT 1", (attack,)).fetchone()
+            tech_id = tr[0] if tr else None
+        except sqlite3.Error:
+            pass
+        cur.execute(
+            "INSERT INTO ATOMICTEST (AtomicTestID, AtomicGUID, Name, AttackID, AttackTechniqueID, Executor, Source, CreatedDate) VALUES (?,?,?,?,?,?,?,?)",
+            (aid, guid, str(it.get("name") or attack)[:300], attack, tech_id, str(it.get("executor") or ""), "atomic-red-team", _now()),
+        )
+        counts["atomic_tests"] += 1
+        return aid
+
+    for it in items:
+        atid = _atomic_id(it)
+        rid = (cur.execute("SELECT COALESCE(MAX(EmulationResultID),0)+1 AS n FROM EMULATIONRESULT").fetchone()[0])
+        cur.execute(
+            "INSERT INTO EMULATIONRESULT (EmulationResultID, RunID, AtomicTestID, AttackID, Outcome, Notes, CreatedDate) VALUES (?,?,?,?,?,?,?)",
+            (rid, run_id, atid, str(it.get("technique") or ""), str(it.get("outcome") or "No result")[:60], str(it.get("detail") or "")[:2000], _now()),
+        )
+        counts["emulation_results"] += 1
+    con.commit()
+    con.close()
+    return counts
+
+
+# DevSecOps: connectors whose findings are a pipeline security scan of a given class.
+_DEVSECOPS_TOOLS = {"semgrep": "SAST", "gitleaks": "Secrets", "trivy": "SCA", "burpwn": "DAST"}
+
+
+def _norm_sev(s: Any) -> str:
+    v = str(s or "").strip().lower()
+    if v.startswith("crit"):
+        return "Critical"
+    if v.startswith("high"):
+        return "High"
+    if v.startswith("low") or v in ("info", "informational", "note", "unknown", ""):
+        return "Low"
+    return "Medium"
+
+
+def _devsecops_app_name(result: Dict[str, Any], tool: str) -> str:
+    """Derive the application/repo name from a normalized connector result (works on every import
+    path — worker, local run, chain step — since they all produce the same result shape)."""
+    name = str(result.get("project") or "").strip()
+    if not name:
+        for a in result.get("assets") or []:
+            name = str(a.get("hostname") or a.get("key") or a.get("ip") or "").strip()
+            if name:
+                break
+    if not name:
+        name = str(result.get("source") or "").strip()
+    return (name or tool)[:200]
+
+
+def record_devsecops_scan(tool: str, result: Dict[str, Any]) -> Dict[str, int]:
+    """Record a DevSecOps pipeline scan (XORCISM.DEVSECOPSSCAN) from a semgrep/gitleaks/trivy/burpwn
+    connector result — the scanned target becomes/links a DEVSECOPSAPP, findings tallied by severity."""
+    from uuid import uuid4
+
+    scan_type = _DEVSECOPS_TOOLS.get(tool)
+    if not scan_type:
+        return {}
+    # trivy is multi-purpose: an image scan is the Container class, fs/repo is SCA (Trivy's ArtifactType)
+    if tool == "trivy":
+        at = str(result.get("artifact_type") or "").lower()
+        if "image" in at or "container" in at:
+            scan_type = "Container"
+    sev = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
+    for v in result.get("vulns") or []:
+        sev[_norm_sev(v.get("severity"))] += 1
+    app_name = _devsecops_app_name(result, tool)
+    con = sqlite3.connect(os.path.join(_db_dir(), "XORCISM.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    cur.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS DEVSECOPSAPP (
+          AppID INTEGER PRIMARY KEY, AppGUID TEXT, Name TEXT, Repo TEXT, Language TEXT, Team TEXT,
+          OwnerPersonID INTEGER, Criticality TEXT, PipelineUrl TEXT, DefaultBranch TEXT,
+          ApplicationID INTEGER, AssetID INTEGER, Status TEXT, TenantID INTEGER, CreatedDate TEXT);
+        CREATE TABLE IF NOT EXISTS DEVSECOPSSCAN (
+          ScanID INTEGER PRIMARY KEY, ScanGUID TEXT, AppID INTEGER, ScanType TEXT, Tool TEXT, Status TEXT,
+          Critical INTEGER DEFAULT 0, High INTEGER DEFAULT 0, Medium INTEGER DEFAULT 0, Low INTEGER DEFAULT 0,
+          Findings INTEGER DEFAULT 0, GatePassed INTEGER, Branch TEXT, Ref TEXT, Url TEXT, RanAt TEXT,
+          DurationSec INTEGER, Source TEXT, TenantID INTEGER, CreatedDate TEXT);
+        """
+    )
+    row = cur.execute("SELECT AppID, AssetID FROM DEVSECOPSAPP WHERE Name=?", (app_name,)).fetchone()
+    if row:
+        app_id = row[0]
+    else:
+        app_id = (cur.execute("SELECT COALESCE(MAX(AppID),0)+1 FROM DEVSECOPSAPP").fetchone()[0])
+        # link to the matching ASSET (created by import_findings) so the SBOM/SCA class can resolve
+        aid = cur.execute("SELECT AssetID FROM ASSET WHERE AssetName=? LIMIT 1", (app_name,)).fetchone()
+        cur.execute(
+            "INSERT INTO DEVSECOPSAPP (AppID, AppGUID, Name, Criticality, AssetID, Status, CreatedDate) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (app_id, str(uuid4()), app_name, "Medium", aid[0] if aid else None, "Active", _now()),
+        )
+    findings = sum(sev.values())
+    status = "fail" if (sev["Critical"] or sev["High"] or (scan_type == "Secrets" and findings)) else "pass"
+    scan_id = (cur.execute("SELECT COALESCE(MAX(ScanID),0)+1 FROM DEVSECOPSSCAN").fetchone()[0])
+    cur.execute(
+        "INSERT INTO DEVSECOPSSCAN (ScanID, ScanGUID, AppID, ScanType, Tool, Status, Critical, High, Medium, Low, "
+        "Findings, Branch, RanAt, Source, CreatedDate) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (scan_id, str(uuid4()), app_id, scan_type, tool, status, sev["Critical"], sev["High"], sev["Medium"],
+         sev["Low"], findings, "main", _now(), "connector", _now()),
+    )
+    con.commit()
+    con.close()
+    return {"devsecops_scan": 1, "devsecops_findings": findings}
 
 
 def import_findings(result: Dict[str, Any]) -> Dict[str, int]:

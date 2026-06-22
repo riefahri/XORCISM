@@ -1,0 +1,13 @@
+[
+  {
+    "id": "op-1138",
+    "name": "Discovery + CredAccess emulation",
+    "state": "finished",
+    "chain": [
+      { "id": "l1", "paw": "wkstn01", "status": 0, "ability": { "ability_id": "ab-ps", "technique_id": "T1059.001", "technique_name": "PowerShell", "name": "Run a PowerShell command", "executor": { "name": "psh" } } },
+      { "id": "l2", "paw": "wkstn01", "status": -4, "ability": { "ability_id": "ab-lsass", "technique_id": "T1003.001", "technique_name": "LSASS Memory", "name": "Dump LSASS memory" } },
+      { "id": "l3", "paw": "wkstn01", "status": 0, "ability": { "ability_id": "ab-netcfg", "technique_id": "T1016", "technique_name": "System Network Configuration Discovery", "name": "ipconfig /all" } },
+      { "id": "l4", "paw": "srv02", "status": -2, "ability": { "ability_id": "ab-sched", "technique_id": "T1053.005", "technique_name": "Scheduled Task", "name": "Create a scheduled task" } }
+    ]
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "incidents": [
+    {
+      "id": "PT4KHLK",
+      "incident_number": 1247,
+      "title": "SIEM: brute-force against /admin from single ASN",
+      "description": "Detection rule fired on 4,000+ failed logins to the admin portal within 10 minutes.",
+      "status": "triggered",
+      "urgency": "high",
+      "priority": { "summary": "P2" },
+      "service": { "summary": "Web Edge" },
+      "assignments": [{ "assignee": { "summary": "On-Call SOC" } }],
+      "html_url": "https://acme.pagerduty.com/incidents/PT4KHLK",
+      "created_at": "2026-06-21T08:30:00Z"
+    },
+    {
+      "id": "PQR9ZZ2",
+      "incident_number": 1251,
+      "title": "DLP: large outbound transfer to personal cloud",
+      "description": "3.2 GB uploaded to an unsanctioned file-sharing domain by a workstation in Engineering.",
+      "status": "acknowledged",
+      "urgency": "high",
+      "priority": { "summary": "P1" },
+      "service": { "summary": "Data Loss Prevention" },
+      "assignments": [{ "assignee": { "summary": "IR Team" } }],
+      "html_url": "https://acme.pagerduty.com/incidents/PQR9ZZ2",
+      "created_at": "2026-06-21T11:48:00Z"
+    }
+  ]
+}

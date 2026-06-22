@@ -9,6 +9,7 @@ import { Router, Request, Response } from "express";
 import * as xid from "../xid";
 import { hashPassword, passwordPolicyError, clientIp } from "../auth";
 import { listDatabases, listTables, getSchema, backupDatabases, correlateCveToAssets } from "../db";
+import { accessCatalogue, setAccess, NICE_PROFILES } from "../landingaccess";
 import { tr } from "../i18n";
 
 const router = Router();
@@ -342,6 +343,27 @@ router.get("/whoami", (req: Request, res: Response) => {
     tenantId: req.user!.tenantId,
     tenantName: req.user!.tenantName,
   });
+});
+
+// ── Landing menu access control (per group/card → allowed NICE profiles) ──
+// Tenant admins manage their own tenant; super-admin manages the global (null-tenant) defaults.
+function accessTenant(req: Request): number | null { return req.user!.isSuperAdmin ? null : (req.user!.tenantId ?? null); }
+
+router.get("/landing-access", (req: Request, res: Response) => {
+  try { res.json(accessCatalogue(accessTenant(req))); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+router.put("/landing-access", (req: Request, res: Response) => {
+  const b = (req.body || {}) as Record<string, unknown>;
+  const itemType = String(b.itemType || "card");
+  const itemKey = String(b.itemKey || "").trim();
+  if (!itemKey) return void res.status(400).json({ error: "itemKey required" });
+  const profiles = Array.isArray(b.profiles) ? b.profiles.map((p) => String(p)).filter((p) => NICE_PROFILES.includes(p)) : [];
+  try {
+    setAccess(accessTenant(req), itemType, itemKey, profiles);
+    xid.addAudit({ userId: req.user!.UserID ?? null, action: "landing_access_set", resourceType: "LANDINGACCESS", resourceKey: `${itemType}:${itemKey}`, ip: clientIp(req) });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
 export default router;

@@ -1,0 +1,35 @@
+[
+  {
+    "id": 5012,
+    "number": "20260",
+    "title": "Lost laptop — full-disk encryption status unconfirmed",
+    "note": "Sales rep reported a stolen laptop at the airport. Need to confirm BitLocker + remote wipe.",
+    "priority": "3 high",
+    "state": "open",
+    "owner": "it-security@acme.io",
+    "group": "Security",
+    "created_at": "2026-06-21T07:20:00Z"
+  },
+  {
+    "id": 5031,
+    "number": "20279",
+    "title": "User requests MFA reset — verify identity",
+    "note": "Employee locked out of MFA; verify identity before reset per IR policy.",
+    "priority": "2 normal",
+    "state": "new",
+    "owner": "helpdesk@acme.io",
+    "group": "Security",
+    "created_at": "2026-06-21T10:05:00Z"
+  },
+  {
+    "id": 5044,
+    "number": "20292",
+    "title": "Printer firmware update request",
+    "note": "Routine firmware update for 3rd-floor printers.",
+    "priority": "1 low",
+    "state": "open",
+    "owner": "facilities@acme.io",
+    "group": "IT",
+    "created_at": "2026-06-21T11:30:00Z"
+  }
+]

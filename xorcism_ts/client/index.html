@@ -48,6 +48,17 @@
   .domain-title{font-size:16px;font-weight:700;line-height:1.2}
   .domain-sub{font-size:12px;color:#94a3b8;letter-spacing:.3px;font-family:ui-monospace,monospace}
   .domain-desc{font-size:12px;color:#64748b;line-height:1.4}
+  /* Pin/favourite toggle — a star injected into every card by landing.ts */
+  .domain-card{position:relative}
+  .pin-btn{position:absolute;top:9px;right:9px;width:28px;height:28px;display:inline-flex;
+    align-items:center;justify-content:center;border:none;border-radius:9px;cursor:pointer;
+    background:transparent;color:#475569;font-size:16px;line-height:1;padding:0;opacity:.28;
+    transition:opacity .15s ease,color .15s ease,background .15s ease;z-index:3}
+  .domain-card:hover .pin-btn{opacity:.9}
+  .pin-btn:hover{background:color-mix(in srgb,var(--accent) 18%,#0f1117);color:var(--accent);opacity:1}
+  .domain-card.pinned .pin-btn{opacity:1;color:var(--accent)}
+  /* Pinned-favourites row at the very top of the menu */
+  .pinned-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:18px}
 </style>
 </head>
 <body>
@@ -84,17 +95,35 @@
   <div id="notif-list" style="overflow:auto;padding:4px 0"></div>
 </div>
 
-<!-- ═══ Landing page: fusion center — modules grouped by analytical approach (shown if no ?db= in the URL) ═══ -->
+<!-- ═══ Landing page: Cyber Risk Operations Center (CROC) — modules grouped by analytical approach (shown if no ?db= in the URL) ═══ -->
 <div id="landing" class="landing">
   <div class="landing-hero">
-    <span class="eyebrow" data-i18n="landing.eyebrow">Cyber Fusion Center</span>
+    <span class="eyebrow" data-i18n="landing.eyebrow">Cyber Risk Operations Center (CROC)</span>
     <h1>XORCISM</h1>
-    <p data-i18n="landing.sub">Un centre de fusion cyber qui réunit actifs, vulnérabilités, menace, risque et conformité en une seule plateforme. Choisissez votre <b>approche</b>.</p>
+    <p data-i18n="landing.sub">Le Cyber Risk Operations Center (CROC) qui réunit actifs, vulnérabilités, menace, risque et conformité en une seule plateforme. Choisissez votre <b>approche</b>.</p>
   </div>
   <div class="landing-tools">
+    <label class="nice-filter" title="Filter modules by NICE workforce profile">&#128100;
+      <select id="landing-nice" class="btn btn-ghost btn-sm" style="cursor:pointer">
+        <option value="" data-i18n="landing.nice.all">All roles (NICE)</option>
+      </select>
+    </label>
     <button class="btn btn-ghost btn-sm" id="landing-reset" style="display:none" title="Reset to default order">&#8634; <span data-i18n="landing.reset">Reset</span></button>
     <button class="btn btn-ghost btn-sm" id="landing-reorder" title="Drag cards to reorder">&#8645; <span id="lr-label" data-i18n="landing.reorder">Reorder</span></button>
   </div>
+
+  <!-- ── Pinned favourites · populated by landing.ts from the "landing-pins" pref ── -->
+  <section class="approach pinned-approach" id="pinned-approach" data-group="__pinned" style="--accent:#fbbf24;display:none">
+    <div class="approach-head">
+      <span class="approach-num">&#128204;</span>
+      <span class="approach-titles">
+        <span class="approach-title" data-i18n="landing.pinned">Pinned</span>
+        <span class="approach-sub" data-i18n="landing.pinned.d">Your favourite modules — pin any card with its star for one-click access.</span>
+      </span>
+      <span class="approach-count" id="pinned-count">0</span>
+    </div>
+    <div class="pinned-grid" id="pinned-grid"></div>
+  </section>
 
   <!-- ── Approach 1 · Asset-based ── -->
   <section class="approach" data-group="asset" style="--accent:#7c83fd">
@@ -196,7 +225,7 @@
         <span class="approach-title" data-i18n="landing.approach.exposure">Vulnerability &amp; Exposure-Based</span>
         <span class="approach-sub" data-i18n="landing.approach.exposure.d">Find the weaknesses and prioritize what truly needs fixing first.</span>
       </span>
-      <span class="approach-count">9</span>
+      <span class="approach-count">11</span>
     </div>
     <div class="domain-grid" data-group="exposure">
 
@@ -205,6 +234,20 @@
         <span class="domain-title" data-i18n="landing.voc">Vulnerability Operations Center</span>
         <span class="domain-sub">SLA · campaigns · MTTR · exceptions</span>
         <span class="domain-desc" data-i18n="landing.voc.d">Pilotage de la remédiation des vulnérabilités comme une fonction d'opérations (le pendant du SOC) : backlog enrichi par le risque (KEV · CVSS · EPSS) face à une politique de SLA de remédiation configurable, KPIs (conformité SLA, MTTR, vieillissement, vélocité), worklist priorisée par le risque, campagnes de remédiation (burndown) et registre d'acceptation du risque / dérogations.</span>
+      </a>
+
+      <a class="domain-card" href="/vm-report" style="--accent:#f59e0b">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/><circle cx="22" cy="6" r="0.6" fill="currentColor"/></svg></span>
+        <span class="domain-title" data-i18n="landing.vmreport">VM Executive Report</span>
+        <span class="domain-sub">Risk trends · SLA · myth-busting</span>
+        <span class="domain-desc" data-i18n="landing.vmreport.d">Rapport de direction prêt pour le board : posture de risque et de SLA dans le temps (le risque baisse-t-il vraiment ?) avec courbes de tendance (exposition pondérée par le risque, backlog, KEV, conformité SLA, MTTR, couverture), synthèse exécutive, et une section « mythes vs réalité » où les chiffres réels du programme démontent les idées reçues qui rendent le vulnerability management inefficace (« tout patcher », « CVSS = priorité », « 100 % patché = sécurisé », « un scan trimestriel suffit »…).</span>
+      </a>
+
+      <a class="domain-card" href="/ctem" style="--accent:#2dd4bf">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18"/><circle cx="12" cy="12" r="3.5"/><path d="M12 8.5V3M12 21v-5.5M15.5 12H21M3 12h5.5"/></svg></span>
+        <span class="domain-title" data-i18n="landing.ctem">CTEM — Exposure Management</span>
+        <span class="domain-sub">ctem.org taxonomy · Discover→Prioritize→Remediate</span>
+        <span class="domain-desc" data-i18n="landing.ctem.d">Support de la taxonomie standardisée d'identifiants d'exposition ctem.org (SecureCoders) — un « CVE/CWE des expositions » : identifiants CTEM-&lt;CAT&gt;-&lt;n&gt; sur 8 catégories (marque, identifiants, domaines, exposition système, financier, infection, rançongiciel, code source), exécutés dans le programme CTEM en 3 étapes Découvrir → Prioriser → Remédier. Catalogue de référence (29 identifiants), classification de vos expositions observées, suivi par étape, couverture par catégorie, et passerelle de découverte depuis les actifs exposés sur Internet.</span>
       </a>
 
       <a class="domain-card" href="/bug-bounty" style="--accent:#fb7185">
@@ -274,7 +317,7 @@
         <span class="approach-title" data-i18n="landing.approach.threat">Threat-Based</span>
         <span class="approach-sub" data-i18n="landing.approach.threat.d">Adversary-centric — intelligence, hunting and detection engineering.</span>
       </span>
-      <span class="approach-count">12</span>
+      <span class="approach-count">13</span>
     </div>
     <div class="domain-grid" data-group="threat">
 
@@ -283,6 +326,13 @@
         <span class="domain-title" data-i18n="landing.threat">Threat Management (CTI)</span>
         <span class="domain-sub">XTHREAT · THREAT</span>
         <span class="domain-desc" data-i18n="landing.threat.d">Renseignement sur les menaces : acteurs, TTP, STIX/TAXII, ATT&amp;CK.</span>
+      </a>
+
+      <a class="domain-card" href="/cti-expert" style="--accent:#e879f9">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><path d="M11 8v6M8 11h6"/></svg></span>
+        <span class="domain-title" data-i18n="landing.ctiexpert">CTI-Expert (AI OSINT)</span>
+        <span class="domain-sub">OSINT · INTSUM · STIX · local AI</span>
+        <span class="domain-desc" data-i18n="landing.ctiexpert.d">Enquête OSINT/CTI orchestrée par l'IA locale (méthodologie cti-expert) : une cible → plan de techniques, conclusions notées (fiabilité A–F), score d'exposition 0–100, observables STIX et INTSUM.</span>
       </a>
 
       <a class="domain-card" href="/threat-informed-defense" style="--accent:#d946ef">
@@ -387,9 +437,23 @@
         <span class="approach-title" data-i18n="landing.approach.risk">Risk-Based</span>
         <span class="approach-sub" data-i18n="landing.approach.risk.d">Quantify and decide — turn findings into business risk in dollars.</span>
       </span>
-      <span class="approach-count">5</span>
+      <span class="approach-count">8</span>
     </div>
     <div class="domain-grid" data-group="risk">
+
+      <a class="domain-card" href="/croc" style="--accent:#a78bfa">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z" transform="translate(-2 0)"/><path d="M10 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z" transform="translate(2 0)"/></svg></span>
+        <span class="domain-title" data-i18n="landing.croc">CROC — Continuous Defense Loop</span>
+        <span class="domain-sub">∞ · SOC↔CROC · machine-speed</span>
+        <span class="domain-desc" data-i18n="landing.croc.d">Le centre d'opérations de risque cyber (CROC) : la boucle de défense continue ∞ entre le SOC (aujourd'hui) et le CROC (demain). Mesure si le renseignement BOUGE entre les deux — en direct (piloté par événements), bidirectionnellement, à vitesse machine — avec file d'alertes pondérée par le risque, pré-autorisation des décisions, chasse au risque cyber et latence de boucle.</span>
+      </a>
+
+      <a class="domain-card" href="/cyber-risk-hunting" style="--accent:#f472b6">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></span>
+        <span class="domain-title" data-i18n="landing.huntrisk">Cyber-Risk Hunting</span>
+        <span class="domain-sub">where could an adversary succeed?</span>
+        <span class="domain-desc" data-i18n="landing.huntrisk.d">Chasse au risque cyber : une liste de travail « où un adversaire pourrait-il réussir ? » qui fusionne les expositions priorisées (exploitabilité × rayon d'impact) avec les identités non-humaines sur-privilégiées, chacune avec une hypothèse de chasse. Escalade une trouvaille pour la réinjecter dans la boucle CROC où les politiques pré-autorisées agissent à vitesse machine.</span>
+      </a>
 
       <a class="domain-card" href="/investment-advisor" style="--accent:#f59e0b">
         <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><circle cx="12" cy="12" r="10" opacity="0"/></svg></span>
@@ -410,6 +474,13 @@
         <span class="domain-title" data-i18n="landing.fairmam">FAIR-MAM Materiality</span>
         <span class="domain-sub">Loss decomposition · materiality</span>
         <span class="domain-desc" data-i18n="landing.fairmam.d">Modèle de matérialité FAIR-MAM : décompose la magnitude d'un événement cyber en 10 catégories de coûts (estimation PERT), répartition perte primaire/secondaire et verdict de matérialité.</span>
+      </a>
+
+      <a class="domain-card" href="/fair-tef" style="--accent:#a78bfa">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14c2-6 4-6 5-3s2 5 4 1 2-4 4-6"/></svg></span>
+        <span class="domain-title" data-i18n="landing.fairtef">FAIR Threat Event Frequency</span>
+        <span class="domain-sub">TEF · LEF · Monte Carlo · ALE</span>
+        <span class="domain-desc" data-i18n="landing.fairtef.d">Le côté fréquence de FAIR : estimez chaque facteur en plage PERT (min/probable/max) et simulez par Monte-Carlo — LEF = TEF × Vulnérabilité, TEF = Fréquence de contact × Probabilité d'action, Vulnérabilité = P(Capacité de la menace > Force de résistance). Avec une magnitude de perte → ALE et courbe de dépassement des pertes ; écrit LEF/ALE dans le registre des risques.</span>
       </a>
 
       <a class="domain-card" href="/ebios" style="--accent:#f59e0b">
@@ -529,9 +600,16 @@
         <span class="approach-title" data-i18n="landing.approach.operations">Response &amp; Operations</span>
         <span class="approach-sub" data-i18n="landing.approach.operations.d">Act — respond to incidents, rehearse crises and manage the work.</span>
       </span>
-      <span class="approach-count">10</span>
+      <span class="approach-count">11</span>
     </div>
     <div class="domain-grid" data-group="operations">
+
+      <a class="domain-card" href="/devsecops" style="--accent:#0ea5e9">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.5V12a10 10 0 1 1-5.9-9.1"/><path d="M9 11l3 3L22 4"/><circle cx="5" cy="19" r="1"/><circle cx="12" cy="19" r="1"/><circle cx="19" cy="19" r="1"/></svg></span>
+        <span class="domain-title" data-i18n="landing.devsecops">DevSecOps Operations</span>
+        <span class="domain-sub">SAST · DAST · SCA · gates · posture</span>
+        <span class="domain-desc" data-i18n="landing.devsecops.d">Pilotez la sécurité dans le pipeline SDLC/CI-CD comme une fonction d'opérations : inventaire des applications, scans de sécurité par classe (SAST · DAST · SCA · Secrets · IaC · Container) avec outil (semgrep, gitleaks, trivy, burpwn…) et décompte des findings, politique de portes de sécurité (severité max autorisée), et posture dérivée — couverture des scans, taux de passage des portes, critiques/élevés ouverts — avec worklist de remédiation priorisée.</span>
+      </a>
 
       <a class="domain-card" href="/soc-cmm" style="--accent:#22d3ee">
         <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span>

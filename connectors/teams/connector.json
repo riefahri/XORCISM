@@ -1,0 +1,20 @@
+{
+  "id": "teams",
+  "name": "Microsoft Teams — outbound alerts / notifications",
+  "type": "import",
+  "category": "ChatOps",
+  "description": "Outbound (action) connector: posts a XORCISM alert / incident / message to a Microsoft Teams channel via an incoming webhook. Supports both Teams payloads — a modern Adaptive Card (Power Automate / Workflows webhooks) and the legacy MessageCard (Office 365 'Incoming Webhook' connector, *.webhook.office.com) — auto-detected from the URL. Severity colours the card; with no webhook (or dry_run) it returns the built payload without sending. The complement to the in-app Teams distribution (teams.ts), which fans alerts/notifications out automatically. Config: TEAMS_WEBHOOK_URL (or pass `webhook`). Does NOT read/write the database.",
+  "intrusive": false,
+  "permission": "connector:teams",
+  "run": "run.py",
+  "mapping": "teams",
+  "parameters": [
+    { "name": "text", "type": "string", "default": "", "help": "Message body. Required unless title is given." },
+    { "name": "title", "type": "string", "default": "", "help": "Optional card title / alert name" },
+    { "name": "severity", "type": "string", "default": "", "help": "critical | high | medium | low | info — colours the card" },
+    { "name": "link", "type": "string", "default": "", "help": "Optional absolute URL (deep-link to the alert in XORCISM)" },
+    { "name": "format", "type": "string", "default": "auto", "help": "auto | adaptivecard | messagecard" },
+    { "name": "webhook", "type": "string", "default": "", "help": "Teams incoming-webhook URL (overrides TEAMS_WEBHOOK_URL)" },
+    { "name": "dry_run", "type": "bool", "default": false, "help": "Build the card but do not send it (returns the payload)" }
+  ]
+}

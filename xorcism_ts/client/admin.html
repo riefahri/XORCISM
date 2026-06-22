@@ -20,6 +20,15 @@
   .pill{font-size:10px;background:#2d3250;color:#cbd5e1;border-radius:10px;padding:1px 7px;margin-right:3px}
   .super-only{display:none}
   body.is-super .super-only{display:revert}
+  .ma-group{border:1px solid #1e2133;border-radius:8px;padding:8px 10px;margin-bottom:8px}
+  .ma-grouphead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid #1e2133;margin-bottom:6px}
+  .ma-card{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 0 4px 14px;font-size:12px;border-bottom:1px solid #161a2e}
+  .ma-cardlabel{font-weight:600;color:#e2e8f0;min-width:150px}
+  .ma-href{font-family:ui-monospace,monospace;font-size:11px;color:#64748b}
+  .ma-chips{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto}
+  .ma-chip{font-size:10px;color:#94a3b8;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:1px 6px;cursor:pointer;user-select:none}
+  .ma-chip.on{background:#14532d;color:#bbf7d0;border-color:#16a34a}
+  .ma-chip input{margin-right:3px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -92,6 +101,13 @@
       </div>
       <div id="notify-result" style="font-size:12px;color:#94a3b8"></div>
     </div>
+  </div>
+
+  <!-- MENU ACCESS — per group/card visibility by NICE workforce profile -->
+  <div class="card" id="card-menuaccess">
+    <div class="card-header"><span class="card-title" data-i18n="admin.menuAccess">Acc&egrave;s aux menus (profils NICE)</span></div>
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:8px" data-i18n="admin.menuAccess.d">Restreignez chaque groupe / carte du menu &agrave; des profils NICE. Aucune coche = visible par tous. Les admins voient tout ; un utilisateur ne voit un &eacute;l&eacute;ment que si son r&ocirc;le (workforce) correspond.</div>
+    <div id="menuaccess-body"><div style="color:#64748b;font-size:12px">&hellip;</div></div>
   </div>
 
   <!-- ROLES & PERMISSIONS (config globale — super-admin uniquement) -->

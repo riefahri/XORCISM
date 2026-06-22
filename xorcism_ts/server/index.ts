@@ -60,12 +60,32 @@ import aiexchangeRouter from "./routes/aiexchange";
 import workforceRouter from "./routes/workforce";
 import teamopsRouter from "./routes/teamops";
 import vocRouter from "./routes/voc";
+import vmtrendsRouter from "./routes/vmtrends";
+import ctemRouter from "./routes/ctem";
+import { seedCtemIdentifiers } from "./ctem";
+import ctiExpertRouter from "./routes/ctiexpert";
+import { ensureCtiExpertTables } from "./ctiexpert";
+import teamsRouter from "./routes/teams";
+import { ensureTeamsTables } from "./teams";
+import crocRouter from "./routes/croc";
+import { ensureCrocTables, seedCrocPolicies, ensureLoopHealthTable, startResilienceAccrual } from "./croc";
+import { ensureTicketingTargets } from "./ticketing";
+import { ensureIamTargets } from "./iam";
+import { ensureSoarTables } from "./soar";
+import { ensureLandingAccessTable } from "./landingaccess";
+import landingRouter from "./routes/landing";
+import stixStoreRouter from "./routes/stixstore";
+import { startStixStoreSync } from "./stixstore";
+import blobRouter from "./routes/blob";
+import { ensureBlobStore } from "./blobstore";
 import netflowRouter from "./routes/netflow";
 import osintGraphRouter from "./routes/osintgraph";
 import policiesRouter from "./routes/policies";
 import configurationRouter from "./routes/configuration";
 import crisisRouter from "./routes/crisis";
 import fairmamRouter from "./routes/fairmam";
+import fairtefRouter from "./routes/fairtef";
+import devsecopsRouter from "./routes/devsecops";
 import riskRegisterRouter from "./routes/riskregister";
 import pqcmmRouter from "./routes/pqcmm";
 import scaRouter from "./routes/sca";
@@ -102,7 +122,7 @@ import {
   seedAdmin,
 } from "./auth";
 import { purgeExpiredSessions } from "./xid";
-import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureComplianceJourneyTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable } from "./db";
+import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureComplianceJourneyTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable } from "./db";
 import { tr } from "./i18n";
 
 const PORT = Number(process.env.PORT) || 9292;
@@ -224,12 +244,22 @@ app.use("/api", aiexchangeRouter); // OWASP AI Exchange agent threat advisor
 app.use("/api", workforceRouter); // NICE + ENISA ECSF workforce roles around PERSON
 app.use("/api", teamopsRouter); // Purple/Red/Blue Team Operations: ATT&CK exercises + capabilities + automations
 app.use("/api", vocRouter); // Vulnerability Operations Center: SLA policy, campaigns, exceptions, remediation KPIs
+app.use("/api", vmtrendsRouter); // VM executive report: risk & SLA posture trends over time + data-driven myth-busting
+app.use("/api", ctemRouter); // CTEM (ctem.org): standardized exposure-identifier taxonomy + 3-stage exposure cockpit
+app.use("/api", ctiExpertRouter); // CTI-Expert: AI-orchestrated OSINT investigation (cti-expert skill → local AI)
+app.use("/api", teamsRouter); // Microsoft Teams: alert/notification distribution (webhook targets + test)
+app.use("/api", crocRouter); // CROC: Continuous Defense Loop cockpit (event bus + pre-auth policies + bidirectional flow)
+app.use("/api", landingRouter); // landing-menu NICE filter + access config for the current user
+app.use("/api", stixStoreRouter); // Lossless STIX retention + FTS search: /stix/object/:id, /stix/search, /stix/ingest
+app.use("/api", blobRouter); // Content-addressed blob store: GET /blob/:sha256, /blob/stats (large files by hash)
 app.use("/api", netflowRouter); // NetFlow around ASSET: discovered assets, services, sessions cartography (obserae)
 app.use("/api", osintGraphRouter); // OSINT Link Analysis: entity-link graph over INTELEXCHANGE
 app.use("/api", policiesRouter); // Policy & Document Management: policy lifecycle + document register worklist
 app.use("/api", configurationRouter); // Configuration Management: OVAL secure-config content library + verification worklist
 app.use("/api", crisisRouter); // Crisis Management: tabletop-exercise readiness + scenario library + improvement worklist
 app.use("/api", fairmamRouter); // FAIR-MAM: materiality assessment (loss-magnitude decomposition + verdict)
+app.use("/api", fairtefRouter); // FAIR-TEF: threat/loss event frequency estimation (Monte Carlo over PERT factors)
+app.use("/api", devsecopsRouter); // DevSecOps operations: pipeline security scans coverage + gates + posture
 app.use("/api", riskRegisterRouter); // Risk Register: inherent→residual posture + treatment worklist (CRQ/FAIR ALE)
 app.use("/api", pqcmmRouter); // PQCMM: post-quantum-crypto maturity assessment (quantum-readiness posture)
 app.use("/api", scaRouter); // SCA / SBOM: software composition analysis, CycloneDX/SPDX import-export + graph
@@ -394,6 +424,21 @@ app.get("/workforce", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/team-ops", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "team-ops.html"));
 });
+app.get("/vm-report", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "vm-report.html"));
+});
+app.get("/ctem", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "ctem.html"));
+});
+app.get("/cti-expert", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "cti-expert.html"));
+});
+app.get("/croc", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "croc.html"));
+});
+app.get("/cyber-risk-hunting", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "cyber-risk-hunting.html"));
+});
 app.get("/voc", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "voc.html"));
 });
@@ -460,6 +505,12 @@ app.get("/compliance-management", pageGuard("/"), (_req: Request, res: Response)
 });
 app.get("/crisis-management", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "crisis-management.html"));
+});
+app.get("/fair-tef", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "fair-tef.html"));
+});
+app.get("/devsecops", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "devsecops.html"));
 });
 app.get("/fair-mam", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "fair-mam.html"));
@@ -570,6 +621,19 @@ ensureAiThreatTables(); // OWASP AI Exchange agentic threat catalogue (XTHREAT)
 ensureWorkforceTables(); // NICE + ENISA ECSF workforce role catalogue around PERSON (XORCISM)
 ensureTeamOpsTables(); // Purple/Red/Blue Team Operations: ATT&CK exercises + capabilities (XTHREAT)
 ensureVocTables(); // Vulnerability Operations Center: SLA policy + campaigns + exceptions (XVULNERABILITY)
+ensureVmTrendsTables(); // VM posture history (VMSNAPSHOT) for the /vm-report executive trends + myth-busting
+ensureCtemTables(); // CTEM (ctem.org): exposure-identifier catalogue (CTEMIDENTIFIER) + tracked exposures (CTEMEXPOSURE)
+ensureCtiExpertTables(); // CTI-Expert: AI-orchestrated OSINT investigations (CTIINVESTIGATION, XTHREAT)
+ensureTeamsTables(); // Microsoft Teams webhook targets (TEAMSWEBHOOK, XORCISM) for alert/notification distribution
+ensureCrocTables(); seedCrocPolicies(null); // CROC Continuous Defense Loop: LOOPEVENT bus + LOOPPOLICY (seed default pre-auth policies)
+ensureTicketingTargets(); // CROC outbound ticketing (Jira/ServiceNow) destination store
+ensureIamTargets(); // CROC outbound IAM enforcement (Entra/Graph) target store
+ensureSoarTables(); // CROC outbound SOAR/n8n automation webhook store
+ensureLoopHealthTable(); // CROC resilience-over-time snapshot store
+ensureLandingAccessTable(); // landing-menu NICE-profile access control store
+ensureStixObjectStore(); // Lossless STIX retention: RawJson cols on OBSERVABLE/IOC/INTELEXCHANGE + STIXOBJECT + FTS5 index
+ensureDevSecOpsTables(); // DevSecOps operations: DEVSECOPSAPP + DEVSECOPSSCAN + DEVSECOPSGATE (pipeline security posture)
+ensureBlobStore(); // Content-addressed blob store (FILEBLOB + DB_DIR/blobstore) for large files by sha256 pointer
 ensureNetflowTables(); // NetFlow around ASSET: ASSETSERVICE + NETWORKSESSION (discovery/monitoring, SOC)
 ensureGrcColumns(); // advanced GRC: CRQ/FAIR (risk register), findings workflow, policy lifecycle
 ensureBugBountyTables(); // Bug Bounty program management (XVULNERABILITY): BUGBOUNTY*
@@ -583,12 +647,15 @@ ensureToolStarTable(); // XORCISM.TOOLSTAR — per-user GitHub-style stars on th
 ensureTenantColumns(); // adds TenantID to the operational tables (best-effort)
 getJobDb(); // creates the job-queue schema (XJOB.db) if needed
 seedData(); // pre-inserts reference data (e.g. VOCABULARY "XORCISM") — idempotent
+seedCtemIdentifiers(); // ctem.org exposure-identifier catalogue (29 ids / 8 categories) — idempotent, additive by CtemId
+startStixStoreSync(); // reconcile STIXOBJECT from OBSERVABLE/IOC/INTELEXCHANGE at boot + every 10 min (catches connector/form writes)
 ensureCveSchedule(); // seeds the hourly NVD CVE import schedule (cron '0 * * * *'); XOR_CVE_IMPORT=0 to disable
 startScheduler(); // fires the connectors' scheduled tasks (XSCHEDULE)
 startCveMatcher(); // hourly CVE→ASSET tech matcher ("New CVEs for ASSET") — catches every import path
 startMonitorChecker(); // live Asset-Monitoring prober (HTTP/TCP/DNS/SSL/ping due monitors); XOR_MONITOR=0 to disable
 startThreatFeedPoller(); // periodically turns CTI RSS feed items into THREATREPORT entries
 startRiskScoreLoop(); // recomputes ASSET.RiskScore every 30 s
+startResilienceAccrual(); // CROC resilience-over-time: accrue a loop-health snapshot now + every 6h
 startChainEngine(); // advances active tool-chaining runs (pentest playbooks)
 warmManifestCache(); // pre-parse the 1200+ connector manifests so the first /connectors load is instant
 purgeExpiredSessions();

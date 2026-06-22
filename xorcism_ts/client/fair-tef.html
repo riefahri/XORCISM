@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — FAIR Threat Event Frequency</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1240px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1000px}
+  .grid2{display:grid;grid-template-columns:minmax(380px,1fr) minmax(360px,1.1fr);gap:16px;align-items:start}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px}
+  .panel h3{font-size:12px;margin:0 0 8px;color:#cbd5e1;text-transform:uppercase;letter-spacing:.4px}
+  label{display:block;font-size:12px;color:#94a3b8;margin:8px 0 3px}
+  input,select{background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:7px;font-size:13px;padding:6px 8px;width:100%;box-sizing:border-box}
+  input:focus,select:focus{outline:none;border-color:#6366f1}
+  .factor{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:7px;align-items:end;margin-bottom:7px}
+  .factor .fl{font-size:12px;color:#cbd5e1}.factor .fl small{display:block;color:#64748b;font-size:10px}
+  .factor input{padding:5px 6px;text-align:right}
+  .hdr{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:7px;font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:3px}
+  .hdr span:not(:first-child){text-align:right}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{background:#6366f1;border:none;color:#fff;border-radius:8px;font-size:13px;font-weight:600;padding:9px 16px;cursor:pointer}.btn:hover{background:#4f46e5}.btn.sec{background:#1e2440;border:1px solid #2d3250}.btn.sec:hover{border-color:#6366f1}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:12px}
+  .card{background:#0f1117;border:1px solid #2d3250;border-radius:9px;padding:10px 12px}
+  .card .lbl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}.card .val{font-size:21px;font-weight:700;margin-top:2px}.card .foot{font-size:10px;color:#64748b;margin-top:2px}
+  .muted{color:#64748b}.sec2{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  table.t{width:100%;border-collapse:collapse;font-size:12.5px}table.t th,table.t td{text-align:left;padding:6px 9px;border-bottom:1px solid #1e2133}table.t th{font-size:10px;color:#94a3b8;text-transform:uppercase}table.t td.r,table.t th.r{text-align:right;font-variant-numeric:tabular-nums}
+  .tree{font-size:12px;color:#94a3b8;line-height:1.7;background:#0f1117;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-family:ui-monospace,monospace}
+  .tree b{color:#e2e8f0}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/fair-mam">&#128202; FAIR-MAM</a><a href="/risk-register">&#128196; Risk register</a><a href="/ransomware">&#128274; Ransomware $</a><span class="spacer"></span><span class="title">&#127922; FAIR — Threat Event Frequency</span></div>
+<div class="mw">
+  <h1>FAIR — Threat &amp; Loss Event Frequency estimation</h1>
+  <div class="sub">The <b>frequency side</b> of the FAIR ontology (complementing <a href="/fair-mam" style="color:#a5b4fc">FAIR-MAM</a>'s
+    loss magnitude). Estimate each factor as a <b>PERT</b> range (min / most-likely / max) and run a <b>Monte&nbsp;Carlo</b>
+    simulation: <span class="tree" style="display:inline;padding:1px 6px">LEF = TEF × Vulnerability</span>,
+    TEF = Contact Frequency × Probability of Action, Vulnerability = P(Threat Capability &gt; Resistance Strength).
+    Add a loss magnitude → <b>Annualized Loss Expectancy (ALE)</b> + a loss-exceedance curve. Save to write LEF/ALE
+    back onto a risk-register entry.</div>
+  <div class="grid2">
+    <div class="panel">
+      <h3>Scenario &amp; factors</h3>
+      <div class="row2">
+        <div><label>Name</label><input id="name" placeholder="e.g. Ransomware via phishing"></div>
+        <div><label>Threat community</label><input id="tc" placeholder="e.g. Cybercriminal"></div>
+      </div>
+      <div style="margin-top:10px"></div>
+      <div class="hdr"><span>Factor</span><span>Min</span><span>Likely</span><span>Max</span></div>
+      <div class="factor"><span class="fl">Contact Frequency<small>contacts / year</small></span><input id="cf0" type="number" step="any" value="1"><input id="cf1" type="number" step="any" value="12"><input id="cf2" type="number" step="any" value="52"></div>
+      <div class="factor"><span class="fl">Probability of Action<small>0 – 1</small></span><input id="poa0" type="number" step="any" value="0.05"><input id="poa1" type="number" step="any" value="0.2"><input id="poa2" type="number" step="any" value="0.5"></div>
+      <div class="factor"><span class="fl">Threat Capability<small>0 – 100</small></span><input id="tcap0" type="number" step="any" value="20"><input id="tcap1" type="number" step="any" value="50"><input id="tcap2" type="number" step="any" value="80"></div>
+      <div class="factor"><span class="fl">Resistance Strength<small>0 – 100 (controls)</small></span><input id="rs0" type="number" step="any" value="30"><input id="rs1" type="number" step="any" value="65"><input id="rs2" type="number" step="any" value="90"></div>
+      <div class="row2" style="margin-top:10px">
+        <div><label>Loss magnitude (single-loss)</label><input id="lm" type="number" step="any" value="50000"></div>
+        <div><label>…or from a FAIR-MAM assessment</label><select id="fairmam"><option value="">— none —</option></select></div>
+      </div>
+      <div class="row2" style="margin-top:6px">
+        <div><label>Currency</label><input id="ccy" value="EUR"></div>
+        <div><label>Iterations</label><input id="iter" type="number" value="10000"></div>
+      </div>
+      <label>Write back to risk-register entry (optional)</label><select id="risk"><option value="">— none —</option></select>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn" id="btn-estimate">&#127922; Estimate</button>
+        <button class="btn sec" id="btn-save">&#128190; Save &amp; write back</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Result</h3>
+      <div id="result"><div class="muted" style="padding:24px;text-align:center">Set the factors and press <b>Estimate</b>.</div></div>
+    </div>
+  </div>
+  <div class="sec2">Saved estimates</div>
+  <div id="inventory"><div class="muted">Loading…</div></div>
+</div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/fair-tef.js"></script></body></html>

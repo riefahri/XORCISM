@@ -1,0 +1,12 @@
+{
+  "datastores": [
+    { "id": "ds-1", "name": "prod-customers-rds", "engine": "PostgreSQL", "cloudProvider": "AWS", "sensitivity": "critical", "classifications": [{ "name": "PII" }, { "name": "PCI" }] },
+    { "id": "ds-2", "name": "analytics-s3-export", "engine": "S3", "cloudProvider": "AWS", "sensitivity": "high", "classifications": [{ "name": "PII" }] },
+    { "id": "ds-3", "name": "marketing-snowflake", "engine": "Snowflake", "cloudProvider": "GCP", "sensitivity": "low", "classifications": [] }
+  ],
+  "issues": [
+    { "id": "iss-101", "name": "Publicly accessible data store with PII", "category": "Exposure", "severity": "critical", "datastore": { "id": "ds-2", "name": "analytics-s3-export" } },
+    { "id": "iss-102", "name": "Sensitive data without encryption at rest", "category": "Encryption", "severity": "high", "datastore": { "id": "ds-1", "name": "prod-customers-rds" } },
+    { "id": "iss-103", "name": "Over-permissive access to PCI data", "category": "Access", "severity": "high", "datastore": { "id": "ds-1", "name": "prod-customers-rds" } }
+  ]
+}

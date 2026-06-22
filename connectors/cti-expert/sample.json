@@ -1,0 +1,17 @@
+{
+  "target": "acme-corp.example",
+  "kind": "domain",
+  "exposureScore": 72,
+  "severity": "HIGH",
+  "brief": "Domain acme-corp.example exposes 14 subdomains incl. a stale dev portal; 2 emails appear in breach corpora; GitHub org leaks a CI token pattern.",
+  "observables": [
+    { "type": "domain-name", "value": "dev-legacy.acme-corp.example" },
+    { "type": "ipv4-addr", "value": "203.0.113.77" },
+    { "type": "email-addr", "value": "ci-bot@acme-corp.example" }
+  ],
+  "findings": [
+    { "technique": "Subdomain enumeration", "phase": "Acquire", "finding": "14 subdomains via cert transparency; dev-legacy is internet-exposed and unpatched.", "reliability": "B", "severity": "HIGH" },
+    { "technique": "Breach & paste-site search", "phase": "Acquire", "finding": "2 corporate emails found in 2 breach corpora (passwords not validated).", "reliability": "C", "severity": "NOTABLE" },
+    { "technique": "GitHub developer footprint", "phase": "Acquire", "finding": "Public repo contains a high-entropy string matching a CI token format (CVE-2024-12345 referenced in an issue).", "reliability": "C", "severity": "HIGH" }
+  ]
+}

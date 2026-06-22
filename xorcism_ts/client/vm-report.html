@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — VM Executive Report</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1040px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .trend{font-size:11px;font-weight:700;margin-top:3px}.tr-up{color:#4ade80}.tr-dn{color:#f87171}.tr-flat{color:#64748b}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}.sec .spacer{flex:1}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px}
+  .panel h3{font-size:12px;margin:0 0 2px;color:#cbd5e1;text-transform:uppercase;letter-spacing:.4px}.panel .ph{font-size:11px;color:#64748b;margin-bottom:6px}
+  .muted{color:#64748b}
+  .exec{background:#13162a;border:1px solid #2d3250;border-left:3px solid #f97316;border-radius:10px;padding:14px 16px;font-size:13.5px;line-height:1.65;color:#cbd5e1}
+  .exec b{color:#fde68a}
+  .myth{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+  .myth .m-head{display:flex;align-items:flex-start;gap:10px}
+  .myth .x{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:#7f1d1d;color:#fecaca;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+  .myth .m-myth{font-size:14px;font-weight:700;color:#fca5a5;text-decoration:line-through;text-decoration-color:#7f1d1d}
+  .myth .m-real{font-size:13px;color:#bbf7d0;display:flex;gap:8px}.myth .m-real .ok{color:#4ade80;font-weight:800}
+  .myth .m-stat{font-size:12.5px;color:#cbd5e1;line-height:1.55;background:#0f1117;border-radius:8px;padding:9px 11px}
+  .myth .m-foot{display:flex;align-items:center;gap:10px;font-size:11px}
+  .myth .metric{font-weight:700;color:#fbbf24;background:#1e2440;border-radius:6px;padding:2px 8px}
+  .myth .ref{color:#64748b}.myth .ref a{color:#64748b}
+  .mythgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:4px 11px;cursor:pointer}.btn-sm2:hover{border-color:#fb923c}
+  svg.lc text{font-family:inherit}
+  @media print{.topbar,.no-print{display:none!important}body{background:#fff}.card,.panel,.exec,.myth{break-inside:avoid}}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/voc">&#129657; VOC</a><a href="/vulnerability-management">&#128737;&#65039; Vulns</a><a href="/exposure">&#127919; Exposure</a><span class="spacer"></span><span class="title">&#128202; VM Executive Report</span></div>
+<div class="mw">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex:1">
+      <h1>Vulnerability Management — Executive Report</h1>
+      <div class="sub">A board-ready view of the vulnerability program: <b>risk &amp; SLA posture over time</b> (is risk actually going down?)
+        and a <b>myths-vs-reality</b> briefing where the program's <b>own live numbers</b> debunk the misconceptions that keep VM
+        ineffective — <i>“patch everything”</i>, <i>“CVSS = priority”</i>, <i>“100% patched = secure”</i>, and more.</div>
+    </div>
+    <div class="no-print" style="display:flex;gap:8px;padding-top:4px">
+      <button class="btn-sm2" id="btn-snap" title="Recompute today's posture snapshot">&#8635; Snapshot</button>
+      <button class="btn-sm2" id="btn-print">&#128424;&#65039; Print / PDF</button>
+    </div>
+  </div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading executive report…</div></div>
+</div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/vm-report.js"></script></body></html>

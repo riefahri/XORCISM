@@ -280,6 +280,35 @@ function vulnerableCpeIds(): Set<number> {
 // ─────────────────────────────── inventory ───────────────────────────────
 
 /** Full SCA inventory: SBOM documents, components, license/type/supplier breakdowns + worklist. */
+export interface ScaAssetSeverity { critical: number; high: number; medium: number; low: number; components: number; sboms: number }
+/** Per-asset SCA severity counts derived from the SBOM components (vulnerable→High, unpinned→Medium,
+ *  no-license→Low) — the live SCA scan class for DevSecOps, straight from /sca's SBOM data. */
+export function scaSeverityByAsset(tenant: number | null): Map<number, ScaAssetSeverity> {
+  const out = new Map<number, ScaAssetSeverity>();
+  let xo; try { xo = getDb("XORCISM"); } catch { return out; }
+  if (!has(xo, "SBOM") || !has(xo, "COMPONENT")) return out;
+  const compCols = colset(xo, "COMPONENT");
+  if (!compCols.has("Name")) return out;
+  const sbomTw = tenant != null && colset(xo, "SBOM").has("TenantID") ? `WHERE TenantID = ${tenant}` : "";
+  const sbomAsset = new Map<number, number | null>();
+  for (const s of xo.prepare(`SELECT SbomID id, AssetID assetId FROM SBOM ${sbomTw}`).all() as any[]) sbomAsset.set(Number(s.id), s.assetId != null ? Number(s.assetId) : null);
+  const compTw = tenant != null && compCols.has("TenantID") ? `WHERE TenantID = ${tenant}` : "";
+  const vulnSet = vulnerableCpeIds();
+  const sbomsByAsset = new Map<number, Set<number>>();
+  for (const c of xo.prepare(`SELECT SbomID sbomId, AssetID assetId, CPEID cpeId, Version version, License license FROM COMPONENT ${compTw}`).all() as any[]) {
+    const aid = (c.sbomId != null ? sbomAsset.get(Number(c.sbomId)) ?? null : null) ?? (c.assetId != null ? Number(c.assetId) : null);
+    if (aid == null) continue;
+    let e = out.get(aid); if (!e) { e = { critical: 0, high: 0, medium: 0, low: 0, components: 0, sboms: 0 }; out.set(aid, e); }
+    e.components++;
+    if (c.sbomId != null) { let set = sbomsByAsset.get(aid); if (!set) { set = new Set(); sbomsByAsset.set(aid, set); } set.add(Number(c.sbomId)); }
+    if (c.cpeId != null && vulnSet.has(Number(c.cpeId))) e.high++;
+    else if (c.version == null || c.version === "") e.medium++;
+    else if (c.license == null || c.license === "") e.low++;
+  }
+  for (const [aid, set] of sbomsByAsset) { const e = out.get(aid); if (e) e.sboms = set.size; }
+  return out;
+}
+
 export function scaInventory(tenant: number | null): ScaInventory {
   const empty: ScaInventory = {
     sboms: [], components: [], findings: [], byType: [], byLicense: [], bySupplier: [],

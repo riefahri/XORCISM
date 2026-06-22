@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — DevSecOps Operations</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1040px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}.sec .spacer{flex:1}
+  table.t{width:100%;border-collapse:collapse;font-size:13px}table.t th,table.t td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:middle}table.t th{font-size:11px;color:#94a3b8;text-transform:uppercase}table.t td.c,table.t th.c{text-align:center}
+  .nm{font-weight:600;color:#e2e8f0}.muted{color:#64748b}.mono{font-family:ui-monospace,monospace;font-size:11px;color:#a5b4fc}
+  .cell{display:inline-block;width:26px;height:20px;border-radius:5px;font-size:9px;font-weight:700;line-height:20px;text-align:center;color:#fff}
+  .c-pass{background:#14532d;color:#bbf7d0}.c-fail{background:#7f1d1d;color:#fecaca}.c-ran{background:#1e3a5f;color:#bfdbfe}.c-none{background:#1e2133;color:#475569}
+  .crit{color:#f87171;font-weight:700}.high{color:#fbbf24;font-weight:700}
+  .gs{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px}.gs-pass{background:#14532d;color:#bbf7d0}.gs-fail{background:#7f1d1d;color:#fecaca}.gs-none{background:#1e2133;color:#94a3b8}
+  .crat{font-size:10px;font-weight:700;border-radius:5px;padding:1px 6px}.cr-Critical{background:#7f1d1d;color:#fecaca}.cr-High{background:#78350f;color:#fcd34d}.cr-Medium{background:#1e3a5f;color:#bfdbfe}.cr-Low{background:#1e2133;color:#94a3b8}
+  .bar{height:7px;border-radius:5px;background:#1e2133;overflow:hidden;width:54px;display:inline-block;vertical-align:middle}.bar>i{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#4ade80)}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .gaterow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e2133;font-size:12px}.gaterow:last-child{border-bottom:none}.gaterow .gt{min-width:90px;color:#cbd5e1;font-weight:600}
+  select.dn,input.dn{background:#0f1117;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:2px 6px}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:4px 11px;cursor:pointer}.btn-sm2:hover{border-color:#38bdf8}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}.modal.show{display:flex}
+  .mbox{background:#13162a;border:1px solid #2d3250;border-radius:12px;padding:18px;width:440px;max-width:94vw}
+  .mbox h3{margin:0 0 12px;font-size:15px}.mbox label{display:block;font-size:12px;color:#94a3b8;margin:8px 0 3px}.mbox input,.mbox select{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:7px;font-size:13px;padding:6px 8px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}.btn{background:#38bdf8;border:none;color:#06283d;border-radius:8px;font-size:13px;font-weight:700;padding:9px 16px;cursor:pointer}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/sca">&#128230; SCA/SBOM</a><a href="/vulnerability-management">&#128737;&#65039; Vulns</a><a href="/pentest">&#9876;&#65039; Pentest</a><span class="spacer"></span><span class="title">&#128640; DevSecOps Operations</span></div>
+<div class="mw">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex:1">
+      <h1>DevSecOps Operations</h1>
+      <div class="sub">Run security in the <b>SDLC / CI-CD pipeline</b> as an operations function: an inventory of applications,
+        the <b>pipeline security scans</b> across the standard classes (<b>SAST · DAST · SCA · Secrets · IaC · Container</b>) with a
+        scan tool (semgrep, gitleaks, trivy, burpwn…) and finding counts, the <b>security-gate</b> policy, and the derived
+        <b>posture</b> — scan-type coverage, gate-pass rate, open critical/high — with a risk-ranked worklist.</div>
+    </div>
+    <div style="display:flex;gap:8px;padding-top:4px">
+      <button class="btn-sm2" id="btn-newapp">&#43; Application</button>
+      <button class="btn-sm2" id="btn-scan">&#128269; Record scan</button>
+    </div>
+  </div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading DevSecOps…</div></div>
+</div>
+<div class="modal" id="modal"><div class="mbox" id="mbox"></div></div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/devsecops.js"></script></body></html>

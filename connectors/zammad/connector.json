@@ -1,0 +1,16 @@
+{
+  "id": "zammad",
+  "name": "Zammad — tickets import",
+  "type": "import",
+  "category": "Ticketing",
+  "description": "Imports tickets from Zammad (the popular open-source help-desk / ticketing system) via the REST API into XORCISM as security alerts (XINCIDENT.ALERT). Each Zammad ticket becomes an ALERT (idempotent by its number); priority maps to severity, state to status, owner is carried over. Config (worker environment variables): ZAMMAD_URL (e.g. https://support.acme.io), ZAMMAD_TOKEN (HTTP token access). Offline: pass `file` = a /api/v1/tickets export JSON, or run with no config for the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:zammad",
+  "run": "run.py",
+  "mapping": "zammad",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 200, "min": 1, "max": 1000, "help": "Maximum number of tickets to import" },
+    { "name": "group", "type": "string", "default": "", "help": "Optional Zammad group name to filter on (e.g. 'Security')" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved /api/v1/tickets export JSON to parse instead of the live API" }
+  ]
+}

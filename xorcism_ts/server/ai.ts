@@ -367,3 +367,103 @@ export async function exposureBrief(tenant: number | null): Promise<{ brief: str
   }
   return { brief: det, model: status.reachable ? "fallback" : "offline", offline: true };
 }
+
+// ── CTI-Expert: AI-orchestrated OSINT investigation (port of the cti-expert skill to local AI) ──
+export interface CtiFinding { technique: string; phase: string; finding: string; reliability: string; severity: string }
+export interface CtiObservable { type: string; value: string }
+export interface CtiInvestigationResult {
+  summary: string; brief: string; exposureScore: number; severity: string;
+  findings: CtiFinding[]; observables: CtiObservable[]; recommendations: string[];
+  attackTags: string[]; model: string; offline: boolean;
+}
+
+/** Best-effort extraction of the first JSON object from an LLM reply (tolerates ```json fences / prose). */
+function _extractJson(s: string): any | null {
+  if (!s) return null;
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = fence ? fence[1] : s;
+  const i = body.indexOf("{"); const j = body.lastIndexOf("}");
+  if (i < 0 || j <= i) return null;
+  try { return JSON.parse(body.slice(i, j + 1)); } catch { return null; }
+}
+
+const _SEV_RANK: Record<string, number> = { MINOR: 1, NOTABLE: 2, HIGH: 3, CRITICAL: 4 };
+function _severityFromScore(n: number): string {
+  return n >= 80 ? "CRITICAL" : n >= 55 ? "HIGH" : n >= 30 ? "NOTABLE" : "MINOR";
+}
+
+/**
+ * Run an OSINT/CTI investigation against `target` (of type `kind`: domain/email/username/ip/
+ * person/org/phone/crypto), using the local LLM as the analyst (cti-expert methodology:
+ * Acquire→Enrich→Assess→Deliver, A–F source reliability, 0–100 exposure score, STIX observables).
+ * `plan` is the deterministic technique plan (which XORCISM connectors apply to this target type);
+ * `context` is any XORCISM-side enrichment (what we already know about the target). Degrades to a
+ * deterministic methodology scaffold when Ollama is unreachable so the feature always returns. */
+export async function ctiInvestigate(
+  target: string, kind: string, plan: { id: string; name: string; phase: string; connector?: string }[], context: string
+): Promise<CtiInvestigationResult> {
+  const targetObs: CtiObservable = { type: kind, value: target };
+  // exposure heuristic: surface size by target type × breadth of applicable techniques
+  const base: Record<string, number> = { domain: 45, email: 50, username: 40, ip: 42, person: 55, org: 48, phone: 38, crypto: 35 };
+  const detScore = Math.max(10, Math.min(95, (base[kind] ?? 40) + Math.min(20, plan.length)));
+  const detFindings: CtiFinding[] = plan.map((t) => ({
+    technique: t.name, phase: t.phase,
+    finding: `Planned ${t.phase.toLowerCase()} technique — run ${t.connector ? `the \`${t.connector}\` connector` : "the matching XORCISM connector"} to collect.`,
+    reliability: "F", severity: "NOTABLE",
+  }));
+  const det: CtiInvestigationResult = {
+    summary: `## INTSUM — ${kind} \`${target}\`\n\n_Local AI unavailable — investigation **plan** only (run the listed connectors, then re-run for analysis)._\n\n`
+      + `**Planned techniques (${plan.length})** across Acquire→Enrich→Assess→Deliver:\n`
+      + plan.map((t) => `- **${t.phase}** · ${t.name}${t.connector ? ` → \`${t.connector}\`` : ""}`).join("\n"),
+    brief: `OSINT investigation of ${kind} "${target}" scoped to ${plan.length} techniques. Heuristic exposure ${detScore}/100 (${_severityFromScore(detScore)}). Run the planned connectors to collect, then re-run with the local AI for graded findings.`,
+    exposureScore: detScore, severity: _severityFromScore(detScore),
+    findings: detFindings, observables: [targetObs], recommendations: [
+      "Run the planned XORCISM OSINT connectors (sherlock/maigret/holehe/theHarvester/subfinder…) to collect.",
+      "Corroborate each finding with a second source before grading reliability above C.",
+      "Export confirmed IOCs as STIX 2.1 observables and link them to the affected assets.",
+    ], attackTags: [], model: "deterministic (Ollama unreachable)", offline: true,
+  };
+
+  const status = await ollamaStatus();
+  if (!status.reachable) return det;
+
+  const sys =
+    "You are CTI-Expert, a senior cyber-threat-intelligence & OSINT analyst. Investigate the given target using the supplied technique plan "
+    + "(phases: Acquire, Enrich, Assess, Deliver). Grade each finding's source reliability A-F (A=confirmed by multiple independent sources, "
+    + "F=uncorroborated) and severity CRITICAL/HIGH/NOTABLE/MINOR. Produce an exposure-risk score 0-100. Be realistic about what OSINT typically "
+    + "reveals for this target type; do NOT invent specific private data. Output ONLY a JSON object with keys: "
+    + "exposureScore (int), severity (CRITICAL|HIGH|NOTABLE|MINOR), summary (Markdown INTSUM), brief (<=120 words exec summary), "
+    + "findings (array of {technique, phase, finding, reliability, severity}), observables (array of {type, value} - STIX-style IOCs, "
+    + "include the target), recommendations (array of strings), attackTags (array of MITRE ATT&CK technique IDs like T1589).";
+  const user = `Target: ${target}\nType: ${kind}\n\nPlanned techniques:\n`
+    + plan.map((t) => `- [${t.phase}] ${t.name}${t.connector ? ` (connector: ${t.connector})` : ""}`).join("\n")
+    + (context ? `\n\nWhat XORCISM already knows about this target:\n${context.slice(0, 6000)}` : "");
+  try {
+    const raw = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: user }], 0.3, 120000);
+    const j = _extractJson(raw);
+    if (j && (j.summary || Array.isArray(j.findings))) {
+      let score = Number(j.exposureScore); if (!Number.isFinite(score)) score = detScore;
+      score = Math.max(0, Math.min(100, Math.round(score)));
+      const sev = _SEV_RANK[String(j.severity || "").toUpperCase()] ? String(j.severity).toUpperCase() : _severityFromScore(score);
+      const findings: CtiFinding[] = Array.isArray(j.findings) ? j.findings.slice(0, 60).map((f: any) => ({
+        technique: String(f.technique || "").slice(0, 120), phase: String(f.phase || "Assess").slice(0, 20),
+        finding: String(f.finding || "").slice(0, 1000),
+        reliability: /^[A-F]$/i.test(String(f.reliability || "")) ? String(f.reliability).toUpperCase() : "C",
+        severity: _SEV_RANK[String(f.severity || "").toUpperCase()] ? String(f.severity).toUpperCase() : "NOTABLE",
+      })) : detFindings;
+      const obsRaw: CtiObservable[] = Array.isArray(j.observables) ? j.observables.map((o: any) => ({
+        type: String(o.type || "unknown").slice(0, 40), value: String(o.value || "").slice(0, 400),
+      })).filter((o: CtiObservable) => o.value) : [];
+      const observables = [targetObs, ...obsRaw].filter((o, i, a) => a.findIndex((x) => x.value === o.value) === i).slice(0, 80);
+      const recs: string[] = Array.isArray(j.recommendations) ? j.recommendations.map((x: any) => String(x).slice(0, 400)).filter(Boolean).slice(0, 20) : det.recommendations;
+      const tags: string[] = Array.isArray(j.attackTags) ? j.attackTags.map((x: any) => String(x).trim()).filter((x: string) => /^TA?\d{3,4}/i.test(x)).slice(0, 30) : [];
+      return {
+        summary: String(j.summary || det.summary).slice(0, 20000),
+        brief: String(j.brief || det.brief).slice(0, 4000),
+        exposureScore: score, severity: sev, findings, observables, recommendations: recs,
+        attackTags: tags, model: OLLAMA_MODEL, offline: false,
+      };
+    }
+  } catch { /* slow/failed model → deterministic */ }
+  return { ...det, model: "fallback (AI returned no JSON)" };
+}

@@ -27,6 +27,7 @@
  */
 import { getDb, resolveUserOrganisationId } from "./db";
 import { levelInfo } from "./riskregister";
+import { captureVmSnapshot } from "./vmtrends";
 import * as xid from "./xid";
 
 const nowTs = (): string => new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -256,6 +257,24 @@ export class AssetRiskScoreCalculator {
     tx();
     return n;
   }
+
+  /** Recomputes one tenant's ASSETs (the per-tenant path used by the CROC reactive recompute). */
+  recomputeTenant(tenantId: number): number {
+    const xo = getDb("XORCISM");
+    let ids: number[] = [];
+    try {
+      const hasTenant = (xo.prepare('PRAGMA table_info("ASSET")').all() as { name: string }[]).some((c) => c.name === "TenantID");
+      ids = (hasTenant
+        ? xo.prepare('SELECT AssetID FROM "ASSET" WHERE "TenantID" = ? OR "TenantID" IS NULL').all(tenantId)
+        : xo.prepare('SELECT AssetID FROM "ASSET"').all()) as any;
+      ids = (ids as unknown as { AssetID: number }[]).map((r) => r.AssetID);
+    } catch { return 0; }
+    const d = today();
+    let n = 0;
+    const tx = xo.transaction(() => { for (const id of ids) { this.computeAndRecord(id, d); n++; } });
+    tx();
+    return n;
+  }
 }
 
 export const riskScoreCalculator = new AssetRiskScoreCalculator();
@@ -454,6 +473,14 @@ function recordAllOrganisationRiskScores(): void {
   }
 }
 
+/** Best-effort daily VM posture snapshot (VMSNAPSHOT) for every tenant — feeds /vm-report trends so
+ *  the risk-reduction history accrues even when nobody opens the report (upsert per (tenant, day)). */
+function recordAllVmSnapshots(): void {
+  for (const t of xid.listTenants()) {
+    try { captureVmSnapshot(t.TenantID); } catch (e) { console.warn(`[riskscore] vm snapshot tenant ${t.TenantID}: ${(e as Error).message}`); }
+  }
+}
+
 /**
  * Computes a tenant's EnterpriseRiskScore and records its history in RISKSCORE
  * (at the first evaluation then on every value change). Returns the score.
@@ -486,11 +513,32 @@ function recomputeAllEnterprise(): void {
   }
 }
 
+/**
+ * Full per-tenant recompute on demand — everything the polling crons did, scoped to one tenant.
+ * This is the CROC reactive-recompute entry point: a material loop event recomputes that tenant's
+ * ASSET scores + EnterpriseRiskScore + org history + VM posture snapshot within seconds, so the
+ * crons become a sparse safety net rather than the primary driver. Best-effort; never throws.
+ */
+export function recomputeTenant(tenantId: number): void {
+  try { riskScoreCalculator.recomputeTenant(tenantId); } catch { /* */ }
+  try { recordEnterpriseRiskScore(tenantId); } catch { /* */ }
+  try { const org = resolveUserOrganisationId({ UserID: 0, TenantID: tenantId }); if (org != null) recordOrganisationRiskScore(org, tenantId); } catch { /* */ }
+  try { captureVmSnapshot(tenantId); } catch { /* */ }
+}
+
 let timer: NodeJS.Timeout | null = null;
 
-/** Starts the recompute loop (every 30 s). Idempotent. */
+/**
+ * Starts the risk-score recompute loop. With XOR_RISKSCORE_EVENT_DRIVEN=1 (the default) the loop is
+ * event-driven primary: the CROC reactive recompute carries the load and these timers run sparsely as
+ * a backstop for changes that do not emit loop events (manual edits, bulk imports). Set the flag to 0
+ * (or tune XOR_RISKSCORE_INTERVAL_MS / XOR_RISKSCORE_ORG_INTERVAL_MS) to restore frequent polling.
+ */
 export function startRiskScoreLoop(): void {
   if (timer) return;
+  const eventDriven = String(process.env.XOR_RISKSCORE_EVENT_DRIVEN ?? "1") !== "0";
+  const assetMs = Number(process.env.XOR_RISKSCORE_INTERVAL_MS) || (eventDriven ? 1_800_000 : 30_000);      // 30 min vs 30 s
+  const orgMs = Number(process.env.XOR_RISKSCORE_ORG_INTERVAL_MS) || (eventDriven ? 21_600_000 : 3_600_000); // 6 h vs 1 h
   const tick = () => {
     try {
       riskScoreCalculator.recomputeAll(); // ASSETs first (fresh scores)
@@ -500,16 +548,22 @@ export function startRiskScoreLoop(): void {
     }
   };
   tick(); // first computation at startup
-  timer = setInterval(tick, 30_000);
+
+  timer = setInterval(tick, assetMs);
   if (typeof timer.unref === "function") timer.unref();
 
-  // EnterpriseRiskScore history → ORGANISATIONRISKSCORE: once at startup, then hourly.
-  const orgTick = () => { try { recordAllOrganisationRiskScores(); } catch (e) { console.warn(`[riskscore] org history: ${(e as Error).message}`); } };
+  // EnterpriseRiskScore history → ORGANISATIONRISKSCORE + VM posture history → VMSNAPSHOT.
+  const orgTick = () => {
+    try { recordAllOrganisationRiskScores(); } catch (e) { console.warn(`[riskscore] org history: ${(e as Error).message}`); }
+    try { recordAllVmSnapshots(); } catch (e) { console.warn(`[riskscore] vm history: ${(e as Error).message}`); }
+  };
   orgTick();
-  const orgTimer = setInterval(orgTick, 3_600_000); // hourly
+  const orgTimer = setInterval(orgTick, orgMs);
   if (typeof orgTimer.unref === "function") orgTimer.unref();
 
   console.log(
-    "[riskscore] boucle démarrée (ASSET.RiskScore + EnterpriseRiskScore toutes les 30 s ; ORGANISATIONRISKSCORE toutes les heures)"
+    eventDriven
+      ? `[riskscore] event-driven mode: CROC reactive recompute is primary; safety-net polling assets/${Math.round(assetMs / 60000)}min, org+VM/${Math.round(orgMs / 3600000)}h`
+      : `[riskscore] polling mode: ASSET+EnterpriseRiskScore/${Math.round(assetMs / 1000)}s, ORGANISATIONRISKSCORE+VM/${Math.round(orgMs / 60000)}min`
   );
 }

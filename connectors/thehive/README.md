@@ -2,24 +2,34 @@
 
 `thehive` · **import** connector · category **DFIR**
 
-Scalable, collaborative security incident-response platform. Tool: https://thehive-project.org. [SCAFFOLD generated from XORCISM.TOOL #149 by tool_to_connector.py — implement run() in run.py to map TheHive output to the XORCISM findings model {assets, services, cpes, vulns}.]
+Imports **alerts** (and optionally **cases**) from [TheHive](https://thehive.dev), the open-source SOAR / case-management platform, into XORCISM as **security alerts** — rows in `XINCIDENT.ALERT`, the Defender-XDR-aligned alert layer that feeds incidents. Each TheHive alert/case becomes one `ALERT` (idempotent by its TheHive id), and any impacted host observable is linked to its `ASSET`.
 
-**Upstream:** https://thehive-project.org
+**Upstream:** https://thehive.dev
+
+## Configuration (worker environment variables)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `THEHIVE_URL` | live | Base URL, e.g. `https://thehive.lab` |
+| `THEHIVE_API_KEY` | live | API key (sent as `Authorization: Bearer …`) |
 
 ## Parameters
 
-| Name | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| `target` | string | no | — | Host, URL or path the tool acts on. When implementing, consider type 'target' or 'url' so the runner enforces the engagement scope. |
-| `file` | file | no | — | Offline mode: a saved TheHive output file to parse instead of running it live. |
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `limit` | int | 200 | Maximum number of alerts to import |
+| `kind` | string | `alert` | `alert` or `case` |
+| `file` | file | — | Offline: a saved TheHive export JSON to parse instead of the live API |
+
+## Modes
+
+1. **Live** — `THEHIVE_URL` + `THEHIVE_API_KEY` set → queries the TheHive 5 query API (`POST /api/v1/query`, `listAlert`/`listCase`).
+2. **Offline** — pass `file` = a TheHive alert-export JSON (a list, or `{ "data": [...] }`).
+3. **Demo** — neither set → imports the bundled [`sample.json`](sample.json) so the connector is immediately demoable.
 
 ## How it works
 
-This is an **import** connector. `run.py` exposes `run(params, workdir)` and returns the normalized result `{assets, services, cpes, vulns}` (some connectors also return `hosts` or `intel`). The XORCISM runner imports it — discovered hosts/IPs become **assets**, and findings become **vulnerabilities**. The connector performs **no database access** itself, so it is safe to run on a remote worker.
-
-## Running it
-
-- **From XORCISM** — open **Connectors**, choose *TheHive*, fill in the parameters and run it (admin only; this creates a job consumed by the Python worker `connectors/runner.py`). Required permission: `connector:thehive`.
+`run.py` exposes `run(params, workdir)` and returns `{ "source": "TheHive", "alerts": [...] }`. The XORCISM runner routes the `alerts` list through `runner.import_incidents` into `XINCIDENT.ALERT` (idempotent by `(DetectionSource, ExternalID)`). The connector performs **no database access** itself, so it is safe to run on a remote worker. Required permission: `connector:thehive`.
 
 ---
-<sub>Generated from [`connector.json`](connector.json) by `connectors/gen_readmes.py`. Edit the manifest (not this file), then regenerate.</sub>
+<sub>Hand-written. Severity maps TheHive 1–4 → low/medium/high/critical.</sub>

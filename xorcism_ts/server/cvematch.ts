@@ -15,6 +15,7 @@
  * MAX(VulnerabilityID) (no 200k-row backfill / notification flood).
  */
 import { getDb, notifyUsers } from "./db";
+import { emitLoopEvent } from "./croc";
 import * as xid from "./xid";
 
 const STOP = new Set([
@@ -194,6 +195,17 @@ export function matchCves(opts: { tenant?: number | null; sinceVulnId?: number; 
     }
   }
   if (usingWatermark) setWatermark(maxId, newLinks);
+  // Heartbeat: a live exposure change flows onto the Continuous Defense Loop (CROC→SOC). One
+  // aggregate event per run (never floods); best-effort.
+  if (newLinks > 0) {
+    try {
+      emitLoopEvent({
+        type: "exposure.new_cve", source: "cve-match",
+        summary: `${newLinks} new CVE link${newLinks > 1 ? "s" : ""} across ${perAsset.size} asset${perAsset.size > 1 ? "s" : ""}`,
+        severity: newLinks >= 25 ? "high" : "medium", direction: "croc->soc", tenant,
+      });
+    } catch { /* never break matching */ }
+  }
   return { cvesScanned: rows.length, newLinks, assetsAffected: perAsset.size, assetsNotified, maxVulnId: maxId, mode };
 }
 

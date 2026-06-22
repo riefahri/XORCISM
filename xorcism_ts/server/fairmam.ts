@@ -38,7 +38,7 @@ export interface FairMamInventory {
 }
 
 /** Open risk-register entries (id/ref/title) an assessment can be linked to + write back to. */
-function linkableRisks(tenant: number | null): { id: number; ref: string; title: string }[] {
+export function linkableRisks(tenant: number | null): { id: number; ref: string; title: string }[] {
   let cc; try { cc = getDb("XCOMPLIANCE"); } catch { return []; }
   if (!has(cc, "RISKREGISTERENTRY")) return [];
   try {

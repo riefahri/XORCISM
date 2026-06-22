@@ -1,0 +1,21 @@
+{
+  "id": "chatops",
+  "name": "Slack / Mattermost — outbound notifications",
+  "type": "import",
+  "category": "ChatOps",
+  "description": "Outbound (action) connector: posts a XORCISM alert / incident / message to a Slack or Mattermost channel via an incoming webhook (both share the same payload format). Use it to push SOC alerts, exposure findings or chain results to your team channel — the SOAR/ChatOps complement to the inbound SOC-tool connectors. Config (worker environment variables): SLACK_WEBHOOK_URL or MATTERMOST_WEBHOOK_URL (or pass `webhook`). Severity colours the message; with no webhook (or dry_run) it returns the built payload without sending. Does NOT read or write the database.",
+  "intrusive": false,
+  "permission": "connector:chatops",
+  "run": "run.py",
+  "mapping": "chatops",
+  "parameters": [
+    { "name": "text", "type": "string", "default": "", "help": "Message body (Markdown). Required unless title is given." },
+    { "name": "title", "type": "string", "default": "", "help": "Optional bold header / alert name" },
+    { "name": "severity", "type": "string", "default": "", "help": "critical | high | medium | low | info — colours the message" },
+    { "name": "link", "type": "string", "default": "", "help": "Optional URL (e.g. deep-link to the alert in XORCISM)" },
+    { "name": "channel", "type": "string", "default": "", "help": "Optional channel override (Slack/Mattermost webhooks that allow it)" },
+    { "name": "username", "type": "string", "default": "XORCISM", "help": "Display name for the bot message" },
+    { "name": "webhook", "type": "string", "default": "", "help": "Incoming-webhook URL (overrides the env var)" },
+    { "name": "dry_run", "type": "bool", "default": false, "help": "Build the payload but do not send it (returns the payload)" }
+  ]
+}

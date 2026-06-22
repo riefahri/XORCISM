@@ -1,0 +1,15 @@
+{
+  "id": "cti-expert",
+  "name": "CTI-Expert — OSINT investigation import",
+  "type": "import",
+  "category": "Cyberthreat Intelligence OSINT",
+  "description": "Imports the output of CTI-Expert (github.com/7onez/cti-expert, an OSINT/CTI-analyst skill) into XORCISM's threat-intel exchange. Parses either a STIX 2.1 bundle export (indicators / observed-data) OR a cti-expert case JSON ({target, findings, observables, exposureScore}) — each becomes an INTELEXCHANGE intel item (IOC value as reference, A–F reliability / severity carried in tags). The native /cti-expert cockpit re-runs the same investigation with the LOCAL AI; this connector ingests cases produced by the upstream Claude-Code skill. Offline: pass `file`, or run with no config for the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:cti-expert",
+  "run": "run.py",
+  "mapping": "cti-expert",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 500, "min": 1, "max": 5000, "help": "Maximum intel items to import" },
+    { "name": "file", "type": "file", "required": false, "help": "A cti-expert STIX 2.1 bundle or case JSON export to parse" }
+  ]
+}

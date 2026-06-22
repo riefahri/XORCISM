@@ -107,6 +107,17 @@ function openSettings(me: any): void {
   notif.appendChild(row(t("settings.notifEvents"), notifBtn));
   card.appendChild(notif);
 
+  // ── Microsoft Teams: distribute alerts & notifications to Teams channels (admin) ──
+  if (me.isAdmin) {
+    const teams = section(t("settings.teamsSection"));
+    const teamsBtn = document.createElement("button");
+    teamsBtn.className = "btn btn-ghost btn-sm";
+    teamsBtn.textContent = t("settings.teamsManage");
+    teamsBtn.onclick = openTeamsManager;
+    teams.appendChild(row(t("settings.teamsChannels"), teamsBtn));
+    card.appendChild(teams);
+  }
+
   const footer = document.createElement("div");
   footer.style.cssText = "display:flex;justify-content:flex-end";
   const closeBtn = document.createElement("button");
@@ -206,6 +217,100 @@ function openNotificationRules(): void {
 
   bg.appendChild(card);
   document.body.appendChild(bg);
+}
+
+// Microsoft Teams distribution: manage the tenant's incoming-webhook targets (admin only).
+// Each registered channel receives alerts/notifications (≥ its minimum level) via the engine.
+interface TeamsHook { id: number; name: string; url: string; format: string; minLevel: string; eventFilter: string | null; enabled: boolean; }
+function openTeamsManager(): void {
+  const bg = document.createElement("div");
+  bg.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:2001";
+  bg.onclick = (e) => { if (e.target === bg) bg.remove(); };
+  const card = document.createElement("div");
+  card.style.cssText = "background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:18px;width:600px;max-width:94vw;max-height:88vh;display:flex;flex-direction:column";
+  card.innerHTML =
+    `<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:2px">📣 ${t("settings.teamsTitle")}</div>` +
+    `<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${t("settings.teamsHint")}</div>`;
+  const list = document.createElement("div");
+  list.style.cssText = "overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg);margin-bottom:12px;min-height:60px";
+  card.appendChild(list);
+
+  const levelSel = (cur: string): string =>
+    [["info", "Info+"], ["warning", "Warning+"], ["error", "Error only"]].map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("");
+  const fmtSel = (cur: string): string =>
+    [["auto", "Auto"], ["adaptivecard", "Adaptive Card"], ["messagecard", "MessageCard"]].map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("");
+
+  async function reload(): Promise<void> {
+    list.innerHTML = `<div style="padding:12px;color:var(--text-dim);font-size:12px">…</div>`;
+    try {
+      const d = await (await fetch("/api/teams/webhooks")).json();
+      const hooks: TeamsHook[] = d.webhooks || [];
+      list.innerHTML = "";
+      if (d.envDefault) {
+        const e = document.createElement("div");
+        e.style.cssText = "padding:8px 10px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border)";
+        e.textContent = "ℹ️ " + t("settings.teamsEnv");
+        list.appendChild(e);
+      }
+      if (!hooks.length) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "padding:14px;color:var(--text-dim);font-size:12px;text-align:center";
+        empty.textContent = t("settings.teamsEmpty");
+        list.appendChild(empty);
+      }
+      for (const h of hooks) {
+        const r = document.createElement("div");
+        r.style.cssText = "display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--border)";
+        const main = document.createElement("div"); main.style.cssText = "flex:1;min-width:0";
+        main.innerHTML = `<div style="font-size:13px;color:var(--text)">${esc(h.name)} <span style="font-size:10px;color:var(--text-dim)">(${esc(h.format)})</span></div>` +
+          `<div style="font-size:11px;color:var(--text-muted);font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis">${esc(h.url)}</div>`;
+        const sel = document.createElement("select"); sel.className = "btn btn-ghost btn-sm"; sel.style.cssText = "font-size:11px;padding:2px 4px"; sel.innerHTML = levelSel(h.minLevel);
+        sel.onchange = () => void fetch(`/api/teams/webhooks/${h.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ minLevel: sel.value }) });
+        const test = document.createElement("button"); test.className = "btn btn-ghost btn-sm"; test.textContent = t("settings.notifTest"); test.style.cssText = "font-size:11px;padding:2px 8px";
+        test.onclick = async () => {
+          test.disabled = true; const old = test.textContent;
+          try { const res = await (await fetch("/api/teams/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: h.id }) })).json(); test.textContent = res.ok ? "✓" : "✗"; }
+          catch { test.textContent = "✗"; }
+          setTimeout(() => { test.textContent = old; test.disabled = false; }, 1800);
+        };
+        const tog = document.createElement("input"); tog.type = "checkbox"; tog.checked = h.enabled; tog.style.cssText = "width:16px;height:16px;cursor:pointer";
+        tog.onchange = () => void fetch(`/api/teams/webhooks/${h.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: tog.checked }) });
+        const del = document.createElement("button"); del.className = "btn btn-ghost btn-sm"; del.textContent = "🗑"; del.style.cssText = "font-size:12px;padding:2px 6px";
+        del.onclick = async () => { if (!confirm(t("settings.teamsDelConfirm"))) return; await fetch(`/api/teams/webhooks/${h.id}`, { method: "DELETE" }); void reload(); };
+        const right = document.createElement("div"); right.style.cssText = "display:flex;align-items:center;gap:6px;flex:0 0 auto";
+        right.append(sel, test, tog, del);
+        r.append(main, right); list.appendChild(r);
+      }
+    } catch { list.innerHTML = `<div style="padding:12px;color:var(--danger);font-size:12px">${t("common.error") || "Error"}</div>`; }
+  }
+
+  // Add form
+  const add = document.createElement("div");
+  add.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px";
+  const inName = document.createElement("input"); inName.placeholder = t("settings.teamsName"); inName.style.cssText = "flex:0 0 130px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:6px 8px";
+  const inUrl = document.createElement("input"); inUrl.placeholder = t("settings.teamsUrl"); inUrl.style.cssText = "flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:6px 8px";
+  const inFmt = document.createElement("select"); inFmt.className = "btn btn-ghost btn-sm"; inFmt.style.cssText = "font-size:11px;padding:4px"; inFmt.innerHTML = fmtSel("auto");
+  const inLvl = document.createElement("select"); inLvl.className = "btn btn-ghost btn-sm"; inLvl.style.cssText = "font-size:11px;padding:4px"; inLvl.innerHTML = levelSel("info");
+  const addBtn = document.createElement("button"); addBtn.className = "btn btn-sm"; addBtn.textContent = t("settings.teamsAdd"); addBtn.style.cssText = "font-size:12px;padding:5px 12px";
+  addBtn.onclick = async () => {
+    const url = inUrl.value.trim();
+    if (!/^https:\/\/.+/i.test(url)) { inUrl.style.borderColor = "var(--danger)"; return; }
+    addBtn.disabled = true;
+    try {
+      const res = await fetch("/api/teams/webhooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: inName.value.trim(), url, format: inFmt.value, minLevel: inLvl.value }) });
+      if ((await res.json()).ok) { inName.value = ""; inUrl.value = ""; inUrl.style.borderColor = "var(--border)"; void reload(); }
+    } finally { addBtn.disabled = false; }
+  };
+  add.append(inName, inUrl, inFmt, inLvl, addBtn);
+  card.appendChild(add);
+
+  const footer = document.createElement("div");
+  footer.style.cssText = "display:flex;justify-content:flex-end";
+  const closeBtn = document.createElement("button"); closeBtn.className = "btn btn-ghost btn-sm"; closeBtn.textContent = t("modal.close") || "Fermer";
+  closeBtn.onclick = () => bg.remove(); footer.appendChild(closeBtn); card.appendChild(footer);
+
+  void reload();
+  bg.appendChild(card); document.body.appendChild(bg);
 }
 
 // Passkey manager (list / add / removal) in a modal window.
