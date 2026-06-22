@@ -337,6 +337,8 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
     counts: Dict[str, int] = {}
     if result.get("intel"):
         counts.update(import_threat_intel(result))
+    if result.get("euvd"):
+        counts.update(import_euvd(result))
     if result.get("detections") or result.get("sigma"):
         counts.update(import_sigma_rules(result))
     if result.get("yara"):
@@ -347,6 +349,8 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
         counts.update(import_monitoring(result))
     if result.get("documents"):
         counts.update(import_documents(result))
+    if result.get("netflow"):
+        counts.update(import_netflow(result))
     if any(result.get(k) for k in ("assets", "vulns", "cpes", "components", "services", "project")):
         counts.update(import_findings(result))
     if counts:
@@ -877,6 +881,188 @@ def _assign_tenant(asset_ids: set, tid: int) -> None:
                 s.execute(stmt, {"tid": tid, "ids": ids})
             except Exception:  # noqa: BLE001 — column/table not present in this deployment
                 pass
+
+
+# Columns added to VULNERABILITY for ENISA EUVD cross-referencing (idempotent ALTER).
+_EUVD_COLUMNS = {"EUVDId": "TEXT", "EUVDUrl": "TEXT"}
+
+
+def import_euvd(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import ENISA EU Vulnerability Database (EUVD) entries into XVULNERABILITY.VULNERABILITY.
+
+    Each EUVD entry has its own id (EUVD-YYYY-NNNNN) and usually aliases one or more CVE ids.
+    We key on VULReferentialID (the CVE alias when present, else the EUVD id):
+      - an existing row (e.g. an imported NVD CVE) is enriched in place — EUVDId / EUVDUrl are
+        set, and CVSS / EPSS / description / published-date are filled only when missing (NVD
+        stays authoritative for what it already provides);
+      - an EUVD-only entry (or a CVE not yet present) is inserted as a new VULNERABILITY.
+    Idempotent. VULNERABILITY has no SQLite PK, so VulnerabilityID is allocated as MAX+1 (the
+    import convention). The EUVD columns are self-ALTERed so the importer runs on any DB version."""
+    import re as _re
+
+    items = result.get("euvd") or []
+    counts = {"euvd": 0, "euvd_updated": 0}
+    if not items:
+        return counts
+
+    con = sqlite3.connect(os.path.join(_db_dir(), "XVULNERABILITY.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    if not cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='VULNERABILITY'").fetchone():
+        con.close()
+        return counts
+    have = {r[1] for r in cur.execute("PRAGMA table_info(VULNERABILITY)").fetchall()}
+    for name, typ in _EUVD_COLUMNS.items():
+        if name not in have:
+            cur.execute(f"ALTER TABLE VULNERABILITY ADD COLUMN {name} {typ}")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_vuln_ref ON VULNERABILITY(VULReferentialID)")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_vuln_euvd ON VULNERABILITY(EUVDId)")
+
+    next_id = (cur.execute("SELECT COALESCE(MAX(VulnerabilityID),0) FROM VULNERABILITY").fetchone()[0] or 0) + 1
+    now = _now()
+    cve_re = _re.compile(r"CVE-\d{4}-\d{3,7}", _re.I)
+
+    for it in items:
+        euvd_id = str(it.get("euvd_id") or it.get("id") or "").strip()
+        cve = str(it.get("cve") or "").strip()
+        if not cve:
+            m = cve_re.search(" ".join(str(it.get(k) or "") for k in ("aliases", "ref", "name")))
+            cve = m.group(0).upper() if m else ""
+        ref = cve or euvd_id
+        if not ref:
+            continue
+        url = str(it.get("url") or "").strip() or (f"https://euvd.enisa.europa.eu/vulnerability/{euvd_id}" if euvd_id else "")
+        desc = str(it.get("name") or it.get("description") or "").strip()
+        cvss = it.get("cvss")
+        epss = it.get("epss")
+        published = it.get("published")
+        exploited = 1 if it.get("exploited") else 0
+
+        row = cur.execute(
+            "SELECT VulnerabilityID FROM VULNERABILITY WHERE VULReferentialID=? OR (EUVDId IS NOT NULL AND EUVDId=?) LIMIT 1",
+            (ref, euvd_id or "\x00"),
+        ).fetchone()
+        if row:
+            cur.execute(
+                """UPDATE VULNERABILITY SET
+                     EUVDId=COALESCE(NULLIF(?, ''), EUVDId),
+                     EUVDUrl=COALESCE(NULLIF(?, ''), EUVDUrl),
+                     CVSSBaseScore=CASE WHEN (CVSSBaseScore IS NULL OR CVSSBaseScore='') AND ? IS NOT NULL THEN ? ELSE CVSSBaseScore END,
+                     EPSS=CASE WHEN (EPSS IS NULL OR EPSS='') AND ? IS NOT NULL THEN ? ELSE EPSS END,
+                     VULDescription=CASE WHEN (VULDescription IS NULL OR VULDescription='') AND ?<>'' THEN ? ELSE VULDescription END,
+                     VULPublishedDate=COALESCE(NULLIF(VULPublishedDate, ''), ?),
+                     Exploited=CASE WHEN ?=1 THEN 1 ELSE Exploited END
+                   WHERE VulnerabilityID=?""",
+                (euvd_id, url, cvss, cvss, epss, epss, desc, desc, published, exploited, row[0]),
+            )
+            counts["euvd_updated"] += 1
+        else:
+            cols = ["VulnerabilityID", "VULGUID", "VULReferential", "VULReferentialID", "VULName", "VULShortName",
+                    "VULDescription", "CVSSBaseScore", "EPSS", "VULPublishedDate", "EUVDId", "EUVDUrl", "CreatedDate"]
+            vals = [next_id, ref, ref, ref, ref, ref, desc, cvss, epss, published, euvd_id, url, now]
+            if "Exploited" in have or exploited:
+                cols.append("Exploited"); vals.append(exploited)
+            cur.execute(f"INSERT INTO VULNERABILITY ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})", vals)
+            next_id += 1
+            counts["euvd"] += 1
+
+    con.commit()
+    con.close()
+    return counts
+
+
+def import_netflow(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import network-flow observability (Obserae) into XORCISM around ASSET.
+
+    result["netflow"] = {assets:[{name,ip,hostname,os,zone}], services:[{asset,protocol,port,service,...}],
+                         sessions:[{src,dst,protocol,src_port,dst_port,service,bytes,packets,flows,...}]}
+      - hosts          -> ASSET (created if missing — discovery)
+      - services       -> ASSETSERVICE (asset<->service: protocol/port, flow counts accumulated)
+      - sessions/flows -> NETWORKSESSION (src<->dst asset/ip/port, bytes/packets, first/last seen)
+    Raw sqlite3 on XORCISM.db (tables self-created, kept in sync with ensureNetflowTables in db.ts).
+    Idempotent: ASSETSERVICE unique per asset+proto+port; NETWORKSESSION deduped by endpoints+firstseen.
+    """
+    import uuid as uuid_mod
+    nf = result.get("netflow") or {}
+    src_name = result.get("source") or "Obserae"
+    counts = {"assets": 0, "services": 0, "sessions": 0}
+    con = sqlite3.connect(os.path.join(_db_dir(), "XORCISM.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    cur.executescript(
+        """CREATE TABLE IF NOT EXISTS ASSETSERVICE (
+             AssetServiceID INTEGER PRIMARY KEY, AssetID INTEGER, Protocol TEXT, Port INTEGER, ServiceName TEXT,
+             Banner TEXT, FlowCount INTEGER DEFAULT 0, FirstSeen TEXT, LastSeen TEXT, Source TEXT, TenantID INTEGER, CreatedDate TEXT);
+           CREATE TABLE IF NOT EXISTS NETWORKSESSION (
+             NetworkSessionID INTEGER PRIMARY KEY, SessionGUID TEXT, SrcAssetID INTEGER, DstAssetID INTEGER,
+             SrcIP TEXT, DstIP TEXT, Protocol TEXT, SrcPort INTEGER, DstPort INTEGER, ServiceName TEXT,
+             Bytes INTEGER, Packets INTEGER, Flows INTEGER, Direction TEXT, State TEXT,
+             FirstSeen TEXT, LastSeen TEXT, Source TEXT, TenantID INTEGER, CreatedDate TEXT);
+           CREATE UNIQUE INDEX IF NOT EXISTS ux_assetservice ON ASSETSERVICE(AssetID, Protocol, Port);""")
+
+    cache: Dict[str, int] = {}
+
+    def ensure_asset(name, hostname=None, os_name=None) -> "Optional[int]":
+        key = str(name or "").strip()
+        if not key:
+            return None
+        if key in cache:
+            return cache[key]
+        row = cur.execute("SELECT AssetID FROM ASSET WHERE AssetName = ? LIMIT 1", (key,)).fetchone()
+        if row:
+            cache[key] = row[0]
+            return row[0]
+        cur.execute("INSERT INTO ASSET (AssetName, hostname, OSName, CreatedDate) VALUES (?,?,?,?)",
+                    (key[:200], (hostname or None), (os_name or None), _now()))
+        aid = cur.lastrowid
+        cache[key] = aid
+        counts["assets"] += 1
+        return aid
+
+    for a in nf.get("assets", []):
+        aid = ensure_asset(a.get("name"), a.get("hostname"), a.get("os"))
+        for alias in (a.get("ip"), a.get("hostname")):
+            if alias and aid:
+                cache[str(alias)] = aid
+
+    for s in nf.get("services", []):
+        aid = ensure_asset(s.get("asset"))
+        port, proto = s.get("port"), str(s.get("protocol") or "tcp").lower()
+        if not aid or port is None:
+            continue
+        row = cur.execute("SELECT AssetServiceID, FlowCount FROM ASSETSERVICE WHERE AssetID=? AND Protocol=? AND Port=?", (aid, proto, port)).fetchone()
+        flows = int(s.get("flows") or 0)
+        if row:
+            cur.execute("UPDATE ASSETSERVICE SET FlowCount=?, LastSeen=COALESCE(?,LastSeen), ServiceName=COALESCE(?,ServiceName), Banner=COALESCE(?,Banner) WHERE AssetServiceID=?",
+                        ((row[1] or 0) + flows, s.get("last_seen"), s.get("service"), s.get("banner"), row[0]))
+        else:
+            cur.execute("INSERT INTO ASSETSERVICE (AssetID, Protocol, Port, ServiceName, Banner, FlowCount, FirstSeen, LastSeen, Source, CreatedDate) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        (aid, proto, port, s.get("service"), s.get("banner"), flows, s.get("first_seen"), s.get("last_seen"), src_name, _now()))
+            counts["services"] += 1
+
+    seen = cur.execute("SELECT SrcIP, DstIP, Protocol, DstPort, FirstSeen FROM NETWORKSESSION").fetchall()
+    seen_set = {tuple(str(x) for x in r) for r in seen}
+    for f in nf.get("sessions", []):
+        src, dst = str(f.get("src") or ""), str(f.get("dst") or "")
+        if not src or not dst:
+            continue
+        sk = (src, dst, str(f.get("protocol") or "tcp").lower(), str(f.get("dst_port") or ""), str(f.get("first_seen") or ""))
+        if sk in seen_set:
+            continue
+        seen_set.add(sk)
+        saiid, daiid = ensure_asset(src), ensure_asset(dst)
+        cur.execute(
+            """INSERT INTO NETWORKSESSION (SessionGUID, SrcAssetID, DstAssetID, SrcIP, DstIP, Protocol, SrcPort, DstPort,
+                 ServiceName, Bytes, Packets, Flows, Direction, State, FirstSeen, LastSeen, Source, CreatedDate)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (str(uuid_mod.uuid4()), saiid, daiid, src, dst, str(f.get("protocol") or "tcp").lower(), f.get("src_port"), f.get("dst_port"),
+             f.get("service"), f.get("bytes"), f.get("packets"), f.get("flows") or 1, f.get("direction"), f.get("state"),
+             f.get("first_seen"), f.get("last_seen"), src_name, _now()))
+        counts["sessions"] += 1
+
+    con.commit()
+    con.close()
+    return counts
 
 
 def import_findings(result: Dict[str, Any]) -> Dict[str, int]:

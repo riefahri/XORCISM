@@ -1,0 +1,17 @@
+{
+  "id": "n8n",
+  "name": "n8n",
+  "type": "import",
+  "category": "Automation",
+  "description": "Drives n8n (fair-code workflow automation, the open-source SOAR/glue) from XORCISM. Live mode POSTs a context payload (target / IOC / incident) to an n8n workflow's webhook (N8N_WEBHOOK_URL or the `webhook` param; optional N8N_API_KEY header) and ingests the JSON the workflow returns; offline mode parses a saved n8n execution-result JSON. Any indicators the workflow returns are imported as CTI (XTHREAT.INTELEXCHANGE); any findings are imported as ASSET/VULNERABILITY. Reuses the JoasASantos/n8n-CyberSecurity-Workflows catalogue (IOC enrichment, phishing triage, alert routing, vuln prioritization, recon…) — see the Purple/Blue/Red Team Operations automation-playbook templates. Worker-safe: stdlib only, secrets via env.",
+  "intrusive": false,
+  "permission": "connector:n8n",
+  "run": "run.py",
+  "mapping": "n8n",
+  "parameters": [
+    { "name": "webhook", "type": "url", "required": false, "help": "n8n workflow webhook URL to trigger (falls back to the N8N_WEBHOOK_URL worker env var)." },
+    { "name": "workflow", "type": "string", "required": false, "pattern": "^[\\w .:/-]+$", "help": "Workflow name/id to invoke (passed in the payload; informational)." },
+    { "name": "context", "type": "string", "required": false, "pattern": "^[\\w .:/@?=&%-]+$", "help": "Context to pass to the workflow (e.g. an IOC, URL, host or incident id)." },
+    { "name": "file", "type": "file", "required": false, "help": "Offline mode: path to a saved n8n execution-result JSON to import (instead of triggering a webhook)." }
+  ]
+}

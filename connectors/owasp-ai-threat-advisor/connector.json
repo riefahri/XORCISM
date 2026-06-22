@@ -1,0 +1,18 @@
+{
+  "id": "owasp-ai-threat-advisor",
+  "name": "OWASP AI Exchange — Agent Threat Advisor",
+  "type": "report",
+  "category": "Threat Modeling",
+  "description": "Threat-models an AI / agentic system against the OWASP AI Exchange (https://owaspai.org). Describe the system (LLM app / autonomous agent / ML model; whether it uses tools, has memory, acts autonomously, ingests external content or handles sensitive data) and the advisor returns the applicable AI threats — prompt injection, excessive agency, tool misuse, memory poisoning, rogue agents, identity abuse, data poisoning, model theft and more — each with its lifecycle phase, impact and mitigating controls. Read-only advisory: no DB access, no network, no target (worker-safe). Mirrors the in-app /ai-threat-advisor.",
+  "intrusive": false,
+  "permission": "connector:owasp-ai-threat-advisor",
+  "run": "run.py",
+  "parameters": [
+    { "name": "system_type", "type": "enum", "required": true, "default": "agent", "values": ["llm", "agent", "ml"], "help": "Kind of AI system: llm (LLM application), agent (autonomous agent), ml (classic ML model)." },
+    { "name": "uses_tools", "type": "bool", "required": false, "default": true, "help": "The system can invoke tools / functions / actions." },
+    { "name": "has_memory", "type": "bool", "required": false, "default": false, "help": "The system has persistent memory or a RAG store." },
+    { "name": "autonomous", "type": "bool", "required": false, "default": true, "help": "The system acts autonomously (plans and executes without per-step approval)." },
+    { "name": "external_data", "type": "bool", "required": false, "default": true, "help": "The system ingests external / untrusted content (web, docs, emails, tool output)." },
+    { "name": "sensitive_data", "type": "bool", "required": false, "default": false, "help": "The system handles sensitive data (PII, secrets, regulated data)." }
+  ]
+}

@@ -9,6 +9,109 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 
 ---
 
+## [1.4.0-beta.1] — 2026-06-22
+
+A **threat-informed operations** release: dedicated cockpits that run security as operational
+functions (SOC, CERT/DFIR, Purple/Red/Blue Team, Vulnerability Operations), a board-ready
+**VM Executive Report**, support for the **ctem.org** exposure-identifier standard, and a new
+**CTI data architecture** — lossless STIX retention with full-text search and content-addressed
+object storage (local **or S3/MinIO**) with lifecycle GC.
+
+### Highlights
+
+- **Security-operations cockpits** — **SOC** (`/soc`: analyst shifts/on-call, MTTD/MTTA/MTTR,
+  escalation procedures, NIST 800-61 IR playbooks), **SOC-CMM** maturity (`/soc-cmm`), **CERT/DFIR**
+  with chain-of-custody (`/cert-ops`), **Purple/Red/Blue Team Operations** (`/team-ops`, VECTR-style
+  ATT&CK exercises with prevention/detection/visibility metrics), and the **Vulnerability Operations
+  Center** (`/voc`: configurable remediation-SLA policy, MTTR/aging/velocity KPIs, campaigns,
+  risk-acceptance register).
+- **VM Executive Report** (`/vm-report`) — vulnerability risk & SLA posture **over time** (daily
+  history) with a board-ready summary and a **data-driven "myths vs reality"** section that debunks
+  common VM misconceptions using the program's *own* live numbers.
+- **CTEM — ctem.org exposure taxonomy** (`/ctem`) — support for the **SecureCoders** standardized
+  exposure-identifier standard (a "CVE/CWE for exposures": 29 identifiers across 8 categories, the
+  3-stage Discover → Prioritize → Remediate program), with a discover-from-assets bridge.
+- **CTI data architecture** — **lossless STIX/IOC retention** with **FTS5 full-text search**
+  (the original object is kept, not just the normalized columns) and a **content-addressed object
+  store** for large files (STIX bundles, PCAPs, samples) with a swappable **filesystem or S3/MinIO**
+  backend and mark-and-sweep **garbage collection**.
+- **Governance, Workforce & AI threats** — **Governance** (`/governance`, NIST CSF 2.0 **Govern**),
+  **Workforce** (`/workforce`, **NICE** + ENISA **ECSF** roles around PERSON), and an **AI Threat
+  Advisor** (`/ai-threat-advisor`, the **OWASP AI Exchange** agentic-threat catalogue + advisor).
+- **Network observability** (`/network-sessions`) — NetFlow/IPFIX around assets via the **Obserae**
+  collector: discovered assets, ASSET↔service relationships, reconstructed sessions.
+- **Guided compliance journeys** (`/compliance-journeys`) and per-user **notification rules** in
+  Settings (event → notification, severity-gated).
+
+### Added
+
+**Security operations**
+- **SOC** (`soc.ts`, `/soc`) — `SOCSHIFT` on-call, MTTD/MTTA/MTTR (the dashboard gains an MTTD tile),
+  `ESCALATIONPOLICY`/`TIER` + `INCIDENTESCALATION`, NIST 800-61 `PLAYBOOK`/`PLAYBOOKSTEP` attachable
+  to incidents; queue with ack / escalate / run-playbook actions.
+- **SOC-CMM** (`soccmm.ts`, `/soc-cmm`) — domain/aspect maturity scoring.
+- **CERT / DFIR** (`certops.ts`, `/cert-ops`) — `FORENSICCASE` / `EVIDENCE` / `CUSTODYEVENT`
+  (chain of custody) / `CERTACTIVITY`, NIST 800-86 / ISO 27037 aligned.
+- **Purple/Red/Blue Team Operations** (`teamops.ts`, `/team-ops`) — VECTR-style `TEAMEXERCISE` /
+  `EXERCISETESTCASE` mapped to ATT&CK, prevention/detection/visibility/MTTD, capability management,
+  n8n automation playbooks.
+- **Vulnerability Operations Center** (`voc.ts`, `/voc`) — configurable remediation-SLA policy
+  (`VOCSLATIER`), KPIs over `ASSETVULNERABILITY ⋈ VULNERABILITY` (KEV/CVSS/EPSS), risk-ranked
+  worklist, campaigns with burndown (`VOCCAMPAIGN`), risk-acceptance register (`VOCEXCEPTION`).
+
+**Exposure & vulnerability**
+- **VM Executive Report** (`vmtrends.ts`, `/vm-report`) — daily `VMSNAPSHOT` history (risk-weighted
+  exposure, open backlog, KEV, SLA compliance, MTTR, coverage), accrued at boot + hourly; exec
+  summary; six myth-busting cards computed from live data; pure-SVG trend charts + Print/PDF.
+- **CTEM** (`ctem.ts`, `/ctem`) — `CTEMIDENTIFIER` reference catalogue (embedded seed +
+  `import_ctem.py` from `ctem.org/source.json`) + `CTEMEXPOSURE` tracked instances run through the
+  3 stages; catalogue browser, category coverage, risk worklist, discover-from-assets (internet-exposed
+  → `CTEM-EXP-3/4`).
+
+**CTI storage (the "store the original, index what you query" architecture)** — see [docs/CTI_STORAGE.md](docs/CTI_STORAGE.md)
+- **Lossless STIX/IOC retention + search** (`stixstore.ts`) — a central `STIXOBJECT` store keyed by
+  StixID plus `RawJson` columns on `OBSERVABLE` / `IOC` / `INTELEXCHANGE`, and an FTS5 index
+  (`STIXOBJECT_FTS`). `GET /api/stix/object/:stixId` (the original object), `GET /api/stix/search`
+  (IOC-aware), `POST /api/stix/ingest`, `POST /api/stix/backfill`. Live capture from the malware
+  scanner + a boot/10-min reconciler that picks up connector/form writes; the Python runner now
+  retains the original normalized item as `RawJson` on `INTELEXCHANGE`.
+- **Content-addressed object store** (`blobstore.ts`) — SHA-256-sharded files under
+  `DB_DIR/blobstore` with a `FILEBLOB` registry (dedup + refcount). Swappable backend:
+  **filesystem (default) or S3/MinIO** (`XORCISM_BLOB_BACKEND=s3`, via curl's built-in SigV4 — no
+  SDK dependency). `POST /api/blob` (upload), `GET /api/blob/:sha256`, `GET /api/blob/stats`.
+  STIX-bundle ingest offloads the raw bundle by hash pointer. A **BlobSha256** hash-pointer column +
+  `POST /api/blob/migrate` move existing in-row BLOBs (`OVALDEFINITION`, `DOCUMENT`) into the store
+  (`/oval-xml` and the malware-scan reads are CAS-aware). Mark-and-sweep GC (`POST /api/blob/gc`,
+  dry-run by default; pinned + referenced blobs survive). Form fields of type `BlobSha256` get an
+  upload widget.
+
+**Governance / workforce / AI**
+- **Governance** (`governance.ts`, `/governance`) — NIST CSF 2.0 **Govern (GV)** register
+  (`GOVERNANCEITEM`/`STATUS`), with live policy signals.
+- **Workforce** (`workforce.ts`, `/workforce`) — **NICE** + ENISA **ECSF** roles (`WORKROLE` /
+  `PERSONWORKROLE`) around PERSON.
+- **AI Threat Advisor** (`aiexchange.ts`, `/ai-threat-advisor`) — the full **OWASP AI Exchange**
+  agentic-threat catalogue (`AIEXCHANGETHREAT`) + `advise()`, plus an `owasp-ai-threat-advisor` connector.
+
+**Operations data & UX**
+- **Network sessions** (`netflow.ts`, `/network-sessions`) — `ASSETSERVICE` + `NETWORKSESSION` fed by
+  the **Obserae** NetFlow/IPFIX connector (YAML/JSON import → `runner.import_netflow`).
+- **Compliance journeys** (`journeys.ts`, `/compliance-journeys`) — 11 framework wizards
+  (ISO 27001/42001, SOC 2, NIST CSF/800-53, FedRAMP, NIS2, DORA, CRA, MiCA, GDPR) as phased
+  deep-linked checklists.
+- **Notification rules** — per-user event→notification rules in Settings (`NOTIFICATIONRULE`,
+  `dispatchEvent()` engine gated by enable + severity).
+- **Connectors** — Obserae (NetFlow), ThePhishAnalyzer, burpwn, PySpector, n8n (SOAR),
+  OWASP AI threat advisor; `docs/IMPORT_JSON_CSV.md` (table-view import guide).
+
+### Notes
+
+- New schema is created **idempotently at boot** (CREATE IF NOT EXISTS + additive ALTER); the CTI
+  store and object store are populated in-place (no backfill flood). The S3/MinIO blob backend is
+  opt-in via env and requires `curl`.
+
+---
+
 ## [1.3.0-beta.1] — 2026-06-21
 
 A **governance & compliance** release: end-to-end management of **NIST SP 800-53** with framework

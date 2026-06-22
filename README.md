@@ -97,6 +97,18 @@ and connectors. No SaaS, no telemetry, your data never leaves your infrastructur
   OSV lookups; **Exploit-DB search** (SearchSploit index, CVE→public-exploit lookup
   on the VULNERABILITY form with one-click "mark exploitable"); SOCRadar IOC-Radar
   deep-link for CVE references; **bug-bounty** program & submission tracking.
+- **Vulnerability Operations Center (VOC)** — `/voc` — run remediation as an
+  **operations function**: a configurable remediation-**SLA policy**, operational KPIs
+  (SLA compliance, MTTR, aging, velocity), a risk-ranked worklist, remediation campaigns
+  with burndown, and a formal **risk-acceptance / exception** register.
+- **VM Executive Report** — `/vm-report` — vulnerability **risk & SLA posture over time**
+  (is risk actually going *down*?): trend charts (risk-weighted exposure, backlog, KEV, SLA
+  compliance, MTTR, coverage), a board-ready executive summary, and a **"myths vs reality"**
+  section that debunks common VM misconceptions with your *own* live numbers. Print / PDF.
+- **CTEM — exposure taxonomy** — `/ctem` — support for the **ctem.org** (SecureCoders)
+  standardized exposure-identifier standard (a *"CVE/CWE for exposures"*: 29 identifiers
+  across 8 categories, the 3-stage **Discover → Prioritize → Remediate** program); classify
+  observed exposures, track them by stage, and discover them from internet-exposed assets.
 - **Attack paths & choke points** — a reachability graph (`/attack-path`) over the
   asset estate: edges from **same-subnet adjacency** + **BIA dependencies**, entry
   nodes = internet-exposed assets, crown jewels = high business value, traversal cost
@@ -606,6 +618,9 @@ timers — **no external cron**:
 | **Vulnerability Management** | explorer | CVE/KEV/CVSS/EPSS, CIRCL/OSV, bug bounty |
 | **Exploit-DB search** | `/exploitdb` | Search the local SearchSploit index by keyword/CVE; CVE→public-exploit lookup on the VULNERABILITY form |
 | **Top exposures** | `/exposure` | Exploitability & relevance fusion score — prioritized "fix first" worklist (EPSS+KEV+exploit+CTI+blast radius) |
+| **VOC — Vuln Operations** | `/voc` | Remediation as an ops function: SLA policy, MTTR/aging/velocity, campaigns, risk-acceptance register |
+| **VM Executive Report** | `/vm-report` | Vuln risk & SLA posture over time + board-ready myth-busting summary (Print/PDF) |
+| **CTEM** | `/ctem` | ctem.org exposure-identifier taxonomy (29 ids / 8 categories), 3-stage program, discover-from-assets |
 | **Attack paths** | `/attack-path` | Reachability graph entry→crown-jewel (subnet + BIA edges, fusion-weighted) + choke-point analysis |
 | **Detection coverage** | `/purple-team` | Purple-team: chain tools → ATT&CK → Sigma-library coverage + generate the missing rule |
 | **Ransomware $ impact** | `/ransomware` | Replay a ransomware group's TTPs → SLE/ALE dollar impact, blast radius, D3FEND controls |
@@ -616,7 +631,7 @@ timers — **no external cron**:
 | **Compliance (GRC)** | explorer | Policies, controls, audits, evidence, findings, CRQ/FAIR |
 | **EBIOS Risk Manager** | `/ebios` | 5 ANSSI workshops, business values, feared events, ecosystem |
 | **TPRM** | `/tprm` | Third-party / supplier risk assessments & questionnaires |
-| **Threat Management (CTI)** | explorer | STIX entities, OpenCTI properties, sightings, watchlists, PIR |
+| **Threat Management (CTI)** | explorer | STIX entities, OpenCTI properties, sightings, watchlists, PIR; **lossless STIX retention + FTS search** + content-addressed object store for large files ([docs/CTI_STORAGE.md](docs/CTI_STORAGE.md)) |
 | **Threat hunting** | `/hunting` | Hunts, hypotheses, IOC/technique overview, Sigma rules, local-AI hunt assistant |
 | **Threat feeds** | `/threat-feeds` | Curated CTI RSS reader; reports with IOC extraction & CVE enrichment |
 | **Ask the threat model** | `/ask` | Local-AI RAG assistant over your XORCISM data |
@@ -636,6 +651,15 @@ timers — **no external cron**:
 | **Attack-surface graph** | `/attack-surface` | Asset-centric force graph — apps, CPEs, vulns, orgs, persons, threats, incidents, tags |
 | **Pentesting** | `/pentest` | Engagements (AUDIT type=Pentest) scoped to assets; run tool connectors; findings & vulnerabilities |
 | **Attack chain** | `/pentest/chain` | Tool-chaining playbook run — live tree of tool steps (nmap → web scanners → WPScan), facts-driven, findings roll-up |
+| **SOC Operations** | `/soc` | Analyst shifts/on-call, MTTD/MTTA/MTTR, escalation, NIST 800-61 IR playbooks |
+| **SOC-CMM** | `/soc-cmm` | SOC capability-maturity assessment |
+| **CERT / DFIR** | `/cert-ops` | Forensic cases, evidence & chain of custody (NIST 800-86 / ISO 27037) |
+| **Team Operations** | `/team-ops` | Purple/Red/Blue VECTR-style ATT&CK exercises — prevention/detection/visibility/MTTD |
+| **Governance** | `/governance` | NIST CSF 2.0 **Govern (GV)** register |
+| **Workforce** | `/workforce` | NICE + ENISA ECSF roles around PERSON |
+| **AI Threat Advisor** | `/ai-threat-advisor` | OWASP AI Exchange agentic-threat catalogue + advisor |
+| **Network sessions** | `/network-sessions` | NetFlow/IPFIX around assets (Obserae) — services, sessions, top talkers |
+| **Compliance journeys** | `/compliance-journeys` | Guided multi-framework wizards (ISO / SOC 2 / NIST / DORA / NIS2 / GDPR …) |
 
 ---
 

@@ -1,0 +1,21 @@
+{
+  "id": "euvd",
+  "name": "EU Vulnerability Database (EUVD)",
+  "type": "import",
+  "category": "Threat Intelligence",
+  "description": "Imports vulnerabilities from the ENISA EU Vulnerability Database (EUVD, https://euvd.enisa.europa.eu) — the official EU repository established under NIS2. Each EUVD entry has its own id (EUVD-YYYY-NNNNN) and usually aliases one or more CVE ids; it is upserted into XVULNERABILITY.VULNERABILITY keyed on the CVE (or the EUVD id when CVE-less): existing CVEs are enriched in place with their EUVDId / EUVDUrl (and CVSS/EPSS/description filled when missing), and EUVD-only entries are added as new vulnerabilities. Live mode queries the public EUVD API (recent / critical / exploited / search, or a specific CVE / EUVD id); offline mode parses a saved EUVD JSON export. No authentication required; no DB access in run.py (worker-safe).",
+  "intrusive": false,
+  "permission": "connector:euvd",
+  "run": "run.py",
+  "mapping": "euvd",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "Path on the worker to an EUVD JSON export to import (offline mode)." },
+    { "name": "mode", "type": "enum", "required": false, "default": "recent", "values": ["recent", "critical", "exploited", "search"], "help": "Live feed: latest vulnerabilities, critical only, known-exploited, or a filtered search." },
+    { "name": "cve", "type": "string", "required": false, "pattern": "^[A-Za-z0-9\\-]{1,30}$", "help": "Fetch a single CVE's EUVD entry (e.g. CVE-2024-3400)." },
+    { "name": "id", "type": "string", "required": false, "pattern": "^[A-Za-z0-9\\-]{1,30}$", "help": "Fetch a single EUVD entry by its id (e.g. EUVD-2024-45012)." },
+    { "name": "query", "type": "string", "required": false, "help": "mode=search: free-text query." },
+    { "name": "vendor", "type": "string", "required": false, "help": "mode=search: filter by vendor name." },
+    { "name": "product", "type": "string", "required": false, "help": "mode=search: filter by product name." },
+    { "name": "max", "type": "int", "required": false, "default": 100, "min": 1, "max": 2000, "help": "Maximum entries to import (paginated for search)." }
+  ]
+}

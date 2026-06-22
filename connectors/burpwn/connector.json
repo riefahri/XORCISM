@@ -1,0 +1,16 @@
+{
+  "id": "burpwn",
+  "name": "burpwn",
+  "type": "import",
+  "category": "Web Pentest",
+  "description": "Imports captured web traffic from burpwn (own2pwn-fr/burpwn) — a standalone Rust intercepting proxy + execution sandbox for agentic web pentesting that stores every HTTP/HTTPS flow in a per-session SQLite database. Offline mode parses a burpwn flow export (JSON: `burpwn req list --json`); live mode (Linux, requires bubblewrap/nftables) runs a command through the proxy via `burpwn exec -- <cmd>` and reads the captured flows. The target host becomes an ASSET, each discovered endpoint becomes a component on it, and interesting observations (auth endpoints, server errors, reflected/sensitive parameters) become VULNERABILITY findings. Active web pentest (intrusive). Wired into the web-app pentest attack chains.",
+  "intrusive": true,
+  "permission": "connector:burpwn",
+  "run": "run.py",
+  "mapping": "burpwn",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "Path on the worker to a burpwn flow export to import (JSON, e.g. `burpwn req list --json > flows.json`)." },
+    { "name": "target", "type": "url", "required": false, "help": "Live mode (Linux): base URL to exercise through the burpwn proxy (must be in the engagement scope)." },
+    { "name": "command", "type": "string", "required": false, "default": "curl -sk {target}", "pattern": "^[\\w .:/{}@?=&%-]+$", "help": "Live mode: command run inside the burpwn sandbox ({target} is substituted)." }
+  ]
+}

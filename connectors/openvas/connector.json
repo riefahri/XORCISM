@@ -1,15 +1,16 @@
 {
   "id": "openvas",
-  "name": "OpenVAS / Greenbone — import rapport GMP",
+  "name": "OpenVAS / Greenbone",
   "type": "import",
-  "category": "vuln-scanner",
-  "description": "Importe un rapport XML Greenbone (GMP <report>). Résultats → VULNERABILITY (CVE ou NVT OID) liés à l'asset hôte.",
-  "intrusive": false,
+  "category": "Vulnerability Scanner",
+  "description": "OpenVAS / Greenbone Vulnerability Management (GVM). Offline mode parses a GMP XML report export (<report><results><result>…): each scanned host becomes an ASSET and each result becomes a VULNERABILITY (CVE refs, else NVT:<oid>; severity from the threat/CVSS). Live mode drives gvmd over GMP (python-gvm) — creates a target, runs a 'Full and fast' scan task, waits for completion, fetches the report and imports it; connection + credentials via worker env GVM_HOST/GVM_PORT (or GVM_SOCKET) + GVM_USER/GVM_PASSWORD. Active network vulnerability scanning (intrusive) in live mode. No DB access in run.py (worker-safe).",
+  "intrusive": true,
   "permission": "connector:openvas",
   "run": "run.py",
   "mapping": "openvas",
   "parameters": [
-    { "name": "file", "type": "file", "required": true, "help": "Chemin du rapport XML Greenbone (sur le worker)" },
-    { "name": "min_cvss", "type": "string", "default": "0.1", "pattern": "^\\d+(\\.\\d+)?$", "help": "Severité CVSS minimale" }
+    { "name": "file", "type": "file", "required": false, "help": "Path on the worker to a Greenbone GMP XML report to import (offline mode)." },
+    { "name": "target", "type": "target", "required": false, "help": "Live mode: host or IP/CIDR for gvmd to scan (must be in the engagement scope)." },
+    { "name": "min_cvss", "type": "string", "required": false, "default": "0.1", "pattern": "^\\d+(\\.\\d+)?$", "help": "Minimum CVSS severity to import." }
   ]
 }

@@ -1,0 +1,18 @@
+{
+  "id": "jira",
+  "name": "Jira",
+  "type": "import",
+  "category": "Ticketing",
+  "description": "Imports security issues from Atlassian Jira (Cloud or Server/Data Center) into XORCISM as findings. Each Jira issue becomes a VULNERABILITY (CVE referenced in summary/description if present, else JIRA-<key>; severity mapped from the issue priority); the affected asset is resolved from the issue's component, an asset-like label, or the `asset`/`project` fallback. Live mode queries the Jira REST API (`/rest/api/3/search` with JQL, paginated); offline mode parses a saved Jira search-results JSON. Secrets via worker env only: JIRA_URL (base), JIRA_USER (email, Cloud) + JIRA_TOKEN (API token / PAT). No DB access in run.py (worker-safe).",
+  "intrusive": false,
+  "permission": "connector:jira",
+  "run": "run.py",
+  "mapping": "jira",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "Path on the worker to a Jira search-results JSON export to import (offline mode)." },
+    { "name": "project", "type": "string", "required": false, "pattern": "^[A-Za-z0-9_]{1,40}$", "help": "Live mode: Jira project key to import (builds JQL `project = KEY AND statusCategory != Done`)." },
+    { "name": "jql", "type": "string", "required": false, "help": "Live mode: explicit JQL overriding `project` (e.g. `labels in (security, vulnerability) AND statusCategory != Done`)." },
+    { "name": "max", "type": "int", "required": false, "default": 200, "min": 1, "max": 5000, "help": "Live mode: maximum issues to import (paginated)." },
+    { "name": "asset", "type": "string", "required": false, "help": "Fallback asset name when an issue has no component/asset label (default: the project key)." }
+  ]
+}

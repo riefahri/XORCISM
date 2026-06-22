@@ -1,0 +1,16 @@
+{
+  "id": "pyspector",
+  "name": "PySpector",
+  "type": "import",
+  "category": "SAST",
+  "description": "Imports Python SAST findings from PySpector (ParzivalHack/PySpector) — a fast Rust-cored static analyzer that scans Python code/repos for security vulnerabilities, hardcoded secrets, config errors, taint flows, LLM-specific issues and supply-chain CVEs. Offline mode parses a PySpector JSON or SARIF report; live mode runs `pyspector scan <path|--url repo>` if the binary is on the worker PATH. The scanned project/repo becomes an ASSET and each finding (rule + severity, CWE/CVE when present) becomes a VULNERABILITY. Worker-safe (no DB).",
+  "intrusive": false,
+  "permission": "connector:pyspector",
+  "run": "run.py",
+  "mapping": "pyspector",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "Path on the worker to a PySpector report to import (JSON or SARIF: `pyspector scan <path> --format json -o out.json`)." },
+    { "name": "target", "type": "string", "required": false, "pattern": "^[\\w./:@-]+$", "help": "Live mode: a path or Git repo URL to scan with the local `pyspector` binary." },
+    { "name": "project", "type": "string", "required": false, "pattern": "^[\\w./@ -]+$", "help": "Project / asset name for the scanned codebase (defaults to the target/repo name)." }
+  ]
+}

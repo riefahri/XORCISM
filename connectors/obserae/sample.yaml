@@ -1,0 +1,29 @@
+# Sample Obserae cartography + sessions export (for the obserae connector).
+assets:
+  - name: web-prod-01
+    ip: 10.0.0.21
+    hostname: web-prod-01.corp
+    os: Linux
+    zone: DMZ
+    tags: [server, internet-facing]
+  - name: db-prod-01
+    ip: 10.0.0.22
+    hostname: db-prod-01.corp
+    os: Linux
+    zone: Internal
+  - name: app-prod-01
+    ip: 10.0.0.30
+    os: Linux
+    zone: Internal
+
+services:
+  - { asset: 10.0.0.21, protocol: tcp, port: 443, service: https, banner: "nginx/1.25", flows: 412 }
+  - { asset: 10.0.0.21, protocol: tcp, port: 22,  service: ssh,   banner: "OpenSSH 9.6", flows: 8 }
+  - { asset: 10.0.0.22, protocol: tcp, port: 5432, service: postgresql, flows: 96 }
+  - { asset: 10.0.0.30, protocol: tcp, port: 8080, service: http-app, flows: 210 }
+
+sessions:
+  - { src: 203.0.113.5, dst: 10.0.0.21, protocol: tcp, src_port: 51514, dst_port: 443, service: https, bytes: 184320, packets: 220, flows: 3, state: established, direction: inbound, first_seen: 2026-06-22T08:00:00Z, last_seen: 2026-06-22T08:05:00Z }
+  - { src: 10.0.0.30,   dst: 10.0.0.22, protocol: tcp, src_port: 40122, dst_port: 5432, service: postgresql, bytes: 982144, packets: 1450, flows: 22, state: established, direction: internal, first_seen: 2026-06-22T08:01:00Z, last_seen: 2026-06-22T08:59:00Z }
+  - { src: 10.0.0.21,   dst: 10.0.0.30, protocol: tcp, src_port: 33990, dst_port: 8080, service: http-app, bytes: 451000, packets: 690, flows: 14, state: established, direction: internal, first_seen: 2026-06-22T08:02:00Z, last_seen: 2026-06-22T08:58:00Z }
+  - { src: 198.51.100.9, dst: 10.0.0.21, protocol: tcp, src_port: 44210, dst_port: 22, service: ssh, bytes: 8400, packets: 60, flows: 5, state: rejected, direction: inbound, first_seen: 2026-06-22T03:14:00Z, last_seen: 2026-06-22T03:15:00Z }

@@ -1,0 +1,18 @@
+{
+  "id": "cybersentinel-ai",
+  "name": "CyberSentinel AI",
+  "type": "import",
+  "category": "AI Security",
+  "description": "Imports findings from CyberSentinel AI (https://github.com/3sk1nt4n/cybersentinel-ai), an agentic, local AI-driven security platform that orchestrates 33 tools (Nmap, Nuclei, Nikto, SQLMap, Shodan, VirusTotal, ELK, Neo4j…) in a Kali sandbox and analyzes the results with a local LLM, mapping findings to MITRE ATT&CK. The scanned target host/URL becomes an ASSET; discovered services/open ports become components; each vulnerability/finding (CVE ref or title + severity) becomes a VULNERABILITY. Offline mode: parse a CyberSentinel results JSON export. Live mode: with `target` (+ `api_base`), POST a scan to the CyberSentinel FastAPI backend and import the returned results. Active/intrusive multi-tool scanning. No DB access in run.py (worker-safe).",
+  "intrusive": true,
+  "permission": "connector:cybersentinel-ai",
+  "run": "run.py",
+  "mapping": "cybersentinel-ai",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "Path on the worker to a CyberSentinel AI results JSON export to import (offline mode)." },
+    { "name": "target", "type": "target", "required": false, "help": "Live mode: host or URL for CyberSentinel to scan (must be in the engagement scope)." },
+    { "name": "api_base", "type": "url", "required": false, "default": "http://localhost:8000", "help": "Live mode: base URL of the CyberSentinel AI FastAPI backend (default http://localhost:8000)." },
+    { "name": "api_key", "type": "string", "required": false, "help": "Live mode: API token/bearer for the CyberSentinel backend (if authentication is enabled)." },
+    { "name": "scan_type", "type": "enum", "required": false, "default": "full", "values": ["quick", "full", "recon", "web"], "help": "Live mode: scan profile requested from the CyberSentinel backend." }
+  ]
+}

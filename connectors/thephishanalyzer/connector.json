@@ -1,0 +1,15 @@
+{
+  "id": "thephishanalyzer",
+  "name": "ThePhishAnalyzer",
+  "type": "import",
+  "category": "Phishing Analysis",
+  "description": "Analyzes a phishing email (.eml / RFC822) — typically a DOCUMENT attached in XORCISM — and extracts its indicators of compromise. Parses headers and authentication results (SPF / DKIM / DMARC), the sender and reply-path, all URLs and the domains/IPs they resolve to, and the SHA-256 of each attachment. Each indicator is imported into the CTI store (XTHREAT.INTELEXCHANGE) tagged 'phishing', and the email itself is recorded as a phishing report. Offline mode parses a local .eml file (worker-safe, no DB, no network). Mirrors achrafhachimiac/ThePhishAnalyzer's email-intake workflow.",
+  "intrusive": false,
+  "permission": "connector:thephishanalyzer",
+  "run": "run.py",
+  "mapping": "thephishanalyzer",
+  "parameters": [
+    { "name": "file", "type": "file", "required": true, "help": "Path on the worker to the phishing email to analyze (.eml / RFC822). In XORCISM this is usually an exported DOCUMENT." },
+    { "name": "label", "type": "string", "required": false, "default": "phishing", "pattern": "^[a-zA-Z0-9 ,_-]+$", "help": "Label(s) to tag the extracted indicators with (comma-separated)." }
+  ]
+}

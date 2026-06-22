@@ -1,0 +1,17 @@
+{
+  "id": "artemis",
+  "name": "Artemis",
+  "type": "import",
+  "category": "Web Scanner",
+  "description": "Imports web vulnerability findings from Artemis (CERT Polska, https://github.com/CERT-Polska/Artemis), a modular scanner that checks websites for misconfigurations and known vulnerabilities (exposed .git/VCS, outdated CMS like Joomla/WordPress, directory listing, subdomain takeover, vulnerable services, Nuclei templates, weak passwords…). Each scanned target host/URL becomes an ASSET; each interesting finding (module + message, CVE if referenced) becomes a VULNERABILITY with a mapped severity. Offline mode: parse an Artemis results/report JSON export. Live mode: with `target` (+ `api_base`), submit a scan to the Artemis API and import the results. Active/intrusive web scanning. No DB access in run.py (worker-safe).",
+  "intrusive": true,
+  "permission": "connector:artemis",
+  "run": "run.py",
+  "mapping": "artemis",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "Path on the worker to an Artemis results/report JSON export to import (offline mode)." },
+    { "name": "target", "type": "target", "required": false, "help": "Live mode: host or URL for Artemis to scan (must be in the engagement scope)." },
+    { "name": "api_base", "type": "url", "required": false, "default": "http://localhost:5000", "help": "Live mode: base URL of the Artemis web API (default http://localhost:5000)." },
+    { "name": "api_key", "type": "string", "required": false, "help": "Live mode: API token for the Artemis backend (env ARTEMIS_API_TOKEN also honored)." }
+  ]
+}
