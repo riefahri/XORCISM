@@ -41,22 +41,22 @@
   <a href="/" data-i18n="nav.explorer">&#8592; Explorateur</a>
   <a href="/threat-feeds" data-i18n="nav.feeds" style="color:#fb923c">&#128225; Threat Feeds</a>
   <a href="/stix-graph" data-i18n="nav.stix">&#128376; STIX Graph</a>
-  <a href="/?db=XTHREAT&amp;table=THREATFEED">&#9881;&#65039; Manage feeds</a>
+  <a href="/?db=XTHREAT&amp;table=THREATFEED" data-i18n="tf.manage">&#9881;&#65039; Manage feeds</a>
   <span class="spacer"></span>
-  <span class="title">Threat Feeds (CTI)</span>
+  <span class="title" data-i18n="tf.titleBar">Threat Feeds (CTI)</span>
 </div>
 
 <div class="tf-layout">
   <div class="tf-side" id="tf-side">
-    <div class="tf-status">Chargement des flux…</div>
+    <div class="tf-status" data-i18n="tf.loadingFeeds">Chargement des flux…</div>
   </div>
   <div class="tf-main">
     <div class="tf-head">
-      <h2 id="tf-title">Dernières actus CTI</h2>
+      <h2 id="tf-title" data-i18n="tf.latest">Dernières actus CTI</h2>
       <span class="src" id="tf-src"></span>
       <span class="spacer"></span>
-      <button class="btn-sm2" id="tf-digest">🧠 AI digest</button>
-      <button class="btn-sm2" id="tf-refresh">⟳ Rafraîchir</button>
+      <button class="btn-sm2" id="tf-digest" data-i18n="tf.digestBtn">🧠 AI digest</button>
+      <button class="btn-sm2" id="tf-refresh" data-i18n="tf.refreshBtn">⟳ Rafraîchir</button>
     </div>
     <div id="tf-digest-panel" style="display:none;background:#13162a;border:1px solid #7c83fd;border-radius:10px;padding:13px 15px;margin-bottom:12px;font-size:13px;line-height:1.55;color:#cbd5e1"></div>
     <div class="tf-news" id="tf-news"><div class="tf-status">…</div></div>
@@ -65,124 +65,6 @@
 
 <div id="toast"></div>
 <script src="/js/session-ui.js"></script>
-<script>
-(function () {
-  var feeds = [];
-  var current = "latest"; // "latest" | feed id
-  var currentItems = [];
-  var currentTitle = "";
-  var newsEl = document.getElementById("tf-news");
-  var sideEl = document.getElementById("tf-side");
-
-  function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
-  function host(u) { try { return new URL(u).host.replace(/^www\./, ""); } catch (e) { return ""; } }
-  function rel(iso) {
-    if (!iso) return "";
-    var t = Date.parse(iso); if (isNaN(t)) return esc(iso);
-    var s = Math.floor((Date.now() - t) / 1000);
-    if (s < 60) return "à l'instant";
-    if (s < 3600) return Math.floor(s / 60) + " min";
-    if (s < 86400) return Math.floor(s / 3600) + " h";
-    if (s < 2592000) return Math.floor(s / 86400) + " j";
-    return new Date(t).toLocaleDateString();
-  }
-
-  function renderSidebar() {
-    var html = '<div class="tf-feed all' + (current === "latest" ? " sel" : "") + '" data-id="latest">'
-      + '<span class="dot"></span><div style="min-width:0;flex:1"><div class="nm">🔥 Dernières actus (tous les flux)</div>'
-      + '<div class="meta">' + feeds.length + ' flux CTI de confiance</div></div></div>';
-    html += '<div class="tf-sidehead">Flux</div>';
-    feeds.forEach(function (f) {
-      html += '<div class="tf-feed' + (String(current) === String(f.id) ? " sel" : "") + '" data-id="' + f.id + '">'
-        + '<span class="dot"></span><div style="min-width:0;flex:1">'
-        + '<div class="nm">' + esc(f.name) + '</div>'
-        + '<div class="meta">' + esc(f.vendor || host(f.url)) + (f.category ? ' · ' + esc(f.category) : '') + '</div></div></div>';
-    });
-    sideEl.innerHTML = html;
-    Array.prototype.forEach.call(sideEl.querySelectorAll(".tf-feed"), function (el) {
-      el.onclick = function () { select(el.getAttribute("data-id")); };
-    });
-  }
-
-  function renderItems(items, withSource) {
-    currentItems = items || [];
-    if (!items || !items.length) { newsEl.innerHTML = '<div class="tf-status">Aucun article.</div>'; return; }
-    newsEl.innerHTML = items.map(function (it) {
-      var sub = [];
-      if (withSource && it.source) sub.push('<span class="so">' + esc(it.source) + '</span>');
-      if (it.date) sub.push(esc(rel(it.date)));
-      if (it.link) sub.push(esc(host(it.link)));
-      var titleHtml = it.link
-        ? '<a class="ttl" href="' + esc(it.link) + '" target="_blank" rel="noopener noreferrer">' + esc(it.title) + '</a>'
-        : '<span class="ttl">' + esc(it.title) + '</span>';
-      return '<div class="tf-art">' + titleHtml
-        + '<div class="sub">' + sub.join('<span>·</span>') + '</div>'
-        + (it.summary ? '<div class="sum">' + esc(it.summary) + '</div>' : '') + '</div>';
-    }).join("");
-  }
-
-  function select(id) {
-    current = id;
-    renderSidebar();
-    var titleEl = document.getElementById("tf-title");
-    var srcEl = document.getElementById("tf-src");
-    newsEl.innerHTML = '<div class="tf-status">Récupération des articles…</div>';
-    if (id === "latest") {
-      titleEl.textContent = "Dernières actus CTI";
-      fetch("/api/threatfeeds/latest?limit=50").then(function (r) { return r.json(); }).then(function (d) {
-        srcEl.textContent = (d.fetched || 0) + "/" + (d.feeds || 0) + " flux";
-        renderItems(d.items, true);
-      }).catch(function (e) { newsEl.innerHTML = '<div class="tf-status">⚠️ ' + esc(e) + '</div>'; });
-    } else {
-      var f = feeds.filter(function (x) { return String(x.id) === String(id); })[0];
-      titleEl.textContent = f ? f.name : "Flux";
-      srcEl.innerHTML = f && f.site ? '<a href="' + esc(f.site) + '" target="_blank" rel="noopener noreferrer" style="color:#7c83fd">' + esc(host(f.site)) + ' ↗</a>' : "";
-      fetch("/api/threatfeeds/items?id=" + encodeURIComponent(id) + "&limit=25").then(function (r) {
-        return r.ok ? r.json() : r.json().then(function (j) { throw new Error(j.error || ("Erreur " + r.status)); });
-      }).then(function (d) {
-        renderItems(d.items, false);
-        if (d.stale) srcEl.textContent += " (cache)";
-      }).catch(function (e) { newsEl.innerHTML = '<div class="tf-status">⚠️ ' + esc(e.message || e) + '</div>'; });
-    }
-  }
-
-  document.getElementById("tf-refresh").onclick = function () { select(current); };
-
-  // 🧠 Local-AI digest of the currently displayed feed items (Ollama, deterministic fallback).
-  var digestBtn = document.getElementById("tf-digest");
-  var digestPanel = document.getElementById("tf-digest-panel");
-  function mdToHtml(s) {
-    return esc(s)
-      .replace(/\*\*([^*]+)\*\*/g, "<b style=\"color:#e2e8f0\">$1</b>")
-      .replace(/^- (.*)$/gm, "<div style=\"margin-left:10px\">• $1</div>")
-      .replace(/\n/g, "<br>");
-  }
-  digestBtn.onclick = function () {
-    if (!currentItems.length) { return; }
-    digestPanel.style.display = "block";
-    digestPanel.innerHTML = "🧠 Génération du résumé par l'IA locale…";
-    digestBtn.disabled = true;
-    var payload = { items: currentItems.slice(0, 60).map(function (i) { return { title: i.title, summary: i.summary, source: i.source || "", date: i.date }; }) };
-    fetch("/api/ai/feed-digest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || ("HTTP " + r.status)); return d; }); })
-      .then(function (d) {
-        digestPanel.innerHTML = "<div style=\"font-size:11px;color:#64748b;margin-bottom:6px\">🧠 " +
-          (d.ai ? "Résumé IA (" + esc(d.model) + ")" : "Résumé hors-ligne — " + esc(d.model)) +
-          " · " + d.items + " articles" + (d.cves && d.cves.length ? " · " + d.cves.length + " CVE" : "") + "</div>" + mdToHtml(d.digest);
-      })
-      .catch(function (e) { digestPanel.innerHTML = "⚠️ " + esc(e.message || e); })
-      .finally(function () { digestBtn.disabled = false; });
-  };
-
-  fetch("/api/threatfeeds").then(function (r) { return r.json(); }).then(function (list) {
-    feeds = Array.isArray(list) ? list : [];
-    renderSidebar();
-    select("latest");
-  }).catch(function (e) {
-    sideEl.innerHTML = '<div class="tf-status">⚠️ Impossible de charger les flux.</div>';
-    newsEl.innerHTML = '<div class="tf-status">' + esc(e) + '</div>';
-  });
-})();
-</script>
+<script src="/js/threat-feeds.js"></script>
 </body>
 </html>

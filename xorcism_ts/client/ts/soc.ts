@@ -66,8 +66,8 @@ function render(): void {
     : `<div class="muted" style="padding:8px 0">No shifts scheduled.</div>`;
 
   const pbs = d.playbooks.length
-    ? `<div class="grid2">${d.playbooks.map((p) => `<div class="panel"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="pbcat">${esc(p.category)}</span><span class="sev ${scls(p.severity)}">${esc(p.severity)}</span></div><div class="nm">${esc(p.name)}</div><div class="muted" style="font-size:12px;margin-top:2px">${p.steps} steps · NIST SP 800-61</div></div>`).join("")}</div>`
-    : `<div class="muted" style="padding:8px 0">No playbooks yet.</div>`;
+    ? `<div class="grid2">${d.playbooks.map((p) => `<div class="panel"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="pbcat">${esc(p.category)}</span><span class="sev ${scls(p.severity)}">${esc(p.severity)}</span><span style="flex:1"></span><button class="btn-sm2" data-managepb="${p.id}">Manage</button></div><div class="nm">${esc(p.name)}</div><div class="muted" style="font-size:12px;margin-top:2px">${p.steps} steps · NIST SP 800-61</div></div>`).join("")}</div>`
+    : `<div class="muted" style="padding:8px 0">No playbooks yet — create one with “+ New playbook”.</div>`;
 
   $("so-body").innerHTML = `<div class="so-cards">${cards}</div>
     <div class="so-section">SOC worklist (${d.worklist.length})</div>${work}
@@ -77,7 +77,7 @@ function render(): void {
       <div class="panel"><div class="so-section" style="margin-top:0">Escalation procedure</div>${tiers}</div>
     </div>
     <div class="so-section">Shift schedule (${d.shifts.length})</div>${shifts}
-    <div class="so-section">IR playbook library (${d.playbooks.length})</div>${pbs}`;
+    <div class="so-section" style="display:flex;align-items:center">IR playbook library (${d.playbooks.length})<span style="flex:1"></span><button class="btn-sm2" data-newpb="1">+ New playbook</button></div>${pbs}`;
   wire();
 }
 
@@ -89,6 +89,90 @@ function wire(): void {
   on("attach", (id) => attachPlaybook(id));
   on("pb", (id) => openPlaybook(id));
   on("open", (id) => openPlaybook(id));
+  on("newpb", () => newPlaybookDialog());
+  on("managepb", (id) => managePlaybook(id));
+}
+
+const PB_PHASES = ["Detection & Analysis", "Containment", "Eradication", "Recovery", "Post-Incident"];
+const PBFORM_CSS = `<style>.pbform label{display:block;font-size:12px;color:#94a3b8;margin-top:8px}
+  .pbform input,.pbform select,.pbform textarea,.pbaddstep input,.pbaddstep select{box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;padding:7px 9px;font-size:13px;font-family:inherit}
+  .pbform input,.pbform select,.pbform textarea{width:100%;margin-top:3px}.pbform textarea{font-family:ui-monospace,monospace}</style>`;
+function closeModal(): void { $("so-modal").classList.remove("show"); }
+
+function newPlaybookDialog(): void {
+  $("so-dlg").innerHTML = `${PBFORM_CSS}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:16px;color:#e7ebf3">New IR playbook</span><span style="flex:1"></span><button class="btn-sm2" id="so-close">Close</button></div>
+    <div class="pbform">
+      <label>Name<input id="npb-name" placeholder="e.g. DDoS / availability response"></label>
+      <div style="display:flex;gap:8px">
+        <label style="flex:1">Category<input id="npb-cat" placeholder="e.g. Availability"></label>
+        <label style="flex:1">Severity<select id="npb-sev">${["Critical", "High", "Medium", "Low"].map((s) => `<option${s === "Medium" ? " selected" : ""}>${s}</option>`).join("")}</select></label>
+      </div>
+      <label>Description<input id="npb-desc" placeholder="optional"></label>
+      <label>Steps <span class="muted" style="font-size:11px">one per line — <code>Phase | Title | Description</code> (phase &amp; description optional)</span>
+        <textarea id="npb-steps" rows="7" placeholder="Detection & Analysis | Confirm the incident | Validate the alert and scope it&#10;Containment | Cut the path | Block the source / isolate the target"></textarea></label>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn-sm2" id="npb-save" style="border-color:#fb923c;color:#fdba74">Create playbook</button></div>
+    </div>`;
+  $("so-modal").classList.add("show");
+  $("so-close").onclick = closeModal;
+  ($("npb-save") as HTMLButtonElement).onclick = () => {
+    const name = ($("npb-name") as HTMLInputElement).value.trim();
+    if (!name) { toast("Name required"); return; }
+    const steps = ($("npb-steps") as HTMLTextAreaElement).value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+      const p = l.split("|").map((x) => x.trim());
+      if (p.length >= 3) return { phase: p[0], title: p[1], description: p.slice(2).join(" | ") };
+      if (p.length === 2) return { phase: p[0], title: p[1] };
+      return { title: p[0] };
+    });
+    fetch("/api/soc/playbook", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, category: ($("npb-cat") as HTMLInputElement).value.trim(), severity: ($("npb-sev") as HTMLSelectElement).value, description: ($("npb-desc") as HTMLInputElement).value.trim(), steps }) })
+      .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; }))
+      .then(() => { toast("Playbook created"); closeModal(); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
+  };
+}
+
+function managePlaybook(id: number): void {
+  fetch("/api/soc/playbooks").then((r) => r.json()).then((d: { playbooks: any[] }) => {
+    const pb = d.playbooks.find((p) => p.id === id);
+    if (!pb) { toast("Playbook not found"); return; }
+    const steps = pb.steps.length ? pb.steps.map((st: any) => `
+      <div class="pstep" style="align-items:flex-start">
+        <div class="pt"><div class="tt">${st.order}. ${esc(st.title)} <span class="muted" style="font-size:11px">· ${esc(st.phase)}</span></div><div class="dd">${esc(st.description)}</div></div>
+        <button class="btn-sm2" data-delstep="${st.id}" title="Delete step">✕</button>
+      </div>`).join("") : `<div class="muted" style="padding:6px 0">No steps yet — add one below.</div>`;
+    $("so-dlg").innerHTML = `${PBFORM_CSS}
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:16px;color:#e7ebf3">${esc(pb.name)}</span><span class="pbcat">${esc(pb.category)}</span><span class="sev ${scls(pb.severity)}">${esc(pb.severity)}</span><span style="flex:1"></span><button class="btn-sm2" id="so-close">Close</button></div>
+      <div class="muted" style="font-size:12px;margin-bottom:8px">${pb.steps.length} step(s) · ${esc(pb.description || "NIST SP 800-61 playbook")}</div>
+      ${steps}
+      <div class="pbaddstep" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;border-top:1px solid #1e2133;padding-top:10px">
+        <select id="as-phase">${PB_PHASES.map((p) => `<option>${p}</option>`).join("")}</select>
+        <input id="as-title" placeholder="Step title" style="flex:1;min-width:150px">
+        <input id="as-desc" placeholder="Description (optional)" style="flex:2;min-width:150px">
+        <button class="btn-sm2" id="as-add">+ Add step</button>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-sm2" id="pb-del" style="border-color:#7f1d1d;color:#fca5a5">Delete playbook</button></div>`;
+    $("so-modal").classList.add("show");
+    $("so-close").onclick = closeModal;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-delstep]"), (b: HTMLElement) => {
+      b.onclick = () => fetch(`/api/soc/playbook-step/${b.getAttribute("data-delstep")}`, { method: "DELETE" })
+        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(() => { toast("Step deleted"); managePlaybook(id); reload().then(render); }).catch((e) => toast("⚠️ " + e));
+    });
+    ($("as-add") as HTMLButtonElement).onclick = () => {
+      const title = ($("as-title") as HTMLInputElement).value.trim();
+      if (!title) { toast("Title required"); return; }
+      fetch(`/api/soc/playbook/${id}/step`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phase: ($("as-phase") as HTMLSelectElement).value, title, description: ($("as-desc") as HTMLInputElement).value.trim() }) })
+        .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; }))
+        .then(() => { toast("Step added"); managePlaybook(id); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
+    };
+    ($("pb-del") as HTMLButtonElement).onclick = () => {
+      if (!confirm(`Delete the playbook "${pb.name}" and all its steps?`)) return;
+      fetch(`/api/soc/playbook/${id}`, { method: "DELETE" })
+        .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; }))
+        .then(() => { toast("Playbook deleted"); closeModal(); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
+    };
+  }).catch((e) => toast("⚠️ " + (e.message || e)));
 }
 
 function act(url: string, body: unknown, okMsg: string): void {

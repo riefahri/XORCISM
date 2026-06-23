@@ -3601,9 +3601,6 @@ export function ensureIncidentTables(): void {
       ExternalID TEXT, ExternalUrl TEXT,
       PersonID INTEGER, CreatedDate DATE, IncidentID INTEGER, TenantID INTEGER);
     CREATE INDEX IF NOT EXISTS ix_alert_incident ON ALERT(IncidentID);
-    -- (DetectionSource, ExternalID) = the idempotency key for connector-imported alerts
-    -- (SOC tools: TheHive / ServiceNow / PagerDuty / Opsgenie / Zammad → runner.import_incidents).
-    CREATE INDEX IF NOT EXISTS ix_alert_extid ON ALERT(DetectionSource, ExternalID);
     -- Defender "Select entities": impacted assets + related evidence on an alert.
     CREATE TABLE IF NOT EXISTS ALERTFORASSET (
       AssetAlertID INTEGER PRIMARY KEY, AlertID INTEGER, AssetID INTEGER,
@@ -3629,6 +3626,10 @@ export function ensureIncidentTables(): void {
     ["DetectionSource", "TEXT DEFAULT 'Manual'"], ["Classification", "TEXT"], ["Determination", "TEXT"],
     ["AssignedTo", "TEXT"], ["Tags", "TEXT"], ["ExternalID", "TEXT"], ["ExternalUrl", "TEXT"],
   ] as [string, string][]) addCol("ALERT", c, t);
+  // (DetectionSource, ExternalID) = idempotency key for connector-imported alerts (SOC tools:
+  // TheHive / ServiceNow / PagerDuty / Opsgenie / Zammad → runner.import_incidents). Created AFTER
+  // the column migration above so a pre-ExternalID ALERT table doesn't crash the boot.
+  db.exec("CREATE INDEX IF NOT EXISTS ix_alert_extid ON ALERT(DetectionSource, ExternalID)");
   // INCIDENT (legacy): Defender-aligned metadata added by ALTER.
   for (const [c, t] of [
     ["Severity", "TEXT"], ["AttackTechniques", "TEXT"], ["Classification", "TEXT"],
@@ -4617,6 +4618,7 @@ export function ensurePersonOrgChartColumns(): void {
       UsageLocation: "TEXT",           // Entra usageLocation (ISO country)
       MobilePhone: "TEXT", BusinessPhone: "TEXT",
       AccountEnabled: "INTEGER",       // Entra accountEnabled (1/0)
+      TenantID: "INTEGER",             // tenant scope (PERSON was historically a global directory)
     };
     for (const [n, t] of Object.entries(cols)) {
       if (!existing.has(n)) db.exec(`ALTER TABLE "PERSON" ADD COLUMN "${n}" ${t}`);
@@ -4666,6 +4668,8 @@ export function ensureGrcColumns(): void {
     // classification, language (en/fr…) and full markdown body.
     Category: "TEXT", Framework: "TEXT", Clause: "TEXT", Classification: "TEXT",
     Language: "TEXT", Scope: "TEXT", PolicyContent: "TEXT", ApprovedDate: "DATE",
+    // publication + user-acceptance: when a policy was published and whether users must acknowledge it.
+    PublishedDate: "DATE", RequiresAcknowledgement: "INTEGER",
   });
   // Document register (records / evidence) lifecycle — mirror the policy fields so the
   // governance view can treat DOCUMENT as a controlled-document register.
@@ -4680,6 +4684,61 @@ export function ensureGrcColumns(): void {
     Status: "TEXT", AssessmentType: "TEXT", RiskRating: "TEXT", Score: "INTEGER",
     VendorCriticality: "TEXT", DueDate: "DATE", CompletedDate: "DATE",
   });
+}
+
+/**
+ * XORCISM.POLICYACKNOWLEDGEMENT — per-user acceptance of a published policy. One row per
+ * (PolicyID, UserID, PolicyVersion): re-publishing a policy at a new version requires users to
+ * re-acknowledge. User identity is denormalized (UserID/Email/Name) since XUSER lives in the
+ * XID database. Created idempotently at boot.
+ */
+export function ensurePolicyAckTable(): void {
+  let db: Database.Database;
+  try { db = getDb("XORCISM"); } catch { return; }
+  db.exec(`CREATE TABLE IF NOT EXISTS "POLICYACKNOWLEDGEMENT" (
+    "AcknowledgementID" INTEGER PRIMARY KEY,
+    "AcknowledgementGUID" TEXT,
+    "PolicyID" INTEGER,
+    "UserID" INTEGER,
+    "UserEmail" TEXT,
+    "UserName" TEXT,
+    "PolicyVersion" TEXT,
+    "AcknowledgedDate" TEXT,
+    "Method" TEXT,
+    "IPAddress" TEXT,
+    "TenantID" INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS ix_polack_policy ON "POLICYACKNOWLEDGEMENT"(PolicyID);
+  CREATE INDEX IF NOT EXISTS ix_polack_user ON "POLICYACKNOWLEDGEMENT"(UserID);`);
+}
+
+/**
+ * XORCISM.POLICYVERSION — immutable version history of a policy. A snapshot row is written each
+ * time a policy is published (and on demand), capturing the content + lifecycle metadata of that
+ * version so prior versions can be reviewed, compared, and restored. Editor identity is
+ * denormalized (XUSER lives in the XID db). Created idempotently at boot.
+ */
+export function ensurePolicyVersionTable(): void {
+  let db: Database.Database;
+  try { db = getDb("XORCISM"); } catch { return; }
+  db.exec(`CREATE TABLE IF NOT EXISTS "POLICYVERSION" (
+    "PolicyVersionID" INTEGER PRIMARY KEY,
+    "PolicyVersionGUID" TEXT,
+    "PolicyID" INTEGER,
+    "Version" TEXT,
+    "Status" TEXT,
+    "PolicyName" TEXT,
+    "PolicyContent" TEXT,
+    "Scope" TEXT,
+    "EffectiveDate" DATE,
+    "PublishedDate" DATE,
+    "ChangeNote" TEXT,
+    "ChangedByUserID" INTEGER,
+    "ChangedByName" TEXT,
+    "CreatedDate" TEXT,
+    "TenantID" INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS ix_polver_policy ON "POLICYVERSION"(PolicyID);`);
 }
 
 /**

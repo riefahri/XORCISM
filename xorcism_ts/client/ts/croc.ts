@@ -36,6 +36,20 @@ function spark(series: any[], key: string, color: string, label: string, suffix 
 function toast(m: string): void { const t = $("toast"); if (!t) return; t.textContent = m; t.className = "show"; setTimeout(() => { t.className = ""; }, 2600); }
 
 let isAdmin = false;
+let lastReasoning = ""; // persists the AI read across the 30s auto-refresh
+
+/** Minimal Markdown → HTML for the AI reasoning panel (headings / bold / italic / bullets). */
+function mdLite(md: string): string {
+  const e = (s: string): string => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
+  return String(md || "").split("\n").map((ln) => {
+    const t = e(ln).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/_([^_]+)_/g, "<i>$1</i>");
+    if (/^###\s+/.test(ln)) return `<div class="ai-h3">${t.replace(/^###\s+/, "")}</div>`;
+    if (/^##\s+/.test(ln)) return `<div class="ai-h2">${t.replace(/^##\s+/, "")}</div>`;
+    if (/^[-*]\s+/.test(ln)) return `<div class="ai-li">${t.replace(/^[-*]\s+/, "")}</div>`;
+    if (ln.trim() === "") return `<div style="height:6px"></div>`;
+    return `<div>${t}</div>`;
+  }).join("");
+}
 
 function render(d: any): string {
   const s = d.summary || {};
@@ -68,6 +82,8 @@ function render(d: any): string {
     <div style="text-align:center"><div class="arr">${s.crocToSoc || 0} →</div><div class="muted" style="font-size:10px">exposure → detection priority</div><div class="arr">← ${s.socToCroc || 0}</div><div class="muted" style="font-size:10px">incident → reprioritize exposure</div></div>
     <div class="loopbox"><div class="t">SOC</div><div class="n">protects today · detection</div></div>
   </div>
+  <div class="sec">AI — reason across the loop <span class="muted" style="font-size:11px;text-transform:none;font-weight:400">local · detect→decide→act→learn · nothing leaves your machine</span><span class="spacer"></span><button class="btn-sm2" id="ai-reason">Reason ✦</button></div>
+  <div class="panel" id="ai-reason-out">${lastReasoning || `<span class="muted" style="font-size:12px">Ask the local model to reason <i>across</i> the whole loop — which detection exploits which exposure, what reaches a crown jewel, where the loop is stuck, and the single next move.</span>`}</div>
   <div class="grid2" style="margin-top:14px">
     <div class="panel">
       <div class="lbl" style="font-size:11px;color:#94a3b8;text-transform:uppercase;margin-bottom:6px">CROC→SOC · risk-weighted alert queue</div>
@@ -123,6 +139,18 @@ function render(d: any): string {
 }
 
 function wire(): void {
+  $("ai-reason")?.addEventListener("click", async () => {
+    const out = $("ai-reason-out"); const btn = $("ai-reason") as HTMLButtonElement | null;
+    if (!out) return;
+    if (btn) btn.disabled = true;
+    out.innerHTML = `<span class="muted" style="font-size:12px">Reasoning locally across the loop… (the model may take a moment; nothing leaves your machine)</span>`;
+    try {
+      const r = await getJson("/api/croc/reason");
+      lastReasoning = `<div class="ai-md">${mdLite(r.reasoning || "")}</div><div class="muted" style="font-size:10px;margin-top:8px">model: ${esc(r.model)}${r.offline ? " · offline data-driven fallback (start Ollama for an LLM read)" : ""}</div>`;
+      const live = $("ai-reason-out"); if (live) live.innerHTML = lastReasoning; // re-query in case a refresh re-rendered
+    } catch { const live = $("ai-reason-out"); if (live) live.innerHTML = `<span class="muted" style="font-size:12px">Reasoning failed.</span>`; }
+    finally { const b = $("ai-reason") as HTMLButtonElement | null; if (b) b.disabled = false; }
+  });
   document.querySelectorAll<HTMLInputElement>(".pol-tog").forEach((t) => {
     t.addEventListener("change", async () => {
       const id = (t.closest("tr") as HTMLElement)?.dataset.pol;

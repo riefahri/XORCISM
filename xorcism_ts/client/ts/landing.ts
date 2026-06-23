@@ -50,7 +50,7 @@ function applyOrder(map: OrderMap): void {
 
 // ── NICE-profile filter + per-group/card access control (config from /api/landing/config) ──
 const NICE_PREF = "landing-nice";
-interface LandingCfg { profiles: string[]; groupRelevance: Record<string, string[]>; cardRelevance: Record<string, string[]>; restrictions: { itemType: string; itemKey: string; profiles: string[] }[]; userProfiles: string[]; isAdmin: boolean }
+interface LandingCfg { profiles: string[]; groupRelevance: Record<string, string[]>; cardRelevance: Record<string, string[]>; restrictions: { itemType: string; itemKey: string; profiles: string[] }[]; userProfiles: string[]; rbacDenied?: string[]; isAdmin: boolean }
 
 async function loadLandingCfg(): Promise<LandingCfg | null> {
   try { const r = await fetch("/api/landing/config"); if (!r.ok) return null; return await r.json(); } catch { return null; }
@@ -68,14 +68,16 @@ const relevanceOf = (cfg: LandingCfg, c: HTMLAnchorElement): string[] => cfg.car
 function applyAccess(cfg: LandingCfg): void {
   if (cfg.isAdmin) return; // admins see everything
   const up = new Set(cfg.userProfiles || []);
+  const denied = new Set(cfg.rbacDenied || []); // RBAC: feature pages this role can't access
   const byCard = new Map<string, string[]>(), byGroup = new Map<string, string[]>();
   for (const r of cfg.restrictions || []) (r.itemType === "group" ? byGroup : byCard).set(r.itemKey, r.profiles || []);
   const ok = (ps: string[]): boolean => ps.length === 0 || ps.some((p) => up.has(p));
+  const hide = (c: HTMLAnchorElement): void => { c.classList.add("access-hidden"); c.style.display = "none"; };
   for (const grid of grids()) {
     const section = grid.closest<HTMLElement>(".approach");
     const gr = byGroup.get(groupOf(grid));
-    if (gr && !ok(gr)) { for (const c of cardsIn(grid)) { c.classList.add("access-hidden"); c.style.display = "none"; } section?.classList.add("access-hidden-group"); if (section) section.style.display = "none"; continue; }
-    for (const c of cardsIn(grid)) { const cr = byCard.get(hrefOf(c)); if (cr && !ok(cr)) { c.classList.add("access-hidden"); c.style.display = "none"; } }
+    if (gr && !ok(gr)) { for (const c of cardsIn(grid)) hide(c); section?.classList.add("access-hidden-group"); if (section) section.style.display = "none"; continue; }
+    for (const c of cardsIn(grid)) { const cr = byCard.get(hrefOf(c)); if ((cr && !ok(cr)) || denied.has(hrefOf(c))) hide(c); }
     if (section && !cardsIn(grid).some((c) => !c.classList.contains("access-hidden"))) { section.classList.add("access-hidden-group"); section.style.display = "none"; }
   }
 }

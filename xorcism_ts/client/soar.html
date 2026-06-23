@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — SOAR</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1300px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1040px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}.sec .spacer{flex:1}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px}
+  .muted{color:#64748b}.nm{font-weight:600;color:#e2e8f0}
+  .pb{border:1px solid #2d3250;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#13162a}
+  .pb .pbh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .chiptrig{font-size:10px;font-weight:700;border-radius:5px;padding:2px 8px;background:#1e3a5f;color:#bfdbfe}
+  .chipcat{font-size:10px;border-radius:5px;padding:2px 8px;background:#1e2440;color:#94a3b8}
+  .step{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#cbd5e1;padding:3px 0}
+  .stepn{width:18px;height:18px;border-radius:50%;background:#1e2440;color:#a5b4fc;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:0 0 auto}
+  .atype{font-family:ui-monospace,monospace;font-size:11px;color:#7c83fd;background:#0f1117;border-radius:5px;padding:1px 6px}
+  .pill{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .p-ok{background:#14532d;color:#bbf7d0}.p-off{background:#1e2133;color:#94a3b8}.p-warn{background:#78350f;color:#fcd34d}.p-bad{background:#7f1d1d;color:#fecaca}
+  .worklist{list-style:none;margin:0;padding:0}.worklist li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .sev{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px}.sv-High{background:#78350f;color:#fcd34d}.sv-Medium{background:#1e3a5f;color:#bfdbfe}.sv-Low{background:#1e2133;color:#94a3b8}
+  table.rt{width:100%;border-collapse:collapse;font-size:13px}table.rt th,table.rt td{text-align:left;padding:6px 9px;border-bottom:1px solid #1e2133}table.rt th{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:4px 11px;cursor:pointer}.btn-sm2:hover{border-color:#fb923c}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}.modal.show{display:flex}
+  .dlg{background:#0f1117;border:1px solid #2d3250;border-radius:12px;padding:18px;max-width:620px;width:94%;max-height:88vh;overflow:auto}
+  .dlg label{display:block;font-size:12px;color:#94a3b8;margin-top:8px}
+  .dlg input,.dlg select,.dlg textarea{width:100%;box-sizing:border-box;background:#13162a;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;padding:7px 9px;font-size:13px;margin-top:3px;font-family:inherit}
+  .arow{display:flex;gap:6px;margin-top:6px}.arow select{flex:1}.arow input{flex:2}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/soc">&#128737;&#65039; SOC</a><a href="/incident-management">&#128680; Incidents</a><a href="/connectors?connector=n8n">&#128279; n8n</a><span class="spacer"></span><span class="title">&#9881;&#65039; SOAR</span></div>
+<div class="mw">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex:1">
+      <h1>SOAR — Security Orchestration, Automation &amp; Response</h1>
+      <div class="sub">Automate response: define <b>playbooks</b> (a trigger → an ordered set of actions) from a built-in
+        <b>action catalogue</b> (enrich, notify, ticket, isolate, block, escalate, run-automation), then <b>run</b> them.
+        Runs default to <b>simulate</b> (dry-run, no side effects) for safe design; the live outbound rung dispatches to
+        the configured n8n / SOAR webhooks.</div>
+    </div>
+    <div class="no-print" style="display:flex;gap:8px;padding-top:4px"><button class="btn-sm2" id="btn-new">+ New playbook</button></div>
+  </div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading SOAR cockpit…</div></div>
+</div>
+<div class="modal" id="modal"><div class="dlg" id="dlg"></div></div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/soar.js"></script></body></html>

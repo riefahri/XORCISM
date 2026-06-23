@@ -18,6 +18,8 @@ interface Inventory {
   summary: {
     total: number; human: number; nonHuman: number; privileged: number; orphaned: number; stale: number;
     expiring: number; hardcoded: number; compromised: number; mfaGaps: number;
+    mfaEnabled: number; mfaUnknown: number; mfaCoveragePct: number;
+    secretsTotal: number; rotationOverdue: number; neverRotated: number; avgRotationDays: number | null;
     byType: Record<string, number>; byClass: Record<string, number>;
   };
 }
@@ -82,6 +84,9 @@ async function load(): Promise<void> {
     card("Stale", String(s.stale), `unused > 90 days`, s.stale ? "#fbbf24" : undefined),
     card("Hardcoded", String(s.hardcoded), "embedded secrets", s.hardcoded ? "#f87171" : "#34d399"),
     card("MFA gaps", String(s.mfaGaps), "privileged human, no MFA", s.mfaGaps ? "#f87171" : "#34d399"),
+    card("MFA coverage", `${s.mfaCoveragePct}%`, `${s.mfaEnabled}/${s.human} human${s.mfaUnknown ? ` · ${s.mfaUnknown} unknown` : ""}`, s.mfaCoveragePct >= 90 ? "#34d399" : s.mfaCoveragePct >= 60 ? "#fbbf24" : "#f87171"),
+    card("Rotation overdue", String(s.rotationOverdue), `of ${s.secretsTotal} secret(s)${s.neverRotated ? ` · ${s.neverRotated} never` : ""}`, s.rotationOverdue ? "#fbbf24" : "#34d399"),
+    card("Avg secret age", s.avgRotationDays != null ? `${s.avgRotationDays}d` : "—", "since last rotation", s.avgRotationDays != null && s.avgRotationDays > 90 ? "#fb923c" : undefined),
     card("Compromised", String(s.compromised), "flagged status", s.compromised ? "#f87171" : "#34d399"),
   ].join("");
 

@@ -1,0 +1,10 @@
+{
+  "accounts": [
+    {"id": "12_34", "name": "Operating System-WinDomain-svc_backup", "userName": "svc_backup", "address": "dc01.corp.local", "platformId": "WinDomain", "safeName": "Windows-Service-Accounts", "secretType": "password", "secretManagement": {"automaticManagementEnabled": true, "lastModifiedTime": 1717977600}},
+    {"id": "12_35", "name": "Unix-SSHKey-root-app01", "userName": "root", "address": "app01.corp.local", "platformId": "UnixSSHKeys", "safeName": "Linux-Root", "secretType": "key", "secretManagement": {"automaticManagementEnabled": false, "lastModifiedTime": 1700000000}}
+  ],
+  "users": [
+    {"id": 7, "username": "vault.admin", "userType": "Built-InAdmins", "source": "CyberArk", "componentUser": false, "enableUser": true},
+    {"id": 9, "username": "PVWAAppUser", "userType": "AppProvider", "source": "Internal", "componentUser": true, "enableUser": true}
+  ]
+}

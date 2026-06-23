@@ -11,6 +11,8 @@ import { getDb, assetRiskExposure, extractCves } from "./db";
 import { getRun, getRunSteps } from "./chain";
 import { topExposures } from "./fusion";
 import { attackPathGraph } from "./attackpath";
+import { crocDashboard, riskHunting } from "./croc";
+import { boardReport } from "./boardreport";
 
 const OLLAMA_URL = (process.env.OLLAMA_URL || "http://localhost:11434").replace(/\/$/, "");
 export const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
@@ -368,6 +370,97 @@ export async function exposureBrief(tenant: number | null): Promise<{ brief: str
   return { brief: det, model: status.reachable ? "fallback" : "offline", offline: true };
 }
 
+/**
+ * Reason ACROSS the CROC continuous-defense loop (detect → decide → act → learn, + expose & identity).
+ * Pulls a live cross-lifecycle snapshot and asks the local model to CONNECT the stages — which detection
+ * exploits which exposure, which exposure reaches a crown jewel, where the loop is stuck. Deterministic
+ * cross-stage fallback when Ollama is offline. Nothing leaves the machine.
+ */
+export async function lifecycleReasoning(tenant: number | null): Promise<{ reasoning: string; model: string; offline: boolean }> {
+  const dash = crocDashboard(tenant);
+  const hunt = riskHunting(tenant);
+  const s = dash.summary || {};
+  const fb = dash.feedback || {};
+  const rwa = (dash.riskWeightedAlerts || []).slice(0, 6);
+  const hotExp = (hunt.exposures || []).filter((e: any) => e.hot).slice(0, 6);
+  const agentic = (hunt.agentic || []).slice(0, 5);
+  const res = dash.resilience || [];
+  const first = res[0], last = res[res.length - 1];
+
+  const context = [
+    `# CROC loop snapshot (tenant ${tenant ?? "global"})`,
+    `Loop health: ${s.loopHealth} | machine-speed ${s.machineSpeedPct}% (${s.autoDecided} auto-decided of ${s.eventsToday} events/24h) | median latency ${s.medianLatencyMs}ms | direction CROC→SOC ${s.crocToSoc} / SOC→CROC ${s.socToCroc}`,
+    ``,
+    `## DETECT — risk-weighted SOC queue`,
+    rwa.map((a: any) => `- [w${a.riskWeight}] ${a.severity} ${a.name}${a.attack ? " (" + a.attack + ")" : ""}`).join("\n") || "- (no open alerts)",
+    `Techniques in recent incidents: ${(fb.techniquesSeen || []).join(", ") || "none"}. Actively-attacked exposures: ${fb.matchingExposures || 0} of ${fb.totalExposures || 0}.`,
+    ``,
+    `## DECIDE / ACT — what the loop fired (24h)`,
+    `tickets opened ${s.ticketsOpened || 0}, IAM constraints ${s.iamActions || 0}, pushed to ITSM ${s.externalTickets || 0}.`,
+    (dash.feed || []).slice(0, 6).map((e: any) => `- ${e.type} [${e.severity}] → ${e.decided || "→ human"}`).join("\n"),
+    ``,
+    `## EXPOSE — actively-attacked + reachable`,
+    hotExp.map((e: any) => `- ${e.ref} prio ${e.priority}${e.kev ? " KEV" : ""}${e.exploits ? ` ${e.exploits}exp` : ""} on ${e.assets} asset(s)${e.reach ? ` [${e.reach}]` : ""}`).join("\n") || "- none hot",
+    `Attack paths to crown jewels: ${hunt.summary?.attackPaths || 0} (reachable jewels ${hunt.summary?.reachableJewels || 0}); exposures on a path: ${hunt.summary?.onAttackPath || 0}. Choke points: ${(hunt.chokepoints || []).slice(0, 3).map((c: any) => `${c.label} (${c.paths})`).join(", ") || "none"}.`,
+    ``,
+    `## IDENTITY — over-scoped non-human`,
+    agentic.map((a: any) => `- ${a.name} (${(a.why || []).join("/")})`).join("\n") || "- none flagged",
+    ``,
+    `## LEARN — resilience over time (${res.length} day(s))`,
+    last ? `latest: machine-speed ${last.machineSpeedPct}%, actively-attacked backlog ${last.backlog}, enterprise score ${last.score}${first && first !== last ? ` | trend from machine-speed ${first.machineSpeedPct}%, backlog ${first.backlog}` : ""}` : "no history yet",
+  ].join("\n");
+
+  const det = lifecycleDet(dash, hunt);
+  const status = await ollamaStatus();
+  if (status.reachable) {
+    const sys =
+      "You are XORCISM's CROC reasoning copilot. You reason ACROSS a continuous defense loop with stages DETECT → DECIDE → ACT → LEARN, plus EXPOSE and IDENTITY context. " +
+      "Do NOT just summarize each stage. CONNECT them: does a current detection exploit a top exposure? does an exposure reach a crown jewel or sit on an internet entry / choke point? is an over-scoped identity a lateral-move path? Is the loop STUCK (deciding but not acting, acting while the backlog still grows, one-directional, or still)? " +
+      "Output concise Markdown with these sections: ## The one thing (2-3 sentences — the dominant cross-stage story), ## Connections across the loop (2-4 bullets, each linking >=2 stages and citing the data), ## Where the loop is stuck, ## Next move (one concrete specific action). Cite CVE / asset / technique names from the data. Under 320 words.";
+    try {
+      const reasoning = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: context.slice(0, 14000) }], 0.3);
+      if (reasoning) return { reasoning, model: OLLAMA_MODEL, offline: false };
+    } catch { /* slow/failed model → deterministic */ }
+  }
+  return { reasoning: det, model: status.reachable ? "fallback" : "offline", offline: true };
+}
+
+/** Deterministic cross-stage reasoning (offline fallback) — finds real connections, not a data dump. */
+function lifecycleDet(dash: any, hunt: any): string {
+  const s = dash.summary || {}, fb = dash.feedback || {};
+  const conns: string[] = [];
+  if ((fb.matchingExposures || 0) > 0)
+    conns.push(`**DETECT ↔ EXPOSE:** ${fb.matchingExposures} of ${fb.totalExposures} estate exposures are actively attacked right now (${(fb.techniquesSeen || []).slice(0, 3).join(", ") || "techniques seen in incidents"}) — the SOC queue and the exposure worklist are looking at the same threat.`);
+  const reachHot = (hunt.exposures || []).find((e: any) => e.hot && e.reach);
+  if (reachHot)
+    conns.push(`**EXPOSE ↔ ATTACK-PATH:** ${reachHot.ref} is actively-attacked AND its asset is ${reachHot.reach === "entry" ? "an internet entry point" : reachHot.reach === "jewel" ? "a crown jewel" : reachHot.reach === "choke" ? "a choke point" : "on a path to a crown jewel"} — a live, reachable hole.`);
+  if ((hunt.agentic || []).length)
+    conns.push(`**IDENTITY ↔ LATERAL-MOVE:** ${hunt.agentic.length} over-scoped non-human identit${hunt.agentic.length > 1 ? "ies" : "y"} (e.g. ${hunt.agentic[0].name}) could be abused to pivot once an adversary lands.`);
+
+  const stuck: string[] = [];
+  if (s.loopHealth !== "moving") stuck.push(s.loopHealth === "still" ? "the loop is **STILL** — no events crossed in the last hour (a diagram, not a loop)" : "the loop is **one-directional** — intelligence crosses only one way (a handoff, not a loop)");
+  if ((s.autoDecided || 0) > 0 && ((s.ticketsOpened || 0) + (s.iamActions || 0) + (s.externalTickets || 0)) === 0)
+    stuck.push("the loop **DECIDES but does not ACT** — policies fired but no ticket / constraint / ITSM push landed (enforcement not configured or disarmed)");
+  const res = dash.resilience || []; const f = res[0], l = res[res.length - 1];
+  if (f && l && f !== l && (l.backlog || 0) > (f.backlog || 0))
+    stuck.push(`the **LEARN** signal shows the actively-attacked backlog **growing** (${f.backlog}→${l.backlog}) — the loop is acting but not keeping up`);
+
+  let next = "Keep the loop moving — wire an exposure or incident event so intelligence crosses both ways.";
+  if (reachHot) next = `Remediate or escalate **${reachHot.ref}** — it is the live, reachable hole on a crown-jewel path.`;
+  else if ((s.autoDecided || 0) > 0 && ((s.ticketsOpened || 0) + (s.iamActions || 0)) === 0) next = "Arm enforcement — configure a ticketing / Teams / IAM destination so decided actions actually fire.";
+  else if ((hunt.agentic || []).length) next = `Constrain **${hunt.agentic[0].name}** — strip its standing privilege before it becomes a lateral-move path.`;
+  else { const choke = (hunt.chokepoints || [])[0]; if (choke) next = `Harden / segment **${choke.label}** — it sits on ${choke.paths} attack path(s) to crown jewels.`; }
+
+  return [
+    `### Reasoning across the loop`,
+    `_Data-driven cross-stage analysis — local AI unavailable._\n`,
+    `**The one thing:** loop health is **${s.loopHealth || "?"}** at **${s.machineSpeedPct || 0}% machine-speed**; ${(fb.matchingExposures || 0) > 0 ? `${fb.matchingExposures} exposure(s) are under live attack` : "no exposures are under live attack right now"}, and ${hunt.summary?.onAttackPath || 0} exposure(s) sit on a path to a crown jewel.`,
+    `\n**Connections across the loop:**\n${conns.map((c) => "- " + c).join("\n") || "- No strong cross-stage connections detected yet."}`,
+    `\n**Where the loop is stuck:**\n${stuck.map((c) => "- " + c).join("\n") || "- Nothing obvious — the loop is moving in both directions."}`,
+    `\n**Next move:** ${next}`,
+  ].join("\n");
+}
+
 // ── CTI-Expert: AI-orchestrated OSINT investigation (port of the cti-expert skill to local AI) ──
 export interface CtiFinding { technique: string; phase: string; finding: string; reliability: string; severity: string }
 export interface CtiObservable { type: string; value: string }
@@ -466,4 +559,120 @@ export async function ctiInvestigate(
     }
   } catch { /* slow/failed model → deterministic */ }
   return { ...det, model: "fallback (AI returned no JSON)" };
+}
+
+// ── Policy drafting — local AI fills POLICY.PolicyContent ─────────────────────
+/** Strips markdown/code-fence/document wrappers the model sometimes adds, leaving body HTML. */
+function sanitizePolicyHtml(s: string): string {
+  let h = (s || "").trim();
+  h = h.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  h = h.replace(/<!DOCTYPE[^>]*>/gi, "").replace(/<\/?(?:html|head|body)[^>]*>/gi, "").trim();
+  // If the model returned plain text (no tags), wrap paragraphs.
+  if (!/<\w+[^>]*>/.test(h)) h = h.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+  return h.slice(0, 12000);
+}
+/** Deterministic, sensible policy skeleton when Ollama is unavailable. */
+function policyTemplateHtml(name: string, scope: string, category?: string, framework?: string): string {
+  const sc = scope || "all employees, contractors, systems and information assets of the organization";
+  const fw = framework ? ` aligned with ${framework}` : "";
+  return [
+    `<h4>1. Purpose</h4><p>This ${category ? category.toLowerCase() + " " : ""}policy${fw} establishes the requirements and expectations for <b>${name}</b>, to protect the confidentiality, integrity and availability of organizational information and to support business objectives and regulatory obligations.</p>`,
+    `<h4>2. Scope</h4><p>This policy applies to ${sc}.</p>`,
+    `<h4>3. Policy Statements</h4><ul>` +
+      `<li>Access to information and systems is granted on a least-privilege, need-to-know basis and reviewed periodically.</li>` +
+      `<li>All users are responsible for safeguarding credentials and reporting suspected security incidents promptly.</li>` +
+      `<li>Information is classified and handled according to its sensitivity, with appropriate controls applied throughout its lifecycle.</li>` +
+      `<li>Systems are configured to approved secure baselines and kept current with security updates.</li>` +
+      `<li>Changes affecting security posture follow a documented review and approval process.</li>` +
+      `<li>Compliance with this policy is monitored, measured and reported to management.</li>` +
+    `</ul>`,
+    `<h4>4. Roles &amp; Responsibilities</h4><ul>` +
+      `<li><b>Executive management</b> — sponsors the policy and allocates resources.</li>` +
+      `<li><b>Information Security / CISO</b> — maintains, communicates and enforces the policy.</li>` +
+      `<li><b>Asset &amp; system owners</b> — implement controls within their areas.</li>` +
+      `<li><b>All personnel</b> — comply with the policy and complete required awareness training.</li>` +
+    `</ul>`,
+    `<h4>5. Compliance &amp; Enforcement</h4><p>Violations may result in disciplinary action up to and including termination, and where applicable, legal action. Exceptions require documented risk acceptance approved by the CISO.</p>`,
+    `<h4>6. Review &amp; Revision</h4><p>This policy is reviewed at least annually, or upon significant changes to the threat landscape, business or regulatory environment.</p>`,
+  ].join("");
+}
+export async function draftPolicy(opts: { name?: string; description?: string; scope?: string; category?: string; framework?: string }): Promise<{ content: string; model: string; offline: boolean }> {
+  const name = (opts.name || "Information Security Policy").trim();
+  const scope = (opts.scope || "").trim();
+  const ctx = [opts.description, opts.category && `Category: ${opts.category}`, opts.framework && `Framework: ${opts.framework}`, scope && `Scope: ${scope}`].filter(Boolean).join("\n");
+  const det = policyTemplateHtml(name, scope, opts.category, opts.framework);
+  const status = await ollamaStatus();
+  if (status.reachable) {
+    const sys =
+      "You are a GRC policy author. Write a concise, professional corporate information-security policy as clean HTML " +
+      "(use <h4> for section headings, <p> for paragraphs, <ul><li> for lists — NO markdown, NO code fences, NO <html>/<head>/<body> tags). " +
+      "Include these sections in order: Purpose, Scope, Policy Statements (5–8 concrete, auditable requirements), Roles & Responsibilities, Compliance & Enforcement, Review & Revision. Under 500 words.";
+    try {
+      const html = sanitizePolicyHtml(await ollamaChat([{ role: "system", content: sys }, { role: "user", content: `Policy title: ${name}\n${ctx || "(no extra context)"}` }], 0.4));
+      if (html && html.length > 40) return { content: html, model: OLLAMA_MODEL, offline: false };
+    } catch { /* fall back */ }
+  }
+  return { content: det, model: status.reachable ? "fallback" : "offline", offline: true };
+}
+
+// ── Crisis-scenario drafting — local AI generates CRISISSCENARIO.Description (HTML) ──
+export async function draftCrisisScenario(opts: { name?: string; scenarioType?: string; severity?: string; objectives?: string; threatActor?: string }): Promise<{ content: string; model: string; offline: boolean }> {
+  const esc = (s: string): string => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+  const name = (opts.name || "Crisis scenario").trim();
+  const type = (opts.scenarioType || "").trim();
+  const sev = (opts.severity || "").trim();
+  const ctx = [type && `Type: ${type}`, sev && `Severity: ${sev}`, opts.objectives && `Objectives: ${opts.objectives}`, opts.threatActor && `Threat actor: ${opts.threatActor}`].filter(Boolean).join("\n");
+  const det =
+    `<p><b>${esc(name)}</b>${type ? ` — a ${esc(type.toLowerCase())} crisis scenario` : ""}${sev ? ` (severity: ${esc(sev)})` : ""}.</p>` +
+    `<p>This tabletop exercise simulates an escalating ${type ? esc(type.toLowerCase()) : "cyber"} crisis that forces the crisis-management team to detect, triage and respond under time pressure while protecting business-critical operations${opts.threatActor ? `, with <b>${esc(opts.threatActor)}</b> as the threat actor` : ""}.</p>` +
+    `<p><b>Objectives:</b> ${opts.objectives ? esc(opts.objectives) : "validate detection &amp; escalation, decision-making under pressure, internal/external communications (incl. regulators), and business continuity / recovery."}</p>` +
+    `<p><b>Expected response:</b> activate the crisis team and incident-response plan, assess impact and the regulatory notification clock, coordinate legal &amp; communications, contain and recover, then run an after-action review.</p>`;
+  const status = await ollamaStatus();
+  if (status.reachable) {
+    const sys =
+      "You are a crisis-management / tabletop-exercise designer. Write a concise scenario Description as clean HTML " +
+      "(use <p> paragraphs and at most one short <ul><li> list — NO markdown, NO code fences, NO <html>/<body>). " +
+      "Cover: the situation/inject narrative, the business impact, the exercise objectives, and the expected crisis-team response (escalation, comms, regulators, recovery, after-action). Under 250 words.";
+    try {
+      const html = sanitizePolicyHtml(await ollamaChat([{ role: "system", content: sys }, { role: "user", content: `Scenario: ${name}\n${ctx || "(no extra context)"}` }], 0.5));
+      if (html && html.length > 40) return { content: html, model: OLLAMA_MODEL, offline: false };
+    } catch { /* fall back */ }
+  }
+  return { content: det, model: status.reachable ? "fallback" : "offline", offline: true };
+}
+
+// ── Board narrative — exec summary for the board report (Likelihood × Impact, business language) ──
+export async function boardNarrative(tenant: number | null): Promise<{ narrative: string; model: string; offline: boolean }> {
+  const r = boardReport(tenant);
+  const context =
+    `Security posture: ${r.posture.score}/100 (grade ${r.posture.grade}, ${r.posture.verdict}); underlying enterprise-risk index ${r.posture.enterpriseRisk}.\n` +
+    `Trend: ${r.trend.direction} ${r.trend.deltaPct >= 0 ? "+" : ""}${r.trend.deltaPct}% over ~${r.trend.rangeDays} days (posture ${r.trend.startScore}→${r.trend.currentScore}).\n` +
+    `Critical assets: ${r.criticalAssets.atRisk}/${r.criticalAssets.total} crown jewels at risk (${r.criticalAssets.pctAtRisk}%), ${r.criticalAssets.pathsFound} attack paths from ${r.criticalAssets.entries} exposed footholds.\n` +
+    `Top risks:\n${r.risks.map((x) => `- ${x.ref} (priority ${x.priority}${x.kev ? ", KEV" : ""}${x.exploits ? ", public exploit" : ""}, ${x.assets} assets): ${x.whyItMatters}`).join("\n") || "- none"}\n` +
+    `Highest-leverage remediation: ${r.remediation.map((x) => `${x.label} (${x.paths} paths)`).join("; ") || "none dominant"}.\n` +
+    `Financial exposure (ALE): ${r.financial.aleTotal ? "$" + r.financial.aleTotal.toLocaleString() : "not quantified"}.\n` +
+    `Resources: ${r.resources.openIncidents} open incidents${r.resources.mttrHours != null ? `, MTTR ${r.resources.mttrHours}h` : ""}; compliance ${r.resources.compliance.completionPct}% with ${r.resources.compliance.openFindings} open high/critical findings.`;
+
+  const det = [
+    `### Board cyber-risk read-out`,
+    `*Data summary — local AI unavailable.*\n`,
+    `**Bottom line:** Security posture is **${r.posture.score}/100 (grade ${r.posture.grade} — ${r.posture.verdict})**, and ${r.trend.rangeDays ? `**${r.trend.direction}** (${r.trend.deltaPct >= 0 ? "+" : ""}${r.trend.deltaPct}% over ~${r.trend.rangeDays} days)` : "now baselined for trending"}.`,
+    `\n**Are our critical assets safe?** ${r.criticalAssets.total ? `${r.criticalAssets.pctAtRisk}% of crown jewels (${r.criticalAssets.atRisk}/${r.criticalAssets.total}) are reachable by a modeled attack path.` : "Tag business-critical assets to quantify crown-jewel risk."}`,
+    `\n**What are the risks?**\n${r.risks.slice(0, 5).map((x) => `- **${x.ref}** — ${x.whyItMatters}`).join("\n") || "- none"}`,
+    `\n**Where do we get the most risk reduction for the least cost?** ${r.remediation[0] ? `Harden the choke point **${r.remediation[0].label}** (${r.remediation[0].paths} paths) and remediate the KEV/public-exploit items above.` : "Keep burning down the prioritized worklist."}`,
+    r.financial.aleTotal ? `\n**Financial exposure (Likelihood × Impact):** ~$${r.financial.aleTotal.toLocaleString()} annualized loss expectancy across the open risk register.` : "",
+    `\n**Are we improving?** ${r.questions.find((q) => q.q.startsWith("How are we"))?.a || ""}`,
+  ].filter(Boolean).join("\n");
+
+  const status = await ollamaStatus();
+  if (status.reachable) {
+    const sys =
+      "You are a CISO briefing a Board of Directors. Translate the technical risk data into a concise, business-language Markdown read-out — frame risk as Likelihood × Impact, avoid jargon and raw vulnerability counts, focus on critical business assets and whether posture is improving. " +
+      "Sections: ## Bottom line, ## Are our critical assets safe, ## What are the biggest risks (name the CVEs in plain terms), ## Highest-leverage action, ## Are our investments paying off (the trend). Under 380 words.";
+    try {
+      const narrative = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: context.slice(0, 12000) }], 0.3);
+      if (narrative) return { narrative, model: OLLAMA_MODEL, offline: false };
+    } catch { /* fall back */ }
+  }
+  return { narrative: det, model: status.reachable ? "fallback" : "offline", offline: true };
 }

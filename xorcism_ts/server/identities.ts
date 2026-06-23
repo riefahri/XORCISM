@@ -50,6 +50,8 @@ export interface IdentityInventory {
     total: number; human: number; nonHuman: number;
     privileged: number; orphaned: number; stale: number;
     expiring: number; hardcoded: number; compromised: number; mfaGaps: number;
+    mfaEnabled: number; mfaUnknown: number; mfaCoveragePct: number;
+    secretsTotal: number; rotationOverdue: number; neverRotated: number; avgRotationDays: number | null;
     byType: Record<string, number>;
     byClass: Record<string, number>;
   };
@@ -57,7 +59,7 @@ export interface IdentityInventory {
 
 const EMPTY: IdentityInventory = {
   rows: [], findings: [],
-  summary: { total: 0, human: 0, nonHuman: 0, privileged: 0, orphaned: 0, stale: 0, expiring: 0, hardcoded: 0, compromised: 0, mfaGaps: 0, byType: {}, byClass: {} },
+  summary: { total: 0, human: 0, nonHuman: 0, privileged: 0, orphaned: 0, stale: 0, expiring: 0, hardcoded: 0, compromised: 0, mfaGaps: 0, mfaEnabled: 0, mfaUnknown: 0, mfaCoveragePct: 0, secretsTotal: 0, rotationOverdue: 0, neverRotated: 0, avgRotationDays: null, byType: {}, byClass: {} },
 };
 
 const STALE_DAYS = 90;             // unused for longer → candidate for deprovisioning
@@ -176,11 +178,22 @@ export function identityInventory(tenant: number | null): IdentityInventory {
   for (const r of rows) { byType[r.type] = (byType[r.type] || 0) + 1; byClass[r.klass] = (byClass[r.klass] || 0) + 1; }
   const countFlag = (k: string): number => rows.filter((r) => r.flags.some((f) => f.toLowerCase().includes(k))).length;
 
+  // — MFA coverage + credential-rotation KPIs (MFAEnabled / LastRotatedDate) —
+  const mfaOn = (m: string): boolean => /^(y|yes|true|enabled|on|1)$/i.test(m);
+  const isSecretRow = (r: IdentityRow): boolean => SECRET_CREDS.has(r.credentialType.toLowerCase()) || /hardcoded|credential|certificate|key|token|secret/i.test(r.type);
+  const humans = rows.filter((r) => r.klass === "Human");
+  const mfaEnabled = humans.filter((r) => mfaOn(r.mfa)).length;
+  const mfaUnknown = humans.filter((r) => !r.mfa).length; // MFA status not recorded
+  const mfaCoveragePct = humans.length ? Math.round((mfaEnabled / humans.length) * 100) : 0;
+  const secrets = rows.filter(isSecretRow);
+  const rotAges = secrets.map((r) => daysSince(r.lastRotated)).filter((n): n is number => n != null);
+  const avgRotationDays = rotAges.length ? Math.round(rotAges.reduce((a, b) => a + b, 0) / rotAges.length) : null;
+
   return {
     rows, findings,
     summary: {
       total: rows.length,
-      human: rows.filter((r) => r.klass === "Human").length,
+      human: humans.length,
       nonHuman: rows.filter((r) => r.klass === "Non-Human").length,
       privileged: rows.filter((r) => PRIVILEGED.has(r.privilege.toLowerCase())).length,
       orphaned: rows.filter((r) => r.flags.some((f) => f.startsWith("Orphaned"))).length,
@@ -189,6 +202,13 @@ export function identityInventory(tenant: number | null): IdentityInventory {
       hardcoded: rows.filter((r) => /hardcoded/i.test(r.type)).length,
       compromised: rows.filter((r) => /compromis|breach/i.test(r.status)).length,
       mfaGaps: countFlag("without mfa"),
+      // MFA coverage over human identities
+      mfaEnabled, mfaUnknown, mfaCoveragePct,
+      // Credential rotation (LastRotatedDate) over secret/NHI credentials
+      secretsTotal: secrets.length,
+      rotationOverdue: countFlag("rotat"),
+      neverRotated: rows.filter((r) => r.flags.some((f) => /never rotated/i.test(f))).length,
+      avgRotationDays,
       byType, byClass,
     },
   };

@@ -135,6 +135,7 @@ import { assetInventory } from "../assets";
 import { identityInventory } from "../identities";
 import { incidentInventory } from "../incidents";
 import { complianceInventory } from "../compliance";
+import { policyInventory } from "../policies";
 import { tidInventory } from "../tid";
 import { crisisInventory } from "../crisis";
 import { riskRegisterInventory } from "../riskregister";
@@ -355,6 +356,7 @@ router.get("/dashboard/kpis", (req: Request, res: Response) => {
   const rr = safe(() => riskRegisterInventory(tenant).summary);
   const pq = safe(() => pqcmmInventory(tenant).summary);
   const pm = safe(() => patchInventory(tenant).summary);
+  const po = safe(() => policyInventory(tenant).summary);
   res.json({
     riskScore: safe(() => computeEnterpriseRiskScore(req.user!.tenantId)),
     assets: a && { total: a.total, crownJewels: a.crownJewels, internetFacing: a.internetFacing, criticalVulns: a.withCriticalVulns, unbacked: a.unbackedCritical, noOwner: a.noOwner },
@@ -366,6 +368,7 @@ router.get("/dashboard/kpis", (req: Request, res: Response) => {
     risk: rr && { riskScore: rr.riskScore, open: rr.open, highCritical: rr.highCritical, untreated: rr.untreated, overdueReview: rr.overdueReview, treatedRate: rr.treatedRate, totalALE: rr.totalALE, currency: rr.currency },
     pqcmm: pq && pq.assessments ? { maturityScore: pq.maturityScore, assessments: pq.assessments, quantumVulnerable: pq.quantumVulnerable, productionReady: pq.productionReady, managed: pq.managed } : null,
     patch: pm && pm.instances ? { coverage: pm.coverage, overdue: pm.overdue, kevUnpatched: pm.kevUnpatched, unpatched: pm.unpatched, instances: pm.instances, mttr: pm.mttr } : null,
+    policy: po && po.requiringAck ? { published: po.published, requiringAck: po.requiringAck, ackCoverage: po.ackCoverage, pendingAcks: po.pendingAcks, fullyAcknowledged: po.fullyAcknowledged } : null,
   });
 });
 

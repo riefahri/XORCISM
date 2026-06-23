@@ -21,7 +21,7 @@ import { getDb } from "./db";
 import { syncObservableById } from "./stixstore";
 import { readBlob } from "./blobstore";
 
-export type TargetType = "hash" | "url" | "domain" | "ip" | "file";
+export type TargetType = "hash" | "url" | "domain" | "ip" | "file" | "email";
 export type Verdict = "clean" | "suspicious" | "malicious" | "unknown" | "unconfigured" | "error";
 
 export interface EngineResult {
@@ -67,6 +67,7 @@ function env(...names: string[]): string | undefined {
 export function detectType(raw: string): TargetType {
   const t = raw.trim();
   if (HEX.test(t) && (t.length === 32 || t.length === 40 || t.length === 64)) return "hash";
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(t)) return "email"; // Have I Been Pwned breach check
   if (/^https?:\/\//i.test(t) || t.includes("/")) return "url";
   if (IPV4.test(t)) return "ip";
   if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(t)) return "domain";
@@ -148,6 +149,32 @@ async function anyrunScan(target: string, type: TargetType, key: string): Promis
   return out;
 }
 
+/**
+ * Have I Been Pwned — email breach check (v3 breachedaccount). Needs HIBP_API_KEY (email/breach search
+ * is key-gated). A breached email returns "suspicious" (exposed, not malware) listing the breach names;
+ * 404 = clean; no key = a pivot link so the analyst can check on hibp.com.
+ */
+async function hibpScan(email: string, key?: string): Promise<EngineResult> {
+  const gui = `https://haveibeenpwned.com/account/${encodeURIComponent(email)}`;
+  if (!key) return { engine: "Have I Been Pwned", verdict: "unconfigured", live: false, link: gui, detection: "set HIBP_API_KEY for live breach checks" };
+  try {
+    const r = await fetch(`https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(email)}?truncateResponse=false`, {
+      headers: { "hibp-api-key": key, "user-agent": "XORCISM-CTI" }, signal: AbortSignal.timeout(15000),
+    });
+    if (r.status === 404) return { engine: "Have I Been Pwned", verdict: "clean", live: true, link: gui, detection: "no breaches found" };
+    if (!r.ok) return { engine: "Have I Been Pwned", verdict: "error", live: false, link: gui, detection: `HTTP ${r.status}${r.status === 401 ? " (invalid API key)" : r.status === 429 ? " (rate-limited)" : ""}` };
+    const breaches = (await r.json().catch(() => [])) as { Name: string; PwnCount?: number; DataClasses?: string[] }[];
+    const names = (breaches || []).map((b) => b.Name).filter(Boolean);
+    return {
+      engine: "Have I Been Pwned",
+      verdict: names.length ? "suspicious" : "clean", // exposed in a breach ≠ malware → suspicious, not malicious
+      live: true, link: gui, positives: names.length,
+      score: names.length ? Math.min(100, 35 + names.length * 6) : 0,
+      detection: names.length ? `exposed in ${names.length} breach(es): ${names.slice(0, 10).join(", ")}` : "no breaches found",
+    };
+  } catch (e) { return { engine: "Have I Been Pwned", verdict: "error", live: false, link: gui, detection: (e as Error).message }; }
+}
+
 // ── pivot (link-only) engines ──────────────────────────────────────────────────
 function pivot(engine: string, link: string): EngineResult {
   return { engine, verdict: "unknown", live: false, link, detection: "manual lookup" };
@@ -181,6 +208,22 @@ export async function runScan(target: string, typeHint?: TargetType): Promise<Sc
 
   const supportsHashOnly = type === "hash";
   const jobs: Promise<EngineResult>[] = [];
+
+  // Email targets go to Have I Been Pwned (breach exposure); the malware engines don't take emails.
+  if (type === "email") {
+    jobs.push(hibpScan(t, env("HIBP_API_KEY", "HAVEIBEENPWNED_API_KEY")));
+    const engines = await Promise.all(jobs);
+    const live = engines.filter((e) => e.live && e.verdict !== "error");
+    let verdict: Verdict = "unknown";
+    for (const e of live) if (VERDICT_RANK[e.verdict] > VERDICT_RANK[verdict]) verdict = e.verdict;
+    const score = Math.max(0, ...engines.filter((e) => e.live).map((e) => Number(e.score || 0)));
+    const breaches = engines.find((e) => e.engine === "Have I Been Pwned");
+    const positives = breaches?.positives || 0;
+    const summary = breaches?.live
+      ? (positives ? `EXPOSED — ${positives} breach(es) for ${t}` : `CLEAN — no known breaches for ${t}`)
+      : "Have I Been Pwned not configured — set HIBP_API_KEY for live email breach checks (pivot link available).";
+    return { guid, target: t, targetType: type, verdict, score, positives, total: live.length, enginesQueried: engines.length, enginesLive: live.length, summary, engines };
+  }
 
   const vtKey = env("VT_API_KEY", "VIRUSTOTAL_API_KEY");
   jobs.push(vtKey ? vtScan(t, type, vtKey) : Promise.resolve<EngineResult>({ engine: "VirusTotal", verdict: "unconfigured", live: false, link: type === "hash" ? `https://www.virustotal.com/gui/file/${t}` : "https://www.virustotal.com/gui/home/search" }));

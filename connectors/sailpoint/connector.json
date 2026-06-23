@@ -1,0 +1,37 @@
+{
+  "id": "sailpoint",
+  "name": "SailPoint",
+  "type": "import",
+  "category": "Identity & Access Management",
+  "description": "SailPoint Identity Security Cloud (formerly IdentityNow) identity-governance sync via the REST API. Collects governed identities (→ human identities, with lifecycle state → Status, manager and identity profile) and optionally source accounts (→ non-human / uncorrelated identities) into XORCISM (IDENTITY), so the IGA system of record feeds the Identity & IAM inventory for orphaned/uncorrelated-account, stale and lifecycle-state detection. App-only auth (OAuth2 client credentials) — secrets from the worker environment: SAILPOINT_BASE_URL, SAILPOINT_CLIENT_ID, SAILPOINT_CLIENT_SECRET. API: https://developer.sailpoint.com/docs/api/.",
+  "intrusive": false,
+  "permission": "connector:sailpoint",
+  "run": "run.py",
+  "mapping": "sailpoint",
+  "parameters": [
+    {
+      "name": "base_url",
+      "type": "string",
+      "required": false,
+      "help": "Tenant API base, e.g. https://tenant.api.identitynow.com. Overrides SAILPOINT_BASE_URL."
+    },
+    {
+      "name": "include",
+      "type": "string",
+      "required": false,
+      "help": "Comma-separated object types to sync: identities, accounts (default: identities)."
+    },
+    {
+      "name": "max_items",
+      "type": "number",
+      "required": false,
+      "help": "Maximum objects to pull per type (default 1000)."
+    },
+    {
+      "name": "file",
+      "type": "file",
+      "required": false,
+      "help": "Offline mode: a saved SailPoint REST JSON export to parse instead of calling the API. Accepts {identities:[],accounts:[]} or a raw [...] / {items:[...]} array."
+    }
+  ]
+}

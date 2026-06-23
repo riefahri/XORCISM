@@ -3,7 +3,7 @@
  * and OCIL answer suggestion. All the routes are authenticated (mounted under /api).
  */
 import { Router, Request, Response } from "express";
-import { askThreatModel, suggestOcilAnswer, ollamaStatus, enrichThreatReport, triageVulnerability, buildIntelBrief, analyzeAttackChain, exposureBrief, feedDigest } from "../ai";
+import { askThreatModel, suggestOcilAnswer, ollamaStatus, enrichThreatReport, triageVulnerability, buildIntelBrief, analyzeAttackChain, exposureBrief, feedDigest, draftPolicy, boardNarrative, draftCrisisScenario } from "../ai";
 import { userCan } from "../auth";
 import { getRun } from "../chain";
 import { getEngagement } from "../engagements";
@@ -119,6 +119,43 @@ router.post("/ai/exposure-brief", async (req: Request, res: Response) => {
   const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
   try {
     res.json(await exposureBrief(tenant));
+  } catch (e) {
+    res.status(502).json({ error: aiError(e) });
+  }
+});
+
+// POST /api/ai/draft-policy { name?, description?, scope?, category?, framework? } — local-AI policy body (HTML)
+router.post("/ai/draft-policy", async (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "update", "XORCISM", "POLICY")) return void res.status(403).json({ error: "forbidden" });
+  const b = req.body as Record<string, unknown>;
+  const str = (k: string): string | undefined => (b?.[k] != null ? String(b[k]).slice(0, 600) : undefined);
+  try {
+    res.json(await draftPolicy({ name: str("name"), description: str("description"), scope: str("scope"), category: str("category"), framework: str("framework") }));
+  } catch (e) {
+    res.status(502).json({ error: aiError(e) });
+  }
+});
+
+// POST /api/ai/draft-crisis-scenario { name?, scenarioType?, severity?, objectives?, threatActor? } — local-AI scenario Description (HTML)
+router.post("/ai/draft-crisis-scenario", async (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "update", "XCOMPLIANCE", "CRISISSCENARIO")) return void res.status(403).json({ error: "forbidden" });
+  const b = req.body as Record<string, unknown>;
+  const str = (k: string): string | undefined => (b?.[k] != null ? String(b[k]).slice(0, 600) : undefined);
+  try {
+    res.json(await draftCrisisScenario({ name: str("name"), scenarioType: str("scenarioType"), severity: str("severity"), objectives: str("objectives"), threatActor: str("threatActor") }));
+  } catch (e) {
+    res.status(502).json({ error: aiError(e) });
+  }
+});
+
+// POST /api/ai/board-narrative — local-AI board-language exec read-out over the board report
+router.post("/ai/board-narrative", async (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
+  try {
+    res.json(await boardNarrative(tenant));
   } catch (e) {
     res.status(502).json({ error: aiError(e) });
   }

@@ -19,7 +19,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import {
   enrollAgent, agentByToken, touchAgent, listAgents, addAgentEvent, listAgentEvents,
   createAgentJob, claimAgentJobs, finishAgentJob, listAgentJobs, listIocs, iocCount, Agent,
-  storeForensicTriage, listForensicTriage, getForensicTriage, ForensicBundle,
+  storeForensicTriage, listForensicTriage, getForensicTriage, ForensicBundle, agentsOverview,
 } from "../agents";
 import { createCollectedJob } from "../jobs";
 import { ingestOvalResults, ovalResultsView, findOvalContent, listOvalContent, ovalContentDir, OvalPayload } from "../oval";
@@ -214,6 +214,28 @@ agentTokenRouter.post("/agent/job/:id/result", tokenAuth, (req: AReq, res: Respo
 export const agentAdminRouter = Router();
 
 agentAdminRouter.get("/agents", (_req: Request, res: Response) => res.json(listAgents()));
+agentAdminRouter.get("/agents-overview", (_req: Request, res: Response) => res.json(agentsOverview()));
+// Per-agent detail drawer: full job history + events + forensic-triage bundles + this agent's OVAL verdicts.
+agentAdminRouter.get("/agents/:name/detail", (req: Request, res: Response) => {
+  const name = String(req.params.name);
+  const agent = agentsOverview().agents.find((a: { name: string }) => a.name === name);
+  if (!agent) return void res.status(404).json({ error: "agent not found" });
+  const assetKey = String((agent.asset_name || agent.name) || "").toLowerCase();
+  const tenant = req.user?.isSuperAdmin ? null : (req.user?.tenantId ?? null);
+  let oval: { row: unknown; findings: unknown[] } = { row: null, findings: [] };
+  try {
+    const ov = ovalResultsView(tenant) as { rows?: { asset: string }[]; findings?: { asset: string }[] };
+    const match = (x: { asset: string }): boolean => { const a = String(x.asset || "").toLowerCase(); return a === assetKey || a === name.toLowerCase(); };
+    oval = { row: (ov.rows || []).find(match) ?? null, findings: (ov.findings || []).filter(match).slice(0, 60) };
+  } catch { /* no OVAL data */ }
+  res.json({
+    agent,
+    jobs: listAgentJobs(name, 100),
+    events: listAgentEvents(100, name),
+    forensics: listForensicTriage(50, name),
+    oval,
+  });
+});
 // OVAL scan results (per-asset verdicts + compliance/vuln worklist) for the /oval-scan page.
 agentAdminRouter.get("/oval-results", (req: Request, res: Response) => {
   const tenant = req.user?.isSuperAdmin ? null : (req.user?.tenantId ?? null);

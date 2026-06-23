@@ -169,3 +169,27 @@ export function listIocs(): { ioc_type: string; value: string; threat: string | 
 export function iocCount(): number {
   return (getAgentDb().prepare("SELECT COUNT(*) c FROM XIOC").get() as { c: number }).c;
 }
+
+/** The scan kinds an agent can be tasked with (single source of truth, shared with /api/agent-scan). */
+export const AGENT_SCAN_KINDS = ["inventory", "vuln", "oval", "av", "hunt", "full", "emulate", "forensics", "rustinel", "yara"];
+
+/** Aggregated view for the Agents-management page: inventory (+ computed freshness), recent jobs/events, summary. */
+export function agentsOverview(): any {
+  const fresh = (ls: string | null): { status: "online" | "idle" | "offline"; minsAgo: number | null } => {
+    if (!ls) return { status: "offline", minsAgo: null };
+    const t = Date.parse(ls.replace(" ", "T") + "Z"); // last_seen is UTC without a tz marker
+    if (!Number.isFinite(t)) return { status: "offline", minsAgo: null };
+    const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+    return { status: mins <= 5 ? "online" : mins <= 60 ? "idle" : "offline", minsAgo: mins };
+  };
+  const agents = listAgents().map((a) => { const f = fresh(a.last_seen); return { ...a, freshness: f.status, minsAgo: f.minsAgo }; });
+  const jobs = listAgentJobs(undefined, 40) as any[];
+  const events = listAgentEvents(40) as any[];
+  const online = agents.filter((a) => a.freshness === "online").length;
+  const idle = agents.filter((a) => a.freshness === "idle").length;
+  const pending = jobs.filter((j) => j.status === "pending" || j.status === "sent").length;
+  return {
+    agents, jobs, events, kinds: AGENT_SCAN_KINDS,
+    summary: { total: agents.length, online, idle, offline: agents.length - online - idle, jobsPending: pending, jobsTotal: jobs.length, events: events.length },
+  };
+}

@@ -52,6 +52,8 @@ export const EVENT_TYPES: EventType[] = [
     label: "Monitored asset down", description: "An uptime/health monitor detected that an asset is down." },
   { key: "croc.resilience_degraded", category: "Operations", level: "warning", default: true,
     label: "CROC loop resilience degraded", description: "The continuous defense loop regressed vs its baseline or breached its resilience SLA (machine-speed dropped, backlog ballooned, latency spiked, or the loop went still)." },
+  { key: "croc.loop_digest", category: "Operations", level: "info", default: false,
+    label: "CROC daily loop digest (AI)", description: "A scheduled local-AI read across the continuous defense loop (detect→decide→act→learn): the dominant cross-stage story and the single next move." },
   { key: "journey.step_overdue", category: "Compliance", level: "warning", default: false,
     label: "Compliance journey step overdue", description: "A step in a compliance journey passed its target date." },
   { key: "compliance.audit_due", category: "Compliance", level: "info", default: false,

@@ -159,6 +159,7 @@ const RICHTEXT_COLUMNS = new Set<string>([
   "POLICY.PolicyContent",
   "POLICY.PolicyDescription",
   "POLICY.Scope",
+  "CRISISSCENARIO.Objectives",
 ]);
 
 function isRichTextField(table: string, col: string): boolean {
@@ -166,13 +167,13 @@ function isRichTextField(table: string, col: string): boolean {
 }
 
 // Rich-text columns rendered with a TALL editor (long documents, not short notes).
-const TALL_RICHTEXT_COLUMNS = new Set<string>(["POLICY.PolicyContent"]);
+const TALL_RICHTEXT_COLUMNS = new Set<string>(["POLICY.PolicyContent", "CRISISSCENARIO.Objectives"]);
 function richTextOpts(table: string, col: string): { minHeight?: number } | undefined {
   return TALL_RICHTEXT_COLUMNS.has(`${table}.${col}`) ? { minHeight: 340 } : undefined;
 }
 
 // Columns rendered as a PROMINENT input — the record's "title": large font, full width.
-const PROMINENT_INPUT_COLUMNS = new Set<string>(["POLICY.PolicyName"]);
+const PROMINENT_INPUT_COLUMNS = new Set<string>(["POLICY.PolicyName", "CPE.CPEName", "RISKREGISTERENTRY.Title", "CRISISSCENARIO.ScenarioName"]);
 function isProminentInput(table: string, col: string): boolean {
   return PROMINENT_INPUT_COLUMNS.has(`${table}.${col}`);
 }
@@ -199,7 +200,7 @@ function isReadonlyFormColumn(table: string, col: string): boolean {
 }
 
 // Tables whose modal is widened (relational sub-panels).
-const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT"]);
+const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO"]);
 
 // Display reordering of fields in the forms:
 // table → list of [columnToMove, columnAfterWhich].
@@ -2393,7 +2394,7 @@ FK_COLUMNS["AUDITFINDING.RemediationOwnerPersonID"] = { db: "XORCISM", table: "P
 
 // ── Policy & document management metadata (ISO 42001 / 27001 / NIST AI RMF …) ──
 const DOC_LANGUAGES = ["en", "fr", "de", "es", "it", "nl", "pt", "ar"];
-const DOC_FRAMEWORKS = ["ISO/IEC 42001:2023", "ISO/IEC 27001:2022", "ISO/IEC 27031:2011", "ISO/IEC 27701:2019", "NIST AI RMF 1.0", "NIST SP 800-53", "Secure Controls Framework (SCF)", "CSA CCM v4", "OWASP ASVS 4.0.3", "ITMG IRCF v1.0", "EU AI Act", "DORA (EU 2022/2554)", "NIS2", "SOC 2", "GDPR"];
+const DOC_FRAMEWORKS = ["ISO/IEC 42001:2023", "ISO/IEC 27001:2022", "ISO/IEC 27031:2011", "ISO/IEC 27701:2019", "NIST AI RMF 1.0", "NIST SP 800-53", "Secure Controls Framework (SCF)", "CSA CCM v4", "OWASP ASVS 4.0.3", "PCI DSS v4.0", "ITMG IRCF v1.0", "EU AI Act", "DORA (EU 2022/2554)", "NIS2", "SOC 2", "GDPR"];
 const DOC_CLASSIFICATION = ["Public", "Internal", "Confidential", "Restricted"];
 const DOC_CATEGORIES = ["AI Management System", "Information Security", "Privacy", "Data Governance", "Risk Management", "Operations", "Human Resources"];
 const DOC_TYPES = ["Policy", "Procedure", "Standard", "Guideline", "Record", "Report", "Evidence", "Form", "Plan"];
@@ -3778,6 +3779,169 @@ function appendAiActionButton(body: HTMLElement, label: string, run: () => Promi
   body.appendChild(wrap);
 }
 
+// ── POLICY: draft the policy body with the local AI (fills the PolicyContent rich-text field) ──
+function appendPolicyAiDraftPanel(body: HTMLElement, prefix: string): void {
+  const gv = (id: string): string => {
+    const el = document.getElementById(prefix + id) as HTMLInputElement | HTMLTextAreaElement | null;
+    return el ? String(el.value || "").trim() : "";
+  };
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg)";
+  const head = document.createElement("div");
+  head.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+  const title = document.createElement("span");
+  title.innerHTML = "✨ <b>Draft with local AI</b> <span style='color:var(--text-muted);font-size:11px'>fills Policy content from the title &amp; scope (Ollama, offline-safe — nothing leaves the machine)</span>";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "btn btn-ghost btn-sm"; btn.textContent = "✨ Draft policy content";
+  const status = document.createElement("span");
+  status.style.cssText = "font-size:11px;color:var(--text-muted)";
+  head.appendChild(title); head.appendChild(btn); head.appendChild(status);
+  wrap.appendChild(head); body.appendChild(wrap);
+
+  btn.onclick = async () => {
+    const name = gv("PolicyName");
+    if (!name) { status.textContent = "⚠️ enter a Policy name first"; return; }
+    const hidden = document.getElementById(prefix + "PolicyContent") as HTMLTextAreaElement | null;
+    if (!hidden) { status.textContent = "⚠️ no Policy content field on this form"; return; }
+    const editor = hidden.parentElement?.querySelector(".rte-editor") as HTMLElement | null;
+    if (editor && (editor.textContent || "").trim().length > 20 && !confirm("Replace the existing Policy content with an AI draft?")) return;
+    btn.disabled = true; const old = btn.textContent; btn.textContent = "… (local AI)"; status.textContent = "";
+    try {
+      const r = await fetch("/api/ai/draft-policy", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description: gv("PolicyDescription") || undefined, scope: gv("Scope") || undefined, category: gv("PolicyCategory") || gv("Category") || undefined, framework: gv("Framework") || undefined }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      const html = String(j.content || "");
+      hidden.value = html;
+      if (editor) editor.innerHTML = html;
+      status.textContent = j.offline ? "✓ drafted (deterministic — local AI unavailable)" : "✓ drafted by " + j.model;
+    } catch (e) {
+      status.textContent = "⚠️ " + ((e as Error)?.message || e);
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  };
+}
+
+// ── CRISISSCENARIO: generate the Description with the local AI ───────────────
+function appendCrisisScenarioAiPanel(body: HTMLElement, prefix: string): void {
+  const gv = (id: string): string => {
+    const el = document.getElementById(prefix + id) as HTMLInputElement | HTMLTextAreaElement | null;
+    return el ? String(el.value || "").trim() : "";
+  };
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg)";
+  const head = document.createElement("div");
+  head.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+  const title = document.createElement("span");
+  title.innerHTML = "✨ <b>Draft with local AI</b> <span style='color:var(--text-muted);font-size:11px'>generates a crisis-scenario Description from the name &amp; type (Ollama, offline-safe)</span>";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "btn btn-ghost btn-sm"; btn.textContent = "✨ Draft scenario description";
+  const status = document.createElement("span");
+  status.style.cssText = "font-size:11px;color:var(--text-muted)";
+  head.appendChild(title); head.appendChild(btn); head.appendChild(status);
+  wrap.appendChild(head); body.appendChild(wrap);
+
+  btn.onclick = async () => {
+    const name = gv("ScenarioName");
+    if (!name) { status.textContent = "⚠️ enter a Scenario name first"; return; }
+    const hidden = document.getElementById(prefix + "Description") as HTMLTextAreaElement | null;
+    if (!hidden) { status.textContent = "⚠️ no Description field on this form"; return; }
+    const editor = hidden.parentElement?.querySelector(".rte-editor") as HTMLElement | null;
+    if (editor && (editor.textContent || "").trim().length > 20 && !confirm("Replace the existing Description with an AI draft?")) return;
+    btn.disabled = true; const old = btn.textContent; btn.textContent = "… (local AI)"; status.textContent = "";
+    try {
+      const r = await fetch("/api/ai/draft-crisis-scenario", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, scenarioType: gv("ScenarioType") || undefined, severity: gv("Severity") || undefined, objectives: gv("Objectives") || undefined, threatActor: gv("ThreatActor") || undefined }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      const html = String(j.content || "");
+      hidden.value = html;
+      if (editor) editor.innerHTML = html;
+      status.textContent = j.offline ? "✓ drafted (deterministic — local AI unavailable)" : "✓ drafted by " + j.model;
+    } catch (e) {
+      status.textContent = "⚠️ " + ((e as Error)?.message || e);
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  };
+}
+
+// ── CRISISSCENARIO: map the scenario to MITRE ATT&CK techniques (replaces the free-text field) ──
+function appendCrisisAttackMapping(body: HTMLElement, prefix: string): void {
+  const hidden = document.getElementById(prefix + "AttackTechniques") as HTMLInputElement | null;
+  if (!hidden) return;
+  const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  // Hide the raw free-text field row; keep the input as the serialized storage (still submitted).
+  const fieldRow = hidden.closest("div");
+  if (fieldRow && fieldRow !== body) (fieldRow as HTMLElement).style.display = "none";
+
+  type Tech = { attackId: string; name: string };
+  const parse = (s: string): Tech[] => s.split(/[;\n]+/).map((t) => t.trim()).filter(Boolean).map((t) => {
+    const m = t.match(/^(T\d[\w.]*)\s*\((.*)\)$/i) || t.match(/^(T\d[\w.]*)\s*[—–-]\s*(.*)$/i) || t.match(/^(T\d[\w.]*)$/i);
+    return m ? { attackId: m[1], name: (m[2] || "").trim() } : { attackId: t, name: "" };
+  });
+  const serialize = (xs: Tech[]): string => xs.map((x) => x.name ? `${x.attackId} (${x.name})` : x.attackId).join("; ");
+  const selected: Tech[] = parse(hidden.value);
+
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "margin:10px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg)";
+  wrap.dataset.fullwidth = "1";
+  const head = document.createElement("div");
+  head.style.cssText = "margin-bottom:6px";
+  head.innerHTML = "🎯 <b>ATT&amp;CK techniques</b> <span style='color:var(--text-muted);font-size:11px'>— map this scenario to MITRE ATT&amp;CK (search by ID or name)</span>";
+  const search = document.createElement("input");
+  search.type = "text"; search.placeholder = "Search techniques — e.g. phishing, T1566, lateral movement…";
+  search.style.cssText = FIELD_INPUT_CSS;
+  const results = document.createElement("div");
+  results.style.cssText = "margin-top:4px;max-height:220px;overflow:auto;display:none;border:1px solid var(--border);border-radius:6px";
+  const tableWrap = document.createElement("div");
+  tableWrap.style.cssText = "margin-top:8px";
+  wrap.appendChild(head); wrap.appendChild(search); wrap.appendChild(results); wrap.appendChild(tableWrap);
+  body.appendChild(wrap);
+
+  const sync = (): void => { hidden.value = serialize(selected); };
+  const renderTable = (): void => {
+    if (!selected.length) { tableWrap.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:4px 0">No techniques mapped yet — search above to add them.</div>`; return; }
+    const rows = selected.map((t, i) => `<tr>
+      <td style="padding:4px 8px;font-family:ui-monospace,monospace;white-space:nowrap"><a href="https://attack.mitre.org/techniques/${esc(t.attackId.replace(".", "/"))}/" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">${esc(t.attackId)}</a></td>
+      <td style="padding:4px 8px">${esc(t.name || "")}</td>
+      <td style="padding:4px 8px;text-align:right"><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}" title="Remove">✕</button></td></tr>`).join("");
+    tableWrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:var(--text-muted);font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:4px 8px">ATT&amp;CK ID</th><th style="text-align:left;padding:4px 8px">Technique</th><th style="width:30px"></th></tr></thead><tbody>${rows}</tbody></table>`;
+    Array.prototype.forEach.call(tableWrap.querySelectorAll("[data-rm]"), (b: HTMLElement) => {
+      b.onclick = () => { selected.splice(Number(b.getAttribute("data-rm")), 1); sync(); renderTable(); };
+    });
+  };
+  renderTable();
+
+  let timer: number | undefined;
+  const doSearch = async (): Promise<void> => {
+    const q = search.value.trim();
+    if (q.length < 2) { results.style.display = "none"; return; }
+    try {
+      const r = await fetch(`/api/attack/technique-search?q=${encodeURIComponent(q)}&limit=40`);
+      const list = (await r.json()) as { AttackID: string; Name: string }[];
+      if (!Array.isArray(list) || !list.length) { results.innerHTML = `<div style="padding:6px 8px;color:var(--text-muted);font-size:12px">No matches.</div>`; results.style.display = "block"; return; }
+      results.innerHTML = list.map((t) => `<div class="ctam-r" data-id="${esc(t.AttackID)}" data-nm="${esc(t.Name)}" style="padding:5px 8px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px"><span style="font-family:ui-monospace,monospace;color:var(--accent)">${esc(t.AttackID)}</span> ${esc(t.Name)}</div>`).join("");
+      results.style.display = "block";
+      Array.prototype.forEach.call(results.querySelectorAll(".ctam-r"), (el: HTMLElement) => {
+        el.onmousedown = (e: Event) => {
+          e.preventDefault(); // keep focus / fire before blur
+          const id = el.getAttribute("data-id")!, nm = el.getAttribute("data-nm") || "";
+          if (!selected.some((s) => s.attackId === id)) { selected.push({ attackId: id, name: nm }); sync(); renderTable(); }
+          search.value = ""; results.style.display = "none";
+        };
+      });
+    } catch { results.style.display = "none"; }
+  };
+  search.addEventListener("input", () => { window.clearTimeout(timer); timer = window.setTimeout(() => void doSearch(), 220) as unknown as number; });
+  search.addEventListener("blur", () => setTimeout(() => { results.style.display = "none"; }, 200));
+}
+
 // ── SSVC (CISA Stakeholder-Specific Vulnerability Categorization) calculator ──
 // CISA "Coordinator" decision table v2.0.3 (verbatim 36-row lookup, matches
 // CERTCC/SSVC and the import_nvd_cve.py / ssvc.py Python engine).
@@ -4966,6 +5130,28 @@ function renderTable(rows: Record<string, unknown>[]): void {
           }
         };
         td.appendChild(a);
+      } else if (currentTable === "RISKREGISTERENTRY" && col === "RiskRegisterID" && display !== "") {
+        // "Register" column → clickable to open THIS entry's edit form (not the parent register).
+        const a = document.createElement("a");
+        a.href = "#";
+        a.textContent = display;
+        a.style.cssText = "color:var(--accent);cursor:pointer;font-weight:600";
+        a.title = t("tip.edit");
+        a.onclick = (e) => { e.preventDefault(); e.stopPropagation(); void openEditModal(row); };
+        td.appendChild(a);
+      } else if (display !== "" && (
+        (currentTable === "THREATFEED" && col === "ThreatFeedName") ||
+        (currentTable === "POLICY" && col === "PolicyName") ||
+        (currentTable === "IDENTITY" && col === "IdentityName") ||
+        (currentTable === "CRISISSCENARIO" && col === "ScenarioName")
+      )) {
+        // Name column → clickable to open this record's edit form.
+        const a = document.createElement("a");
+        a.href = "#"; a.textContent = display;
+        a.style.cssText = "color:var(--accent);cursor:pointer;font-weight:600";
+        a.title = t("tip.edit");
+        a.onclick = (e) => { e.preventDefault(); e.stopPropagation(); void openEditModal(row); };
+        td.appendChild(a);
       } else if (linkSpec && lbl == null && display !== "" && linkId != null && String(linkId) !== "") {
         const a = document.createElement("a");
         a.href = "#";
@@ -5682,6 +5868,10 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
   appendDatePicker("ef_", "ValidUntil"); appendDatePicker("ef_", "ValidUntilDate");
   // AI answer suggestion (QUESTION / OCIL form)
   if (currentTable === "QUESTION") appendOcilSuggestPanel(body, "ef_");
+  // Draft the policy body with the local AI (POLICY form)
+  if (currentTable === "POLICY") appendPolicyAiDraftPanel(body, "ef_");
+  // Generate the crisis-scenario Description with the local AI (CRISISSCENARIO form)
+  if (currentTable === "CRISISSCENARIO") { appendCrisisScenarioAiPanel(body, "ef_"); appendCrisisAttackMapping(body, "ef_"); }
 
   // Impacted assets (ALERTFORASSET) for the ALERT table (pre-checked) — Defender "Select entities"
   if (currentTable === "ALERT" && editAlertId) {
@@ -8940,6 +9130,10 @@ async function openInsertModal(): Promise<void> {
   appendDatePicker("f_", "ValidUntil"); appendDatePicker("f_", "ValidUntilDate");
   // AI answer suggestion (QUESTION / OCIL form)
   if (currentTable === "QUESTION") appendOcilSuggestPanel(body, "f_");
+  // Draft the policy body with the local AI (POLICY form)
+  if (currentTable === "POLICY") appendPolicyAiDraftPanel(body, "f_");
+  // Generate the crisis-scenario Description with the local AI (CRISISSCENARIO form)
+  if (currentTable === "CRISISSCENARIO") { appendCrisisScenarioAiPanel(body, "f_"); appendCrisisAttackMapping(body, "f_"); }
 
   // Many-to-many ASSET relation for the INCIDENT table + linked threat actor
   if (currentTable === "INCIDENT") {
@@ -9791,6 +9985,25 @@ function initNotifications(): void {
   document.getElementById("notif-readall")?.addEventListener("click", async () => {
     try { await api.markAllNotificationsRead(); await refreshNotifications(false); } catch { /* ignore */ }
   });
+  // Reduce / minimize: collapse the list to just the header bar (persisted).
+  const reduceBtn = document.getElementById("notif-reduce");
+  const notifList = document.getElementById("notif-list");
+  if (reduceBtn && notifList) {
+    const KEY = "xorcism.notif.collapsed";
+    const apply = (collapsed: boolean): void => {
+      notifList.style.display = collapsed ? "none" : "";
+      reduceBtn.innerHTML = collapsed ? "&#9633;" : "&#8211;"; // ▢ restore / – reduce
+      reduceBtn.title = collapsed ? t("notif.restore") : t("notif.reduce");
+    };
+    let collapsed = false;
+    try { collapsed = localStorage.getItem(KEY) === "1"; } catch { /* */ }
+    apply(collapsed);
+    reduceBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      collapsed = !collapsed; apply(collapsed);
+      try { localStorage.setItem(KEY, collapsed ? "1" : "0"); } catch { /* */ }
+    });
+  }
   document.getElementById("notif-enable")?.addEventListener("click", async () => {
     if (!("Notification" in window)) { toast(t("notif.unsupported"), "err"); return; }
     let perm: NotificationPermission = "default";

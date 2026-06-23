@@ -7,6 +7,7 @@ import { crocDashboard, listPolicies, addPolicy, setPolicy, deletePolicy, riskHu
 import { redactTargets, addTarget, setTarget, deleteTarget, testTarget } from "../ticketing";
 import { redactIamTargets, addIamTarget, setIamTarget, deleteIamTarget, testIamTarget } from "../iam";
 import { redactSoar, addSoar, setSoar, deleteSoar, testSoar } from "../soar";
+import { lifecycleReasoning } from "../ai";
 import * as xid from "../xid";
 
 const router = Router();
@@ -228,6 +229,13 @@ router.post("/croc/soar/:id/test", async (req: Request, res: Response) => {
     if (!r) return void res.status(404).json({ error: "not found" });
     res.json(r);
   } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// ── local-AI reasoning across the loop (detect→decide→act→learn); Ollama + offline fallback ──
+router.get("/croc/reason", async (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!rd(req)) return void res.status(403).json({ error: "forbidden" });
+  try { res.json(await lifecycleReasoning(ten(req))); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
 // ── cyber-risk hunting ("where could an adversary succeed?") ──

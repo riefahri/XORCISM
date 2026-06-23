@@ -1,19 +1,114 @@
 /**
- * policies.ts (routes) — Policy & document management inventory + governance worklist.
- * Read-only; guarded by read on XORCISM.POLICY. CRUD is the schema-driven explorer.
+ * policies.ts (routes) — Policy & document management inventory + governance worklist,
+ * plus policy publication and per-user acceptance tracking.
+ * Read guarded by read on XORCISM.POLICY; publish/retire by update; acknowledge by any authenticated user.
  */
 import { Router, Request, Response } from "express";
-import { userCan } from "../auth";
-import { policyInventory } from "../policies";
+import { userCan, clientIp } from "../auth";
+import { policyInventory, publishPolicy, retirePolicy, acknowledgePolicy, policyAcceptanceDetail, myPendingPolicies,
+  snapshotPolicyVersion, policyVersions, policyVersionDetail, restorePolicyVersion } from "../policies";
+import * as xid from "../xid";
 
 const router = Router();
+const ten = (req: Request): number | null => (req.user!.isSuperAdmin ? null : (req.user!.tenantId ?? null));
+const canRead = (req: Request) => userCan(req.user, "read", "XORCISM", "POLICY");
+const canWrite = (req: Request) => userCan(req.user, "update", "XORCISM", "POLICY");
 
-// GET /api/policy-management — policies + document register + governance worklist
+// GET /api/policy-management — policies + document register + governance worklist + acceptance KPIs,
+// plus `me`: the published policies the current user still needs to acknowledge.
 router.get("/policy-management", (req: Request, res: Response) => {
   if (!req.user) return void res.status(401).json({ error: "auth" });
-  if (!userCan(req.user, "read", "XORCISM", "POLICY")) return void res.status(403).json({ error: "forbidden" });
-  const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
-  res.json(policyInventory(tenant));
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  const tenant = ten(req);
+  const inv = policyInventory(tenant);
+  let mine: unknown[] = [];
+  try { mine = myPendingPolicies(req.user.UserID, tenant); } catch { /* */ }
+  res.json({ ...inv, me: { userId: req.user.UserID, name: req.user.DisplayName || req.user.Email, pending: mine } });
+});
+
+// POST /api/policy-management/policy/:id/publish { effectiveDate?, version?, requiresAck? }
+router.post("/policy-management/policy/:id/publish", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const id = Number(req.params.id);
+  const b = (req.body || {}) as Record<string, unknown>;
+  const ok = publishPolicy(id, { effectiveDate: b.effectiveDate ? String(b.effectiveDate) : undefined, version: b.version ? String(b.version) : undefined, requiresAck: b.requiresAck !== false, userId: req.user.UserID, userName: req.user.DisplayName || req.user.Email }, ten(req));
+  if (!ok) return void res.status(404).json({ error: "not found" });
+  xid.addAudit({ userId: req.user.UserID ?? null, action: "policy_publish", resourceType: "POLICY", resourceKey: String(id), detail: b.version ? `v${b.version}` : "", ip: clientIp(req) });
+  res.json({ ok: true });
+});
+
+// POST /api/policy-management/policy/:id/retire
+router.post("/policy-management/policy/:id/retire", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const id = Number(req.params.id);
+  const ok = retirePolicy(id, ten(req));
+  if (!ok) return void res.status(404).json({ error: "not found" });
+  xid.addAudit({ userId: req.user.UserID ?? null, action: "policy_retire", resourceType: "POLICY", resourceKey: String(id), ip: clientIp(req) });
+  res.json({ ok: true });
+});
+
+// POST /api/policy-management/policy/:id/acknowledge — the current user accepts the policy.
+router.post("/policy-management/policy/:id/acknowledge", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  const id = Number(req.params.id);
+  const out = acknowledgePolicy(id, { userId: req.user.UserID, email: req.user.Email, name: req.user.DisplayName || req.user.Email, ip: clientIp(req), method: "app" }, ten(req));
+  if (!out) return void res.status(404).json({ error: "policy not found or not published" });
+  if (!out.already) xid.addAudit({ userId: req.user.UserID ?? null, action: "policy_acknowledge", resourceType: "POLICY", resourceKey: String(id), ip: clientIp(req) });
+  res.json({ ok: true, already: out.already });
+});
+
+// GET /api/policy-management/policy/:id/acceptance — coverage detail (who acknowledged, who is pending)
+router.get("/policy-management/policy/:id/acceptance", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  const out = policyAcceptanceDetail(Number(req.params.id), ten(req));
+  if (!out) return void res.status(404).json({ error: "not found" });
+  res.json(out);
+});
+
+// ── Version history ──────────────────────────────────────────────────────────
+// GET /api/policy-management/policy/:id/versions — the version history list
+router.get("/policy-management/policy/:id/versions", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  res.json({ versions: policyVersions(Number(req.params.id), ten(req)) });
+});
+
+// GET /api/policy-management/version/:vid — one historical version's full content
+router.get("/policy-management/version/:vid", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  const out = policyVersionDetail(Number(req.params.vid), ten(req));
+  if (!out) return void res.status(404).json({ error: "not found" });
+  res.json(out);
+});
+
+// POST /api/policy-management/policy/:id/snapshot { changeNote? } — manually snapshot the current version
+router.post("/policy-management/policy/:id/snapshot", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const id = Number(req.params.id);
+  const note = String((req.body || {}).changeNote ?? "").slice(0, 500);
+  const out = snapshotPolicyVersion(id, { changeNote: note || "Manual snapshot", userId: req.user.UserID, userName: req.user.DisplayName || req.user.Email }, ten(req));
+  if (!out) return void res.status(404).json({ error: "not found or version already snapshotted" });
+  xid.addAudit({ userId: req.user.UserID ?? null, action: "policy_snapshot", resourceType: "POLICY", resourceKey: String(id), ip: clientIp(req) });
+  res.json({ ok: true, ...out });
+});
+
+// POST /api/policy-management/policy/:id/restore { versionId } — restore a prior version as a new draft
+router.post("/policy-management/policy/:id/restore", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const id = Number(req.params.id);
+  const versionId = Number((req.body || {}).versionId);
+  if (!Number.isFinite(versionId)) return void res.status(400).json({ error: "versionId required" });
+  const ok = restorePolicyVersion(id, versionId, { userId: req.user.UserID, userName: req.user.DisplayName || req.user.Email }, ten(req));
+  if (!ok) return void res.status(404).json({ error: "policy or version not found" });
+  xid.addAudit({ userId: req.user.UserID ?? null, action: "policy_restore_version", resourceType: "POLICY", resourceKey: String(id), detail: `version ${versionId}`, ip: clientIp(req) });
+  res.json({ ok: true });
 });
 
 export default router;

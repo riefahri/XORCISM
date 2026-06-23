@@ -294,6 +294,95 @@ export function completePlaybookStep(runStepId: number, status: string, by: stri
   return true;
 }
 
+// ── IR playbook library management (CRUD over PLAYBOOK / PLAYBOOKSTEP) ───────────
+const DEFAULT_PHASE = "Detection & Analysis";
+
+/** Whether a playbook is in the caller's tenant scope (super-admin: any). */
+function playbookTenantOk(id: number, tenant: number | null): boolean {
+  const r = getDb("XINCIDENT").prepare("SELECT TenantID FROM PLAYBOOK WHERE PlaybookID = ?").get(id) as { TenantID: number | null } | undefined;
+  if (!r) return false;
+  return tenant == null || r.TenantID == null || Number(r.TenantID) === tenant;
+}
+
+/** The full playbook library (with steps) for the management UI. */
+export function listPlaybooks(tenant: number | null): any[] {
+  const db = getDb("XINCIDENT");
+  if (!has("PLAYBOOK")) return [];
+  const pbs = db.prepare(`SELECT PlaybookID, Name, Category, Severity, Description, StepCount FROM PLAYBOOK ${tw(tenant)} ORDER BY Category, Name`).all() as any[];
+  const stepsBy = new Map<number, any[]>();
+  if (has("PLAYBOOKSTEP")) {
+    for (const st of db.prepare("SELECT StepID, PlaybookID, Phase, StepOrder, Title, Description, Role FROM PLAYBOOKSTEP ORDER BY PlaybookID, StepOrder").all() as any[]) {
+      const k = Number(st.PlaybookID); if (!stepsBy.has(k)) stepsBy.set(k, []);
+      stepsBy.get(k)!.push({ id: Number(st.StepID), phase: String(st.Phase ?? ""), order: Number(st.StepOrder ?? 0), title: String(st.Title ?? ""), description: String(st.Description ?? ""), role: String(st.Role ?? "") });
+    }
+  }
+  return pbs.map((p) => ({ id: Number(p.PlaybookID), name: String(p.Name), category: String(p.Category ?? ""), severity: String(p.Severity ?? ""), description: String(p.Description ?? ""), stepCount: Number(p.StepCount ?? 0), steps: stepsBy.get(Number(p.PlaybookID)) || [] }));
+}
+
+export function createPlaybook(p: { name: string; category?: string; severity?: string; description?: string; steps?: { phase?: string; title: string; description?: string; role?: string }[] }, tenant: number | null): { id: number } {
+  const db = getDb("XINCIDENT"); const now = new Date().toISOString();
+  const id = nextId("PLAYBOOK", "PlaybookID");
+  const steps = (p.steps || []).filter((s) => s && String(s.title || "").trim());
+  db.prepare("INSERT INTO PLAYBOOK (PlaybookID, PlaybookGUID, Name, Category, Description, Severity, StepCount, TenantID, CreatedDate) VALUES (?,?,?,?,?,?,?,?,?)")
+    .run(id, randomUUID(), p.name.trim(), (p.category || "General").trim(), (p.description || "").trim(), (p.severity || "Medium").trim(), steps.length, tenant, now);
+  if (steps.length) {
+    let sid = nextId("PLAYBOOKSTEP", "StepID");
+    const ins = db.prepare("INSERT INTO PLAYBOOKSTEP (StepID, PlaybookID, Phase, StepOrder, Title, Description, Role, TenantID) VALUES (?,?,?,?,?,?,?,?)");
+    steps.forEach((st, i) => ins.run(sid++, id, (st.phase || DEFAULT_PHASE).trim(), i + 1, st.title.trim(), (st.description || "").trim(), st.role ? st.role.trim() : null, tenant));
+  }
+  return { id };
+}
+
+export function updatePlaybook(id: number, patch: { name?: string; category?: string; severity?: string; description?: string }, tenant: number | null): boolean {
+  if (!playbookTenantOk(id, tenant)) return false;
+  const sets: string[] = []; const vals: unknown[] = [];
+  for (const [k, col] of [["name", "Name"], ["category", "Category"], ["severity", "Severity"], ["description", "Description"]] as const) {
+    const v = (patch as Record<string, unknown>)[k]; if (v != null) { sets.push(`${col} = ?`); vals.push(String(v).trim()); }
+  }
+  if (!sets.length) return true;
+  vals.push(id);
+  getDb("XINCIDENT").prepare(`UPDATE PLAYBOOK SET ${sets.join(", ")} WHERE PlaybookID = ?`).run(...vals);
+  return true;
+}
+
+export function deletePlaybook(id: number, tenant: number | null): boolean {
+  if (!playbookTenantOk(id, tenant)) return false;
+  const db = getDb("XINCIDENT");
+  // detach from any incidents pointing at it (their materialized run-step history is left intact)
+  if (cols("INCIDENT").has("PlaybookID")) db.prepare("UPDATE INCIDENT SET PlaybookID = NULL WHERE PlaybookID = ?").run(id);
+  db.prepare("DELETE FROM PLAYBOOKSTEP WHERE PlaybookID = ?").run(id);
+  db.prepare("DELETE FROM PLAYBOOK WHERE PlaybookID = ?").run(id);
+  return true;
+}
+
+function renumberSteps(playbookId: number): void {
+  const db = getDb("XINCIDENT");
+  const steps = db.prepare("SELECT StepID FROM PLAYBOOKSTEP WHERE PlaybookID = ? ORDER BY StepOrder, StepID").all(playbookId) as { StepID: number }[];
+  const upd = db.prepare("UPDATE PLAYBOOKSTEP SET StepOrder = ? WHERE StepID = ?");
+  steps.forEach((s, i) => upd.run(i + 1, s.StepID));
+  db.prepare("UPDATE PLAYBOOK SET StepCount = ? WHERE PlaybookID = ?").run(steps.length, playbookId);
+}
+
+export function addPlaybookStep(playbookId: number, st: { phase?: string; title: string; description?: string; role?: string }, tenant: number | null): { id: number } | null {
+  if (!playbookTenantOk(playbookId, tenant) || !String(st.title || "").trim()) return null;
+  const db = getDb("XINCIDENT");
+  const max = Number((db.prepare("SELECT COALESCE(MAX(StepOrder),0) n FROM PLAYBOOKSTEP WHERE PlaybookID = ?").get(playbookId) as { n: number }).n);
+  const id = nextId("PLAYBOOKSTEP", "StepID");
+  db.prepare("INSERT INTO PLAYBOOKSTEP (StepID, PlaybookID, Phase, StepOrder, Title, Description, Role, TenantID) VALUES (?,?,?,?,?,?,?,?)")
+    .run(id, playbookId, (st.phase || DEFAULT_PHASE).trim(), max + 1, st.title.trim(), (st.description || "").trim(), st.role ? st.role.trim() : null, tenant);
+  db.prepare("UPDATE PLAYBOOK SET StepCount = StepCount + 1 WHERE PlaybookID = ?").run(playbookId);
+  return { id };
+}
+
+export function deletePlaybookStep(stepId: number, tenant: number | null): boolean {
+  const db = getDb("XINCIDENT");
+  const row = db.prepare("SELECT PlaybookID FROM PLAYBOOKSTEP WHERE StepID = ?").get(stepId) as { PlaybookID: number } | undefined;
+  if (!row || !playbookTenantOk(Number(row.PlaybookID), tenant)) return false;
+  db.prepare("DELETE FROM PLAYBOOKSTEP WHERE StepID = ?").run(stepId);
+  renumberSteps(Number(row.PlaybookID));
+  return true;
+}
+
 export function incidentPlaybook(incidentId: number): { phases: any[]; progress: { done: number; total: number; pct: number } } {
   const db = getDb("XINCIDENT");
   if (!has("INCIDENTPLAYBOOKSTEP")) return { phases: [], progress: { done: 0, total: 0, pct: 0 } };

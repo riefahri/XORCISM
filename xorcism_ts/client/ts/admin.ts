@@ -46,7 +46,7 @@ let roles: Role[] = [];
 let currentRoleId = 0;
 let isSuperAdmin = false;
 let tenants: Tenant[] = [];
-let resources: { pages: { path: string; label: string }[]; databases: { db: string; tables: string[] }[] } = {
+let resources: { pages: { path: string; label: string; group?: string }[]; databases: { db: string; tables: string[] }[] } = {
   pages: [],
   databases: [],
 };
@@ -133,14 +133,31 @@ function permRow(
   return row;
 }
 
+const PAGE_GROUP_LABEL: Record<string, string> = {
+  core: "Core", asset: "Asset-Based", exposure: "Vulnerability & Exposure", threat: "Threat",
+  risk: "Risk-Based", compliance: "Compliance", operations: "Response & Operations", platform: "Platform",
+};
 function renderPages(): void {
   const host = $("perm-pages");
   host.innerHTML = "";
-  resources.pages.forEach((p) => {
-    host.appendChild(
-      permRow(`${p.label}  (${p.path})`, "page", p.path, "lvl-db", { which: ["r"] })
-    );
-  });
+  // group the feature pages by approach (collapsible) — there are ~70, so a flat list is unusable.
+  const groups: Record<string, { path: string; label: string }[]> = {};
+  const order: string[] = [];
+  resources.pages.forEach((p) => { const g = p.group || "core"; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(p); });
+  for (const g of order) {
+    const header = document.createElement("div");
+    header.className = "perm-row lvl-db";
+    header.style.cursor = "pointer"; header.style.fontWeight = "700";
+    header.innerHTML = `<span class="toggle">&#9656;</span> ${PAGE_GROUP_LABEL[g] || g} <span style="color:#64748b;font-weight:400">(${groups[g].length})</span>`;
+    let open = false; let box: HTMLElement | null = null;
+    header.addEventListener("click", () => {
+      open = !open;
+      if (open) { box = document.createElement("div"); groups[g].forEach((p) => box!.appendChild(permRow(`${p.label}  (${p.path})`, "page", p.path, "lvl-table", { which: ["r"] }))); header.after(box); }
+      else if (box) { box.remove(); box = null; }
+      (header.querySelector(".toggle") as HTMLElement).innerHTML = open ? "&#9662;" : "&#9656;";
+    });
+    host.appendChild(header);
+  }
 }
 
 function renderData(): void {

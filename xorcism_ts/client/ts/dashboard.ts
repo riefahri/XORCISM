@@ -594,6 +594,7 @@ interface Kpis {
   risk: { riskScore: number; open: number; highCritical: number; untreated: number; overdueReview: number; treatedRate: number | null; totalALE: number; currency: string } | null;
   pqcmm: { maturityScore: number; assessments: number; quantumVulnerable: number; productionReady: number; managed: number } | null;
   patch: { coverage: number | null; overdue: number; kevUnpatched: number; unpatched: number; instances: number; mttr: number | null } | null;
+  policy: { published: number; requiringAck: number; ackCoverage: number; pendingAcks: number; fullyAcknowledged: number } | null;
 }
 const badColor = (n: number): string => (n > 0 ? "#f87171" : "#34d399");
 const warnColor = (n: number): string => (n > 0 ? "#fbbf24" : "#34d399");
@@ -655,6 +656,10 @@ async function initKpis(): Promise<void> {
   if (k.pqcmm) {
     tile(`${k.pqcmm.maturityScore}%`, "Quantum readiness", `${k.pqcmm.assessments} assessed · PQCMM`, "/pqcmm", pctColor(k.pqcmm.maturityScore));
     tile(k.pqcmm.quantumVulnerable, "Quantum-vulnerable", "PQCMM Level 0 · classical only", "/pqcmm", badColor(k.pqcmm.quantumVulnerable));
+  }
+  if (k.policy) {
+    tile(`${k.policy.ackCoverage}%`, "Policy acceptance", `${k.policy.requiringAck} published · ack required`, "/policy-management", pctColor(k.policy.ackCoverage));
+    tile(k.policy.pendingAcks, "Pending acknowledgements", `${k.policy.fullyAcknowledged}/${k.policy.requiringAck} fully accepted`, "/policy-management", warnColor(k.policy.pendingAcks));
   }
   if (k.crisis) {
     tile(k.crisis.readinessScore, "Crisis readiness", "completion × coverage", "/crisis-management", pctColor(k.crisis.readinessScore));

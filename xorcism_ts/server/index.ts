@@ -61,6 +61,12 @@ import workforceRouter from "./routes/workforce";
 import teamopsRouter from "./routes/teamops";
 import vocRouter from "./routes/voc";
 import vmtrendsRouter from "./routes/vmtrends";
+import boardreportRouter from "./routes/boardreport";
+import privacyRouter from "./routes/privacy";
+import { ensurePrivacyTables, seedPrivacy } from "./privacy";
+import soarCockpitRouter from "./routes/soar";
+import { ensureSoarOpsTables, seedSoarOps } from "./soar";
+import { backfillPolicyVersions } from "./policies";
 import ctemRouter from "./routes/ctem";
 import { seedCtemIdentifiers } from "./ctem";
 import ctiExpertRouter from "./routes/ctiexpert";
@@ -68,11 +74,11 @@ import { ensureCtiExpertTables } from "./ctiexpert";
 import teamsRouter from "./routes/teams";
 import { ensureTeamsTables } from "./teams";
 import crocRouter from "./routes/croc";
-import { ensureCrocTables, seedCrocPolicies, ensureLoopHealthTable, startResilienceAccrual } from "./croc";
+import { ensureCrocTables, seedCrocPolicies, ensureLoopHealthTable, startResilienceAccrual, startLoopDigest, seedCrocDemo } from "./croc";
 import { ensureTicketingTargets } from "./ticketing";
 import { ensureIamTargets } from "./iam";
 import { ensureSoarTables } from "./soar";
-import { ensureLandingAccessTable } from "./landingaccess";
+import { ensureLandingAccessTable, FEATURE_PAGE_PATHS, canAccessFeaturePage } from "./landingaccess";
 import landingRouter from "./routes/landing";
 import stixStoreRouter from "./routes/stixstore";
 import { startStixStoreSync } from "./stixstore";
@@ -121,8 +127,8 @@ import {
   userCanPage,
   seedAdmin,
 } from "./auth";
-import { purgeExpiredSessions } from "./xid";
-import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureComplianceJourneyTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable } from "./db";
+import { purgeExpiredSessions, seedFeaturePageGrants } from "./xid";
+import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureComplianceJourneyTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable } from "./db";
 import { tr } from "./i18n";
 
 const PORT = Number(process.env.PORT) || 9292;
@@ -245,6 +251,9 @@ app.use("/api", workforceRouter); // NICE + ENISA ECSF workforce roles around PE
 app.use("/api", teamopsRouter); // Purple/Red/Blue Team Operations: ATT&CK exercises + capabilities + automations
 app.use("/api", vocRouter); // Vulnerability Operations Center: SLA policy, campaigns, exceptions, remediation KPIs
 app.use("/api", vmtrendsRouter); // VM executive report: risk & SLA posture trends over time + data-driven myth-busting
+app.use("/api", boardreportRouter); // Board cyber-risk report: 6 board questions, Likelihood × Impact, posture trend
+app.use("/api", privacyRouter); // GDPR / DPO cockpit: RoPA (Art 30) + DSAR + DPIA + breach register (Art 33/34)
+app.use("/api", soarCockpitRouter); // SOAR cockpit: orchestration playbooks (trigger→actions) + run engine
 app.use("/api", ctemRouter); // CTEM (ctem.org): standardized exposure-identifier taxonomy + 3-stage exposure cockpit
 app.use("/api", ctiExpertRouter); // CTI-Expert: AI-orchestrated OSINT investigation (cti-expert skill → local AI)
 app.use("/api", teamsRouter); // Microsoft Teams: alert/notification distribution (webhook targets + test)
@@ -306,6 +315,15 @@ function pageGuard(pagePath: string) {
     res.status(403).send(tr(req, "page.deniedHtml"));
   };
 }
+
+// Unified feature access: a managed feature page (a landing card with a real route) requires BOTH the
+// role's `page:<path>` RBAC grant AND the NICE-profile access control (LANDINGACCESS) — admins bypass
+// both. Runs after requireAuthGate (req.user set), on top of each route's base pageGuard("/"). No route edits.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method !== "GET" || !FEATURE_PAGE_PATHS.has(req.path)) return next();
+  if (canAccessFeaturePage(req.user, req.path)) return next();
+  res.status(403).send(tr(req, "page.deniedHtml"));
+});
 
 app.get("/login", (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "login.html"));
@@ -427,6 +445,15 @@ app.get("/team-ops", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/vm-report", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "vm-report.html"));
 });
+app.get("/board-report", pageGuard("/dashboard"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "board-report.html"));
+});
+app.get("/privacy", pageGuard("/privacy"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "privacy.html"));
+});
+app.get("/soar", pageGuard("/soar"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "soar.html"));
+});
 app.get("/ctem", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "ctem.html"));
 });
@@ -438,6 +465,9 @@ app.get("/croc", pageGuard("/"), (_req: Request, res: Response) => {
 });
 app.get("/cyber-risk-hunting", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "cyber-risk-hunting.html"));
+});
+app.get("/agents", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "agents.html"));
 });
 app.get("/voc", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "voc.html"));
@@ -617,6 +647,7 @@ ensureSocTables(); // SOC operations: shifts/on-call, escalation policy+log, IR 
 ensureSocCmmTables(); // SOC-CMM maturity self-assessment (XINCIDENT)
 ensureCertOpsTables(); // CERT/CSIRT operations: forensic cases + chain of custody (XINCIDENT)
 ensureGovernanceTables(); // Governance: NIST CSF 2.0 Govern (GV) register (XCOMPLIANCE)
+ensurePrivacyTables(); // GDPR/DPO registers: PRIVACYPROCESSING (RoPA) + DSAR + DPIA + PRIVACYBREACH (XCOMPLIANCE)
 ensureAiThreatTables(); // OWASP AI Exchange agentic threat catalogue (XTHREAT)
 ensureWorkforceTables(); // NICE + ENISA ECSF workforce role catalogue around PERSON (XORCISM)
 ensureTeamOpsTables(); // Purple/Red/Blue Team Operations: ATT&CK exercises + capabilities (XTHREAT)
@@ -629,13 +660,19 @@ ensureCrocTables(); seedCrocPolicies(null); // CROC Continuous Defense Loop: LOO
 ensureTicketingTargets(); // CROC outbound ticketing (Jira/ServiceNow) destination store
 ensureIamTargets(); // CROC outbound IAM enforcement (Entra/Graph) target store
 ensureSoarTables(); // CROC outbound SOAR/n8n automation webhook store
+ensureSoarOpsTables(); // SOAR cockpit: orchestration playbooks + actions + runs (XINCIDENT)
 ensureLoopHealthTable(); // CROC resilience-over-time snapshot store
+try { seedCrocDemo(3); } catch { /* demo only */ } // CROC value demo (tenant 3): 24h bidirectional loop feed + 30-day improving resilience
 ensureLandingAccessTable(); // landing-menu NICE-profile access control store
+seedFeaturePageGrants([...FEATURE_PAGE_PATHS]); // full RBAC: per-boot top-up so base roles keep access to existing + newly-added feature pages
 ensureStixObjectStore(); // Lossless STIX retention: RawJson cols on OBSERVABLE/IOC/INTELEXCHANGE + STIXOBJECT + FTS5 index
 ensureDevSecOpsTables(); // DevSecOps operations: DEVSECOPSAPP + DEVSECOPSSCAN + DEVSECOPSGATE (pipeline security posture)
 ensureBlobStore(); // Content-addressed blob store (FILEBLOB + DB_DIR/blobstore) for large files by sha256 pointer
 ensureNetflowTables(); // NetFlow around ASSET: ASSETSERVICE + NETWORKSESSION (discovery/monitoring, SOC)
 ensureGrcColumns(); // advanced GRC: CRQ/FAIR (risk register), findings workflow, policy lifecycle
+ensurePolicyAckTable(); // policy publication + per-user acceptance tracking (XORCISM.POLICYACKNOWLEDGEMENT)
+ensurePolicyVersionTable(); // policy version history (XORCISM.POLICYVERSION) — snapshot on publish
+try { backfillPolicyVersions(); } catch { /* best-effort */ } // give already-published policies an initial version entry
 ensureBugBountyTables(); // Bug Bounty program management (XVULNERABILITY): BUGBOUNTY*
 ensureEbiosTables(); // EBIOS Risk Manager (ANSSI) in XCOMPLIANCE: reuses RISKASSESSMENT/RISKSCENARIO + EBIOS* tables
 ensureNist80030Tables(); // NIST SP 800-30 risk assessment in XCOMPLIANCE: reuses RISKASSESSMENT + NIST80030* tables
@@ -656,6 +693,7 @@ startMonitorChecker(); // live Asset-Monitoring prober (HTTP/TCP/DNS/SSL/ping du
 startThreatFeedPoller(); // periodically turns CTI RSS feed items into THREATREPORT entries
 startRiskScoreLoop(); // recomputes ASSET.RiskScore every 30 s
 startResilienceAccrual(); // CROC resilience-over-time: accrue a loop-health snapshot now + every 6h
+startLoopDigest(); // CROC daily AI loop digest (~5min after boot, then daily; XOR_CROC_DIGEST=0 to disable)
 startChainEngine(); // advances active tool-chaining runs (pentest playbooks)
 warmManifestCache(); // pre-parse the 1200+ connector manifests so the first /connectors load is instant
 purgeExpiredSessions();

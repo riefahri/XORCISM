@@ -1,0 +1,43 @@
+{
+  "id": "cyberark",
+  "name": "CyberArk",
+  "type": "import",
+  "category": "Identity & Access Management",
+  "description": "CyberArk Privileged Access Management (Self-Hosted PVWA / Privilege Cloud) identity sync via the REST API. Collects privileged accounts (→ non-human/privileged identities, with their target address, platform, safe and secret type) and vault users (→ human or component identities) into XORCISM (IDENTITY), so privileged credentials feed the Identity & IAM inventory for orphaned-NHI, stale-secret (rotation) and privilege detection. Authenticates with a service account — secrets from the worker environment: CYBERARK_BASE_URL, CYBERARK_USERNAME, CYBERARK_PASSWORD (and optional CYBERARK_AUTH_METHOD = CyberArk | LDAP | RADIUS | Windows). REST API: https://docs.cyberark.com/pam-self-hosted/latest/en/content/webservices/implementing%20privileged%20account%20security%20web%20services%20.htm.",
+  "intrusive": false,
+  "permission": "connector:cyberark",
+  "run": "run.py",
+  "mapping": "cyberark",
+  "parameters": [
+    {
+      "name": "base_url",
+      "type": "string",
+      "required": false,
+      "help": "PVWA / Privilege Cloud base URL (e.g. https://pvwa.example.com). Overrides CYBERARK_BASE_URL."
+    },
+    {
+      "name": "auth_method",
+      "type": "string",
+      "required": false,
+      "help": "Logon method: CyberArk (default), LDAP, RADIUS or Windows. Overrides CYBERARK_AUTH_METHOD."
+    },
+    {
+      "name": "include",
+      "type": "string",
+      "required": false,
+      "help": "Comma-separated object types to sync: accounts, users (default: both)."
+    },
+    {
+      "name": "max_items",
+      "type": "number",
+      "required": false,
+      "help": "Maximum objects to pull per type (default 1000)."
+    },
+    {
+      "name": "file",
+      "type": "file",
+      "required": false,
+      "help": "Offline mode: a saved CyberArk REST JSON export to parse instead of calling the API. Accepts {accounts:[],users:[]} or a raw {value:[...]} / {Users:[...]} array."
+    }
+  ]
+}

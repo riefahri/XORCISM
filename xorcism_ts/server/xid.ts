@@ -644,6 +644,27 @@ export function setPermission(
     );
 }
 
+/**
+ * Feature-page RBAC top-up: grant every feature page (read) to roles that already have base "/" access,
+ * so per-feature enforcement doesn't lock out existing non-admin users. Runs on EVERY boot and is cheap —
+ * it only inserts grants that are ABSENT, so a newly-added CARDS page is auto-granted to roles that already
+ * hold the rest of their page set, while an admin's explicit per-role rule (incl. an explicit deny row,
+ * CanRead=0) is left untouched. The XRBACSEED marker is now just a first-applied audit stamp, not a gate.
+ */
+export function seedFeaturePageGrants(featurePaths: string[]): void {
+  const db = getXidDb();
+  db.exec("CREATE TABLE IF NOT EXISTS XRBACSEED(name TEXT PRIMARY KEY, applied_at TEXT)");
+  try {
+    const baseRoles = db.prepare("SELECT DISTINCT RoleID FROM XPERMISSION WHERE ResourceType='page' AND ResourceKey='/' AND CanRead=1").all() as { RoleID: number }[];
+    const have = new Set((db.prepare("SELECT RoleID, ResourceKey FROM XPERMISSION WHERE ResourceType='page'").all() as { RoleID: number; ResourceKey: string }[]).map((r) => `${r.RoleID}|${r.ResourceKey}`));
+    for (const role of baseRoles) for (const p of featurePaths) {
+      if (have.has(`${role.RoleID}|${p}`)) continue; // only insert grants that are absent (preserves explicit role rules)
+      setPermission(role.RoleID, "page", p, { c: false, r: true, u: false, d: false });
+    }
+  } catch { /* best-effort top-up */ }
+  db.prepare("INSERT OR IGNORE INTO XRBACSEED(name, applied_at) VALUES ('feature_pages_v1', ?)").run(new Date().toISOString());
+}
+
 // ── Sessions ────────────────────────────────────────────────────────────────
 
 export function createSession(opts: {

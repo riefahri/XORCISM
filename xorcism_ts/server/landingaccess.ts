@@ -11,6 +11,7 @@
  */
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
+import { userCanPage } from "./auth";
 
 /** The canonical NICE Workforce Framework (SP 800-181 rev1, 2025) categories used as profiles. */
 export const NICE_PROFILES: string[] = [
@@ -77,8 +78,8 @@ export const CARDS: { href: string; group: string }[] = [
   ...["/voc", "/vm-report", "/ctem", "/bug-bounty", "/vulnerability-management", "/exposure", "/exploitdb", "/attack-path", "/drift", "/pqcmm", "/?db=XVULNERABILITY&table=BUGBOUNTYPROGRAM"].map((href) => ({ href, group: "exposure" })),
   ...["/?db=XTHREAT&table=THREAT", "/cti-expert", "/threat-informed-defense", "/hunting", "/pir", "/cti-watch", "/kill-chain", "/threat-model", "/attack-tree", "/ransomware", "/tools?category=OSINT", "/osint-graph", "/team-ops", "/ai-threat-advisor", "/malware-scan"].map((href) => ({ href, group: "threat" })),
   ...["/croc", "/cyber-risk-hunting", "/investment-advisor", "/risk-register", "/fair-mam", "/fair-tef", "/ebios", "/asset-monitoring", "/patch-management", "/ot-security", "/nist-800-30", "/tprm"].map((href) => ({ href, group: "risk" })),
-  ...["/governance", "/compliance-journeys", "/control-management", "/compliance-management", "/policy-management", "/trust-center", "/assurance"].map((href) => ({ href, group: "compliance" })),
-  ...["/devsecops", "/soc-cmm", "/cert-ops", "/soc", "/incident-management", "/incident-sla", "/crisis-management", "/pentest", "/?db=XTICKET&table=TICKET", "/content", "/security-awareness"].map((href) => ({ href, group: "operations" })),
+  ...["/governance", "/compliance-journeys", "/control-management", "/compliance-management", "/policy-management", "/privacy", "/trust-center", "/assurance"].map((href) => ({ href, group: "compliance" })),
+  ...["/agents", "/devsecops", "/soc-cmm", "/cert-ops", "/soc", "/soar", "/incident-management", "/incident-sla", "/crisis-management", "/pentest", "/?db=XTICKET&table=TICKET", "/content", "/security-awareness"].map((href) => ({ href, group: "operations" })),
   ...["/connectors", "/api-docs", "/tools"].map((href) => ({ href, group: "platform" })),
 ];
 
@@ -88,6 +89,16 @@ export function cardLabel(href: string): string {
   const base = href.replace(/^\//, "").split("?")[0] || href;
   return base.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/**
+ * The feature PAGES governed by RBAC = the cards that map to a real page route (drop the explorer
+ * deep-links with a query string). Each is an XPERMISSION resource (ResourceType='page', ResourceKey=path)
+ * so a role can be granted/denied it, enforced by the feature middleware in index.ts.
+ */
+export const FEATURE_PAGES: { path: string; label: string; group: string }[] =
+  CARDS.filter((c) => !c.href.includes("?")).map((c) => ({ path: c.href, label: cardLabel(c.href), group: c.group }));
+export const FEATURE_PAGE_PATHS: Set<string> = new Set(FEATURE_PAGES.map((f) => f.path));
+const GROUP_LABEL: Record<string, string> = Object.fromEntries(GROUPS.map((g) => [g.id, g.label]));
 
 // ── access-control store ───────────────────────────────────────────────────────────────────
 export function ensureLandingAccessTable(): void {
@@ -144,14 +155,43 @@ export function userNiceProfiles(user: { Email?: string | null } | null | undefi
 export function landingConfig(user: { Email?: string | null; isAdmin?: boolean; isSuperAdmin?: boolean; tenantId?: number | null } | null): any {
   const isAdmin = !!(user && (user.isAdmin || user.isSuperAdmin));
   const tenant = user?.isSuperAdmin ? null : (user?.tenantId ?? null);
+  // RBAC: feature pages this (non-admin) user's role(s) are NOT granted — the landing hides those cards.
+  let rbacDenied: string[] = [];
+  if (!isAdmin) { try { rbacDenied = FEATURE_PAGES.filter((f) => !userCanPage(user as any, f.path)).map((f) => f.path); } catch { /* */ } }
   return {
     profiles: NICE_PROFILES,
     groupRelevance: GROUP_RELEVANCE,
     cardRelevance: CARD_RELEVANCE,
     restrictions: listAccess(tenant),
     userProfiles: userNiceProfiles(user),
+    rbacDenied,
     isAdmin,
   };
+}
+
+/**
+ * Does the NICE-profile access control (LANDINGACCESS) allow this user to reach a feature page?
+ * Server-side mirror of the landing's applyAccess: a card/group restricted to NICE profiles is denied
+ * unless the user's assigned workforce profile matches (admins bypass; an unrestricted page is allowed).
+ */
+export function niceAllowsPage(user: { Email?: string | null; isAdmin?: boolean; isSuperAdmin?: boolean; tenantId?: number | null } | null, path: string): boolean {
+  if (user && (user.isAdmin || user.isSuperAdmin)) return true;
+  try {
+    const tenant = user?.isSuperAdmin ? null : (user?.tenantId ?? null);
+    const card = CARDS.find((c) => c.href === path);
+    const restr = listAccess(tenant);
+    const up = new Set(userNiceProfiles(user));
+    const ok = (profiles: string[]): boolean => profiles.length === 0 || profiles.some((p) => up.has(p));
+    if (card) { const gr = restr.find((r) => r.itemType === "group" && r.itemKey === card.group); if (gr && !ok(gr.profiles)) return false; }
+    const cr = restr.find((r) => r.itemType === "card" && r.itemKey === path);
+    if (cr && !ok(cr.profiles)) return false;
+    return true;
+  } catch { return true; } // never harden on an error
+}
+
+/** Unified feature-page gate: RBAC role grant AND NICE-profile access control must both permit. */
+export function canAccessFeaturePage(user: any, path: string): boolean {
+  return userCanPage(user, path) && niceAllowsPage(user, path);
 }
 
 /** The catalogue + current restrictions for the admin management UI. */

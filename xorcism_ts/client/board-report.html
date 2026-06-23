@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Board Cyber-Risk Report</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1200px;margin:0 auto;padding:18px}.mw h1{font-size:21px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1000px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:13px 15px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .card .val{font-size:26px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .trend{font-size:11px;font-weight:700;margin-top:3px}.tr-up{color:#4ade80}.tr-dn{color:#f87171}.tr-flat{color:#94a3b8}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:22px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}.sec .spacer{flex:1}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px}
+  .panel h3{font-size:12px;margin:0 0 2px;color:#cbd5e1;text-transform:uppercase;letter-spacing:.4px}.panel .ph{font-size:11px;color:#64748b;margin-bottom:8px}
+  .muted{color:#64748b}
+  .exec{background:#13162a;border:1px solid #2d3250;border-left:3px solid #f97316;border-radius:10px;padding:16px 18px;font-size:13.5px;line-height:1.7;color:#cbd5e1}
+  .exec h2,.exec h3{color:#fde68a;font-size:14px;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px}.exec h2:first-child,.exec h3:first-child{margin-top:0}
+  .exec b,.exec strong{color:#fde68a}.exec ul{margin:6px 0;padding-left:20px}.exec li{margin:3px 0}
+  table.bt{width:100%;border-collapse:collapse;font-size:13px}
+  table.bt th,table.bt td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.bt th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .pill{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .pill-kev{background:#7f1d1d;color:#fecaca}.pill-exp{background:#78350f;color:#fcd34d}.pill-prio{background:#1e3a5f;color:#bfdbfe}
+  .qa{display:flex;flex-direction:column;gap:2px;padding:11px 0;border-bottom:1px solid #1e2133}
+  .qa .q{font-size:13px;font-weight:700;color:#e2e8f0}.qa .a{font-size:13px;color:#cbd5e1;line-height:1.55}
+  .grade{font-weight:800}.g-A{color:#4ade80}.g-B{color:#a3e635}.g-C{color:#fbbf24}.g-D{color:#fb923c}.g-F{color:#f87171}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:5px 12px;cursor:pointer}.btn-sm2:hover{border-color:#fb923c}
+  .btn-sm2:disabled{opacity:.5;cursor:default}
+  svg.lc text{font-family:inherit}
+  @media print{.topbar,.no-print{display:none!important}body{background:#fff}.card,.panel,.exec,.qa{break-inside:avoid}}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/dashboard">&#128202; Dashboard</a><a href="/exposure">&#127919; Exposure</a><a href="/risk-register">&#128221; Risk register</a><span class="spacer"></span><span class="title">&#128203; Board Report</span></div>
+<div class="mw">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex:1">
+      <h1>Board Cyber-Risk Report</h1>
+      <div class="sub">A board-ready read-out of cyber risk in <b>business terms</b> — risk as <b>Likelihood &times; Impact</b>, framed against
+        <b>critical (crown-jewel) assets</b> and <b>posture over time</b>, answering the six questions a Board actually asks. Built from your
+        live XORCISM data; no raw vulnerability counts, no jargon.</div>
+    </div>
+    <div class="no-print" style="display:flex;gap:8px;padding-top:4px">
+      <button class="btn-sm2" id="btn-ai" title="Generate a board-language narrative with the local AI">&#10024; AI narrative</button>
+      <button class="btn-sm2" id="btn-print">&#128424;&#65039; Print / PDF</button>
+    </div>
+  </div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading board report…</div></div>
+</div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/board-report.js"></script></body></html>

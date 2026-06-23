@@ -17335,7 +17335,8 @@ CREATE TABLE "PERSON"(
 	"JobTitle" TEXT NULL, "Department" TEXT NULL, "CompanyName" TEXT NULL, "OfficeLocation" TEXT NULL,
 	"UserPrincipalName" TEXT NULL, "EmployeeID" TEXT NULL, "EmployeeType" TEXT NULL,
 	"EntraObjectID" TEXT NULL, "ObjectGUID" TEXT NULL, "OnPremisesSamAccountName" TEXT NULL,
-	"UsageLocation" TEXT NULL, "MobilePhone" TEXT NULL, "BusinessPhone" TEXT NULL, "AccountEnabled" INTEGER NULL
+	"UsageLocation" TEXT NULL, "MobilePhone" TEXT NULL, "BusinessPhone" TEXT NULL, "AccountEnabled" INTEGER NULL,
+	"TenantID" INTEGER NULL    -- tenant scope (PERSON was historically a global directory)
 )
 
 ;
@@ -26501,7 +26502,10 @@ ALTER TABLE "NOTIFICATION" ADD COLUMN "Source" TEXT;
 ALTER TABLE "NOTIFICATION" ADD COLUMN "IsRead" INTEGER;
 ALTER TABLE "NOTIFICATION" ADD COLUMN "ReadDate" TEXT;
 ALTER TABLE "NOTIFICATION" ADD COLUMN "TenantID" INTEGER;
-ALTER TABLE "PERSON" ADD COLUMN "email" TEXT;
+-- NOTE: PERSON.email is already declared in the CREATE TABLE "PERSON" above, so a
+-- migration ALTER here would fail on a fresh create with "duplicate column name: email"
+-- (better-sqlite3 exec() aborts the whole script on the first error, so XORCISM.db was
+-- never created on a clean install). The redundant ALTER has been removed intentionally.
 ALTER TABLE "POLICY" ADD COLUMN "Status" TEXT;
 ALTER TABLE "POLICY" ADD COLUMN "WorkflowStatus" TEXT;
 ALTER TABLE "POLICY" ADD COLUMN "Version" TEXT;

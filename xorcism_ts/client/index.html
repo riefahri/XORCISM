@@ -91,6 +91,7 @@
     <strong style="flex:1;font-size:13px;color:#e2e8f0" data-i18n="notif.title">Notifications</strong>
     <button id="notif-enable" class="btn btn-ghost btn-sm" data-i18n="notif.enable" title="Activer les notifications du navigateur">Activer</button>
     <button id="notif-readall" class="btn btn-ghost btn-sm" data-i18n="notif.readAll">Tout lire</button>
+    <button id="notif-reduce" class="btn btn-ghost btn-sm" title="Réduire" style="padding:2px 9px;font-size:15px;line-height:1">&#8211;</button>
   </div>
   <div id="notif-list" style="overflow:auto;padding:4px 0"></div>
 </div>
@@ -575,6 +576,13 @@
         <span class="domain-desc" data-i18n="landing.policy.d">Cycle de vie des politiques et registre documentaire : revues, propriétaires, versions, conformité (ISO 42001/27001).</span>
       </a>
 
+      <a class="domain-card" href="/privacy" style="--accent:#34d399">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <span class="domain-title" data-i18n="landing.privacy">GDPR / DPO</span>
+        <span class="domain-sub">RoPA · DSAR · DPIA · breaches</span>
+        <span class="domain-desc" data-i18n="landing.privacy.d">Cockpit du Délégué à la Protection des Données (DPO) : registre des traitements (RoPA, Art 30), demandes des personnes concernées avec l'horloge d'un mois (Art 12), AIPD/DPIA (Art 35) et registre des violations avec l'horloge 72h (Art 33/34), plus la liste de travail du DPO.</span>
+      </a>
+
       <a class="domain-card" href="/trust-center" style="--accent:#22d3ee">
         <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="10" r="2.2"/><path d="M12 12.5V15"/></svg></span>
         <span class="domain-title" data-i18n="landing.trustcenter">Trust Center</span>
@@ -600,9 +608,16 @@
         <span class="approach-title" data-i18n="landing.approach.operations">Response &amp; Operations</span>
         <span class="approach-sub" data-i18n="landing.approach.operations.d">Act — respond to incidents, rehearse crises and manage the work.</span>
       </span>
-      <span class="approach-count">11</span>
+      <span class="approach-count">12</span>
     </div>
     <div class="domain-grid" data-group="operations">
+
+      <a class="domain-card" href="/agents" style="--accent:#34d399">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V5M9 3h6"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg></span>
+        <span class="domain-title" data-i18n="landing.agents">Agents</span>
+        <span class="domain-sub">XOR fleet · status · launch scans</span>
+        <span class="domain-desc" data-i18n="landing.agents.d">Gestion de la flotte d'agents XOR : inventaire des agents enrôlés avec statut (en ligne / inactif / hors ligne d'après le dernier check-in), plateforme et version, journaux de jobs et d'événements — et tasking direct : lancez un scan par agent (config/OVAL, vulnérabilités, inventaire, chasse, EDR/Rustinel, YARA, triage forensique ou émulation BAS) ; l'agent l'exécute à son prochain check-in et renvoie le résultat ici.</span>
+      </a>
 
       <a class="domain-card" href="/devsecops" style="--accent:#0ea5e9">
         <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.5V12a10 10 0 1 1-5.9-9.1"/><path d="M9 11l3 3L22 4"/><circle cx="5" cy="19" r="1"/><circle cx="12" cy="19" r="1"/><circle cx="19" cy="19" r="1"/></svg></span>
@@ -630,6 +645,13 @@
         <span class="domain-title" data-i18n="landing.soc">SOC Operations</span>
         <span class="domain-sub">MTTD/MTTR · on-call · escalation · playbooks</span>
         <span class="domain-desc" data-i18n="landing.soc.d">Centre de commande du SOC : KPIs de détection et réponse (MTTD · MTTA · MTTR), roster d'astreinte et couverture des shifts, file des incidents ouverts avec procédure d'escalade (L1→L2→L3→Manager) et playbooks de réponse à incident (NIST SP 800-61) attachables à un incident et suivis étape par étape.</span>
+      </a>
+
+      <a class="domain-card" href="/soar" style="--accent:#f97316">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        <span class="domain-title" data-i18n="landing.soar">SOAR</span>
+        <span class="domain-sub">Orchestration · automation · playbooks</span>
+        <span class="domain-desc" data-i18n="landing.soar.d">Orchestration, automatisation et réponse (SOAR) : playbooks d'automatisation (déclencheur → actions ordonnées) à partir d'un catalogue d'actions (enrichir, notifier, ticket, isoler, bloquer, escalader, automatiser n8n), exécution en mode simulation (dry-run) ou live vers les webhooks n8n/SOAR configurés, et historique des exécutions.</span>
       </a>
 
       <a class="domain-card" href="/incident-management" style="--accent:#fbbf24">

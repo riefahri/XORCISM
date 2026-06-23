@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — GDPR / Data Privacy Officer</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1300px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1040px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .grade{font-weight:800}.g-A{color:#4ade80}.g-B{color:#a3e635}.g-C{color:#fbbf24}.g-D{color:#fb923c}.g-F{color:#f87171}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}.sec .spacer{flex:1}
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px}
+  table.pt{width:100%;border-collapse:collapse;font-size:13px}
+  table.pt th,table.pt td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.pt th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .muted{color:#64748b}.nm{font-weight:600;color:#e2e8f0}
+  .pill{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .p-ok{background:#14532d;color:#bbf7d0}.p-warn{background:#78350f;color:#fcd34d}.p-bad{background:#7f1d1d;color:#fecaca}.p-info{background:#1e3a5f;color:#bfdbfe}
+  .worklist{list-style:none;margin:0;padding:0}.worklist li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .sev{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px}.sv-Critical{background:#7f1d1d;color:#fecaca}.sv-High{background:#78350f;color:#fcd34d}.sv-Medium{background:#1e3a5f;color:#bfdbfe}.sv-Low{background:#1e2133;color:#94a3b8}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:4px 11px;cursor:pointer}.btn-sm2:hover{border-color:#fb923c}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}.modal.show{display:flex}
+  .dlg{background:#0f1117;border:1px solid #2d3250;border-radius:12px;padding:18px;max-width:560px;width:92%;max-height:86vh;overflow:auto}
+  .dlg label{display:block;font-size:12px;color:#94a3b8;margin-top:8px}
+  .dlg input,.dlg select,.dlg textarea{width:100%;box-sizing:border-box;background:#13162a;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;padding:7px 9px;font-size:13px;margin-top:3px;font-family:inherit}
+  .dlg .row{display:flex;gap:8px}.dlg .row>*{flex:1}
+  .chk{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#cbd5e1}.chk input{width:auto}
+  @media print{.topbar,.no-print{display:none!important}body{background:#fff}}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/compliance-management">&#9989; Compliance</a><a href="/policy-management">&#128221; Policies</a><span class="spacer"></span><span class="title">&#128272; GDPR / DPO</span></div>
+<div class="mw">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex:1">
+      <h1>GDPR — Data Privacy Officer cockpit</h1>
+      <div class="sub">The DPO's operational view of GDPR: <b>Records of Processing Activities</b> (Art 30), <b>Data Subject Requests</b>
+        with the 1-month clock (Art 12), <b>DPIAs</b> for high-risk processing (Art 35), and the <b>personal-data breach register</b>
+        with the 72-hour notification clock (Art 33/34) — plus the worklist a DPO acts on first.</div>
+    </div>
+    <div class="no-print" style="display:flex;gap:8px;padding-top:4px;flex-wrap:wrap">
+      <button class="btn-sm2" id="btn-proc">+ Processing (RoPA)</button>
+      <button class="btn-sm2" id="btn-dsar">+ Data-subject request</button>
+      <button class="btn-sm2" id="btn-breach">+ Breach</button>
+    </div>
+  </div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading DPO cockpit…</div></div>
+</div>
+<div class="modal" id="modal"><div class="dlg" id="dlg"></div></div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/privacy.js"></script></body></html>

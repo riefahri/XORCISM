@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {"id": "2c91808a", "name": "Jane Doe", "alias": "jane.doe", "email": "jane.doe@corp.com", "status": "ACTIVE", "lifecycleState": "active", "isManager": true, "manager": {"name": "John Smith"}, "identityProfile": {"name": "Employees"}},
+    {"id": "2c91808b", "name": "Bob Lee", "alias": "bob.lee", "email": "bob.lee@corp.com", "lifecycleState": "inactive", "isManager": false, "manager": {"name": "Jane Doe"}, "identityProfile": {"name": "Contractors"}}
+  ],
+  "accounts": [
+    {"id": "acc-9001", "name": "svc-erp", "nativeIdentity": "CN=svc-erp,OU=Service", "sourceName": "Active Directory", "identityId": null, "uncorrelated": true, "disabled": false}
+  ]
+}

@@ -9,7 +9,7 @@ import { Router, Request, Response } from "express";
 import * as xid from "../xid";
 import { hashPassword, passwordPolicyError, clientIp } from "../auth";
 import { listDatabases, listTables, getSchema, backupDatabases, correlateCveToAssets } from "../db";
-import { accessCatalogue, setAccess, NICE_PROFILES } from "../landingaccess";
+import { accessCatalogue, setAccess, NICE_PROFILES, FEATURE_PAGES } from "../landingaccess";
 import { tr } from "../i18n";
 
 const router = Router();
@@ -247,7 +247,14 @@ router.post("/roles", (req: Request, res: Response) => {
 router.get("/resources", (req: Request, res: Response) => {
   if (!superOnly(req, res)) return;
   const databases = listDatabases().map((db) => ({ db, tables: listTables(db) }));
-  res.json({ pages: APP_PAGES, databases });
+  // Full RBAC catalogue: the core pages + every feature page (card), grouped by approach so each can
+  // be granted/denied per role in the permission editor.
+  const corePaths = new Set(APP_PAGES.map((p) => p.path));
+  const pages = [
+    ...APP_PAGES.map((p) => ({ ...p, group: "core" })),
+    ...FEATURE_PAGES.filter((f) => !corePaths.has(f.path)),
+  ];
+  res.json({ pages, databases });
 });
 
 router.get("/fields", (req: Request, res: Response) => {

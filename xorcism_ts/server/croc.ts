@@ -572,7 +572,7 @@ export function checkResilienceDegradation(tenant: number | null): { degraded: b
     if (uniq.length) {
       // one alert per tenant per day — dedupe on the loop event the alert is about to record.
       const already = db.prepare("SELECT 1 FROM LOOPEVENT WHERE EventType='croc.resilience_degraded' AND (TenantID = ? OR (TenantID IS NULL AND ? IS NULL)) AND substr(CreatedDate,1,10)=? LIMIT 1").get(tenant, tenant, day);
-      if (!already) alertDegradation(tenant, uniq);
+      if (!already) { alertDegradation(tenant, uniq); void loopDigest(tenant); } // alert + the AI's cross-loop read of WHY
     }
     return { degraded: uniq.length > 0, reasons: uniq };
   } catch { return { degraded: false, reasons: [] }; }
@@ -610,6 +610,56 @@ export function startResilienceAccrual(): void {
   try { tick(); } catch { /* */ }
   accrualTimer = setInterval(tick, 6 * 3600_000);
   if (typeof accrualTimer.unref === "function") accrualTimer.unref();
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// AUTOMATIC LOOP DIGEST — fire the local-AI cross-loop reasoning on a schedule (and on degradation),
+// publishing it into the loop feed + notifications instead of waiting for someone to click "Reason".
+// ════════════════════════════════════════════════════════════════════════════════════════════
+function digestHeadline(md: string): { headline: string; nextMove: string } {
+  const clean = (s: string): string => s.replace(/\*\*/g, "").replace(/[_`#]/g, "").trim();
+  const one = md.match(/\*\*The one thing:\*\*\s*([^\n]+)/i);
+  const nxt = md.match(/\*\*Next move:\*\*\s*([^\n]+)/i);
+  const fallback = md.split("\n").find((l) => l.trim() && !l.startsWith("#") && !l.startsWith("_")) || "loop digest";
+  return { headline: clean(one ? one[1] : fallback).slice(0, 200), nextMove: clean(nxt ? nxt[1] : "").slice(0, 200) };
+}
+
+/** Run the cross-loop reasoning and publish it as a digest (loop feed + Teams + opt-in in-app). Best-effort. */
+export async function loopDigest(tenant: number | null): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const ai = require("./ai") as typeof import("./ai");
+    const r = await ai.lifecycleReasoning(tenant);                       // Ollama or deterministic fallback
+    const { headline, nextMove } = digestHeadline(r.reasoning || "");
+    const title = ("CROC loop digest — " + (headline || "no signal")).slice(0, 160);
+    const message = headline + (nextMove ? `\n\n→ Next move: ${nextMove}` : "") + (r.offline ? "\n\n(offline data-driven read — start Ollama for an LLM digest)" : "");
+    let userIds: number[] = [];
+    try { if (tenant != null) userIds = (xid.listUsers(tenant) as any[]).map((u) => Number(u.UserID)).filter((x) => Number.isInteger(x) && x > 0); } catch { /* */ }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const nr = require("./notifrules") as typeof import("./notifrules");
+      nr.dispatchEvent("croc.loop_digest", { tenant, userIds, title, message, level: "info", link: "/croc" }); // → Teams + loop feed + opt-in in-app
+    } catch {
+      try { emitLoopEvent({ type: "croc.loop_digest", source: "ai-digest", summary: title, severity: "info", tenant }); } catch { /* */ }
+    }
+  } catch { /* never throw */ }
+}
+
+let digestTimer: NodeJS.Timeout | null = null;
+/** Boot: schedule the daily AI loop digest (~5 min after start, then every CROC_DIGEST_INTERVAL_MS). XOR_CROC_DIGEST=0 to disable. */
+export function startLoopDigest(): void {
+  if (digestTimer) return;
+  if (String(process.env.XOR_CROC_DIGEST ?? "1") === "0") return;
+  const intervalMs = Number(process.env.CROC_DIGEST_INTERVAL_MS) || 24 * 3600_000;
+  const run = async (): Promise<void> => {
+    const tenants: (number | null)[] = [null];
+    try { for (const t of xid.listTenants()) tenants.push(t.TenantID); } catch { /* */ }
+    for (const t of tenants) { try { await loopDigest(t); } catch { /* */ } } // sequential — one LLM call at a time
+  };
+  const first = setTimeout(() => { void run(); }, Number(process.env.CROC_DIGEST_FIRST_DELAY_MS) || 300_000);
+  if (typeof first.unref === "function") first.unref();
+  digestTimer = setInterval(() => { void run(); }, intervalMs);
+  if (typeof digestTimer.unref === "function") digestTimer.unref();
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════
@@ -679,4 +729,94 @@ export function escalateHunt(tenant: number | null, kind: string, ref: string, p
   } else {
     emitLoopEvent({ type: "exposure.hunt", source: "risk-hunting", summary: `Hunt escalation: ${ref}`, severity: sev, direction: "croc->soc", tenant });
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// DEMO SEED — populate a realistic, value-demonstrating CROC: a 24h bidirectional loop feed
+// (CROC↔SOC at machine speed) + a 30-day improving resilience trend. Inserts LOOPEVENT rows
+// DIRECTLY (never via emitLoopEvent) so NO real side effects fire (no tickets/Teams/SOAR).
+// Idempotent (skips if demo events already exist for the tenant). Demo only (a single tenant).
+// ════════════════════════════════════════════════════════════════════════════════════════════
+type DemoEv = { type: string; source: string; dir: LoopDirection; sev: string; summary: string; decided?: string };
+const CROC_DEMO_EVENTS: DemoEv[] = [
+  // CROC → SOC : exposure changes flow into the detection queue at machine speed
+  { type: "exposure.kev", source: "fusion", dir: "croc->soc", sev: "critical", summary: "KEV CVE-2024-3400 weaponized on web-prod-01 (internet-facing)", decided: "escalated" },
+  { type: "exposure.new", source: "nvd-import", dir: "croc->soc", sev: "high", summary: "EPSS spike 71% — CVE-2024-21887 on api-gw-02" },
+  { type: "drift.surface", source: "surface-drift", dir: "croc->soc", sev: "high", summary: "New internet-exposed service db-01:5432 (PostgreSQL)", decided: "escalated · ticket#" },
+  { type: "exposure.chokepoint", source: "attack-path", dir: "croc->soc", sev: "high", summary: "Choke point dc-01 now sits on 4 attack paths to crown jewels" },
+  { type: "exposure.kev", source: "fusion", dir: "croc->soc", sev: "critical", summary: "KEV CVE-2023-34362 (MOVEit) reachable on file-transfer-03", decided: "escalated" },
+  { type: "cve.match", source: "cve-matcher", dir: "croc->soc", sev: "high", summary: "New CVE auto-linked to 6 assets by technology (Apache 2.4.x)" },
+  { type: "exposure.relevant", source: "cti", dir: "croc->soc", sev: "high", summary: "CTI: actor APT29 actively exploiting an exposure on your estate" },
+  // SOC → CROC : incidents reprioritize exposure across the estate (feedback)
+  { type: "incident.created", source: "soc", dir: "soc->croc", sev: "critical", summary: "Ransomware precursor detected on finance-fs-01", decided: "reprioritized exposures" },
+  { type: "alert.high", source: "rustinel-edr", dir: "soc->croc", sev: "high", summary: "Impossible-travel sign-in for svc-backup (NHI)" },
+  { type: "malware.malicious", source: "malware-scan", dir: "soc->croc", sev: "high", summary: "Malicious hash (Cobalt Strike) on hr-laptop-12", decided: "reprioritized exposures" },
+  { type: "incident.created", source: "soc", dir: "soc->croc", sev: "high", summary: "Phishing wave — 14 recipients, 2 clickers" },
+  { type: "alert.high", source: "entra-id", dir: "soc->croc", sev: "high", summary: "Privilege escalation: svc-erp added to Global Admins" },
+  // internal : the loop acts on itself (BAS re-validation, identity hygiene, control assurance)
+  { type: "detection.drift", source: "purple-team", dir: "internal", sev: "high", summary: "BAS re-validation: T1059.001 detection regressed (false coverage)", decided: "ticket#" },
+  { type: "identity.overscoped", source: "risk-hunting", dir: "internal", sev: "high", summary: "Over-privileged non-human identity svc-erp (standing Owner)", decided: "iam:dry-run constrain" },
+  { type: "control.proven", source: "assurance", dir: "internal", sev: "info", summary: "Control NIST 800-53 AC-2 proven by live telemetry (continuous)" },
+  { type: "patch.applied", source: "patch-mgmt", dir: "internal", sev: "info", summary: "KEV CVE-2024-3400 patched on web-prod-01 — backlog −1" },
+  { type: "exposure.hunt", source: "risk-hunting", dir: "croc->soc", sev: "high", summary: "Hunt: reachable exposure on payment-api could chain to the cardholder DB", decided: "escalated · ticket#" },
+];
+
+/** Demo seed (single tenant): a 24h bidirectional loop feed + 30-day improving resilience trend. */
+export function seedCrocDemo(tenant: number): { events: number; snapshots: number } {
+  ensureCrocTables(); ensureLoopHealthTable();
+  const db = getDb("XORCISM");
+  // idempotent: skip if this tenant already has demo loop events
+  if (Number((db.prepare("SELECT COUNT(*) n FROM LOOPEVENT WHERE TenantID = ? AND Source LIKE '%'").get(tenant) as { n: number }).n) > 0
+      && Number((db.prepare("SELECT COUNT(*) n FROM LOOPEVENT WHERE TenantID = ? AND EventType IN ('exposure.kev','incident.created')").get(tenant) as { n: number }).n) > 0) {
+    return { events: 0, snapshots: 0 };
+  }
+  seedCrocPolicies(tenant);
+
+  // ── 24h loop feed: ~50 events spread across the last 24h, both directions, machine-speed decisions ──
+  const tx = db.transaction(() => {
+    let id = (db.prepare("SELECT COALESCE(MAX(LoopEventID),0)+1 n FROM LOOPEVENT").get() as { n: number }).n;
+    let ticketSeq = 41;
+    const ins = db.prepare(
+      `INSERT INTO LOOPEVENT (LoopEventID, LoopEventGUID, EventType, Source, Summary, Direction, Severity,
+         AssetID, AttackID, DecidedAction, LatencyMs, Acknowledged, CreatedDate, DecidedDate, TenantID)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    const N = 52;
+    for (let i = 0; i < N; i++) {
+      const tmpl = CROC_DEMO_EVENTS[i % CROC_DEMO_EVENTS.length];
+      // spread over 24h, denser in the last hour so the loop reads as "moving"
+      const ageMs = i < 6 ? Math.round(Math.random() * 55 * 60000) : Math.round(Math.random() * 24 * 3600000);
+      const created = new Date(Date.now() - ageMs).toISOString();
+      let decided: string | null = tmpl.decided ?? null;
+      if (decided && decided.endsWith("ticket#")) decided = decided + (ticketSeq++);
+      const latency = decided ? 180 + Math.round(Math.random() * 1400) : null;
+      ins.run(id++, randomUUID(), tmpl.type, tmpl.source, tmpl.summary, tmpl.dir, tmpl.sev,
+        null, null, decided, latency, i % 5 === 0 ? 1 : 0, created, decided ? created : null, tenant);
+    }
+  });
+  tx();
+  const events = Number((db.prepare("SELECT COUNT(*) n FROM LOOPEVENT WHERE TenantID = ?").get(tenant) as { n: number }).n);
+
+  // ── 30-day resilience trend: the loop measurably IMPROVING over time ──
+  const snapTx = db.transaction(() => {
+    let sid = (db.prepare("SELECT COALESCE(MAX(SnapshotID),0)+1 n FROM LOOPHEALTHSNAPSHOT").get() as { n: number }).n;
+    const ins = db.prepare(
+      `INSERT INTO LOOPHEALTHSNAPSHOT (SnapshotID, SnapDate, MachineSpeedPct, MedianLatencyMs, Events, TicketsOpened,
+         IamActions, ExternalTickets, ExposureBacklog, LoopHealth, EnterpriseScore, CreatedDate, TenantID)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    for (let d = 30; d >= 1; d--) {
+      const day = new Date(Date.now() - d * 86400000).toISOString().slice(0, 10);
+      const p = (30 - d) / 29; // 0 → 1 progress
+      if (db.prepare("SELECT 1 FROM LOOPHEALTHSNAPSHOT WHERE SnapDate=? AND TenantID=?").get(day, tenant)) continue;
+      const machine = Math.round(18 + p * 26 + (Math.random() * 4 - 2));        // 18% → ~44%
+      const latency = Math.round(2200 - p * 1500 + (Math.random() * 120 - 60)); // 2200ms → ~700ms
+      const backlog = Math.round(142 - p * 64 + (Math.random() * 8 - 4));       // 142 → ~78
+      const score = Math.round(620 - p * 210 + (Math.random() * 20 - 10));      // EnterpriseRiskScore falling
+      ins.run(sid++, day, Math.max(0, machine), Math.max(120, latency), 30 + Math.round(Math.random() * 30),
+        2 + Math.round(Math.random() * 4), 1 + Math.round(Math.random() * 2), Math.round(Math.random() * 2),
+        Math.max(0, backlog), "moving", Math.max(0, score), now(), tenant);
+    }
+  });
+  snapTx();
+  const snapshots = Number((db.prepare("SELECT COUNT(*) n FROM LOOPHEALTHSNAPSHOT WHERE TenantID = ?").get(tenant) as { n: number }).n);
+  return { events, snapshots };
 }
