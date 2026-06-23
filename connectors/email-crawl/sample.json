@@ -1,0 +1,9 @@
+{
+  "target": "https://example-corp.com",
+  "emails": [
+    { "email": "info@example-corp.com", "source_url": "https://example-corp.com/contact" },
+    { "email": "jane.doe@example-corp.com", "source_url": "https://example-corp.com/team" },
+    { "email": "j.smith@example-corp.com", "source_url": "https://example-corp.com/about" },
+    { "email": "sales@partner-vendor.com", "source_url": "https://example-corp.com/partners" }
+  ]
+}

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — External Attack Surface</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .em-wrap{max-width:1320px;margin:0 auto;padding:18px}
+  .em-wrap h1{font-size:20px;margin:0 0 2px}
+  .em-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1000px}
+  .em-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .em-bar button{background:#22d3ee;color:#06222a;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+  .em-bar button:hover{background:#67e8f9}
+  .em-bar button:disabled{opacity:.5;cursor:not-allowed}
+  .em-bar .stat{font-size:12px;color:#94a3b8}
+  .em-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .em-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .em-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .em-card .val{font-size:26px;font-weight:700;margin-top:3px}
+  .em-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .em-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .breakdown{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .bd{font-size:12px;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:3px 9px;color:#cbd5e1}
+  .bd b{color:#e2e8f0}
+  table.em{width:100%;border-collapse:collapse;font-size:13px}
+  table.em th,table.em td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.em th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .sev{font-size:11px;font-weight:600;border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .s-critical{background:#7f1d1d;color:#fecaca}.s-high{background:#7c2d12;color:#fed7aa}
+  .s-medium{background:#78350f;color:#fcd34d}.s-low{background:#1e2133;color:#94a3b8}
+  .kev{font-size:10px;font-weight:700;background:#7f1d1d;color:#fecaca;border-radius:5px;padding:1px 6px}
+  .port{display:inline-block;font-size:10px;font-family:ui-monospace,monospace;background:#0f1117;border:1px solid #2d3250;border-radius:5px;padding:1px 6px;margin:1px 2px 1px 0;color:#cbd5e1}
+  .reason{display:inline-block;font-size:10px;background:#172033;border:1px solid #2b3656;border-radius:5px;padding:1px 6px;margin:1px 2px 1px 0;color:#9fb4d8}
+  .shadow{font-size:10px;font-weight:700;background:#3b2f1e;color:#fcd34d;border-radius:5px;padding:1px 6px}
+  .cert-expired{color:#f87171;font-weight:700}.cert-expiring{color:#fbbf24}.cert-valid{color:#34d399}
+  .aname{font-weight:600;color:#e2e8f0}.muted{color:#64748b}.mono{font-family:ui-monospace,monospace}
+  .scorebar{display:inline-block;width:42px;height:7px;border-radius:4px;background:#1e2133;overflow:hidden;vertical-align:middle;margin-right:6px}
+  .scorebar>span{display:block;height:100%;background:linear-gradient(90deg,#fbbf24,#f87171)}
+  .legend{font-size:11px;color:#64748b;margin-top:12px}
+  .drift-add{color:#fbbf24}.drift-rem{color:#64748b}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/asset-management">&#128187; Assets</a>
+  <a href="/vulnerability-management">&#128737;&#65039; Vulnerabilities</a>
+  <a href="/network-sessions">&#127760; Network</a>
+  <a href="/drift">&#128200; Surface drift</a>
+  <span class="spacer"></span>
+  <span class="title">&#127760; External Attack Surface</span>
+</div>
+
+<div class="em-wrap">
+  <h1>External Attack Surface Management</h1>
+  <div class="em-sub">The attacker's <b>outside-in</b> view of your estate: every <b>internet-facing</b> asset, <i>why</i>
+    it is exposed (public IP, website, inbound traffic, a monitored endpoint or a public-facing flag), the
+    <b>services &amp; ports</b> it presents, its <b>TLS/certificate</b> posture and the externally-reachable
+    <b>vulnerabilities</b> it carries (KEV / critical) — ranked by an exposure score. <b>Shadow</b> exposure
+    (internet-reachable but never declared public-facing) and <b>surface drift</b> (newly exposed assets) are
+    flagged for action. Snapshot the surface to measure drift over time.</div>
+  <div class="em-bar">
+    <button id="em-snap">📸 Snapshot surface</button>
+    <span class="stat" id="em-snap-stat"></span>
+  </div>
+  <div id="em-body"><div class="muted" style="padding:24px;text-align:center">Mapping the external attack surface…</div></div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/easm.js"></script>
+</body>
+</html>

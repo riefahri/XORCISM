@@ -1,0 +1,17 @@
+{
+  "id": "graphql-cop",
+  "name": "GraphQL Cop — GraphQL API security audit",
+  "type": "import",
+  "category": "API Security",
+  "description": "Runs GraphQL Cop (https://github.com/dolevf/graphql-cop) against a GraphQL endpoint and imports its findings. GraphQL Cop probes for introspection enabled, GraphiQL/Playground exposed, alias/field/directive/circular-query overloading (DoS), batch queries (DoS), GET-based & urlencoded POST queries (CSRF), and tracing/debug info-leak. The scanned endpoint becomes an ASSET; each positive finding becomes a VULNERABILITY (severity from HIGH/LOW/INFO, with impact + a reproducible curl). Offline: pass `file` = a graphql-cop JSON export (`graphql-cop -t <url> -o json`). Live (ACTIVE WEB SCANNING — authorized scope only): pass `target` = the GraphQL endpoint URL, with the `graphql-cop` binary on the worker PATH (or GRAPHQL_COP_BIN). Recorded as a DevSecOps DAST scan.",
+  "intrusive": true,
+  "permission": "connector:graphql-cop",
+  "run": "run.py",
+  "mapping": "graphql-cop",
+  "parameters": [
+    { "name": "target", "type": "target", "required": false, "help": "Live mode: the GraphQL endpoint URL to scan (e.g. https://app.example.com/graphql). Must be in the engagement scope." },
+    { "name": "header", "type": "string", "required": false, "help": "Live mode: extra header(s) as JSON passed to graphql-cop -H (e.g. {\"Authorization\":\"Bearer …\"})." },
+    { "name": "proxy", "type": "string", "required": false, "pattern": "^[A-Za-z0-9 ._/:@-]+$", "help": "Live mode: HTTP(S) proxy URL passed to graphql-cop -x." },
+    { "name": "file", "type": "file", "required": false, "help": "Offline mode: a graphql-cop JSON export to import." }
+  ]
+}

@@ -158,4 +158,39 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   void refreshStatus();
   void loadOverview();
+  void loadTahiti();
 });
+
+// ── TaHiTI methodology phase funnel ──────────────────────────────────────────
+interface TahitiPhase { key: string; name: string; description: string; steps: string[]; count: number; hunts: { HuntID: number; HuntName: string; status: string; trigger: string | null; techCount: number }[] }
+interface TahitiData { phases: TahitiPhase[]; triggers: { name: string; count: number }[]; summary: { totalHunts: number; withTrigger: number; backlog: number } }
+
+async function loadTahiti(): Promise<void> {
+  const host = $("tahiti");
+  let d: TahitiData;
+  try { const r = await fetch("/api/hunting/tahiti"); if (!r.ok) throw new Error(`HTTP ${r.status}`); d = await r.json(); }
+  catch (e) { host.innerHTML = `<div class="muted">⚠️ ${esc(e)}</div>`; return; }
+
+  const colors: Record<string, string> = { initiate: "#60a5fa", hunt: "#fbbf24", finalize: "#34d399" };
+  const phaseCards = d.phases.map((p) => {
+    const c = colors[p.key] || "#94a3b8";
+    const hunts = p.hunts.length
+      ? p.hunts.slice(0, 8).map((h) => `<div style="font-size:11px;padding:3px 0;border-top:1px solid var(--border)"><a href="/?db=XTHREAT&table=HUNT&filterCol=HuntID&filterVal=${h.HuntID}" style="color:var(--text)">${esc(h.HuntName)}</a> <span class="muted">· ${esc(h.status)}${h.trigger ? ` · ${esc(h.trigger)}` : ""}${h.techCount ? ` · ${h.techCount} TTP` : ""}</span></div>`).join("") + (p.hunts.length > 8 ? `<div class="muted" style="font-size:11px;padding-top:3px">+${p.hunts.length - 8} more</div>` : "")
+      : `<div class="muted" style="font-size:11px;padding-top:4px">No hunts in this phase.</div>`;
+    return `<div style="flex:1;min-width:230px;background:var(--surface-2);border:1px solid var(--border);border-top:3px solid ${c};border-radius:8px;padding:11px 13px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between"><b style="color:${c};font-size:13px">${esc(p.name)}</b><span style="font-size:22px;font-weight:700">${p.count}</span></div>
+      <div class="muted" style="font-size:11px;line-height:1.45;margin:4px 0 7px">${esc(p.description)}</div>
+      <ol style="margin:0 0 7px 16px;padding:0;font-size:10.5px;color:var(--text-dim);line-height:1.5">${p.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+      ${hunts}
+    </div>`;
+  }).join("");
+
+  const trig = d.triggers.filter((tg) => tg.count > 0);
+  const trigHtml = trig.length
+    ? `<div style="margin-top:12px"><div class="muted" style="font-size:11px;margin-bottom:5px">Hunt triggers (where investigation abstracts come from)</div><div style="display:flex;gap:6px;flex-wrap:wrap">${trig.map((tg) => `<span style="font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:2px 8px"><b>${tg.count}</b> ${esc(tg.name)}</span>`).join("")}</div></div>`
+    : `<div class="muted" style="font-size:11px;margin-top:12px">Set a hunt's <code>TahitiTrigger</code> (and <code>TahitiPhase</code>) in the HUNT form to drive this funnel — by default hunts are placed by their status.</div>`;
+
+  host.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap">${phaseCards}</div>
+    ${trigHtml}
+    <div class="muted" style="font-size:11px;margin-top:10px">${d.summary.totalHunts} hunt(s) across the TaHiTI lifecycle · ${d.summary.backlog} in the Initiate backlog · ${d.summary.withTrigger} with a recorded trigger.</div>`;
+}

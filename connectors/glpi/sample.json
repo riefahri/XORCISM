@@ -1,0 +1,13 @@
+{
+  "Computer": [
+    { "id": 1, "name": "WS-FINANCE-07", "serial": "5CD123ABC", "operatingsystems_id": "Windows 11 Pro", "ip": "10.30.4.7" },
+    { "id": 2, "name": "SRV-FILE-01", "serial": "VMW-00021", "operatingsystems_id": "Ubuntu 22.04 LTS", "ip": "10.30.1.10" },
+    { "id": 3, "name": "LT-CEO", "serial": "C02XYZ99", "operatingsystems_id": "macOS 14 Sonoma" }
+  ],
+  "NetworkEquipment": [
+    { "id": 10, "name": "SW-CORE-01", "serial": "FCW2200", "ip": "10.30.0.1" }
+  ],
+  "Printer": [
+    { "id": 20, "name": "PRN-HR-2F", "serial": "CN0PRT55" }
+  ]
+}

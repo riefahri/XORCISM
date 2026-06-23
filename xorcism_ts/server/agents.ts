@@ -43,9 +43,26 @@ export function getAgentDb(): Database.Database {
       TriageID INTEGER PRIMARY KEY AUTOINCREMENT,
       agent TEXT, asset_name TEXT, host_os TEXT, collected_at TEXT,
       summary TEXT, artifacts TEXT, flag_count INTEGER DEFAULT 0, created_at TEXT);
+    CREATE TABLE IF NOT EXISTS HONEYPOTHIT(
+      HitID INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent TEXT NOT NULL, src_ip TEXT, src_port INTEGER, dst_port INTEGER,
+      service TEXT, banner TEXT, hit_at TEXT, created_at TEXT);
+    CREATE TABLE IF NOT EXISTS MEMORYDUMP(
+      DumpID INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent TEXT NOT NULL, asset_name TEXT, host_os TEXT, tool TEXT, status TEXT,
+      path TEXT, size_bytes INTEGER, sha256 TEXT, ram_total_bytes INTEGER,
+      started_at TEXT, finished_at TEXT, duration_sec INTEGER, error TEXT, created_at TEXT);
+    CREATE TABLE IF NOT EXISTS LOGHUNT(
+      LogHuntID INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent TEXT NOT NULL, asset_name TEXT, host_os TEXT, source TEXT, event_count INTEGER,
+      severity TEXT, summary TEXT, findings TEXT, techniques TEXT, model TEXT, ai_used INTEGER DEFAULT 0,
+      hunt_id INTEGER, created_at TEXT);
     CREATE INDEX IF NOT EXISTS ix_agentevent_agent ON XAGENTEVENT(agent);
     CREATE INDEX IF NOT EXISTS ix_agentjob_agent ON XAGENTJOB(agent, status);
     CREATE INDEX IF NOT EXISTS ix_forensictriage_agent ON FORENSICTRIAGE(agent);
+    CREATE INDEX IF NOT EXISTS ix_honeypothit_agent ON HONEYPOTHIT(agent, HitID);
+    CREATE INDEX IF NOT EXISTS ix_memorydump_agent ON MEMORYDUMP(agent, DumpID);
+    CREATE INDEX IF NOT EXISTS ix_loghunt_agent ON LOGHUNT(agent, LogHuntID);
   `);
   return db;
 }
@@ -170,8 +187,131 @@ export function iocCount(): number {
   return (getAgentDb().prepare("SELECT COUNT(*) c FROM XIOC").get() as { c: number }).c;
 }
 
+// ── Honeypot (agent-run deception sensor) ────────────────────────────────────────
+export interface HoneypotHit { src_ip?: string; src_port?: number; dst_port?: number; service?: string; banner?: string; at?: string }
+
+/**
+ * Records the connection attempts captured by an agent-run honeypot. Each hit is stored in
+ * HONEYPOTHIT, summarised as a single agent event, and the distinct source IPs are promoted
+ * to the IOC store (attacker infrastructure that hit a decoy = high-signal indicator).
+ */
+export function recordHoneypotHits(agent: string, hits: HoneypotHit[]): { stored: number; uniqueIps: number } {
+  const d = getAgentDb();
+  const ins = d.prepare("INSERT INTO HONEYPOTHIT(agent,src_ip,src_port,dst_port,service,banner,hit_at,created_at) VALUES (?,?,?,?,?,?,?,?)");
+  const ips = new Set<string>();
+  let stored = 0;
+  const tx = d.transaction(() => {
+    for (const h of hits) {
+      const ip = String(h.src_ip ?? "").trim();
+      ins.run(agent, ip || null, h.src_port != null ? Number(h.src_port) : null, h.dst_port != null ? Number(h.dst_port) : null,
+        h.service ? String(h.service).slice(0, 60) : null, h.banner ? String(h.banner).slice(0, 500) : null,
+        h.at ? String(h.at) : nowSql(), nowSql());
+      if (ip) ips.add(ip);
+      stored++;
+    }
+  });
+  tx();
+  if (stored) {
+    const ports = [...new Set(hits.map((h) => h.dst_port).filter((p) => p != null))].sort((a, b) => Number(a) - Number(b));
+    addAgentEvent(agent, {
+      type: "honeypot_hit", severity: ips.size ? "high" : "medium",
+      title: `Honeypot: ${stored} connection attempt${stored > 1 ? "s" : ""} from ${ips.size} IP${ips.size === 1 ? "" : "s"} on port${ports.length > 1 ? "s" : ""} ${ports.join(", ")}`,
+      detail: { hits: stored, uniqueIps: ips.size, ports },
+    });
+    // Attacker source IPs → IOC store (ipv4 / ipv6), tagged as honeypot-sourced.
+    if (ips.size) upsertIocs([...ips].map((ip) => ({ ioc_type: ip.includes(":") ? "ipv6-addr" : "ipv4-addr", value: ip, source: `honeypot:${agent}`, threat: "honeypot-scanner" })));
+  }
+  return { stored, uniqueIps: ips.size };
+}
+export function listHoneypotHits(limit = 100, agent?: string): unknown[] {
+  const d = getAgentDb();
+  return agent
+    ? d.prepare("SELECT * FROM HONEYPOTHIT WHERE agent=? ORDER BY HitID DESC LIMIT ?").all(agent, limit)
+    : d.prepare("SELECT * FROM HONEYPOTHIT ORDER BY HitID DESC LIMIT ?").all(limit);
+}
+/** Honeypot KPIs: total hits + distinct attacker IPs + top targeted ports (recent window). */
+export function honeypotStats(): { hits: number; uniqueIps: number; topPorts: { port: number; hits: number }[] } {
+  const d = getAgentDb();
+  const hits = (d.prepare("SELECT COUNT(*) c FROM HONEYPOTHIT").get() as { c: number }).c;
+  const uniqueIps = (d.prepare("SELECT COUNT(DISTINCT src_ip) c FROM HONEYPOTHIT WHERE src_ip IS NOT NULL").get() as { c: number }).c;
+  const topPorts = (d.prepare("SELECT dst_port port, COUNT(*) hits FROM HONEYPOTHIT WHERE dst_port IS NOT NULL GROUP BY dst_port ORDER BY hits DESC LIMIT 6").all() as { port: number; hits: number }[]);
+  return { hits, uniqueIps, topPorts };
+}
+
+// ── Memory acquisition (agent-run RAM dump for forensics) ────────────────────────
+export interface MemoryDump {
+  status?: string; tool?: string; path?: string; size?: number; sha256?: string;
+  ramTotal?: number; os?: string; started?: string; finished?: string; duration?: number; error?: string;
+}
+function fmtBytes(n: number): string {
+  if (!n) return "0 B";
+  const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0; let v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(i ? 1 : 0)} ${u[i]}`;
+}
+
+/**
+ * Records a memory-acquisition (RAM dump) performed by the agent for forensics. The dump image
+ * itself stays on the endpoint (it is GBs and must be preserved in place for chain of custody);
+ * what XORCISM stores is the acquisition manifest — tool, output path, size, SHA-256, status —
+ * in MEMORYDUMP, plus a memory_dump agent event so it surfaces in the fleet timeline.
+ */
+export function recordMemoryDump(agent: string, d: MemoryDump): { dumpId: number; status: string } {
+  const db = getAgentDb();
+  const a = listAgents().find((x) => x.name === agent);
+  const status = String(d.status ?? "").trim().toLowerCase() || (d.error ? "error" : d.sha256 ? "completed" : "unknown");
+  const r = db.prepare(
+    `INSERT INTO MEMORYDUMP(agent,asset_name,host_os,tool,status,path,size_bytes,sha256,ram_total_bytes,started_at,finished_at,duration_sec,error,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).run(agent, a?.asset_name ?? null, d.os ? String(d.os).slice(0, 120) : (a?.os ?? null),
+    d.tool ? String(d.tool).slice(0, 120) : null, status, d.path ? String(d.path).slice(0, 500) : null,
+    d.size != null ? Math.max(0, Math.round(Number(d.size))) : null, d.sha256 ? String(d.sha256).slice(0, 128) : null,
+    d.ramTotal != null ? Math.max(0, Math.round(Number(d.ramTotal))) : null,
+    d.started ? String(d.started) : null, d.finished ? String(d.finished) : null,
+    d.duration != null ? Math.round(Number(d.duration)) : null, d.error ? String(d.error).slice(0, 1000) : null, nowSql());
+  const ok = status === "completed";
+  addAgentEvent(agent, {
+    type: "memory_dump", severity: ok ? "high" : status === "error" || status === "no-tool" ? "medium" : "info",
+    title: ok
+      ? `RAM dump acquired: ${fmtBytes(Number(d.size ?? 0))} via ${d.tool || "?"}${d.sha256 ? ` (sha256 ${String(d.sha256).slice(0, 12)}…)` : ""}`
+      : `RAM dump ${status}${d.error ? `: ${String(d.error).slice(0, 120)}` : ""}`,
+    detail: { tool: d.tool, path: d.path, size: d.size, sha256: d.sha256, status, os: d.os },
+  });
+  return { dumpId: Number(r.lastInsertRowid), status };
+}
+export function listMemoryDumps(limit = 100, agent?: string): unknown[] {
+  const d = getAgentDb();
+  return agent
+    ? d.prepare("SELECT * FROM MEMORYDUMP WHERE agent=? ORDER BY DumpID DESC LIMIT ?").all(agent, limit)
+    : d.prepare("SELECT * FROM MEMORYDUMP ORDER BY DumpID DESC LIMIT ?").all(limit);
+}
+/** Memory-acquisition KPIs: total dumps, completed, total acquired bytes. */
+export function memDumpStats(): { dumps: number; completed: number; totalBytes: number } {
+  const db = getAgentDb();
+  const dumps = (db.prepare("SELECT COUNT(*) c FROM MEMORYDUMP").get() as { c: number }).c;
+  const completed = (db.prepare("SELECT COUNT(*) c FROM MEMORYDUMP WHERE status='completed'").get() as { c: number }).c;
+  const totalBytes = (db.prepare("SELECT COALESCE(SUM(size_bytes),0) s FROM MEMORYDUMP WHERE status='completed'").get() as { s: number }).s;
+  return { dumps, completed, totalBytes };
+}
+
+// ── AI host-log threat hunt (LOGHUNT — written by loghunt.ts) ─────────────────────
+export function listLogHunts(limit = 40, agent?: string): unknown[] {
+  const d = getAgentDb();
+  return agent
+    ? d.prepare("SELECT * FROM LOGHUNT WHERE agent=? ORDER BY LogHuntID DESC LIMIT ?").all(agent, limit)
+    : d.prepare("SELECT * FROM LOGHUNT ORDER BY LogHuntID DESC LIMIT ?").all(limit);
+}
+/** AI log-hunt KPIs: total runs, suspicious (high/critical), events analysed. */
+export function logHuntStats(): { runs: number; suspicious: number; events: number } {
+  const db = getAgentDb();
+  const runs = (db.prepare("SELECT COUNT(*) c FROM LOGHUNT").get() as { c: number }).c;
+  const suspicious = (db.prepare("SELECT COUNT(*) c FROM LOGHUNT WHERE LOWER(severity) IN ('high','critical')").get() as { c: number }).c;
+  const events = (db.prepare("SELECT COALESCE(SUM(event_count),0) s FROM LOGHUNT").get() as { s: number }).s;
+  return { runs, suspicious, events };
+}
+
 /** The scan kinds an agent can be tasked with (single source of truth, shared with /api/agent-scan). */
-export const AGENT_SCAN_KINDS = ["inventory", "vuln", "oval", "av", "hunt", "full", "emulate", "forensics", "rustinel", "yara"];
+export const AGENT_SCAN_KINDS = ["inventory", "vuln", "oval", "av", "hunt", "full", "emulate", "forensics", "rustinel", "yara", "honeypot", "memdump", "loghunt", "aiguard"];
 
 /** Aggregated view for the Agents-management page: inventory (+ computed freshness), recent jobs/events, summary. */
 export function agentsOverview(): any {
@@ -185,11 +325,36 @@ export function agentsOverview(): any {
   const agents = listAgents().map((a) => { const f = fresh(a.last_seen); return { ...a, freshness: f.status, minsAgo: f.minsAgo }; });
   const jobs = listAgentJobs(undefined, 40) as any[];
   const events = listAgentEvents(40) as any[];
+  const hpHits = listHoneypotHits(60) as any[];
   const online = agents.filter((a) => a.freshness === "online").length;
   const idle = agents.filter((a) => a.freshness === "idle").length;
   const pending = jobs.filter((j) => j.status === "pending" || j.status === "sent").length;
+  // Job outcomes: finishAgentJob always sets status='done'; a failure is a done job whose
+  // result_summary starts with "error". Success rate = clean done / (clean done + failed).
+  const isErr = (s: string): boolean => /^\s*error/i.test(String(s || ""));
+  const done = jobs.filter((j) => j.status === "done" && !isErr(j.result_summary)).length;
+  const failed = jobs.filter((j) => j.status === "done" && isErr(j.result_summary)).length;
+  const successRate = done + failed ? Math.round((done / (done + failed)) * 100) : null;
+  // Scans in the last 24h (created_at is UTC without a tz marker).
+  const dayAgo = Date.now() - 86_400_000;
+  const scans24h = jobs.filter((j) => { const t = Date.parse(String(j.created_at || "").replace(" ", "T") + "Z"); return Number.isFinite(t) && t >= dayAgo; }).length;
+  // Alerts = events that demand attention (critical/high severity).
+  const alerts = events.filter((e) => /^(critical|high)$/i.test(String(e.severity || ""))).length;
+  const hp = honeypotStats();
+  const md = memDumpStats();
+  const memDumps = listMemoryDumps(40) as any[];
+  const lh = logHuntStats();
+  const logHunts = listLogHunts(40) as any[];
   return {
-    agents, jobs, events, kinds: AGENT_SCAN_KINDS,
-    summary: { total: agents.length, online, idle, offline: agents.length - online - idle, jobsPending: pending, jobsTotal: jobs.length, events: events.length },
+    agents, jobs, events, kinds: AGENT_SCAN_KINDS, honeypot: hpHits, honeypotTopPorts: hp.topPorts, memDumps, logHunts,
+    summary: {
+      total: agents.length, online, idle, offline: agents.length - online - idle,
+      health: agents.length ? Math.round((online / agents.length) * 100) : null,
+      jobsPending: pending, jobsTotal: jobs.length, jobsDone: done, jobsFailed: failed, successRate, scans24h,
+      events: events.length, alerts, iocs: iocCount(),
+      honeypotHits: hp.hits, honeypotIps: hp.uniqueIps,
+      memDumps: md.dumps, memDumpsCompleted: md.completed, memDumpBytes: md.totalBytes,
+      logHunts: lh.runs, logHuntsSuspicious: lh.suspicious, logHuntEvents: lh.events,
+    },
   };
 }

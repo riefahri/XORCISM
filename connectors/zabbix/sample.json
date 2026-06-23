@@ -1,0 +1,14 @@
+{
+  "hosts": [
+    { "hostid": "10101", "host": "web-prod-01", "name": "web-prod-01", "status": "0", "available": "1",
+      "interfaces": [{ "ip": "10.20.0.11", "dns": "web-prod-01.corp", "available": "1" }] },
+    { "hostid": "10102", "host": "db-prod-01", "name": "db-prod-01", "status": "0", "available": "2",
+      "interfaces": [{ "ip": "10.20.0.21", "dns": "db-prod-01.corp", "available": "2" }] },
+    { "hostid": "10103", "host": "legacy-app", "name": "legacy-app", "status": "1", "available": "0",
+      "interfaces": [{ "ip": "10.20.0.99", "dns": "", "available": "0" }] }
+  ],
+  "problems": [
+    { "eventid": "55001", "name": "High CPU load on db-prod-01", "severity": "4", "clock": "1750671600", "hostid": "10102", "r_eventid": "0" },
+    { "eventid": "55002", "name": "Zabbix agent unreachable on db-prod-01", "severity": "3", "clock": "1750675200", "hostid": "10102", "r_eventid": "0" }
+  ]
+}

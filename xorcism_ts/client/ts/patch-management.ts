@@ -12,9 +12,10 @@ interface Row {
   patchStatus: string; resolved: boolean; patchedDate: string | null; due: string | null; dueIn: number | null;
   overdue: boolean; hasPlan: boolean; planStatus: string; planType: string; score: number;
 }
+interface Pkg { name: string; type: string; cves: number; assets: number; open: number; resolved: number; kev: number; status: string; score: number }
 interface Data {
-  statuses: string[]; rows: Row[]; worklist: Row[];
-  summary: { instances: number; patched: number; unpatched: number; noPatch: number; accepted: number; coverage: number | null; mttr: number | null; kevUnpatched: number; overdue: number; withPlan: number; bySeverity: Record<string, number>; byStatus: Record<string, number> };
+  statuses: string[]; rows: Row[]; worklist: Row[]; packages: Pkg[];
+  summary: { instances: number; patched: number; unpatched: number; noPatch: number; accepted: number; coverage: number | null; mttr: number | null; kevUnpatched: number; overdue: number; withPlan: number; packages: number; bySeverity: Record<string, number>; byStatus: Record<string, number> };
 }
 
 let DATA: Data | null = null;
@@ -89,7 +90,7 @@ async function load(): Promise<void> {
     card("KEV unpatched", String(s.kevUnpatched), "actively exploited", s.kevUnpatched ? "#f87171" : "#34d399"),
     card("Overdue SLA", String(s.overdue), "past patch deadline", s.overdue ? "#f87171" : "#34d399"),
     card("MTTR", s.mttr != null ? `${s.mttr}d` : "—", "mean time to remediate"),
-    card("With plan", String(s.withPlan), `${s.noPatch} no-patch`),
+    card("Patch packages", String(s.packages), `${s.withPlan} planned instances`, s.packages ? "#60a5fa" : undefined),
   ].join("");
   const covBar = s.coverage != null ? `<div class="bar"><span style="width:${Math.max(2, s.coverage)}%"></span></div>` : "";
   const bySev = Object.entries(s.bySeverity).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd"><span class="sev ${sevClass(k)}">${esc(k)}</span> <b>${n}</b></span>`).join("");
@@ -103,9 +104,21 @@ async function load(): Promise<void> {
     <label class="ck"><input type="checkbox" id="pm-over"> Overdue only</label>
     <span id="pm-count" class="muted" style="font-size:12px"></span></div>`;
 
+  const pkgs = (d.packages || []);
+  const pkgTable = pkgs.length
+    ? `<table class="pm-pkg" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:#94a3b8;font-size:11px;text-transform:uppercase">
+        <th style="text-align:left;padding:5px 9px">Patch package</th><th style="padding:5px 9px">CVEs fixed</th><th style="padding:5px 9px">Assets</th><th style="padding:5px 9px">Open</th><th style="text-align:left;padding:5px 9px">Status</th></tr></thead><tbody>${pkgs.map((p) => `<tr style="border-bottom:1px solid #1e2133">
+        <td style="padding:5px 9px"><span class="nm" style="font-weight:600;color:#e2e8f0">${esc(p.name)}</span>${p.type ? ` <span class="muted" style="font-size:11px">${esc(p.type)}</span>` : ""}${p.kev ? ` <span class="tag" style="background:#7f1d1d;color:#fecaca;font-size:9px;border-radius:5px;padding:1px 6px">${p.kev} KEV</span>` : ""}</td>
+        <td style="text-align:center;padding:5px 9px"><b style="color:#a855f7">${p.cves}</b></td>
+        <td style="text-align:center;padding:5px 9px">${p.assets}</td>
+        <td style="text-align:center;padding:5px 9px">${p.open ? `<span style="color:#fbbf24">${p.open}</span>` : "—"}</td>
+        <td style="padding:5px 9px"><span class="sev ${p.status === "Complete" ? "s-low" : p.status === "In progress" ? "s-medium" : "s-info"}">${esc(p.status)}</span></td></tr>`).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:8px 0">No patch packages yet — a package is a named remediation (e.g. a vendor update / KB) covering one or more CVEs. Create a remediation plan from the worklist below and reuse its name across the CVEs it fixes.</div>`;
+
   $("pm-body").innerHTML = `<div class="pm-cards">${cards}</div>${covBar}
     <div class="pm-section">Open by severity</div><div class="breakdown">${bySev || '<span class="muted">none</span>'}</div>
     <div class="pm-section">By patch status</div><div class="breakdown">${byStatus}</div>
+    <div class="pm-section">Patch packages (${pkgs.length}) <span class="muted" style="font-weight:400;text-transform:none;font-size:11px">— CVEs each named remediation fixes</span></div>${pkgTable}
     <div class="pm-section">Patch worklist</div>${filters}<div id="pm-table-host"></div>
     <div class="legend">↳ Patch SLA (days from discovery): <b>KEV 14</b> (or CISA due) · Critical 15 · High 30 · Medium 90 · Low 180.
       Mark a row <i>Patched</i> to stamp the date &amp; lift coverage; <b>+ plan</b> attaches a remediation plan

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — AI Guardrails</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ag-wrap{max-width:1320px;margin:0 auto;padding:18px}
+  .ag-wrap h1{font-size:20px;margin:0 0 2px}
+  .ag-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1020px}
+  .ag-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .ag-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .ag-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .ag-card .val{font-size:26px;font-weight:700;margin-top:3px}
+  .ag-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .ag-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  table.ag{width:100%;border-collapse:collapse;font-size:13px}
+  table.ag th,table.ag td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.ag th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .sev{font-size:11px;font-weight:600;border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .s-critical{background:#7f1d1d;color:#fecaca}.s-high{background:#7c2d12;color:#fed7aa}
+  .s-medium{background:#78350f;color:#fcd34d}.s-low{background:#1e2133;color:#94a3b8}.s-info{background:#1e2133;color:#64748b}
+  .pill{font-size:10px;border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .p-pass{background:#14532d;color:#bbf7d0}.p-fail{background:#7f1d1d;color:#fecaca}.p-unknown{background:#1e2133;color:#94a3b8}
+  .scorebar{display:inline-block;width:46px;height:8px;border-radius:4px;background:#1e2133;overflow:hidden;vertical-align:middle;margin-right:6px}
+  .scorebar>span{display:block;height:100%}
+  .covbar{height:7px;border-radius:5px;background:#1e2133;overflow:hidden;margin-top:3px}
+  .covbar>span{display:block;height:100%;background:linear-gradient(90deg,#34d399,#22d3ee)}
+  .aname{font-weight:600;color:#e2e8f0}.muted{color:#64748b}.mono{font-family:ui-monospace,monospace}
+  .fw{display:inline-block;font-size:10px;background:#0f1117;border:1px solid #2d3250;border-radius:5px;padding:1px 6px;margin:1px 2px 1px 0;color:#9fb4d8}
+  .gap{display:inline-block;font-size:10px;background:#3b2f1e;color:#fcd34d;border-radius:5px;padding:1px 6px;margin:1px 2px 1px 0}
+  .legend{font-size:11px;color:#64748b;margin-top:12px;line-height:1.6}
+  .tag{font-size:10px;border-radius:5px;padding:1px 6px;background:#1e2542;border:1px solid #7c83fd;color:#c7ccff}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/agents">&#129518; Agents</a>
+  <a href="/ai-threat-advisor">&#129302; AI Threat Advisor</a>
+  <a href="/a3m">&#9876;&#65039; A3M</a>
+  <span class="spacer"></span>
+  <span class="title">&#128737;&#65039; AI Guardrails</span>
+</div>
+
+<div class="ag-wrap">
+  <h1>AI-agent guardrails management</h1>
+  <div class="ag-sub">The operational view over the guardrails protecting your LLM apps &amp; autonomous AI agents. The XOR
+    agents <b>discover</b> AI agents on each host, <b>assess</b> them against the <b>AI Guardrail Baseline</b> (12 controls,
+    cross-mapped to OWASP AI Exchange, Google SAIF, ISO/IEC&nbsp;42001, OWASP LLM Top&nbsp;10, MITRE ATLAS, NIST AI RMF), and
+    <b>monitor</b> their traces with the local AI for guardrail violations (prompt injection, jailbreak, data exfiltration,
+    excessive agency). Inline <b>enforcement</b> stays with a guardrail gateway — its block telemetry shows up here too.
+    Launch an <span class="mono">aiguard</span> scan from <a href="/agents">Agents</a>.</div>
+  <div id="ag-body"><div class="muted" style="padding:24px;text-align:center">Loading AI guardrail posture…</div></div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/ai-guardrails.js"></script>
+</body>
+</html>

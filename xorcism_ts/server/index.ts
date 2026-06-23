@@ -36,6 +36,11 @@ import { ensureSlaColumns } from "./sla";
 import pirRouter from "./routes/pir";
 import identitiesRouter from "./routes/identities";
 import assetsRouter from "./routes/assets";
+import easmRouter from "./routes/easm";
+import frameworksRouter from "./routes/frameworks";
+import { ensureFrameworkVocabulary, seedFrameworks } from "./frameworks";
+import { ensureTahitiColumns } from "./hunting";
+import { ensureAiGuardTables } from "./aiguard";
 import incidentsRouter from "./routes/incidents";
 import complianceRouter from "./routes/compliance";
 import otSecurityRouter from "./routes/otsecurity";
@@ -67,6 +72,8 @@ import { ensurePrivacyTables, seedPrivacy } from "./privacy";
 import soarCockpitRouter from "./routes/soar";
 import { ensureSoarOpsTables, seedSoarOps } from "./soar";
 import { backfillPolicyVersions } from "./policies";
+import endpointQueryRouter from "./routes/endpointquery";
+import { ensureEndpointQueryTables, seedEndpointQueryDemo } from "./endpointquery";
 import ctemRouter from "./routes/ctem";
 import { seedCtemIdentifiers } from "./ctem";
 import ctiExpertRouter from "./routes/ctiexpert";
@@ -226,6 +233,8 @@ app.use("/api", slaRouter); // incident SLA view: incidents measured against ass
 app.use("/api", pirRouter); // Priority Intelligence Requirements coverage register
 app.use("/api", identitiesRouter); // IAM: identity inventory (human + non-human) + governance findings
 app.use("/api", assetsRouter); // Asset Management: asset inventory + governance worklist
+app.use("/api", easmRouter); // EASM: external attack surface inventory + exposures worklist
+app.use("/api", frameworksRouter); // Frameworks management: FRAMEWORK catalogue + VOCABULARY mapping
 app.use("/api", incidentsRouter); // Incident Management: incident inventory + governance worklist
 app.use("/api", complianceRouter); // Compliance Management: audit inventory + findings/policy worklist
 app.use("/api", otSecurityRouter); // OT Security: IEC 62443 / NIST 800-82 OT assessments + OT assets + zones
@@ -254,6 +263,7 @@ app.use("/api", vmtrendsRouter); // VM executive report: risk & SLA posture tren
 app.use("/api", boardreportRouter); // Board cyber-risk report: 6 board questions, Likelihood × Impact, posture trend
 app.use("/api", privacyRouter); // GDPR / DPO cockpit: RoPA (Art 30) + DSAR + DPIA + breach register (Art 33/34)
 app.use("/api", soarCockpitRouter); // SOAR cockpit: orchestration playbooks (trigger→actions) + run engine
+app.use("/api", endpointQueryRouter); // Tanium-style real-time endpoint querying (Interact): sensors + answer grid
 app.use("/api", ctemRouter); // CTEM (ctem.org): standardized exposure-identifier taxonomy + 3-stage exposure cockpit
 app.use("/api", ctiExpertRouter); // CTI-Expert: AI-orchestrated OSINT investigation (cti-expert skill → local AI)
 app.use("/api", teamsRouter); // Microsoft Teams: alert/notification distribution (webhook targets + test)
@@ -403,6 +413,12 @@ app.get("/bug-bounty", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/vulnerability-management", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "vulnerability-management.html"));
 });
+app.get("/easm", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "easm.html"));
+});
+app.get("/frameworks", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "frameworks.html"));
+});
 app.get("/org-chart", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "org-chart.html"));
 });
@@ -454,6 +470,9 @@ app.get("/privacy", pageGuard("/privacy"), (_req: Request, res: Response) => {
 app.get("/soar", pageGuard("/soar"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "soar.html"));
 });
+app.get("/endpoint-query", pageGuard("/endpoint-query"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "endpoint-query.html"));
+});
 app.get("/ctem", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "ctem.html"));
 });
@@ -468,6 +487,9 @@ app.get("/cyber-risk-hunting", pageGuard("/"), (_req: Request, res: Response) =>
 });
 app.get("/agents", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "agents.html"));
+});
+app.get("/ai-guardrails", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "ai-guardrails.html"));
 });
 app.get("/voc", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "voc.html"));
@@ -661,7 +683,12 @@ ensureTicketingTargets(); // CROC outbound ticketing (Jira/ServiceNow) destinati
 ensureIamTargets(); // CROC outbound IAM enforcement (Entra/Graph) target store
 ensureSoarTables(); // CROC outbound SOAR/n8n automation webhook store
 ensureSoarOpsTables(); // SOAR cockpit: orchestration playbooks + actions + runs (XINCIDENT)
+ensureEndpointQueryTables(); // Tanium-style real-time endpoint querying: ENDPOINTQUESTION/ENDPOINTANSWER (XAGENT)
+try { seedEndpointQueryDemo(3); } catch { /* demo only */ } // populated answer grids without a live agent fleet
 ensureLoopHealthTable(); // CROC resilience-over-time snapshot store
+ensureFrameworkVocabulary(); seedFrameworks(); // Frameworks management: FRAMEWORK→VOCABULARY mapping + curated catalogue
+ensureTahitiColumns(); // TaHiTI methodology: HUNT.TahitiPhase + TahitiTrigger columns
+ensureAiGuardTables(); // AI-agent guardrails: AIAGENT / AIGUARDRAILRESULT / AIGUARDRAILVIOLATION (XAGENT)
 try { seedCrocDemo(3); } catch { /* demo only */ } // CROC value demo (tenant 3): 24h bidirectional loop feed + 30-day improving resilience
 ensureLandingAccessTable(); // landing-menu NICE-profile access control store
 seedFeaturePageGrants([...FEATURE_PAGE_PATHS]); // full RBAC: per-boot top-up so base roles keep access to existing + newly-added feature pages

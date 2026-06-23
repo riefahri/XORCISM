@@ -65,6 +65,10 @@
 
 <div class="topbar">
   <a href="/" class="logo" style="text-decoration:none;color:inherit">&#9670; XORCISM</a>
+  <select id="jump-select" aria-label="Jump to a page" title="Jump directly to any page"
+    style="margin-left:14px;background:#13162a;border:1px solid #2d3250;border-radius:7px;color:#cbd5e1;font-size:13px;padding:5px 9px;max-width:240px;cursor:pointer">
+    <option value="">&#8618; Go to&#8230;</option>
+  </select>
   <span class="spacer"></span>
   <a href="/bia" id="nav-bia" data-i18n="nav.bia" style="display:none">&#128196; BIA Audit</a>
   <a href="/dashboard" data-i18n="nav.dashboard">&#128202; Dashboard</a>
@@ -263,6 +267,13 @@
         <span class="domain-title" data-i18n="landing.vuln">Vulnerability Management</span>
         <span class="domain-sub">Inventory · KEV/EPSS/SSVC · triage</span>
         <span class="domain-desc" data-i18n="landing.vuln.d">CVE / NVD, KEV, CVSS, EPSS et priorisation de la remédiation.</span>
+      </a>
+
+      <a class="domain-card" href="/easm" style="--accent:#38bdf8">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+        <span class="domain-title" data-i18n="landing.easm">External Attack Surface</span>
+        <span class="domain-sub">EASM · outside-in · shadow exposure</span>
+        <span class="domain-desc" data-i18n="landing.easm.d">The attacker's outside-in view: internet-facing assets, exposed services &amp; ports, TLS/cert posture, external KEV vulns, shadow exposure and surface drift.</span>
       </a>
 
       <a class="domain-card" href="/exposure" style="--accent:#fb923c">
@@ -562,6 +573,13 @@
         <span class="domain-desc" data-i18n="landing.controlmgmt.d">Gérer le catalogue NIST SP 800-53 Rev 5 (1 196 contrôles, 20 familles) : statut d'implémentation par contrôle, responsabilité, propriétaire, lignes de base Low/Moderate/High/Privacy, posture de couverture et liste des écarts.</span>
       </a>
 
+      <a class="domain-card" href="/frameworks" style="--accent:#16a34a">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h18"/><path d="M7 3v18"/></svg></span>
+        <span class="domain-title" data-i18n="landing.frameworks">Frameworks</span>
+        <span class="domain-sub">Catalogue · map to vocabularies</span>
+        <span class="domain-desc" data-i18n="landing.frameworks.d">Manage the compliance/security framework catalogue (ISO 27001, NIST 800-53, PCI DSS…) and map each framework to a VOCABULARY — the controls catalogue that backs it.</span>
+      </a>
+
       <a class="domain-card" href="/compliance-management" style="--accent:#4ade80">
         <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span>
         <span class="domain-title" data-i18n="landing.compliance">Compliance</span>
@@ -617,6 +635,20 @@
         <span class="domain-title" data-i18n="landing.agents">Agents</span>
         <span class="domain-sub">XOR fleet · status · launch scans</span>
         <span class="domain-desc" data-i18n="landing.agents.d">Gestion de la flotte d'agents XOR : inventaire des agents enrôlés avec statut (en ligne / inactif / hors ligne d'après le dernier check-in), plateforme et version, journaux de jobs et d'événements — et tasking direct : lancez un scan par agent (config/OVAL, vulnérabilités, inventaire, chasse, EDR/Rustinel, YARA, triage forensique ou émulation BAS) ; l'agent l'exécute à son prochain check-in et renvoie le résultat ici.</span>
+      </a>
+
+      <a class="domain-card" href="/ai-guardrails" style="--accent:#a78bfa">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="10" r="2.2"/><path d="M12 12.2V16"/></svg></span>
+        <span class="domain-title" data-i18n="landing.aiguard">AI Guardrails</span>
+        <span class="domain-sub">LLM agents · baseline · violations</span>
+        <span class="domain-desc" data-i18n="landing.aiguard.d">Manage guardrails for your LLM apps & autonomous AI agents: the XOR agents discover AI agents per host, score them against the AI Guardrail Baseline (12 controls mapped to OWASP AI Exchange, SAIF, ISO 42001, OWASP LLM Top 10, MITRE ATLAS, NIST AI RMF), and monitor traces with the local AI for prompt injection / jailbreak / exfiltration / excessive agency — plus inline-gateway block telemetry.</span>
+      </a>
+
+      <a class="domain-card" href="/endpoint-query" style="--accent:#a855f7">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6M11 8v6"/></svg></span>
+        <span class="domain-title" data-i18n="landing.endpointquery">Ask the Fleet</span>
+        <span class="domain-sub">Real-time endpoint query · sensors</span>
+        <span class="domain-desc" data-i18n="landing.endpointquery.d">Interrogation des endpoints en temps réel (façon Tanium « Interact ») : posez une question à toute la flotte d'agents XOR et obtenez les réponses en quelques secondes, agrégées dans une grille de réponses (valeur distincte × nombre d'endpoints). Catalogue de capteurs (OS, IP, processus en cours, ports en écoute, utilisateurs connectés, administrateurs locaux, services, espace disque, dernier redémarrage…) ; la question est distribuée comme un job de query, exécutée localement par chaque agent à son prochain check-in et remontée ici en direct.</span>
       </a>
 
       <a class="domain-card" href="/devsecops" style="--accent:#0ea5e9">

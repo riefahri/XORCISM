@@ -1,0 +1,13 @@
+{
+  "id": "zabbix",
+  "name": "Zabbix — Infrastructure Monitoring",
+  "type": "import",
+  "category": "Monitoring",
+  "description": "Imports the monitored estate and active problems from Zabbix (open-source infrastructure monitoring for networks, servers, cloud and applications) into XORCISM Asset Monitoring. Each Zabbix host becomes an ASSET (network discovery) plus a MONITORINGCHECK (server monitor, status up/down/paused from host availability); each active problem becomes a MONITORINGINCIDENT (severity-mapped). Config (worker environment variables): ZABBIX_URL (the Zabbix front-end base, e.g. https://zabbix.local), ZABBIX_TOKEN (an API token) or ZABBIX_USER + ZABBIX_PASSWORD. Offline: pass `file` = a Zabbix export JSON ({hosts, problems} or a raw host.get response), or run with no config for the bundled sample.",
+  "run": "run.py",
+  "mapping": "zabbix",
+  "parameters": [
+    { "name": "url", "type": "string", "required": false, "pattern": "^https?://[A-Za-z0-9 ._/:@-]+$", "help": "Zabbix front-end base URL (overrides ZABBIX_URL); the connector appends /api_jsonrpc.php." },
+    { "name": "file", "type": "file", "required": false, "help": "Offline JSON export ({hosts, problems}, a raw host.get {result:[...]} response, or a flat host list)." }
+  ]
+}

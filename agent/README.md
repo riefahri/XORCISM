@@ -16,6 +16,10 @@ copy `xor_agent.py` to the endpoint, enroll it, done.
 | **Advanced forensics (live DFIR triage)** | `--scan forensics` collects a **read-only live-response snapshot** of the host — running processes (path / command line / parent), network connections (with PID & state), persistence (registry autoruns / scheduled tasks / services / cron / systemd), logon sessions & users, recently-modified files in key dirs, network artifacts (ARP / DNS cache / routes), loaded drivers / kernel modules and an event-log summary (failed logons, system errors). Cross-OS, stdlib-only, bounded; collection **never modifies the host**. Conservative heuristics raise triage **flags** (a process or autorun running from a temp dir, a failed-logon spike) → `XAGENT.FORENSICTRIAGE` + a `forensic_triage` event. |
 | **Rustinel EDR bridge (kernel-level ETW/eBPF detection)** | `--scan rustinel` **tails** the alert log of [**Rustinel**](https://github.com/Karib0u/rustinel) — an open-source cross-platform EDR sensor that collects native telemetry via **ETW** (Windows), **eBPF** (Linux) and **Endpoint Security** (macOS) and matches it against **Sigma** rules, **YARA** signatures and **atomic IOCs**, writing **ECS-compatible NDJSON** alerts. The agent reads Rustinel's `logs/alerts.json.<date>` and ships each new alert to XORCISM as a `rustinel_alert` **event** (severity from the Sigma level; rule id / engine / process / host / MITRE technique in the detail). This is the **kernel-level "native ETW/eBPF core"** from the roadmap below — delivered by *integrating* Rustinel rather than reimplementing it. **Read-only** (the agent only reads alert files; it never controls the sensor) and a **per-file byte cursor** (persisted in the conf) forwards only *new* alerts across log rotations. Graceful no-op when Rustinel isn't installed. |
 | **YARA scanning (malware classification)** | `--scan yara` runs the local **YARA** engine against a path using rules from XORCISM's **YARARULE store** (served at `/api/agent/yara-rules`) or a local rules file (`XOR_YARA_RULES`), and reports each match as a `yara_match` **event**. Targets default to temp + Downloads (override with `XOR_YARA_TARGET`). Read-only, bounded; a graceful no-op when the `yara` binary or rules are absent. |
+| **Memory acquisition (RAM dump for forensics)** | `--scan memdump` captures a full **RAM image** for forensics using a privileged tool (**winpmem** on Windows, **avml** on Linux, or `XOR_MEMDUMP_BIN`). The image stays on the endpoint (preserved in place for **chain of custody**); only the **acquisition manifest** — tool, output path, size, **SHA-256**, total RAM — is shipped → `XAGENT.MEMORYDUMP` + a `memory_dump` event. Streamed chunked hashing (never loads GBs into memory). Output dir via `--memdump-dir` / `XOR_MEMDUMP_DIR`; degrades gracefully to a `no-tool` report (with install guidance) when no tool/admin. Read-only DFIR. |
+| **AI log hunting (local-AI threat hunt)** | `--scan loghunt` collects recent host logs — **Sysmon / PowerShell / Security / System / Defender** event channels on Windows (`Get-WinEvent`); **journald** + `/var/log/auth.log` on Linux — and ships them to the server, where a heuristic pass + the **local AI (Ollama)** hunt them for threats (encoded PowerShell, LOLBins, LSASS dumping, log clearing…), map them to **MITRE ATT&CK** → `XAGENT.LOGHUNT` + a `log_hunt` event, and **spawn a TaHiTI hunt** when suspicious. Sources via `--log-sources sysmon,powershell,security`, cap via `--max-events`. No host data leaves the box — the AI is the *local* Ollama. |
+| **Honeypot (deception sensor)** | `--scan honeypot` runs a bounded **honeypot** on decoy TCP ports (SSH/RDP/SMB/DB/web/…), logging every connection attempt (source IP/port, target port, banner) for a capped window → `XAGENT.HONEYPOTHIT` + a `honeypot_hit` event, and **attacker source IPs become IOCs**. Pure deception — it never executes anything the client sends. Ports/duration via `--honeypot-ports` / `--honeypot-duration`. |
+| **AI-agent guardrails (`aiguard`)** | `--scan aiguard` **discovers** the LLM apps / AI agent frameworks running on the host (LangChain, CrewAI, AutoGen, LlamaIndex, Semantic Kernel, Ollama/local models, **MCP servers**, AI SDKs) and reports **guardrail signals** (which guardrail libs are installed, whether tools/agency are used, API keys exposed in the env, MCP configs, container sandboxing). The server scores each against the **AI Guardrail Baseline** (12 controls mapped to OWASP AI Exchange / SAIF / ISO 42001 / OWASP LLM Top 10 / MITRE ATLAS / NIST AI RMF) → `XAGENT.AIAGENT` / `AIGUARDRAILRESULT`, and — with optional AI traces (`XOR_AI_TRACE_GLOB`) — monitors them with the local AI for guardrail **violations** (prompt injection, jailbreak, exfiltration, excessive agency) → `AIGUARDRAILVIOLATION` + a spawned hunt. Read-only, best-effort discovery; surfaced at **/ai-guardrails**. |
 | **On-demand scan** | runs the **"Launch a scan"** scans triggered from the XORCISM ASSET window (at the next check-in). |
 
 ## Threat intelligence (IOC)
@@ -106,6 +110,51 @@ XOR_YARA_TARGET="/srv:/home" python xor_agent.py --scan yara            # custom
 - **Requirement** — the `yara` binary on `PATH`. Not installed ⇒ graceful no-op. Read-only; the
   scan never modifies files. **Part of `--scan full`** (no-op when `yara`/rules are absent); the
   default targets keep it light — point `XOR_YARA_TARGET` at a broader path for a deep sweep.
+
+## AI-agent guardrails (`--scan aiguard`)
+The operational layer for guarding the **LLM apps / autonomous AI agents** running on a host
+(surfaced at **/ai-guardrails**). The agent **discovers** AI agents and reports guardrail signals;
+the server scores them against the **AI Guardrail Baseline** and (with traces) hunts for guardrail
+violations with the **local AI**.
+
+- **Discovery** — installed AI frameworks (`importlib.metadata`): LangChain, LangGraph, LlamaIndex,
+  CrewAI, AutoGen, Semantic Kernel, OpenAI/Anthropic SDKs, LiteLLM, Haystack, DSPy; the **Ollama**
+  local model; **MCP server** configs (Cursor / Claude Desktop / Windsurf); and exposed LLM **API
+  keys** in the environment (counted, never sent). Per detected framework it reports `framework`,
+  `model`, `guardrailLibs` (NeMo Guardrails / LLM Guard / Guardrails AI / Llama Guard / Rebuff /
+  Lakera), whether it uses **tools** / is **autonomous** / has **memory**, secrets exposed, MCP
+  count, logging and container sandboxing.
+- **Assessment** — the server scores each agent against the **12-control AI Guardrail Baseline**
+  (runtime guardrail engine, input/output filtering, tool allow-listing, human-in-the-loop,
+  sandboxing, secrets hygiene, audit logging, …), cross-mapped to **OWASP AI Exchange · Google SAIF
+  · ISO/IEC 42001 · OWASP LLM Top 10 · MITRE ATLAS · NIST AI RMF** → `XAGENT.AIAGENT` /
+  `AIGUARDRAILRESULT`.
+- **Monitoring** — set `XOR_AI_TRACE_GLOB` to your agent's prompt/tool-call logs and the local AI
+  flags **prompt injection / jailbreak / data exfiltration / excessive agency** → `AIGUARDRAILVIOLATION`
+  + a spawned **TaHiTI** hunt. Raw prompts are analysed by the *local* Ollama and never leave the host.
+- **Enforcement** is delegated to an inline guardrail **gateway** (NeMo / LLM Guard / Llama Guard /
+  Lakera); its block telemetry is imported by the `llm-guard` connector and shows up in the same
+  cockpit. The endpoint agent verifies *posture*; the gateway does the *gating*.
+
+```bash
+python xor_agent.py --scan aiguard                                   # discover + assess AI agents
+XOR_AI_TRACE_GLOB="/var/log/myagent/*.log" python xor_agent.py --scan aiguard   # + runtime monitoring
+```
+
+## DFIR — memory dump, AI log hunt & honeypot
+```bash
+python xor_agent.py --scan memdump                                  # RAM acquisition (winpmem/avml) → manifest+SHA-256
+python xor_agent.py --scan memdump --memdump-dir /forensics         # custom output dir (image stays on host)
+python xor_agent.py --scan loghunt                                  # collect host logs → local-AI threat hunt → ATT&CK
+python xor_agent.py --scan loghunt --log-sources sysmon,powershell  # pick the log sources
+python xor_agent.py --scan honeypot --honeypot-duration 600         # deception sensor on decoy ports (attacker IPs → IOCs)
+```
+- **memdump** needs a memory-acquisition tool on the endpoint (**winpmem** on Windows, **avml** on
+  Linux) and admin/root; without one it reports `no-tool` with install guidance. The image is
+  preserved **in place** for chain of custody — only the manifest (size + SHA-256) is shipped.
+- **loghunt** is richest with **Sysmon** + **PowerShell ScriptBlock** logging enabled; otherwise it
+  falls back to the channels it can read. The AI narrative needs Ollama reachable from the *server*;
+  the deterministic ATT&CK heuristics run regardless.
 
 ## Quick start (endpoint)
 ```bash

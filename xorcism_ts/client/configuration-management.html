@@ -44,6 +44,14 @@
   .cf-launch button:disabled{opacity:.5;cursor:not-allowed}
   .cf-launch .lstat{font-size:12px;color:#94a3b8;flex-basis:100%;margin-top:2px;min-height:16px}
   .cf-launch .lstat a{color:#22d3ee}
+  #cf-deploy{border-color:#3b3565;background:#171328}
+  #cf-deploy button{background:#a78bfa;color:#1a1033}
+  #cf-deploy button:hover{background:#c4b5fd}
+  .cf-deploy-sub{flex-basis:100%;font-size:12px;line-height:1.5;margin:-2px 0 2px}
+  .cf-deploy-sub a{color:#a78bfa}
+  .cf-dep-pick{display:flex;flex-direction:column;gap:3px;max-height:140px;overflow:auto;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:7px 9px;min-width:280px}
+  .cf-dep-ag{display:flex;align-items:center;gap:6px;font-size:12px;color:#e2e8f0;text-transform:none;letter-spacing:0;cursor:pointer}
+  .cf-dep-ag input{accent-color:#a78bfa}
 </style>
 </head>
 <body>
@@ -106,6 +114,39 @@
     <button id="cf-launch-btn" data-i18n="config.launch.go">Launch scan</button>
     <div class="lstat" id="cf-launch-stat" data-i18n="config.launch.hint">Pick a host (localhost or remote) and a scan type — the enrolled XOR agent runs it at its next check-in; results land in the verification cards below. Set a <b>recurrence</b> to schedule it on a cadence.</div>
     <div class="lstat" id="cf-sched-list"></div>
+  </div>
+  <div class="cf-launch" id="cf-deploy">
+    <h3>🛡️ Deploy compliance policies to the fleet</h3>
+    <div class="cf-deploy-sub muted">Push a <b>system compliance policy</b> — CIS Benchmark / OVAL hardening baseline — to your enrolled XOR agents in one shot. Each agent evaluates the compliance content at its next check-in (CCE/CCSS checks); pass/fail verdicts land in the verification cards below and in <a href="/oval-scan">OVAL scan results</a>. Add a <b>recurrence</b> to keep re-evaluating it and catch configuration drift continuously (enforcement = continuous assurance).</div>
+    <div class="fld">
+      <label>Baseline class</label>
+      <select id="cf-dep-class">
+        <option value="compliance">Compliance (CIS / hardening)</option>
+        <option value="all">All classes</option>
+      </select>
+    </div>
+    <div class="fld">
+      <label>Target agents</label>
+      <select id="cf-dep-scope">
+        <option value="online">All online agents</option>
+        <option value="select">Selected agents…</option>
+      </select>
+    </div>
+    <div class="fld" id="cf-dep-pick-fld" style="display:none">
+      <label>Agents</label>
+      <div id="cf-dep-pick" class="cf-dep-pick"></div>
+    </div>
+    <div class="fld">
+      <label>Enforcement</label>
+      <select id="cf-dep-recur">
+        <option value="once">Evaluate once (now)</option>
+        <option value="daily">Daily (02:00) — continuous</option>
+        <option value="weekly">Weekly (Mon 03:00) — continuous</option>
+        <option value="monthly">Monthly (1st 04:00) — continuous</option>
+      </select>
+    </div>
+    <button id="cf-dep-btn">Deploy policy</button>
+    <div class="lstat" id="cf-dep-stat">Loading fleet…</div>
   </div>
   <div id="cf-body"><div class="muted" style="padding:24px;text-align:center">Building the configuration posture…</div></div>
 </div>

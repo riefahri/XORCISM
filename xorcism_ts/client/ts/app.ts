@@ -160,6 +160,12 @@ const RICHTEXT_COLUMNS = new Set<string>([
   "POLICY.PolicyDescription",
   "POLICY.Scope",
   "CRISISSCENARIO.Objectives",
+  // VULNERABILITY long-form prose fields (VULDescription/VULTechnicalDescription are already
+  // rich-text via the *Description rule; VULRequest/VULResponse stay plain — they're raw HTTP data)
+  "VULNERABILITY.VULSolution",
+  "VULNERABILITY.VULConsequence",
+  "VULNERABILITY.VULDetailedInformation",
+  "VULNERABILITY.VULManualTestingNotes",
 ]);
 
 function isRichTextField(table: string, col: string): boolean {
@@ -200,7 +206,7 @@ function isReadonlyFormColumn(table: string, col: string): boolean {
 }
 
 // Tables whose modal is widened (relational sub-panels).
-const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO"]);
+const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO", "VULNERABILITY"]);
 
 // Display reordering of fields in the forms:
 // table → list of [columnToMove, columnAfterWhich].
@@ -2416,6 +2422,10 @@ for (const t of ["POLICY", "DOCUMENT"]) {
   STATIC_DATALIST_COLUMNS[`${t}.TLP`] = DOC_TLP;
   GRID_VALUE_COLORS[`${t}.TLP`] = DOC_TLP_COLORS;
 }
+// TaHiTI threat-hunting methodology (Targeted Hunting integrating Threat Intelligence) on HUNT.
+STATIC_DATALIST_COLUMNS["HUNT.TahitiPhase"] = ["Initiate", "Hunt", "Finalize"];
+STATIC_DATALIST_COLUMNS["HUNT.TahitiTrigger"] = ["Threat Intelligence", "Security Monitoring", "Other Hunt", "Red Teaming", "Security Incident", "Vulnerability / Threat Landscape", "Crown Jewel Analysis"];
+STATIC_DATALIST_DEFAULTS["HUNT.TahitiPhase"] = "Initiate";
 STATIC_DATALIST_COLUMNS["DOCUMENT.Status"] = GRC_POLICY_STATUS;
 STATIC_DATALIST_DEFAULTS["DOCUMENT.Status"] = "Draft";
 GRID_VALUE_COLORS["DOCUMENT.Status"] = GRC_POLICY_COLORS;
@@ -4260,6 +4270,75 @@ function appendExploitDbSearchField(body: HTMLElement, prefix: string): void {
   const cve = currentCve(); if (cve) { input.value = cve; void run(); }
 }
 
+// ── GCVE CPE dictionary search (cpe.gcve.eu) — fill the CPE name from an official entry ──
+function appendCpeGcveSearch(body: HTMLElement, prefix: string): void {
+  const div = document.createElement("div");
+  div.style.cssText = "margin-bottom:14px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)";
+  const label = document.createElement("label");
+  label.textContent = t("cpegcve.label");
+  label.style.cssText = "display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px";
+  const rowWrap = document.createElement("div"); rowWrap.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
+  const input = document.createElement("input");
+  input.id = `${prefix}gcve_q`; input.autocomplete = "off"; input.placeholder = "apache http_server";
+  input.style.cssText = FIELD_INPUT_CSS + ";flex:1;min-width:180px";
+  const partSel = document.createElement("select");
+  partSel.style.cssText = FIELD_INPUT_CSS + ";flex:0 0 auto;width:auto";
+  for (const [v, lab] of [["", t("cpegcve.anyPart")], ["a", "application"], ["o", "OS"], ["h", "hardware"]] as [string, string][]) {
+    const o = document.createElement("option"); o.value = v; o.textContent = lab; partSel.appendChild(o);
+  }
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "btn btn-ghost btn-sm"; btn.textContent = t("cpegcve.search"); btn.style.flex = "0 0 auto";
+  const results = document.createElement("div"); results.style.cssText = "margin-top:6px;max-height:240px;overflow:auto;display:none";
+  const status = document.createElement("div"); status.style.cssText = "font-size:11px;color:var(--text-dim);margin-top:4px";
+
+  async function run(): Promise<void> {
+    const q = input.value.trim();
+    if (q.length < 2) { status.style.color = "var(--text-dim)"; status.textContent = t("cpegcve.need"); return; }
+    btn.disabled = true; results.style.display = "none"; status.style.color = "var(--text-dim)"; status.textContent = t("cpegcve.searching");
+    try {
+      const r = await api.cpeGcveSearch(q, partSel.value);
+      results.innerHTML = "";
+      if (!r.items.length) { status.textContent = t("cpegcve.none"); }
+      else {
+        status.textContent = `${r.items.length}${r.total > r.items.length ? `/${r.total}` : ""} ${t("cpegcve.found")}`;
+        for (const it of r.items) {
+          const item = document.createElement("div");
+          item.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px";
+          const meta = document.createElement("div"); meta.style.cssText = "min-width:0;flex:1";
+          const l1 = document.createElement("div");
+          l1.style.cssText = "font-size:11px;font-family:ui-monospace,monospace;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+          l1.textContent = it.cpe;
+          if (it.deprecated) { const d = document.createElement("span"); d.style.cssText = "color:var(--danger);font-size:10px;margin-left:6px"; d.textContent = "DEPRECATED"; l1.appendChild(d); }
+          const l2 = document.createElement("div");
+          l2.style.cssText = "font-size:10px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+          l2.textContent = it.title || "";
+          meta.appendChild(l1); meta.appendChild(l2);
+          const use = document.createElement("button");
+          use.type = "button"; use.className = "btn btn-ghost btn-sm"; use.textContent = t("cpegcve.use"); use.style.flex = "0 0 auto";
+          use.onclick = () => {
+            setFormField(prefix, "CPEName", it.cpe);
+            const el = document.getElementById(`${prefix}CPEName`) as HTMLInputElement | null;
+            if (el) el.dispatchEvent(new Event("input"));
+            toast(t("cpegcve.set"), "ok");
+          };
+          item.appendChild(meta); item.appendChild(use); results.appendChild(item);
+        }
+        results.style.display = "";
+      }
+    } catch (e) { status.style.color = "var(--danger)"; status.textContent = (e as Error).message; }
+    finally { btn.disabled = false; }
+  }
+  btn.onclick = () => void run();
+  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); void run(); } };
+  rowWrap.appendChild(input); rowWrap.appendChild(partSel); rowWrap.appendChild(btn);
+  div.appendChild(label); div.appendChild(rowWrap); div.appendChild(results); div.appendChild(status);
+  body.appendChild(div);
+  // Prefill the query from the current CPE name (vendor + product tokens), if any.
+  const cur = (document.getElementById(`${prefix}CPEName`) as HTMLInputElement | null)?.value || "";
+  const m = cur.match(/^cpe:2\.3:[aoh]:([^:]+):([^:]+)/i);
+  if (m) input.value = `${m[1]} ${m[2]}`.replace(/[_*]/g, " ").trim();
+}
+
 // ── Multi-engine malware / IOC scan (XMALWARE) ────────────────────────────────
 // Injected into the OBSERVABLE form (scan the indicator value) and the DOCUMENT form
 // (scan the stored file by its content hash). Renders per-engine verdicts inline and links
@@ -5956,6 +6035,7 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
     appendTagsPanel(body, "Tags (OVALDEFINITIONTAG)", Number(row["OVALDefinitionID"]) || null,
       api.getOvalDefinitionTags, api.setOvalDefinitionTags, null);
   } else if (currentTable === "CPE") {
+    appendCpeGcveSearch(body, "ef_");
     appendTagsPanel(body, "Tags (CPETAG)", Number(row["CPEID"]) || null,
       api.getCpeTags, api.setCpeTags, null);
   } else if (currentTable === "CWE") {
@@ -9180,6 +9260,7 @@ async function openInsertModal(): Promise<void> {
       set: (tg) => { pendingOvalTags = new Set(tg); },
     });
   } else if (currentTable === "CPE") {
+    appendCpeGcveSearch(body, "f_");
     pendingCpeTags = new Set(); // buffered tags (creation) → saved after the insert
     appendTagsPanel(body, "Tags (CPETAG)", null, api.getCpeTags, api.setCpeTags, {
       get: () => Array.from(pendingCpeTags ?? []),

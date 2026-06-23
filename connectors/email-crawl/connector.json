@@ -1,0 +1,16 @@
+{
+  "id": "email-crawl",
+  "name": "EMAIL-CRAWL — OSINT email harvesting",
+  "type": "import",
+  "category": "OSINT",
+  "description": "Imports the email addresses harvested from a target website by EMAIL-CRAWL (an OSINT web crawler that extracts emails from contact/team pages, mailtos, etc.). For an attack-surface view those exposed addresses are phishing / social-engineering targets, so the crawled domain becomes an ASSET and each email becomes an informational finding on it (noting the source page and whether it is an on-domain corporate address). Offline (non-intrusive): pass `file` = an EmailCrawl JSON export. Live (ACTIVE OSINT RECON — only with authorization): set EMAILCRAWL_BIN (path to EmailCrawl.py on the worker) and pass `target` (the site to crawl) + optional `maxPages`. No config / no file → the bundled sample.",
+  "run": "run.py",
+  "mapping": "email-crawl",
+  "intrusive": true,
+  "permission": "connector:email-crawl",
+  "parameters": [
+    { "name": "target", "type": "string", "required": false, "pattern": "^[A-Za-z0-9 ._/:@-]+$", "help": "URL/domain to crawl (live mode; requires EMAILCRAWL_BIN on the worker). Active recon — authorized targets only." },
+    { "name": "maxPages", "type": "string", "required": false, "pattern": "^[0-9]{1,5}$", "help": "Max pages to crawl in live mode (EmailCrawl --max-pages; default 200)." },
+    { "name": "file", "type": "file", "required": false, "help": "Offline EmailCrawl JSON export ({emails:[...]} / {results:[{email, source_url}]} / a flat list)." }
+  ]
+}

@@ -19,6 +19,39 @@ const hrefOf = (c: HTMLAnchorElement): string => c.getAttribute("href") || "";
 const groupOf = (grid: Element): string =>
   (grid as HTMLElement).dataset.group || (grid.closest<HTMLElement>(".approach")?.dataset.group ?? "");
 
+/**
+ * Populate the topbar "Go to…" dropdown from the visible cards, grouped by approach, so any
+ * page is one selection away. Skips hidden cards (access-control / NICE filter) and re-reads
+ * the live DOM, so it always reflects exactly what the user can see.
+ */
+function buildJumpMenu(): void {
+  const sel = document.getElementById("jump-select") as HTMLSelectElement | null;
+  if (!sel) return;
+  sel.querySelectorAll("optgroup").forEach((g) => g.remove());
+  for (const section of document.querySelectorAll<HTMLElement>("section.approach")) {
+    if (section.style.display === "none") continue;
+    const label = section.querySelector(".approach-title")?.textContent?.trim() || (section.dataset.group ?? "");
+    const grid = section.querySelector(".domain-grid");
+    if (!grid) continue;
+    const og = document.createElement("optgroup");
+    og.label = label;
+    for (const card of grid.querySelectorAll<HTMLAnchorElement>(".domain-card")) {
+      if ((card as HTMLElement).style.display === "none" || card.offsetParent === null) continue;
+      const href = card.getAttribute("href");
+      if (!href) continue;
+      const title = card.querySelector(".domain-title")?.textContent?.trim() || href;
+      const o = document.createElement("option");
+      o.value = href; o.textContent = title;
+      og.appendChild(o);
+    }
+    if (og.children.length) sel.appendChild(og);
+  }
+  if (!sel.dataset.bound) {
+    sel.dataset.bound = "1";
+    sel.addEventListener("change", () => { if (sel.value) window.location.href = sel.value; });
+  }
+}
+
 /** Snapshot the current order of every approach grid. */
 function currentMap(): OrderMap {
   const m: OrderMap = {};
@@ -200,8 +233,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!cfg.profiles.includes(savedNice)) savedNice = "";
     niceSel.value = savedNice;
     applyNiceFilter(cfg, savedNice);
-    niceSel.addEventListener("change", () => { applyNiceFilter(cfg, niceSel.value); void saveNice(niceSel.value); });
+    niceSel.addEventListener("change", () => { applyNiceFilter(cfg, niceSel.value); void saveNice(niceSel.value); buildJumpMenu(); });
   }
+
+  // Topbar "Go to…" dropdown — built after access + NICE filters so it lists only visible cards.
+  buildJumpMenu();
 
   // Document-level drag handlers cover every approach grid; reordering is constrained to the
   // grid the drag started in, so a card never leaves its approach.

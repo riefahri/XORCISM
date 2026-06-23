@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Frameworks</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .fw-wrap{max-width:1240px;margin:0 auto;padding:18px}
+  .fw-wrap h1{font-size:20px;margin:0 0 2px}
+  .fw-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1000px}
+  .fw-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .fw-bar button{background:#22c55e;color:#06220f;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+  .fw-bar button:hover{background:#4ade80}
+  .fw-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .fw-card{flex:1;min-width:130px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .fw-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .fw-card .val{font-size:26px;font-weight:700;margin-top:3px}
+  .fw-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .fw-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  table.fw{width:100%;border-collapse:collapse;font-size:13px}
+  table.fw th,table.fw td{text-align:left;padding:8px 9px;border-bottom:1px solid #1e2133;vertical-align:middle}
+  table.fw th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .fname{font-weight:600;color:#e2e8f0}.muted{color:#64748b}.mono{font-family:ui-monospace,monospace}
+  .vsel{background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:12px;padding:5px 8px;min-width:200px}
+  .badge{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .b-mapped{background:#14532d;color:#bbf7d0}.b-unmapped{background:#3b2f1e;color:#fcd34d}
+  .ctrl{font-size:11px;background:#0f1117;border:1px solid #2d3250;border-radius:5px;padding:1px 7px;color:#cbd5e1}
+  .fw-stat{font-size:12px;color:#94a3b8;min-height:16px}
+  .fw-modal-bg{position:fixed;inset:0;background:rgba(4,6,15,.66);display:none;align-items:flex-start;justify-content:center;z-index:1000;overflow:auto;padding:40px 16px}
+  .fw-modal-bg.open{display:flex}
+  .fw-modal{background:#13162a;border:1px solid #2d3250;border-radius:14px;width:520px;max-width:100%;padding:22px 24px}
+  .fw-modal h3{margin:0 0 14px;font-size:17px;color:#e2e8f0}
+  .fw-modal .fld{margin-bottom:13px}
+  .fw-modal label{display:block;font-size:12px;color:#94a3b8;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+  .fw-modal label .req{color:#f87171}
+  .fw-modal input,.fw-modal select,.fw-modal textarea{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:9px 11px;color:#e2e8f0;font-size:13px;font-family:inherit}
+  .fw-modal textarea{resize:vertical;min-height:54px}
+  .fw-modal-foot{display:flex;align-items:center;gap:10px;margin-top:18px}
+  .fw-err{color:#f87171;font-size:12px;flex:1;min-height:16px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/control-management">&#9989; Controls</a>
+  <a href="/compliance-management">&#128203; Compliance</a>
+  <a href="/?db=XORCISM&amp;table=VOCABULARY">&#128218; Vocabularies</a>
+  <span class="spacer"></span>
+  <span class="title">&#128209; Frameworks</span>
+</div>
+
+<div class="fw-wrap">
+  <h1>Frameworks management</h1>
+  <div class="fw-sub">The catalogue of compliance &amp; security <b>frameworks</b> (ISO 27001, NIST 800-53, PCI DSS, …).
+    <b>Map each framework to a VOCABULARY</b> — the controlled vocabulary that holds its controls catalogue
+    (VOCABULARY&nbsp;⋈&nbsp;CONTROL) — so the rest of the platform (control management, compliance journeys,
+    audits) can resolve "this framework's controls" from one place. The control count updates as soon as a
+    mapping is set.</div>
+  <div class="fw-bar">
+    <button id="fw-new">+ New framework</button>
+    <span class="fw-stat" id="fw-bar-stat"></span>
+  </div>
+  <div id="fw-body"><div class="muted" style="padding:24px;text-align:center">Loading frameworks…</div></div>
+</div>
+
+<div class="fw-modal-bg" id="fw-modal">
+  <div class="fw-modal">
+    <h3>New framework</h3>
+    <div class="fld"><label>Name <span class="req">*</span></label><input id="fw-f-name" type="text" maxlength="200" placeholder="e.g. ISO/IEC 27017:2015" autocomplete="off"></div>
+    <div class="fld"><label>Version</label><input id="fw-f-version" type="text" maxlength="60" placeholder="e.g. 2015"></div>
+    <div class="fld"><label>Map to vocabulary</label><select id="fw-f-vocab" class="vsel" style="width:100%"></select></div>
+    <div class="fld"><label>Description</label><textarea id="fw-f-desc" maxlength="1000"></textarea></div>
+    <div class="fw-modal-foot">
+      <span class="fw-err" id="fw-f-err"></span>
+      <button class="btn btn-ghost btn-sm" id="fw-cancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="fw-create">Create</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/frameworks.js"></script>
+</body>
+</html>

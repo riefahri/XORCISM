@@ -326,6 +326,44 @@ def run_module(manifest: Dict[str, Any], params: Dict[str, Any], workdir: str) -
     return mod.run(params, workdir)
 
 
+def import_ai_guardrail(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import inline AI-guardrail-gateway telemetry (blocked/flagged prompts) into
+    XAGENT.AIGUARDRAILVIOLATION so enforcement events appear in the AI Guardrails cockpit
+    alongside the endpoint agent's posture data. The table is created by the server at boot."""
+    import datetime
+    viols = result.get("guardrail_violations") or []
+    if not viols:
+        return {}
+    host = str(result.get("host") or "ai-gateway")
+    src = str(result.get("source") or "gateway")
+    now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    con = sqlite3.connect(os.path.join(_db_dir(), "XAGENT.db"), timeout=15)
+    try:
+        cur = con.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='AIGUARDRAILVIOLATION'")
+        if not cur.fetchone():
+            return {}
+        n = 0
+        for v in viols:
+            action = str(v.get("action") or "blocked").lower()
+            if action not in ("blocked", "flagged"):
+                continue
+            cur.execute(
+                "INSERT INTO AIGUARDRAILVIOLATION(agent,host,ai_agent,technique,name,severity,evidence,source,ai_used,hunt_id,created_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                ("gateway:" + src, host, v.get("ai_agent"), str(v.get("technique") or "AIX-01")[:40],
+                 ("Gateway %s: %s" % (action, v.get("rule") or v.get("name") or "guardrail rule"))[:200],
+                 str(v.get("severity") or "medium").lower(), str(v.get("detail") or "")[:240],
+                 "gateway:" + src, 0, None, now))
+            n += 1
+        con.commit()
+        return {"guardrail_violations": n}
+    except sqlite3.OperationalError:
+        return {}
+    finally:
+        con.close()
+
+
 # ── Import into XORCISM (mappings) ────────────────────────────────────────────────
 def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
     """Route a normalized connector result into XORCISM.
@@ -359,6 +397,8 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
         counts.update(import_incidents(result))
     if result.get("emulation_results"):
         counts.update(import_emulation(result))
+    if result.get("guardrail_violations"):
+        counts.update(import_ai_guardrail(result))
     if any(result.get(k) for k in ("assets", "vulns", "cpes", "components", "services", "project")):
         counts.update(import_findings(result))
     # DevSecOps: a SAST/Secrets/SCA/DAST connector result is also a pipeline security scan — recorded
@@ -1308,7 +1348,7 @@ def import_emulation(result: Dict[str, Any]) -> Dict[str, int]:
 
 
 # DevSecOps: connectors whose findings are a pipeline security scan of a given class.
-_DEVSECOPS_TOOLS = {"semgrep": "SAST", "gitleaks": "Secrets", "trivy": "SCA", "burpwn": "DAST"}
+_DEVSECOPS_TOOLS = {"semgrep": "SAST", "gitleaks": "Secrets", "trivy": "SCA", "burpwn": "DAST", "drogonsec": "SAST", "graphql-cop": "DAST"}
 
 
 def _norm_sev(s: Any) -> str:

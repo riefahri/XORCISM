@@ -1,0 +1,13 @@
+{
+  "id": "glpi",
+  "name": "GLPI — IT Asset Management (CMDB)",
+  "type": "import",
+  "category": "IT Asset Management",
+  "description": "Imports the IT inventory from GLPI (open-source IT Service Management & asset-management suite / CMDB) into XORCISM. Each Computer, NetworkEquipment, Phone, Printer or Peripheral becomes an ASSET (network discovery), carrying its operating system and IP when available, so the authoritative IT estate shows up alongside the rest of the attack surface (CVE matching, monitoring, BIA, ...). Config (worker environment variables): GLPI_URL (the GLPI base, e.g. https://glpi.local), GLPI_APP_TOKEN (API client app-token) and GLPI_USER_TOKEN (a personal API token; initSession -> Session-Token). Offline: pass `file` = a GLPI export JSON ({Computer, NetworkEquipment, ...}, a GLPI API list response, or a flat item list), or run with no config for the bundled sample.",
+  "run": "run.py",
+  "mapping": "glpi",
+  "parameters": [
+    { "name": "url", "type": "string", "required": false, "pattern": "^https?://[A-Za-z0-9 ._/:@-]+$", "help": "GLPI base URL (overrides GLPI_URL); the connector appends /apirest.php." },
+    { "name": "file", "type": "file", "required": false, "help": "Offline JSON export ({Computer:[...], NetworkEquipment:[...]}, a GLPI {data:[...]} page, or a flat item list)." }
+  ]
+}

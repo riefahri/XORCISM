@@ -10,7 +10,7 @@
 import { Router, Request, Response } from "express";
 import { userCan, clientIp } from "../auth";
 import * as xid from "../xid";
-import { huntingOverview, generateHunt, saveHunt } from "../hunting";
+import { huntingOverview, generateHunt, saveHunt, tahitiOverview } from "../hunting";
 
 const router = Router();
 const DB = "XTHREAT", TBL = "HUNT";
@@ -31,6 +31,13 @@ router.get("/hunting/overview", (req: Request, res: Response) => {
   } catch (e) {
     res.status(500).json({ error: String((e as Error)?.message || e) });
   }
+});
+
+// GET /api/hunting/tahiti — TaHiTI methodology phase funnel (Initiate → Hunt → Finalize)
+router.get("/hunting/tahiti", (req: Request, res: Response) => {
+  if (!userCan(req.user, "read", DB, TBL)) return void res.status(403).json({ error: "Accès refusé" });
+  try { res.json(tahitiOverview()); }
+  catch (e) { res.status(500).json({ error: String((e as Error)?.message || e) }); }
 });
 
 // POST /api/hunting/generate { focus }

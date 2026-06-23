@@ -96,6 +96,100 @@ export function huntingOverview(): HuntingOverview {
   };
 }
 
+// ── TaHiTI methodology (Targeted Hunting integrating Threat Intelligence) ──────
+// A structured 3-phase hunting methodology (Initiate → Hunt → Finalize) built around a hunt
+// backlog of "investigation abstracts" triggered mainly by threat intelligence. We add two
+// optional HUNT columns (TahitiPhase, TahitiTrigger) and surface the picture as a phase funnel.
+
+function huntCols(): Set<string> {
+  try { return new Set((getDb("XTHREAT").prepare(`PRAGMA table_info("HUNT")`).all() as { name: string }[]).map((c) => c.name)); }
+  catch { return new Set(); }
+}
+
+/** Adds the TaHiTI columns to HUNT (idempotent) so a hunt can carry its phase + trigger. */
+export function ensureTahitiColumns(): void {
+  try {
+    const xt = getDb("XTHREAT");
+    if (!xt.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='HUNT'").get()) return;
+    const c = huntCols();
+    if (!c.has("TahitiPhase")) xt.exec(`ALTER TABLE "HUNT" ADD COLUMN "TahitiPhase" TEXT`);
+    if (!c.has("TahitiTrigger")) xt.exec(`ALTER TABLE "HUNT" ADD COLUMN "TahitiTrigger" TEXT`);
+  } catch { /* best-effort */ }
+}
+
+export const TAHITI_PHASES: { key: string; name: string; order: number; description: string; steps: string[] }[] = [
+  { key: "initiate", name: "1 · Initiate", order: 1,
+    description: "Create and prioritize hunting investigation abstracts from triggers (threat intelligence first) — building and grooming the hunt backlog.",
+    steps: ["Capture a trigger (TI, monitoring, red team, incident…)", "Write a short investigation abstract (title + hypothesis + priority)", "Prioritize it into the hunt backlog"] },
+  { key: "hunt", name: "2 · Hunt", order: 2,
+    description: "Take an abstract from the backlog and run the investigation: define → refine → execute → analyse, testing the hypothesis against the data.",
+    steps: ["Define the investigation (scope, data sources, ATT&CK techniques)", "Refine into concrete queries / analytics", "Execute the hunt across the estate", "Analyse results — confirm or reject the hypothesis"] },
+  { key: "finalize", name: "3 · Finalize", order: 3,
+    description: "Document the outcome and hand it off: new detections to monitoring, findings to incident response, and lessons learned back into the backlog.",
+    steps: ["Document findings & verdict (TP / FP / inconclusive)", "Hand off detections to security monitoring (Sigma)", "Escalate confirmed threats to incident response", "Capture lessons learned / spawn follow-up abstracts"] },
+];
+
+// The TaHiTI hunt triggers (where investigation abstracts come from).
+export const TAHITI_TRIGGERS = [
+  "Threat Intelligence", "Security Monitoring", "Other Hunt", "Red Teaming",
+  "Security Incident", "Vulnerability / Threat Landscape", "Crown Jewel Analysis",
+];
+
+/** Map a hunt to a TaHiTI phase: explicit TahitiPhase wins, else derive from its status. */
+function derivePhase(explicit: string, status: string, workflow: string): string {
+  const e = (explicit || "").trim().toLowerCase();
+  if (e.startsWith("init")) return "initiate";
+  if (e === "hunt" || e.startsWith("hunt")) return "hunt";
+  if (e.startsWith("final")) return "finalize";
+  const s = `${status} ${workflow}`.toLowerCase();
+  if (/(complete|closed|finaliz|true positive|false positive|no finding|resolved|done|reported)/.test(s)) return "finalize";
+  if (/(active|in[\s-]?progress|hunting|ongoing|investigat|analy)/.test(s)) return "hunt";
+  return "initiate"; // proposed / new / backlog / draft / unset
+}
+
+export interface TahitiOverview {
+  phases: { key: string; name: string; order: number; description: string; steps: string[]; count: number;
+            hunts: { HuntID: number; HuntName: string; status: string; trigger: string | null; techCount: number }[] }[];
+  triggers: { name: string; count: number }[];
+  summary: { totalHunts: number; withTrigger: number; backlog: number };
+}
+
+/** The TaHiTI picture: hunts bucketed into the 3 phases + a trigger breakdown. */
+export function tahitiOverview(): TahitiOverview {
+  ensureTahitiColumns();
+  const xt = getDb("XTHREAT");
+  const c = huntCols();
+  const phaseCol = c.has("TahitiPhase") ? "COALESCE(TahitiPhase,'')" : "''";
+  const trigCol = c.has("TahitiTrigger") ? "COALESCE(TahitiTrigger,'')" : "''";
+  const wfCol = c.has("WorkflowStatus") ? "COALESCE(WorkflowStatus,'')" : "''";
+  let rows: { HuntID: number; HuntName: string; HuntStatus: string; wf: string; phase: string; trigger: string; techCount: number }[] = [];
+  try {
+    rows = xt.prepare(
+      `SELECT h.HuntID, COALESCE(h.HuntName,'') AS HuntName, COALESCE(h.HuntStatus,'') AS HuntStatus, ` +
+      `${wfCol} AS wf, ${phaseCol} AS phase, ${trigCol} AS trigger, ` +
+      `(SELECT COUNT(*) FROM HUNTATTACK a WHERE a.HuntID=h.HuntID) AS techCount FROM HUNT h ORDER BY h.HuntID DESC`,
+    ).all() as typeof rows;
+  } catch { rows = []; }
+
+  const buckets = new Map<string, TahitiOverview["phases"][number]["hunts"]>();
+  for (const p of TAHITI_PHASES) buckets.set(p.key, []);
+  const trigCounts = new Map<string, number>();
+  let withTrigger = 0;
+  for (const r of rows) {
+    const key = derivePhase(r.phase, r.HuntStatus, r.wf);
+    (buckets.get(key) || buckets.get("initiate"))!.push({
+      HuntID: r.HuntID, HuntName: r.HuntName || `Hunt #${r.HuntID}`,
+      status: r.HuntStatus || "(unset)", trigger: r.trigger || null, techCount: r.techCount,
+    });
+    if (r.trigger && r.trigger.trim()) { withTrigger++; trigCounts.set(r.trigger.trim(), (trigCounts.get(r.trigger.trim()) || 0) + 1); }
+  }
+  const phases = TAHITI_PHASES.map((p) => ({ ...p, count: buckets.get(p.key)!.length, hunts: buckets.get(p.key)!.slice(0, 50) }));
+  const triggers = TAHITI_TRIGGERS.map((name) => ({ name, count: trigCounts.get(name) || 0 }))
+    .concat([...trigCounts.entries()].filter(([n]) => !TAHITI_TRIGGERS.includes(n)).map(([name, count]) => ({ name, count })))
+    .filter((t, i, a) => a.findIndex((x) => x.name === t.name) === i);
+  return { phases, triggers, summary: { totalHunts: rows.length, withTrigger, backlog: buckets.get("initiate")!.length } };
+}
+
 // ── AI hunt assistant (RAG over HUNT / IOC / XTHREAT + local LLM agent) ────────
 
 /** Builds the RAG context for a hunt focus from HUNT, IOC and XTHREAT tables. */

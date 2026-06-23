@@ -36,6 +36,7 @@ import json
 import os
 import platform
 import re
+import select
 import socket
 import ssl
 import subprocess
@@ -47,6 +48,7 @@ import urllib.parse
 import bz2
 import gzip
 import glob
+import hashlib
 import shutil
 import tempfile
 import xml.etree.ElementTree as ET
@@ -1777,6 +1779,338 @@ def yara_scan(rules_path, targets, timeout=1800):
     return {"available": True, "matches": matches}
 
 
+# ── Honeypot (bounded deception sensor) ──────────────────────────────────────────
+# Decoy ports attackers routinely probe (SSH/Telnet/RDP/SMB/DB/web/cache, etc.).
+HONEYPOT_DEFAULT_PORTS = [21, 22, 23, 25, 80, 110, 143, 445, 1433, 3306, 3389, 5432, 5900, 6379, 8080, 9200]
+# Plausible fake banners so a scanner engages enough to reveal intent. Pure deception: nothing
+# the client sends is ever interpreted or executed — we only read and log it.
+HONEYPOT_BANNERS = {
+    21: b"220 (vsFTPd 3.0.3)\r\n",
+    22: b"SSH-2.0-OpenSSH_8.9p1\r\n",
+    25: b"220 mail.local ESMTP Postfix\r\n",
+    80: b"HTTP/1.1 200 OK\r\nServer: nginx\r\nContent-Length: 0\r\n\r\n",
+    110: b"+OK POP3 ready\r\n",
+    8080: b"HTTP/1.1 200 OK\r\nServer: Apache/2.4\r\nContent-Length: 0\r\n\r\n",
+    6379: b"-ERR unknown command\r\n",
+}
+HONEYPOT_SERVICES = {21: "ftp", 22: "ssh", 23: "telnet", 25: "smtp", 80: "http", 110: "pop3",
+                     143: "imap", 445: "smb", 1433: "mssql", 3306: "mysql", 3389: "rdp",
+                     5432: "postgres", 5900: "vnc", 6379: "redis", 8080: "http-alt", 9200: "elasticsearch"}
+
+
+def honeypot_listen(ports=None, duration=120, bind="0.0.0.0"):
+    """Open TCP listeners on decoy `ports` for `duration` seconds and log every connection
+    attempt (source ip/port, target port, and any banner bytes the client sends). Ports it
+    cannot bind (in use / privileged) are skipped. Returns (hits, bound_ports)."""
+    try:
+        ports = [int(p) for p in (ports or HONEYPOT_DEFAULT_PORTS)]
+    except (TypeError, ValueError):
+        ports = list(HONEYPOT_DEFAULT_PORTS)
+    duration = max(10, min(int(duration or 120), 3600))
+    listeners = {}
+    for p in ports:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((bind, p))
+            s.listen(16)
+            s.setblocking(False)
+            listeners[s] = p
+        except OSError as e:
+            print("[honeypot] port %d unavailable (%s)" % (p, e))
+    if not listeners:
+        print("[honeypot] no decoy port could be bound")
+        return [], []
+    bound = sorted(listeners.values())
+    print("[honeypot] listening %ds on %d decoy port(s): %s" % (duration, len(bound), bound))
+    hits = []
+    deadline = time.time() + duration
+    servers = list(listeners.keys())
+    try:
+        while time.time() < deadline:
+            wait = max(0.5, min(2.0, deadline - time.time()))
+            try:
+                ready, _, _ = select.select(servers, [], [], wait)
+            except (OSError, ValueError):
+                break
+            for srv in ready:
+                port = listeners.get(srv)
+                try:
+                    conn, addr = srv.accept()
+                except OSError:
+                    continue
+                banner = ""
+                try:
+                    conn.settimeout(1.5)
+                    resp = HONEYPOT_BANNERS.get(port)
+                    if resp:
+                        try:
+                            conn.sendall(resp)
+                        except OSError:
+                            pass
+                    data = conn.recv(512)
+                    if data:
+                        banner = data.decode("latin-1", "replace").strip()
+                except OSError:
+                    pass
+                finally:
+                    try:
+                        conn.close()
+                    except OSError:
+                        pass
+                hits.append({
+                    "src_ip": addr[0], "src_port": addr[1], "dst_port": port,
+                    "service": HONEYPOT_SERVICES.get(port, "tcp"), "banner": banner[:500],
+                    "at": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                })
+                print("[honeypot] hit %s:%s -> :%d (%s)" % (addr[0], addr[1], port, HONEYPOT_SERVICES.get(port, "tcp")))
+                if len(hits) >= 5000:
+                    deadline = 0
+                    break
+    finally:
+        for s in servers:
+            try:
+                s.close()
+            except OSError:
+                pass
+    return hits, bound
+
+
+# ── Memory acquisition (RAM dump for forensics) ──────────────────────────────────
+# Full RAM capture needs a privileged acquisition tool + admin/root. We auto-detect the common
+# ones (or honour XOR_MEMDUMP_BIN) and degrade gracefully to a "no-tool" report when none exist.
+# The image is written to a local file on the endpoint (preserved in place for chain of custody);
+# only the manifest (tool/path/size/sha256) is shipped to XORCISM.
+
+def _which_any(names):
+    for n in names:
+        p = shutil.which(n)
+        if p:
+            return p
+    return None
+
+
+def memdump_tool():
+    """Return (kind, path) of an available memory-acquisition tool, or (None, None)."""
+    env = (os.environ.get("XOR_MEMDUMP_BIN") or "").strip()
+    if env and os.path.exists(env):
+        return ("custom", env)
+    if os.name == "nt":
+        p = _which_any(["winpmem.exe", "winpmem", "winpmem_mini_x64_rc2.exe", "winpmem_mini_x86.exe"])
+        if p:
+            return ("winpmem", p)
+        p = _which_any(["DumpIt.exe", "DumpIt"])
+        if p:
+            return ("dumpit", p)
+    else:
+        p = _which_any(["avml"])
+        if p:
+            return ("avml", p)
+    return (None, None)
+
+
+def memdump_cmd(kind, tool, out_path):
+    if kind == "dumpit":
+        return [tool, "/OUTPUT", out_path, "/QUIET"]
+    if kind == "custom":
+        args = (os.environ.get("XOR_MEMDUMP_ARGS") or "").strip()
+        if args:
+            return [tool] + [a.replace("{out}", out_path) for a in args.split()]
+    return [tool, out_path]   # winpmem / avml / default custom: positional output path
+
+
+def ram_total_bytes():
+    try:
+        if os.name == "nt":
+            import ctypes
+
+            class _MS(ctypes.Structure):
+                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+            m = _MS(); m.dwLength = ctypes.sizeof(_MS)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)):
+                return int(m.ullTotalPhys)
+        else:
+            with open("/proc/meminfo", "r") as fh:
+                for line in fh:
+                    if line.startswith("MemTotal:"):
+                        return int(line.split()[1]) * 1024
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def sha256_file(path, chunk=4 * 1024 * 1024):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        while True:
+            b = fh.read(chunk)
+            if not b:
+                break
+            h.update(b)
+    return h.hexdigest()
+
+
+# ── Host-log collection (for AI threat hunting) ──────────────────────────────────
+# Collect recent host logs and ship them to XORCISM, where the LOCAL AI analyses them for threats.
+# Windows: Sysmon / PowerShell / Security event channels (via Get-WinEvent). Linux: journald + auth.
+WIN_LOG_CHANNELS = {
+    "sysmon": "Microsoft-Windows-Sysmon/Operational",
+    "powershell": "Microsoft-Windows-PowerShell/Operational",
+    "security": "Security",
+    "system": "System",
+    "defender": "Microsoft-Windows-Windows Defender/Operational",
+}
+
+
+def _win_events(channel, n):
+    ps = ("$ErrorActionPreference='SilentlyContinue';"
+          "Get-WinEvent -FilterHashtable @{LogName='%s'} -MaxEvents %d | "
+          "Select-Object @{n='time';e={$_.TimeCreated.ToString('s')}}, @{n='id';e={$_.Id}}, "
+          "@{n='channel';e={$_.LogName}}, @{n='raw';e={($_.Message -replace '\\s+',' ')}} | "
+          "ConvertTo-Json -Compress -Depth 3") % (channel, int(n))
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                           capture_output=True, text=True, timeout=120)
+    except Exception:  # noqa: BLE001
+        return []
+    out = (r.stdout or "").strip()
+    if not out:
+        return []
+    try:
+        data = json.loads(out)
+    except Exception:  # noqa: BLE001
+        return []
+    if isinstance(data, dict):
+        data = [data]
+    return data if isinstance(data, list) else []
+
+
+def collect_host_logs(sources=None, max_events=200):
+    """Return a list of normalized recent log events: {time, id, channel, raw}. Bounded; best-effort
+    (Sysmon/PowerShell logging or read access to the logs may require admin/root)."""
+    max_events = max(20, min(int(max_events or 200), 2000))
+    events = []
+    if os.name == "nt":
+        srcs = sources or ["sysmon", "powershell", "security"]
+        per = max(20, max_events // max(1, len(srcs)))
+        for s in srcs:
+            ch = WIN_LOG_CHANNELS.get(s)
+            if not ch:
+                continue
+            for e in _win_events(ch, per):
+                events.append({"time": str(e.get("time") or ""), "id": e.get("id"),
+                               "channel": e.get("channel") or s, "raw": str(e.get("raw") or "")[:1000]})
+    else:
+        srcs = sources or ["journal", "auth"]
+        if "journal" in srcs and shutil.which("journalctl"):
+            try:
+                r = subprocess.run(["journalctl", "-n", str(max_events), "-o", "short-iso", "--no-pager"],
+                                   capture_output=True, text=True, timeout=60)
+                for line in (r.stdout or "").splitlines()[-max_events:]:
+                    events.append({"channel": "journal", "raw": line[:1000]})
+            except Exception:  # noqa: BLE001
+                pass
+        for path, label in [("/var/log/auth.log", "auth"), ("/var/log/secure", "auth"), ("/var/log/syslog", "syslog")]:
+            if label in srcs and os.path.exists(path):
+                try:
+                    with open(path, "r", errors="replace") as fh:
+                        for line in fh.readlines()[-max_events:]:
+                            events.append({"channel": label, "raw": line.rstrip()[:1000]})
+                except OSError:
+                    pass
+    return events[:max_events]
+
+
+# ── AI-agent discovery (for guardrails management) ───────────────────────────────
+# Detect LLM apps / AI agent frameworks / MCP servers / local models on the host and report
+# guardrail signals (which guardrail libs are present, whether tools/agency are used, secrets in
+# the env, ...). The server scores these against the AI Guardrail Baseline. Best-effort, read-only.
+AI_FRAMEWORKS = {
+    "langchain": "LangChain", "langgraph": "LangGraph", "llama-index": "LlamaIndex", "llama_index": "LlamaIndex",
+    "crewai": "CrewAI", "autogen": "AutoGen", "pyautogen": "AutoGen", "semantic-kernel": "Semantic Kernel",
+    "openai": "OpenAI SDK", "anthropic": "Anthropic SDK", "litellm": "LiteLLM", "ollama": "Ollama",
+    "mcp": "MCP", "fastmcp": "MCP", "haystack-ai": "Haystack", "dspy-ai": "DSPy",
+}
+GUARDRAIL_PKGS = {"nemoguardrails", "llm-guard", "llm_guard", "guardrails-ai", "guardrails", "rebuff",
+                  "llama-guard", "llamaguard", "lakera", "lakera-chainguard"}
+AI_KEY_ENV = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "COHERE_API_KEY",
+              "MISTRAL_API_KEY", "HUGGINGFACE_API_KEY", "HF_TOKEN", "GROQ_API_KEY", "TOGETHER_API_KEY",
+              "REPLICATE_API_TOKEN", "AZURE_OPENAI_API_KEY"]
+
+
+def _installed_packages():
+    try:
+        import importlib.metadata as md
+        out = set()
+        for d in md.distributions():
+            try:
+                n = (d.metadata["Name"] or "").lower()
+                if n:
+                    out.add(n)
+            except Exception:  # noqa: BLE001
+                pass
+        return out
+    except Exception:  # noqa: BLE001
+        return set()
+
+
+def _in_container():
+    try:
+        if os.path.exists("/.dockerenv"):
+            return True
+        with open("/proc/1/cgroup", "r") as f:
+            return any(x in f.read() for x in ("docker", "kubepods", "containerd"))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def discover_ai_agents():
+    pkgs = _installed_packages()
+    frameworks = sorted({label for p, label in AI_FRAMEWORKS.items() if p in pkgs})
+    guard = sorted({g for g in GUARDRAIL_PKGS if g in pkgs})
+    keys = sum(1 for k in AI_KEY_ENV if os.environ.get(k))
+    mcp = 0
+    for cfg in ["~/.cursor/mcp.json", "~/.codeium/windsurf/mcp_config.json", "~/.mcp.json",
+                "~/Library/Application Support/Claude/claude_desktop_config.json",
+                "~/.config/Claude/claude_desktop_config.json",
+                os.path.join(os.environ.get("APPDATA", ""), "Claude", "claude_desktop_config.json")]:
+        try:
+            if cfg and os.path.exists(os.path.expanduser(cfg)):
+                mcp += 1
+        except Exception:  # noqa: BLE001
+            pass
+    model = ""
+    if "ollama" in pkgs or shutil.which("ollama"):
+        try:
+            r = subprocess.run(["ollama", "list"], capture_output=True, text=True, timeout=10)
+            lines = [ln for ln in (r.stdout or "").splitlines()[1:] if ln.strip()]
+            if lines:
+                model = "ollama:" + lines[0].split()[0]
+        except Exception:  # noqa: BLE001
+            pass
+    if not frameworks and not model and mcp == 0:
+        return []
+    tool_fw = {"LangChain", "LangGraph", "CrewAI", "AutoGen", "Semantic Kernel", "MCP", "Haystack"}
+    auto_fw = {"CrewAI", "AutoGen", "LangGraph"}
+    mem_fw = {"LangChain", "LlamaIndex", "CrewAI", "Haystack"}
+    ext_fw = {"LangChain", "LlamaIndex", "MCP", "Haystack"}
+    has_log = ("langsmith" in pkgs) or ("langfuse" in pkgs)
+    sandboxed = _in_container()
+    out = []
+    for fw in (frameworks or (["LLM app"] if (model or mcp) else [])):
+        out.append({
+            "name": fw + " app", "framework": fw, "model": model,
+            "guardrailLibs": guard, "tools": (fw in tool_fw) or (mcp > 0), "autonomous": fw in auto_fw,
+            "memory": fw in mem_fw, "external": fw in ext_fw, "secretsExposed": keys, "mcpServers": mcp,
+            "logging": has_log, "sandboxed": sandboxed, "modelPinned": False,
+        })
+    return out
+
+
 # ── Orchestration agent ──────────────────────────────────────────────────────────
 class XorAgent:
     def __init__(self, conf, conf_path):
@@ -2037,7 +2371,257 @@ class XorAgent:
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
 
-    def run_scan(self, kind, oval_class=None, scenario_id=None):
+    # ── Real-time endpoint query ("Ask the Fleet" / Tanium-style sensors) ──────────
+    def _qx(self, args):
+        """Run a command, return stdout text (best-effort, never raises)."""
+        try:
+            r = subprocess.run(args, capture_output=True, text=True, timeout=25,
+                               shell=isinstance(args, str))
+            return (r.stdout or "") + (r.stderr or "")
+        except Exception:  # noqa: BLE001
+            return ""
+
+    def _sensor(self, sensor_id, filt):
+        """Collect a sensor's value(s) for THIS endpoint → list[str]. stdlib only, cross-platform."""
+        win = platform.system() == "Windows"
+        if sensor_id == "os-version":
+            return [f"{platform.system()} {platform.release()} ({platform.version()})".strip()]
+        if sensor_id == "ip-address":
+            ip = "0.0.0.0"
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(("8.8.8.8", 80))
+                ip = s.getsockname()[0]; s.close()
+            except Exception:  # noqa: BLE001
+                pass
+            return [ip]
+        if sensor_id == "disk-free-gb":
+            try:
+                free = shutil.disk_usage("C:\\" if win else "/").free / (1024 ** 3)
+            except Exception:  # noqa: BLE001
+                return ["(unavailable)"]
+            return ["< 10 GB" if free < 10 else "10–50 GB" if free < 50 else "50–100 GB" if free < 100 else "> 100 GB"]
+        if sensor_id == "last-reboot":
+            days = None
+            try:
+                if win:
+                    out = self._qx(["powershell", "-NoProfile", "-Command",
+                                    "(New-TimeSpan -Start (Get-CimInstance Win32_OperatingSystem).LastBootUpTime).TotalDays"])
+                    days = float(re.findall(r"[\d.]+", out)[0]) if out.strip() else None
+                else:
+                    with open("/proc/uptime") as fh:
+                        days = float(fh.read().split()[0]) / 86400.0
+            except Exception:  # noqa: BLE001
+                days = None
+            if days is None:
+                return ["(unavailable)"]
+            return ["< 1 day" if days < 1 else "1–7 days" if days < 7 else "7–30 days" if days < 30 else "> 30 days"]
+        if sensor_id == "domain-joined":
+            if win:
+                d = os.environ.get("USERDOMAIN") or "WORKGROUP"
+                return [d]
+            return [self._qx(["hostname", "-d"]).strip() or "(none)"]
+        if sensor_id == "agent-version":
+            return [str(getattr(self, "VERSION", None) or globals().get("AGENT_VERSION", "1.0"))]
+        if sensor_id in ("cpu-percent", "memory-percent"):
+            pct = None
+            try:
+                if win and sensor_id == "cpu-percent":
+                    out = self._qx(["wmic", "cpu", "get", "loadpercentage"])
+                    nums = re.findall(r"\d+", out); pct = int(nums[0]) if nums else None
+                elif win:
+                    out = self._qx(["wmic", "OS", "get", "FreePhysicalMemory,TotalVisibleMemorySize", "/value"])
+                    free = int(re.search(r"FreePhysicalMemory=(\d+)", out).group(1))
+                    total = int(re.search(r"TotalVisibleMemorySize=(\d+)", out).group(1))
+                    pct = round((1 - free / total) * 100)
+                elif sensor_id == "memory-percent":
+                    mi = {}
+                    for ln in open("/proc/meminfo"):
+                        k, _, v = ln.partition(":"); mi[k] = int(v.split()[0])
+                    pct = round((1 - mi["MemAvailable"] / mi["MemTotal"]) * 100)
+                else:
+                    pct = round(os.getloadavg()[0] / (os.cpu_count() or 1) * 100)
+            except Exception:  # noqa: BLE001
+                pct = None
+            if pct is None:
+                return ["(unavailable)"]
+            return ["0–25%" if pct < 25 else "25–50%" if pct < 50 else "50–75%" if pct < 75 else "75–100%"]
+        # ── list sensors ──
+        lines = []
+        if sensor_id == "running-processes":
+            out = self._qx("tasklist /fo csv /nh" if win else ["ps", "-eo", "comm="])
+            for ln in out.splitlines():
+                name = ln.split(",")[0].strip('"') if win else ln.strip()
+                if name and not name.lower().startswith("info:"):
+                    lines.append(name)
+        elif sensor_id == "listening-ports":
+            out = self._qx("netstat -an" if win else ["ss", "-tlnH"])
+            for ln in out.splitlines():
+                if win and "LISTENING" in ln:
+                    m = re.search(r":(\d+)\s", ln)
+                    if m:
+                        lines.append(m.group(1))
+                elif not win:
+                    m = re.search(r":(\d+)\s", ln)
+                    if m:
+                        lines.append(m.group(1))
+        elif sensor_id == "logged-in-users":
+            out = self._qx("query user" if win else ["who"])
+            for ln in out.splitlines()[1:] if win else out.splitlines():
+                u = ln.split()[0].lstrip(">").strip()
+                if u:
+                    lines.append(u)
+        elif sensor_id == "local-admins":
+            if win:
+                out = self._qx("net localgroup administrators")
+                cap = False
+                for ln in out.splitlines():
+                    if "----" in ln:
+                        cap = True; continue
+                    if cap and ln.strip() and "command completed" not in ln.lower():
+                        lines.append(ln.strip())
+            else:
+                out = self._qx(["getent", "group", "sudo"]) or self._qx(["getent", "group", "wheel"])
+                lines = [u for u in out.split(":")[-1].strip().split(",") if u]
+        elif sensor_id == "running-services":
+            if win:
+                out = self._qx("net start")
+                lines = [ln.strip().lstrip("* ") for ln in out.splitlines() if ln.startswith("   ")]
+            else:
+                out = self._qx(["systemctl", "list-units", "--type=service", "--state=running", "--no-legend", "--plain"])
+                lines = [ln.split()[0] for ln in out.splitlines() if ln.strip()]
+        elif sensor_id == "installed-apps":
+            if win:
+                out = self._qx(["powershell", "-NoProfile", "-Command",
+                                "Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Select-Object -ExpandProperty DisplayName"])
+            else:
+                out = self._qx(["dpkg-query", "-W", "-f=${Package}\n"]) or self._qx(["rpm", "-qa", "--qf", "%{NAME}\n"])
+            lines = [ln.strip() for ln in out.splitlines() if ln.strip()]
+        # dedupe + cap + filter
+        seen, vals = set(), []
+        for v in lines:
+            v = v.strip()
+            if not v or v in seen:
+                continue
+            if filt and filt.lower() not in v.lower():
+                continue
+            seen.add(v); vals.append(v)
+            if len(vals) >= 500:
+                break
+        return vals or (["(none)"] if filt else ["(unavailable)"])
+
+    def do_query(self, question_id, sensor_id, filt=None):
+        """Answer a real-time endpoint-query job: collect the sensor + POST values for this endpoint."""
+        try:
+            values = self._sensor(sensor_id, filt)
+        except Exception as e:  # noqa: BLE001
+            values = [f"(error: {e})"]
+        st, _ = self._post("/api/agent/query", {"questionId": question_id, "values": values})
+        print(f"[query] q#{question_id} « {sensor_id} » → {len(values)} value(s) (HTTP {st})")
+
+    def do_honeypot(self, ports=None, duration=None):
+        """Run a bounded honeypot (deception sensor) on decoy ports and report the connection
+        attempts captured to /api/agent/honeypot (-> HONEYPOTHIT + event + attacker IPs as IOCs)."""
+        hits, bound = honeypot_listen(ports, duration or 120)
+        st, d = self._post("/api/agent/honeypot",
+                           {"hits": hits, "ports": bound,
+                            "summary": "%d hit(s) on %d decoy port(s)" % (len(hits), len(bound))})
+        print("[honeypot] %d hit(s) reported on %d port(s) (HTTP %s)" % (len(hits), len(bound), st))
+        return len(hits)
+
+    def do_memdump(self, out_dir=None):
+        """Acquire a full RAM image for forensics using a privileged tool (winpmem / avml /
+        XOR_MEMDUMP_BIN). The image stays on the endpoint; the manifest (tool/path/size/sha256)
+        is posted to /api/agent/memdump (-> MEMORYDUMP + a memory_dump event). Read-only DFIR."""
+        host = self.si.get("name", "host")
+        ram = ram_total_bytes()
+        started = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        kind, tool = memdump_tool()
+        if not tool:
+            self._post("/api/agent/memdump", {
+                "status": "no-tool", "os": platform.platform(), "ramTotal": ram, "started": started, "finished": started,
+                "error": "No memory-acquisition tool found. Install winpmem (Windows) or avml (Linux), or set XOR_MEMDUMP_BIN."})
+            print("[memdump] no acquisition tool found (winpmem / avml / XOR_MEMDUMP_BIN)")
+            return 0
+        out_dir = out_dir or os.environ.get("XOR_MEMDUMP_DIR") or tempfile.gettempdir()
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+        except OSError:
+            pass
+        ext = ".lime" if kind == "avml" else ".raw"
+        safe_host = re.sub(r"[^A-Za-z0-9_.-]", "_", str(host))
+        out_path = os.path.join(out_dir, "memdump_%s_%s%s" % (safe_host, time.strftime("%Y%m%d_%H%M%S"), ext))
+        t0 = time.time()
+        try:
+            print("[memdump] acquiring RAM via %s -> %s (this can take a while)" % (kind, out_path))
+            subprocess.run(memdump_cmd(kind, tool, out_path), check=True, timeout=3600, capture_output=True)
+        except Exception as e:  # noqa: BLE001
+            self._post("/api/agent/memdump", {
+                "status": "error", "tool": kind, "path": out_path, "os": platform.platform(), "ramTotal": ram,
+                "started": started, "finished": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                "duration": int(time.time() - t0), "error": str(e)[:500]})
+            print("[memdump] acquisition failed: %s" % e)
+            return 0
+        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+            self._post("/api/agent/memdump", {
+                "status": "error", "tool": kind, "path": out_path, "os": platform.platform(), "ramTotal": ram,
+                "started": started, "finished": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                "duration": int(time.time() - t0), "error": "tool produced no output image"})
+            print("[memdump] no output image produced")
+            return 0
+        size = os.path.getsize(out_path)
+        sha = sha256_file(out_path)
+        dur = int(time.time() - t0)
+        self._post("/api/agent/memdump", {
+            "status": "completed", "tool": kind, "path": out_path, "size": size, "sha256": sha, "ramTotal": ram,
+            "os": platform.platform(), "started": started, "finished": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            "duration": dur})
+        print("[memdump] OK %s (%d bytes, sha256 %s, %ds)" % (out_path, size, sha[:16], dur))
+        return 1
+
+    def do_loghunt(self, sources=None, max_events=None):
+        """Collect recent host logs (Sysmon / PowerShell / Security on Windows; journald / auth on
+        Linux) and ship them to /api/agent/loghunt, where the LOCAL AI (Ollama) hunts them for
+        threats (-> LOGHUNT + log_hunt event + a spawned TaHiTI hunt when suspicious)."""
+        events = collect_host_logs(sources, max_events or 200)
+        src = ",".join(sources) if sources else ("windows-eventlog" if os.name == "nt" else "linux-logs")
+        st, d = self._post("/api/agent/loghunt", {
+            "source": src, "host": self.si.get("name", "host"), "os": platform.platform(), "events": events})
+        if st == 200:
+            print("[loghunt] %d event(s) analysed -> severity=%s findings=%s hunt=%s (HTTP %s)" % (
+                len(events), d.get("severity"), d.get("findings"), d.get("huntId"), st))
+        else:
+            print("[loghunt] %d event(s) collected; post failed (HTTP %s): %s" % (len(events), st, d.get("error")))
+        if not events:
+            print("[loghunt] note: no events collected — enable Sysmon/PowerShell logging or run with admin/root")
+        return len(events)
+
+    def do_aiguard(self):
+        """Discover AI agents/LLM apps on the host + optional traces, and ship them to
+        /api/agent/aiguard, where the server scores them against the AI Guardrail Baseline and
+        monitors traces for guardrail violations. Read-only, best-effort discovery."""
+        agents = discover_ai_agents()
+        traces = []
+        glob_pat = os.environ.get("XOR_AI_TRACE_GLOB", "").strip()
+        if glob_pat:
+            for fp in glob.glob(glob_pat)[:20]:
+                try:
+                    with open(fp, "r", errors="replace") as fh:
+                        for line in fh.readlines()[-200:]:
+                            traces.append({"raw": line.rstrip()[:1000]})
+                except OSError:
+                    pass
+        st, d = self._post("/api/agent/aiguard", {
+            "host": self.si.get("name", "host"), "os": platform.platform(), "agents": agents, "traces": traces})
+        if st == 200:
+            print("[aiguard] %d AI agent(s) discovered, avg posture=%s, %s violation(s) (HTTP %s)"
+                  % (len(agents), d.get("avgScore"), d.get("violations"), st))
+        else:
+            print("[aiguard] %d agent(s); post failed (HTTP %s): %s" % (len(agents), st, d.get("error")))
+        if not agents:
+            print("[aiguard] no AI agent frameworks / local models detected on this host")
+        return len(agents)
+
+    def run_scan(self, kind, oval_class=None, scenario_id=None, hp_ports=None, hp_duration=None, md_out_dir=None, lh_sources=None, lh_max=None):
         if kind in ("inventory", "full"):
             self.do_inventory()
         if kind in ("vuln", "full"):
@@ -2056,6 +2640,14 @@ class XorAgent:
             self.do_yara()
         if kind == "forensics":
             self.do_forensics()
+        if kind == "honeypot":
+            self.do_honeypot(hp_ports, hp_duration)
+        if kind == "memdump":
+            self.do_memdump(md_out_dir)
+        if kind == "loghunt":
+            self.do_loghunt(lh_sources, lh_max)
+        if kind == "aiguard":
+            self.do_aiguard()
 
     def checkin(self):
         st, d = self._post("/api/agent/checkin", {})
@@ -2068,18 +2660,37 @@ class XorAgent:
             # job params (e.g. {"ovalClass": "compliance"} or {"scenarioId": 5}) — may be a JSON string
             oval_class = None
             scenario_id = None
+            question_id = sensor_id = q_filter = None
+            hp_ports = hp_duration = None
+            md_out_dir = None
+            lh_sources = lh_max = None
             params = j.get("params")
             if params:
                 try:
                     p = json.loads(params) if isinstance(params, str) else params
                     oval_class = (p or {}).get("ovalClass")
                     scenario_id = (p or {}).get("scenarioId")
+                    question_id = (p or {}).get("questionId")
+                    sensor_id = (p or {}).get("sensorId")
+                    q_filter = (p or {}).get("filter")
+                    hp_ports = (p or {}).get("ports")
+                    hp_duration = (p or {}).get("duration")
+                    md_out_dir = (p or {}).get("outDir")
+                    lh_sources = (p or {}).get("sources")
+                    lh_max = (p or {}).get("maxEvents")
                 except Exception:
                     oval_class = scenario_id = None
-            print(f"[checkin] job {j.get('AgentJobID')} → scan « {kind} »"
+            print(f"[checkin] job {j.get('AgentJobID')} → « {kind} »"
+                  + (f" [sensor {sensor_id}]" if sensor_id else "")
+                  + (f" [honeypot {hp_ports or 'default'} {hp_duration or 120}s]" if kind == "honeypot" else "")
+                  + (" [memdump]" if kind == "memdump" else "")
+                  + (f" [loghunt {lh_sources or 'default'}]" if kind == "loghunt" else "")
                   + (f" [OVAL {oval_class}]" if oval_class else "") + (f" [scenario {scenario_id}]" if scenario_id else ""))
             try:
-                self.run_scan(kind, oval_class, scenario_id)
+                if kind == "query" and question_id is not None and sensor_id:
+                    self.do_query(question_id, sensor_id, q_filter)
+                else:
+                    self.run_scan(kind, oval_class, scenario_id, hp_ports, hp_duration, md_out_dir, lh_sources, lh_max)
                 self._post(f"/api/agent/job/{j['AgentJobID']}/result", {"summary": f"{kind} done"})
             except Exception as e:  # noqa: BLE001
                 self._post(f"/api/agent/job/{j['AgentJobID']}/result", {"summary": f"error: {e}"})
@@ -2104,10 +2715,15 @@ def main():
     ap.add_argument("--enroll-key", help="clé d'enrôlement (XOR_ENROLL_KEY côté serveur)")
     ap.add_argument("--insecure", action="store_true", help="ignorer la vérif TLS (lab)")
     ap.add_argument("--inventory", action="store_true")
-    ap.add_argument("--scan", choices=["inventory", "vuln", "oval", "av", "hunt", "full", "emulate", "forensics", "rustinel", "yara"])
+    ap.add_argument("--scan", choices=["inventory", "vuln", "oval", "av", "hunt", "full", "emulate", "forensics", "rustinel", "yara", "honeypot", "memdump", "loghunt", "aiguard"])
     ap.add_argument("--oval-class", choices=["compliance", "vulnerability", "inventory", "patch", "all"],
                     help="restrict an OVAL scan to one class (default: all classes in the content)")
     ap.add_argument("--scenario", type=int, help="EMULATIONSCENARIO id for --scan emulate (BAS run)")
+    ap.add_argument("--honeypot-ports", help="comma-separated decoy ports for --scan honeypot (default: common set)")
+    ap.add_argument("--honeypot-duration", type=int, help="how long (seconds) --scan honeypot listens (default 120)")
+    ap.add_argument("--memdump-dir", help="output directory for the RAM image (--scan memdump; default temp / XOR_MEMDUMP_DIR)")
+    ap.add_argument("--log-sources", help="comma-separated log sources for --scan loghunt (sysmon,powershell,security,system,defender / journal,auth,syslog)")
+    ap.add_argument("--max-events", type=int, help="max log events to collect for --scan loghunt (default 200)")
     ap.add_argument("--once", action="store_true", help="un seul check-in puis sortie")
     ap.add_argument("--run", action="store_true", help="démon (check-in périodique)")
     ap.add_argument("--interval", type=int, default=300)
@@ -2133,7 +2749,9 @@ def main():
     if args.inventory:
         agent.do_inventory()
     elif args.scan:
-        agent.run_scan(args.scan, args.oval_class, args.scenario)
+        hp_ports = [int(p) for p in re.split(r"[,\s]+", args.honeypot_ports) if p.strip().isdigit()] if args.honeypot_ports else None
+        lh_sources = [s for s in re.split(r"[,\s]+", args.log_sources) if s.strip()] if args.log_sources else None
+        agent.run_scan(args.scan, args.oval_class, args.scenario, hp_ports, args.honeypot_duration, args.memdump_dir, lh_sources, args.max_events)
     elif args.once:
         agent.checkin()
     elif args.run:

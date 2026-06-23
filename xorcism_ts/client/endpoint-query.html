@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Ask the Fleet</title><link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1240px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1000px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:26px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .ask{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px;margin-bottom:16px}
+  .ask-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .ask select,.ask input{background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:7px;padding:8px 11px;font-size:13px}
+  .ask select{min-width:240px}.ask input{flex:1;min-width:180px}
+  .btn-go{background:#fb923c;border:none;color:#1a1004;border-radius:7px;font-size:13px;font-weight:700;padding:8px 18px;cursor:pointer}.btn-go:disabled{opacity:.5;cursor:default}
+  .sensehint{font-size:11px;color:#64748b;margin-top:6px}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:14px 16px}
+  .muted{color:#64748b}.nm{font-weight:600;color:#e2e8f0}
+  table.gr{width:100%;border-collapse:collapse;font-size:13px}table.gr td{padding:6px 9px;border-bottom:1px solid #1e2133;vertical-align:middle}
+  .barwrap{background:#0f1117;border-radius:5px;height:20px;overflow:hidden;position:relative;min-width:120px}
+  .barwrap i{display:block;height:100%;background:linear-gradient(90deg,#7c83fd,#a855f7)}
+  .barwrap span{position:absolute;left:8px;top:0;line-height:20px;font-size:11px;color:#e2e8f0}
+  .qrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #1e2133;font-size:13px;cursor:pointer}
+  .qrow:hover{background:#0f1117}
+  .pill{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .p-ok{background:#14532d;color:#bbf7d0}.p-asking{background:#78350f;color:#fcd34d}.p-none{background:#1e2133;color:#94a3b8}
+  .cat{font-size:10px;border-radius:5px;padding:1px 7px;background:#1e2440;color:#a5b4fc}
+</style></head><body>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/agents">&#129302; Agents</a><a href="/asset-management">&#128187; Assets</a><span class="spacer"></span><span class="title">&#128225; Ask the Fleet</span></div>
+<div class="mw">
+  <h1>Ask the Fleet — real-time endpoint query</h1>
+  <div class="sub">Ask a question of every endpoint and get answers back in seconds, aggregated into an
+    <b>answer grid</b> (distinct value &times; number of endpoints). Questions are dispatched to the online XOR agent
+    fleet as live <b>sensors</b> and answered at the next check-in — the same model that made endpoint querying famous.</div>
+  <div id="cards" class="cards"></div>
+  <div class="ask">
+    <div class="ask-row">
+      <span class="muted">Get</span>
+      <select id="q-sensor"></select>
+      <input type="text" id="q-filter" placeholder="filter (optional) — e.g. chrome, 3389">
+      <span class="muted">from all machines</span>
+      <button class="btn-go" id="q-ask">Ask &#9889;</button>
+    </div>
+    <div class="sensehint" id="q-hint"></div>
+  </div>
+  <div id="result"></div>
+  <div class="sec">Recent questions</div>
+  <div class="panel" id="recent"><div class="muted" style="padding:8px 0">Loading…</div></div>
+</div>
+<div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/endpoint-query.js"></script></body></html>

@@ -200,4 +200,61 @@ async function initLaunch(): Promise<void> {
   };
 }
 
-document.addEventListener("DOMContentLoaded", () => { initI18n(); void load(); void initLaunch(); });
+// ── Deploy/enforce a compliance policy across the agent fleet ────────────────────
+interface FleetAgent { name: string; os: string | null; online: boolean; lastSeen: string | null; }
+async function initDeploy(): Promise<void> {
+  const stat = document.getElementById("cf-dep-stat");
+  const btn = document.getElementById("cf-dep-btn") as HTMLButtonElement | null;
+  const scopeSel = document.getElementById("cf-dep-scope") as HTMLSelectElement | null;
+  const pickFld = document.getElementById("cf-dep-pick-fld");
+  const pick = document.getElementById("cf-dep-pick");
+  const classSel = document.getElementById("cf-dep-class") as HTMLSelectElement | null;
+  const recurSel = document.getElementById("cf-dep-recur") as HTMLSelectElement | null;
+  if (!stat || !btn || !scopeSel || !pickFld || !pick || !classSel || !recurSel) return;
+
+  let fleet: { agents: FleetAgent[]; online: number; total: number; baselines: { name: string; size: number }[]; results: { pass: number; fail: number; assets: number; passRate: number | null } | null };
+  try { const r = await fetch("/api/configuration/fleet-compliance"); if (!r.ok) throw new Error(`HTTP ${r.status}`); fleet = await r.json(); }
+  catch (e) { btn.disabled = true; stat.innerHTML = `⚠️ ${esc(e)}`; return; }
+
+  if (!fleet.total) {
+    btn.disabled = true;
+    stat.innerHTML = `No XOR agent enrolled. Deploy <code>agent/xor_agent.py</code> on your hosts and enroll them, then deploy compliance policies fleet-wide.`;
+    return;
+  }
+  // checkbox list of agents for the "Selected agents" scope
+  pick.innerHTML = fleet.agents.map((a) =>
+    `<label class="cf-dep-ag"><input type="checkbox" value="${esc(a.name)}"${a.online ? " checked" : ""}> ${a.online ? "🟢" : "⚪"} ${esc(a.name)} <span class="muted">· ${esc(a.os || "?")}</span></label>`).join("");
+  scopeSel.onchange = () => { pickFld.style.display = scopeSel.value === "select" ? "" : "none"; };
+
+  const baselineNote = fleet.baselines.length
+    ? `${fleet.baselines.length} OVAL/SCAP baseline${fleet.baselines.length > 1 ? "s" : ""} in the content library`
+    : `⚠️ no OVAL content in the library yet — drop CIS/SCAP content where the agent can fetch it (see <a href="/oval-scan">OVAL scan</a>)`;
+  const resNote = fleet.results && (fleet.results.pass + fleet.results.fail)
+    ? ` · last posture: <b>${fleet.results.passRate ?? "?"}%</b> pass (${fleet.results.pass} pass / ${fleet.results.fail} fail across ${fleet.results.assets} host${fleet.results.assets > 1 ? "s" : ""})`
+    : "";
+  stat.innerHTML = `Fleet: <b>${fleet.online}</b> online / ${fleet.total} enrolled · ${baselineNote}${resNote}`;
+
+  btn.onclick = async () => {
+    const ovalClass = classSel.value;
+    const recur = recurSel.value;
+    let agents: string[] | undefined;
+    if (scopeSel.value === "select") {
+      agents = [...pick.querySelectorAll<HTMLInputElement>("input:checked")].map((c) => c.value);
+      if (!agents.length) { stat.innerHTML = `⚠️ select at least one agent.`; return; }
+    }
+    btn.disabled = true; stat.textContent = "Deploying…";
+    try {
+      const body: Record<string, unknown> = { ovalClass };
+      if (agents) body.agents = agents;
+      if (recur !== "once") body.preset = recur;
+      const r = await fetch("/api/configuration/deploy-compliance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      const enforceTxt = d.preset ? ` and scheduled <b>${esc(d.preset)}</b> continuous re-evaluation (${esc(String(d.scheduleIds?.length || 0))} schedule${d.scheduleIds?.length === 1 ? "" : "s"})` : "";
+      stat.innerHTML = `✅ Deployed <b>${esc(ovalClass)}</b> compliance policy to <b>${esc(String(d.deployed))}</b> agent${d.deployed === 1 ? "" : "s"} (${esc(String(d.jobIds.length))} eval job${d.jobIds.length === 1 ? "" : "s"} queued)${enforceTxt}. Agents evaluate at their next check-in — verdicts appear below and in <a href="/oval-scan">OVAL results</a>. <a href="/configuration-management">↻ Refresh</a>`;
+    } catch (e) { stat.innerHTML = `⚠️ ${esc(e)}`; }
+    finally { btn.disabled = false; }
+  };
+}
+
+document.addEventListener("DOMContentLoaded", () => { initI18n(); void load(); void initLaunch(); void initDeploy(); });

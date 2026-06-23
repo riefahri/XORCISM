@@ -20,8 +20,12 @@ import {
   enrollAgent, agentByToken, touchAgent, listAgents, addAgentEvent, listAgentEvents,
   createAgentJob, claimAgentJobs, finishAgentJob, listAgentJobs, listIocs, iocCount, Agent,
   storeForensicTriage, listForensicTriage, getForensicTriage, ForensicBundle, agentsOverview,
+  recordHoneypotHits, recordMemoryDump,
 } from "../agents";
+import { analyzeHostLogs, LogEvent } from "../loghunt";
+import { recordAiGuardScan, AiAgentSignal, aiGuardrailsCockpit, GUARDRAIL_BASELINE } from "../aiguard";
 import { createCollectedJob } from "../jobs";
+import { recordAnswers } from "../endpointquery";
 import { ingestOvalResults, ovalResultsView, findOvalContent, listOvalContent, ovalContentDir, OvalPayload } from "../oval";
 import { scenarioTests, ingestEmulationRun, EmulationResultItem } from "../emulation";
 import { getDb, createNotification } from "../db";
@@ -84,6 +88,89 @@ agentTokenRouter.post("/agent/events", tokenAuth, (req: AReq, res: Response) => 
   const events = (req.body as { events?: { type: string; severity?: string; title?: string; detail?: unknown }[] }).events ?? [];
   for (const ev of events) if (ev && ev.type) addAgentEvent(req.agent!.name, ev);
   res.json({ ok: true, stored: events.length });
+});
+
+// Honeypot hits: the agent ran a `honeypot` job (a bounded deception sensor on decoy ports)
+// and posts the connection attempts it captured. Stored in HONEYPOTHIT, summarised as one
+// event, and the attacker source IPs promoted to the IOC store.
+agentTokenRouter.post("/agent/honeypot", tokenAuth, (req: AReq, res: Response) => {
+  touchAgent(req.agent!.name);
+  const b = (req.body as { hits?: unknown }) || {};
+  const hits = Array.isArray(b.hits) ? (b.hits as Record<string, unknown>[]).slice(0, 5000).map((h) => ({
+    src_ip: h.src_ip != null ? String(h.src_ip) : undefined,
+    src_port: h.src_port != null ? Number(h.src_port) : undefined,
+    dst_port: h.dst_port != null ? Number(h.dst_port) : undefined,
+    service: h.service != null ? String(h.service) : undefined,
+    banner: h.banner != null ? String(h.banner) : undefined,
+    at: h.at != null ? String(h.at) : undefined,
+  })) : [];
+  res.json({ ok: true, ...recordHoneypotHits(req.agent!.name, hits) });
+});
+
+// Memory dump: the agent ran a `memdump` job (RAM acquisition for forensics) and posts the
+// acquisition manifest (tool, output path, size, SHA-256, status). The image stays on the
+// endpoint (chain of custody); XORCISM records the manifest in MEMORYDUMP + a memory_dump event.
+agentTokenRouter.post("/agent/memdump", tokenAuth, (req: AReq, res: Response) => {
+  touchAgent(req.agent!.name);
+  const b = (req.body as Record<string, unknown>) || {};
+  res.json({ ok: true, ...recordMemoryDump(req.agent!.name, {
+    status: b.status != null ? String(b.status) : undefined,
+    tool: b.tool != null ? String(b.tool) : undefined,
+    path: b.path != null ? String(b.path) : undefined,
+    size: b.size != null ? Number(b.size) : undefined,
+    sha256: b.sha256 != null ? String(b.sha256) : undefined,
+    ramTotal: b.ramTotal != null ? Number(b.ramTotal) : undefined,
+    os: b.os != null ? String(b.os) : undefined,
+    started: b.started != null ? String(b.started) : undefined,
+    finished: b.finished != null ? String(b.finished) : undefined,
+    duration: b.duration != null ? Number(b.duration) : undefined,
+    error: b.error != null ? String(b.error) : undefined,
+  }) });
+});
+
+// AI host-log threat hunt: the agent ran a `loghunt` job (collected Sysmon / PowerShell / Security
+// events) and posts them here. The server analyses them with heuristics + the LOCAL AI (Ollama),
+// stores a LOGHUNT + log_hunt event, and spawns a TaHiTI hunt when something looks suspicious.
+agentTokenRouter.post("/agent/loghunt", tokenAuth, async (req: AReq, res: Response) => {
+  touchAgent(req.agent!.name);
+  const b = (req.body as Record<string, unknown>) || {};
+  try {
+    const out = await analyzeHostLogs(req.agent!.name, {
+      source: b.source != null ? String(b.source) : undefined,
+      host: b.host != null ? String(b.host) : undefined,
+      os: b.os != null ? String(b.os) : undefined,
+      events: Array.isArray(b.events) ? (b.events as LogEvent[]) : [],
+    });
+    res.json({ ok: true, logHuntId: out.logHuntId, severity: out.severity, techniques: out.techniques, findings: out.findings.length, huntId: out.huntId, ai: out.ai });
+  } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// AI guardrails: the agent ran an `aiguard` job (discovered AI agents/LLM apps + their guardrail
+// signals, + optional traces). The server scores each against the AI Guardrail Baseline and
+// analyses traces for guardrail violations. → AIAGENT / AIGUARDRAILRESULT / AIGUARDRAILVIOLATION.
+agentTokenRouter.post("/agent/aiguard", tokenAuth, async (req: AReq, res: Response) => {
+  touchAgent(req.agent!.name);
+  const b = (req.body as Record<string, unknown>) || {};
+  try {
+    const out = await recordAiGuardScan(req.agent!.name, {
+      host: b.host != null ? String(b.host) : undefined,
+      os: b.os != null ? String(b.os) : undefined,
+      agents: Array.isArray(b.agents) ? (b.agents as AiAgentSignal[]) : [],
+      traces: Array.isArray(b.traces) ? (b.traces as { raw?: string }[]) : [],
+    });
+    res.json({ ok: true, ...out });
+  } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// Real-time endpoint-query answers (Tanium-style "Interact"): the agent ran a `query` job's sensor
+// and posts the value(s) back here, keyed by the question id.
+agentTokenRouter.post("/agent/query", tokenAuth, (req: AReq, res: Response) => {
+  touchAgent(req.agent!.name);
+  const b = (req.body as { questionId?: unknown; values?: unknown }) || {};
+  const questionId = Number(b.questionId);
+  if (!Number.isFinite(questionId)) return void res.status(400).json({ error: "questionId required" });
+  const values = Array.isArray(b.values) ? (b.values as unknown[]).map((v) => String(v ?? "")) : (b.values != null ? [String(b.values)] : []);
+  res.json({ ok: true, ...recordAnswers(req.agent!.name, questionId, values) });
 });
 
 // OVAL scan results (OpenSCAP `oscap oval eval`): stored in XOVAL.OVALRESULTS and
@@ -215,6 +302,11 @@ export const agentAdminRouter = Router();
 
 agentAdminRouter.get("/agents", (_req: Request, res: Response) => res.json(listAgents()));
 agentAdminRouter.get("/agents-overview", (_req: Request, res: Response) => res.json(agentsOverview()));
+// AI-agent guardrails cockpit (baseline coverage + discovered agents + posture + violations + tools).
+agentAdminRouter.get("/ai-guardrails", (_req: Request, res: Response) => {
+  try { res.json({ ...aiGuardrailsCockpit(), baselineDef: GUARDRAIL_BASELINE }); }
+  catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
 // Per-agent detail drawer: full job history + events + forensic-triage bundles + this agent's OVAL verdicts.
 agentAdminRouter.get("/agents/:name/detail", (req: Request, res: Response) => {
   const name = String(req.params.name);
@@ -304,8 +396,8 @@ agentAdminRouter.post("/agent-bulk-scan", (req: Request, res: Response) => {
 // job at the next check-in). For OVAL scans an optional `ovalClass` restricts the scan to a
 // single OVAL class (compliance / vulnerability / inventory / patch).
 agentAdminRouter.post("/agent-scan", (req: Request, res: Response) => {
-  const { agent, kind, ovalClass, scenarioId } = req.body as { agent?: string; kind?: string; ovalClass?: string; scenarioId?: unknown };
-  const valid = ["inventory", "vuln", "oval", "av", "hunt", "full", "emulate", "forensics", "rustinel", "yara"];
+  const { agent, kind, ovalClass, scenarioId, ports, duration, outDir, sources, maxEvents } = req.body as { agent?: string; kind?: string; ovalClass?: string; scenarioId?: unknown; ports?: unknown; duration?: unknown; outDir?: unknown; sources?: unknown; maxEvents?: unknown };
+  const valid = ["inventory", "vuln", "oval", "av", "hunt", "full", "emulate", "forensics", "rustinel", "yara", "honeypot", "memdump", "loghunt", "aiguard"];
   if (!agent) return void res.status(400).json({ error: "agent requis" });
   if (!valid.includes(String(kind))) return void res.status(400).json({ error: "type de scan invalide" });
   // Checks that the agent exists
@@ -321,8 +413,27 @@ agentAdminRouter.post("/agent-scan", (req: Request, res: Response) => {
     if (!sid) return void res.status(400).json({ error: "scenarioId requis pour un scan d'émulation" });
     params.scenarioId = sid;
   }
+  // Honeypot: optional decoy ports + bounded listen duration (sane defaults applied agent-side).
+  if (kind === "honeypot") {
+    const raw = Array.isArray(ports) ? ports : typeof ports === "string" ? ports.split(/[,\s]+/) : [];
+    const pl = [...new Set(raw.map((p) => Number(p)).filter((p) => Number.isInteger(p) && p > 0 && p < 65536))].slice(0, 40);
+    if (pl.length) params.ports = pl;
+    const dur = Number(duration);
+    if (Number.isFinite(dur) && dur > 0) params.duration = Math.min(Math.max(Math.round(dur), 10), 3600);
+  }
+  // Memory dump: optional output directory for the RAM image on the endpoint.
+  if (kind === "memdump" && typeof outDir === "string" && /^[A-Za-z0-9 ._/:\\-]{1,260}$/.test(outDir)) params.outDir = outDir;
+  // AI log hunt: optional comma-separated log sources + an event cap.
+  if (kind === "loghunt") {
+    const SRC = ["sysmon", "powershell", "security", "system", "defender", "syslog", "auth", "journal"];
+    const raw = Array.isArray(sources) ? sources : typeof sources === "string" ? sources.split(/[,\s]+/) : [];
+    const sl = [...new Set(raw.map((s) => String(s).toLowerCase()).filter((s) => SRC.includes(s)))];
+    if (sl.length) params.sources = sl;
+    const me = Number(maxEvents);
+    if (Number.isFinite(me) && me > 0) params.maxEvents = Math.min(Math.max(Math.round(me), 20), 2000);
+  }
   const id = createAgentJob(String(agent), String(kind), params, req.user?.UserID ?? null);
   xid.addAudit({ userId: req.user?.UserID ?? null, action: "agent_scan", resourceType: "agent",
-    resourceKey: String(agent), detail: `kind=${kind}${params.ovalClass ? ` class=${params.ovalClass}` : ""}${params.scenarioId ? ` scenario=${params.scenarioId}` : ""} job=${id}`, ip: clientIp(req) });
+    resourceKey: String(agent), detail: `kind=${kind}${params.ovalClass ? ` class=${params.ovalClass}` : ""}${params.scenarioId ? ` scenario=${params.scenarioId}` : ""}${params.ports ? ` ports=${(params.ports as number[]).join("|")}` : ""} job=${id}`, ip: clientIp(req) });
   res.json({ ok: true, jobId: id, ovalClass: params.ovalClass ?? null, scenarioId: params.scenarioId ?? null });
 });

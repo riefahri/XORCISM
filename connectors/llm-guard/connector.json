@@ -1,0 +1,15 @@
+{
+  "id": "llm-guard",
+  "name": "AI Guardrail Gateway — block telemetry (LLM Guard / NeMo / Lakera)",
+  "type": "import",
+  "category": "AI Guardrails",
+  "description": "Imports the enforcement telemetry from an inline AI guardrail gateway (LLM Guard, NeMo Guardrails, Llama Guard, Lakera Guard…) — the prompts/responses it BLOCKED or FLAGGED — into XORCISM as AI-guardrail violations, so the inline-enforcement layer shows up alongside the endpoint agent's guardrail posture in the AI Guardrails cockpit. This is the enforcement half of guardrails management (the endpoint agent measures posture; the gateway does the gating). Offline: pass `file` = a gateway telemetry JSON export (LLM-Guard-style scan results or a flat event list); no file → the bundled sample. Each blocked/flagged event → an AIGUARDRAILVIOLATION (severity from risk score, ATT&CK/OWASP-AI-Exchange technique from the scanner name).",
+  "intrusive": false,
+  "permission": "connector:llm-guard",
+  "run": "run.py",
+  "mapping": "llm-guard",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "AI guardrail gateway telemetry JSON export (blocked/flagged prompts)." },
+    { "name": "host", "type": "string", "required": false, "pattern": "^[A-Za-z0-9 ._/:@-]+$", "help": "Label for the protected app/gateway (default: derived from the export, else 'ai-gateway')." }
+  ]
+}

@@ -42,11 +42,11 @@ const addDays = (iso: string | null, n: number): string | null => {
   return new Date(t + n * 86_400_000).toISOString().slice(0, 10);
 };
 
-export interface PatchInventory { rows: Record<string, unknown>[]; worklist: Record<string, unknown>[]; summary: Record<string, unknown>; }
+export interface PatchInventory { rows: Record<string, unknown>[]; worklist: Record<string, unknown>[]; packages: Record<string, unknown>[]; summary: Record<string, unknown>; }
 
 export function patchInventory(tenant: number | null): PatchInventory {
   const xo = getDb("XORCISM");
-  const empty: PatchInventory = { rows: [], worklist: [], summary: { instances: 0, patched: 0, unpatched: 0, coverage: null, mttr: null, kevUnpatched: 0, overdue: 0, noPatch: 0, withPlan: 0, bySeverity: {}, byStatus: {} } };
+  const empty: PatchInventory = { rows: [], worklist: [], packages: [], summary: { instances: 0, patched: 0, unpatched: 0, coverage: null, mttr: null, kevUnpatched: 0, overdue: 0, noPatch: 0, withPlan: 0, packages: 0, bySeverity: {}, byStatus: {} } };
   if (!xo.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ASSETVULNERABILITY'").get()) return empty;
   const avc = cols("XORCISM", "ASSETVULNERABILITY");
   const fp = avc.has("FalsePositive") ? "AND (FalsePositive IS NULL OR FalsePositive = 0)" : "";
@@ -121,10 +121,26 @@ export function patchInventory(tenant: number | null): PatchInventory {
       cve: v?.cve ?? `VULN#${l.VulnerabilityID}`, vulnerabilityId: Number(l.VulnerabilityID), name: v?.name ?? "",
       severity, cvss, kev, epss: v?.epss ?? null, patchAvailable: v?.patchAvail ?? false,
       patchStatus, resolved, patchedDate: l.PatchedDate ? String(l.PatchedDate).slice(0, 10) : null,
-      due, dueIn, overdue, hasPlan: !!plan, planStatus: plan?.status ?? "", planType: plan?.type ?? "",
+      due, dueIn, overdue, hasPlan: !!plan, planName: plan?.name ?? "", planStatus: plan?.status ?? "", planType: plan?.type ?? "",
       score: Math.min(100, score),
     };
   });
+
+  // ── Patch packages: a named remediation/patch (RemediationName) can fix many CVEs across assets.
+  // Group the rows by their plan name → distinct CVEs fixed, assets affected, and how many remain open.
+  const pkgMap = new Map<string, { name: string; type: string; cves: Set<string>; assets: Set<number>; open: number; resolved: number; kev: number; maxScore: number }>();
+  for (const r of rows) {
+    if (!r.planName) continue;
+    let p = pkgMap.get(r.planName);
+    if (!p) { p = { name: r.planName, type: r.planType, cves: new Set(), assets: new Set(), open: 0, resolved: 0, kev: 0, maxScore: 0 }; pkgMap.set(r.planName, p); }
+    p.cves.add(r.cve); p.assets.add(r.assetId);
+    if (r.resolved) p.resolved++; else p.open++;
+    if (r.kev) p.kev++;
+    p.maxScore = Math.max(p.maxScore, r.score);
+  }
+  const packages = [...pkgMap.values()]
+    .map((p) => ({ name: p.name, type: p.type, cves: p.cves.size, assets: p.assets.size, open: p.open, resolved: p.resolved, kev: p.kev, status: p.open === 0 ? "Complete" : p.resolved > 0 ? "In progress" : "Planned", score: p.maxScore }))
+    .sort((a, b) => b.cves - a.cves || b.score - a.score);
 
   rows.sort((a, b) => b.score - a.score || (a.dueIn ?? 1e9) - (b.dueIn ?? 1e9));
   const open = rows.filter((r) => !r.resolved);
@@ -142,9 +158,10 @@ export function patchInventory(tenant: number | null): PatchInventory {
   for (const r of rows) { byStatus[r.patchStatus] = (byStatus[r.patchStatus] || 0) + 1; if (!r.resolved) bySeverity[r.severity] = (bySeverity[r.severity] || 0) + 1; }
 
   return {
-    rows, worklist: open.slice(0, 200),
+    rows, worklist: open.slice(0, 200), packages,
     summary: {
       instances: rows.length,
+      packages: packages.length,
       patched: patched.length,
       unpatched: open.length,
       noPatch, accepted,

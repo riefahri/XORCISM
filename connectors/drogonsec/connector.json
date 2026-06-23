@@ -1,0 +1,18 @@
+{
+  "id": "drogonsec",
+  "name": "DrogonSec — SAST/SCA/Secrets/IaC (SARIF)",
+  "type": "tool-runner",
+  "category": "appsec",
+  "description": "Runs DrogonSec — an all-in-one open-source scanner combining SAST (20+ languages), SCA (dependency vulnerabilities), secret detection (50+ patterns) and Infrastructure-as-Code analysis — on a local source path or git repository, and imports the results via OASIS SARIF (shared SARIF parser). The scanned project becomes an ASSET; each finding becomes a finding (VULNERABILITY / ASSETVULNERABILITY) with severity from the SARIF rule level / security-severity, and the run is recorded as a DevSecOps SAST scan. Non-intrusive local code scan; no source or secrets leave the worker. Install on the worker: go install github.com/filipi86/drogonsec/cmd/drogonsec@latest (or use the drogonsec binary on PATH / the Docker image).",
+  "binary": "drogonsec",
+  "intrusive": false,
+  "permission": "connector:drogonsec",
+  "parameters": [
+    { "name": "source", "type": "string", "required": true, "pattern": "^[A-Za-z0-9 ._/:\\\\-]+$", "help": "Path on the worker to scan (a directory or a git repository)." },
+    { "name": "project", "type": "string", "required": false, "pattern": "^[A-Za-z0-9 ._/:@,\\\\-]+$", "help": "Application/asset name to attach the findings to (default: derived from the source / SARIF)." }
+  ],
+  "command": ["drogonsec", "scan", "{{source}}", "--format", "sarif", "--output", "{{outfile}}"],
+  "output": { "kind": "file", "ext": "sarif" },
+  "parser": "parse_drogonsec.py",
+  "mapping": "drogonsec"
+}

@@ -7,6 +7,7 @@ const $ = (id: string): HTMLElement | null => document.getElementById(id);
 const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 async function getJson(url: string): Promise<any> { const r = await fetch(url); if (!r.ok) throw new Error(String(r.status)); return r.json(); }
 function toast(m: string): void { const t = $("toast"); if (!t) return; t.textContent = m; t.className = "show"; setTimeout(() => { t.className = ""; }, 2600); }
+function fmtBytes(n: number): string { if (!n) return "0 B"; const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0; let v = n; while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; } return `${v.toFixed(i ? 1 : 0)} ${u[i]}`; }
 
 let kinds: string[] = ["inventory", "vuln", "oval", "av", "hunt", "full", "emulate", "forensics", "rustinel", "yara"];
 
@@ -24,14 +25,26 @@ function render(d: any): string {
   const agents = (d.agents || []) as any[];
   const jobs = (d.jobs || []) as any[];
   const events = (d.events || []) as any[];
+  const honeypot = (d.honeypot || []) as any[];
+  const topPorts = (d.honeypotTopPorts || []) as any[];
+  const memDumps = (d.memDumps || []) as any[];
+  const logHunts = (d.logHunts || []) as any[];
   kinds = d.kinds && d.kinds.length ? d.kinds : kinds;
   const kindOpts = kinds.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join("");
+  const healthColor = s.health == null ? "#94a3b8" : s.health >= 80 ? "#22c55e" : s.health >= 50 ? "#fbbf24" : "#f87171";
+  const srColor = s.successRate == null ? "#94a3b8" : s.successRate >= 90 ? "#22c55e" : s.successRate >= 70 ? "#fbbf24" : "#f87171";
   return `
   <div class="cards">
     <div class="card"><div class="lbl">Agents</div><div class="val">${s.total || 0}</div><div class="foot">${s.online || 0} online · ${s.idle || 0} idle · ${s.offline || 0} offline</div></div>
-    <div class="card"><div class="lbl">Online now</div><div class="val" style="color:#22c55e">${s.online || 0}</div><div class="foot">checked in &le; 5 min</div></div>
+    <div class="card"><div class="lbl">Fleet health</div><div class="val" style="color:${healthColor}">${s.health == null ? "—" : s.health + "%"}</div><div class="foot">online / enrolled</div></div>
     <div class="card"><div class="lbl">Jobs pending</div><div class="val" style="color:#60a5fa">${s.jobsPending || 0}</div><div class="foot">${s.jobsTotal || 0} in recent history</div></div>
-    <div class="card"><div class="lbl">Events</div><div class="val">${s.events || 0}</div><div class="foot">recent agent reports</div></div>
+    <div class="card"><div class="lbl">Success rate</div><div class="val" style="color:${srColor}">${s.successRate == null ? "—" : s.successRate + "%"}</div><div class="foot">${s.jobsDone || 0} done · ${s.jobsFailed || 0} failed</div></div>
+    <div class="card"><div class="lbl">Scans (24h)</div><div class="val">${s.scans24h || 0}</div><div class="foot">jobs queued today</div></div>
+    <div class="card"><div class="lbl">Alerts</div><div class="val" style="color:${s.alerts ? "#f87171" : "#22c55e"}">${s.alerts || 0}</div><div class="foot">critical / high events</div></div>
+    <div class="card"><div class="lbl">Honeypot hits</div><div class="val" style="color:${s.honeypotHits ? "#fb923c" : "#94a3b8"}">${s.honeypotHits || 0}</div><div class="foot">${s.honeypotIps || 0} attacker IP${s.honeypotIps === 1 ? "" : "s"}</div></div>
+    <div class="card"><div class="lbl">RAM dumps</div><div class="val" style="color:${s.memDumps ? "#a78bfa" : "#94a3b8"}">${s.memDumps || 0}</div><div class="foot">${s.memDumpsCompleted || 0} acquired · ${fmtBytes(s.memDumpBytes || 0)}</div></div>
+    <div class="card"><div class="lbl">AI log hunts</div><div class="val" style="color:${s.logHuntsSuspicious ? "#f87171" : s.logHunts ? "#22c55e" : "#94a3b8"}">${s.logHunts || 0}</div><div class="foot">${s.logHuntsSuspicious || 0} suspicious · ${s.logHuntEvents || 0} events</div></div>
+    <div class="card"><div class="lbl">Intel IOCs</div><div class="val">${s.iocs || 0}</div><div class="foot">served to the fleet</div></div>
   </div>
 
   <div class="sec">Agent fleet <span class="spacer"></span><span class="muted" style="font-size:11px;text-transform:none">launch a scan per agent — it runs at the next check-in</span></div>
@@ -54,6 +67,21 @@ function render(d: any): string {
   <div class="sec">Recent events</div>
   <table class="t"><thead><tr><th>Agent</th><th>Type</th><th>Severity</th><th>Title</th><th>When</th></tr></thead><tbody>
     ${events.map((e) => `<tr><td>${esc(e.agent)}</td><td><span class="mono">${esc(e.type)}</span></td><td><span class="sev sev-${esc(e.severity || "info")}">${esc(e.severity || "info")}</span></td><td>${esc(e.title || "")}</td><td class="muted" style="font-size:11px">${esc((e.created_at || "").slice(0, 19))}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No events yet.</td></tr>`}
+  </tbody></table>
+
+  <div class="sec">🍯 Honeypot hits <span class="spacer"></span>${topPorts.length ? `<span class="muted" style="font-size:11px;text-transform:none">top ports: ${topPorts.map((p: any) => `${esc(p.port)} (${esc(p.hits)})`).join(" · ")}</span>` : ""}</div>
+  <table class="t"><thead><tr><th>When</th><th>Agent</th><th>Source IP</th><th>→ Port</th><th>Service</th><th>Banner / payload</th></tr></thead><tbody>
+    ${honeypot.map((h) => `<tr><td class="muted" style="font-size:11px">${esc((h.hit_at || h.created_at || "").slice(0, 19))}</td><td>${esc(h.agent)}</td><td class="mono">${esc(h.src_ip || "—")}${h.src_port ? `<span class="muted">:${esc(h.src_port)}</span>` : ""}</td><td class="mono">${esc(h.dst_port ?? "—")}</td><td>${esc(h.service || "")}</td><td class="muted mono" style="font-size:11px">${esc((h.banner || "").slice(0, 80))}</td></tr>`).join("") || `<tr><td colspan="6" class="muted">No honeypot hits yet — launch a <span class="mono">honeypot</span> scan on an agent to deploy a decoy sensor. Connection attempts to the decoy ports appear here (and source IPs become IOCs).</td></tr>`}
+  </tbody></table>
+
+  <div class="sec">&#129516; Memory dumps (RAM acquisition for forensics)</div>
+  <table class="t"><thead><tr><th>When</th><th>Agent</th><th>Status</th><th>Tool</th><th>Size</th><th>Image path · SHA-256</th></tr></thead><tbody>
+    ${memDumps.map((m) => `<tr><td class="muted" style="font-size:11px">${esc((m.finished_at || m.created_at || "").slice(0, 19))}</td><td>${esc(m.agent)}</td><td><span class="sev sev-${m.status === "completed" ? "info" : m.status === "error" || m.status === "no-tool" ? "medium" : "low"}">${esc(m.status || "?")}</span></td><td class="mono">${esc(m.tool || "—")}</td><td>${m.size_bytes ? fmtBytes(m.size_bytes) : "—"}</td><td class="muted mono" style="font-size:11px;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.sha256 || "")}">${esc(m.path || m.error || "—")}${m.sha256 ? `<br>${esc(String(m.sha256).slice(0, 32))}…` : ""}</td></tr>`).join("") || `<tr><td colspan="6" class="muted">No memory acquisitions yet — launch a <span class="mono">memdump</span> scan on an agent to capture its RAM for forensics (needs winpmem / avml on the endpoint). The image stays on the host for chain of custody; the manifest (size + SHA-256) lands here.</td></tr>`}
+  </tbody></table>
+
+  <div class="sec">&#129302; AI log hunts <span class="spacer"></span><span class="muted" style="font-size:11px;text-transform:none">local AI analyses host logs (Sysmon / PowerShell / Security) for threats</span></div>
+  <table class="t"><thead><tr><th>When</th><th>Agent</th><th>Source</th><th>Severity</th><th>Events</th><th>ATT&amp;CK</th><th>AI verdict</th></tr></thead><tbody>
+    ${logHunts.map((l) => `<tr><td class="muted" style="font-size:11px">${esc((l.created_at || "").slice(0, 19))}</td><td>${esc(l.agent)}</td><td class="mono" style="font-size:11px">${esc(l.source || "")}</td><td><span class="sev sev-${["critical", "high"].includes(String(l.severity || "").toLowerCase()) ? "high" : String(l.severity || "").toLowerCase() === "medium" ? "medium" : "info"}">${esc(l.severity || "info")}</span></td><td>${esc(l.event_count ?? 0)}</td><td class="mono" style="font-size:10px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l.techniques || "")}">${esc(l.techniques || "—")}</td><td class="muted" style="font-size:11px;max-width:420px">${esc(String(l.summary || "").slice(0, 200))}${l.hunt_id ? ` <a href="/?db=XTHREAT&table=HUNT&filterCol=HuntID&filterVal=${esc(l.hunt_id)}">→ hunt #${esc(l.hunt_id)}</a>` : ""}${l.ai_used ? "" : ` <span class="muted">(heuristic)</span>`}</td></tr>`).join("") || `<tr><td colspan="7" class="muted">No AI log hunts yet — launch a <span class="mono">loghunt</span> scan on an agent. It collects Sysmon / PowerShell / Security events and the <b>local AI</b> hunts them for threats (mapping to ATT&amp;CK); anything suspicious spawns a TaHiTI hunt.</td></tr>`}
   </tbody></table>`;
 }
 

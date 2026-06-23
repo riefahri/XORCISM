@@ -1,0 +1,8 @@
+[
+  { "title": "Introspection Query Enabled (Information Leakage)", "description": "GraphQL Introspection is enabled, allowing an attacker to enumerate the full schema.", "impact": "Information Leakage - Schema Disclosure", "severity": "HIGH", "result": true, "curl_verify": "curl -s -X POST https://app.example.com/graphql -d '{\"query\":\"{__schema{types{name}}}\"}'" },
+  { "title": "GraphQL Playground UI (Information Leakage)", "description": "GraphQL Playground / GraphiQL is exposed.", "impact": "Information Leakage - GraphQL IDE Exposed", "severity": "LOW", "result": true, "curl_verify": "curl -s https://app.example.com/graphql" },
+  { "title": "Alias Overloading (Denial of Service)", "description": "Aliases are not limited; a single query can request the same field many times.", "impact": "Denial of Service - Resource Exhaustion", "severity": "HIGH", "result": true, "curl_verify": "curl -s -X POST https://app.example.com/graphql -d '...'" },
+  { "title": "Field Duplication (Denial of Service)", "description": "Field duplication is not limited.", "impact": "Denial of Service", "severity": "HIGH", "result": false, "curl_verify": "" },
+  { "title": "GET Method Query Support (CSRF)", "description": "GraphQL accepts queries over HTTP GET.", "impact": "Cross-Site Request Forgery (CSRF)", "severity": "LOW", "result": true, "curl_verify": "curl -s 'https://app.example.com/graphql?query={__typename}'" },
+  { "title": "Tracing Enabled (Information Leakage)", "description": "Apollo tracing is enabled in responses.", "impact": "Information Leakage - Debug/Tracing", "severity": "INFO", "result": true, "curl_verify": "curl -s -X POST https://app.example.com/graphql -d '...'" }
+]

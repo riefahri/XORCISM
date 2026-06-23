@@ -591,6 +591,37 @@ router.get("/cpe-builder-options", (req: Request, res: Response) => {
   }
 });
 
+// GET /api/cpe-gcve-search?q=…&part=a — proxy the GCVE moderated CPE dictionary (cpe.gcve.eu)
+// so the CPE editor can search official CPE entries and fill the name. Server-side proxy with a
+// fixed host (anti-SSRF) + timeout; returns a trimmed item list.
+router.get("/cpe-gcve-search", async (req: Request, res: Response) => {
+  if (!userCan(req.user, "read", "XORCISM", "CPE")) return deny(req, res, "read", "XORCISM", "CPE");
+  const q = String(req.query.q ?? "").trim();
+  const part = String(req.query.part ?? "").trim().toLowerCase();
+  if (q.length < 2) return void res.status(400).json({ error: "q (>= 2 chars) required" });
+  const params = new URLSearchParams({ q: q.slice(0, 120), per_page: "25" });
+  if (["a", "o", "h"].includes(part)) params.set("part", part);
+  try {
+    const r = await fetch(`https://cpe.gcve.eu/api/cpes?${params.toString()}`, {
+      headers: { accept: "application/json", "user-agent": "XORCISM-CPE-editor" },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!r.ok) return void res.status(502).json({ error: `GCVE CPE API ${r.status}` });
+    const d = (await r.json()) as { items?: Record<string, unknown>[]; total?: number };
+    const items = (d.items ?? []).slice(0, 25).map((it) => ({
+      cpe: String(it.cpe_uri ?? "").trim(),
+      title: String(it.title ?? "").trim(),
+      part: String(it.part ?? "").trim(),
+      version: it.version != null ? String(it.version) : null,
+      deprecated: it.deprecated === true || it.deprecated === 1,
+      cpeNameId: it.cpe_name_id != null ? String(it.cpe_name_id) : null,
+    })).filter((it) => it.cpe);
+    res.json({ items, total: Number(d.total ?? items.length) });
+  } catch (e) {
+    res.status(502).json({ error: `GCVE CPE lookup failed: ${(e as Error).message}` });
+  }
+});
+
 // ── OCIL: questions of a questionnaire (QUESTIONFORQUESTIONNAIRE link) ────────
 // GET /api/questionnaire-questions?questionnaireId=N → IDs of the linked questions
 router.get("/questionnaire-questions", (req: Request, res: Response) => {

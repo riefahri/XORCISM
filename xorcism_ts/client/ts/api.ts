@@ -169,6 +169,9 @@ export const api = {
     request<{ id: number; name: string; created: boolean }>("/api/cpe", "POST", { name }),
   cpeBuilderOptions: () =>
     request<{ vendors: string[]; products: string[] }>("/api/cpe-builder-options"),
+  cpeGcveSearch: (q: string, part = "") =>
+    request<{ items: { cpe: string; title: string; part: string; version: string | null; deprecated: boolean; cpeNameId: string | null }[]; total: number }>(
+      `/api/cpe-gcve-search?q=${encodeURIComponent(q)}${part ? `&part=${encodeURIComponent(part)}` : ""}`),
   // ── OCIL: questions of a questionnaire ──
   getQuestionnaireQuestions: (questionnaireId: number) =>
     request<number[]>(`/api/questionnaire-questions?questionnaireId=${questionnaireId}`),
