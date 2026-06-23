@@ -10,6 +10,11 @@
  */
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
+import { JOURNEY_FR } from "./journeys_fr";
+
+/** Localize a catalogue string to the request language (currently fr; others fall back to English).
+ *  Keyed by the exact English source, so already-materialized journey steps localize on read too. */
+function tx(s: string, lang = "en"): string { return lang === "fr" ? (JOURNEY_FR[s] ?? s) : s; }
 
 // ── deep-link targets (existing pages / explorer tables) ───────────────────────
 const L = {
@@ -258,6 +263,41 @@ export const FRAMEWORKS: FrameworkT[] = [
     ],
   },
   {
+    key: "recyf", name: "Référentiel Cyber France (ReCyF)", provider: "ANSSI (NIS 2 — transposition nationale)", kind: "Regulation", jurisdiction: "France",
+    summary: "ANSSI's national framework operationalising NIS 2 for France: 20 security objectives (the mandatory \"what\") with acceptable means of compliance (the \"how\"). Proportionality applies — objectives 1–15 bind Important (EI) and Essential (EE) entities; objectives 16–20 bind EE only. Structured by the Gouvernance / Protection / Défense / Résilience pillar model. (Working v2.5; import the ReCyF catalogue to track the measures as controls.)",
+    effort: "6–18 months",
+    phases: [
+      { name: "Gouvernance (Obj. 1–5, 16–17)", steps: [
+        st("Obj. 1 — Recensement des SI", "Maintain a list of all activities/services and the information systems supporting them.", L.assets),
+        st("Obj. 2 — Cadre de gouvernance", "Set up the digital-security governance, PSSI and conformity-management framework under the executive's responsibility.", L.policies),
+        st("Obj. 16 — Approche par les risques (EE)", "Run a risk-based approach (analysis & treatment) — Essential entities.", L.riskReg),
+        st("Obj. 3 — Maîtrise de l'écosystème", "Map suppliers/providers and secure ICT supply-chain relationships contractually.", L.sca),
+        st("Obj. 4 — Sécurité & ressources humaines", "Integrate digital security into HR (onboarding/offboarding, awareness, cyber-hygiene).", L.awareness),
+        st("Obj. 5 — Maîtrise des SI", "Keep systems mastered: inventory, secure baselines and configuration control.", L.config),
+        st("Obj. 17 — Audit de la sécurité (EE)", "Audit the security of information systems — Essential entities.", L.assess),
+      ]},
+      { name: "Protection (Obj. 6–11, 18–19)", steps: [
+        st("Obj. 6 — Accès physiques aux locaux", "Control physical access to premises hosting the information systems.", L.controls53),
+        st("Obj. 7 — Architecture des SI", "Secure the architecture (segmentation, interconnections, hardening).", L.config),
+        st("Obj. 8 — Accès distants", "Secure remote access (MFA, VPN, exposure control).", L.identity),
+        st("Obj. 9 — Codes malveillants", "Protect systems against malware (EDR/AV, scanning).", "/malware-scan"),
+        st("Obj. 10 — Identités & accès", "Manage user identities and access (least privilege, lifecycle).", L.identity),
+        st("Obj. 11 — Administration des SI", "Master administration (privileged accounts, admin practices).", L.identity),
+        st("Obj. 18 — Configuration des ressources (EE)", "Secure the configuration of system resources — Essential entities.", L.config),
+        st("Obj. 19 — Administration depuis ressources dédiées (EE)", "Administer from dedicated, hardened resources — Essential entities.", L.config),
+      ]},
+      { name: "Défense (Obj. 12, 20)", steps: [
+        st("Obj. 12 — Réaction aux incidents", "Detect and react to security incidents (process, classification, handling).", L.incident),
+        st("Obj. 20 — Supervision de la sécurité (EE)", "Operate security supervision / detection (log collection, monitoring) — Essential entities.", L.monitoring),
+      ]},
+      { name: "Résilience (Obj. 13–15)", steps: [
+        st("Obj. 13 — Continuité & reprise", "Maintain business-continuity and disaster-recovery capability (backups, RTO/RPO).", L.crisis),
+        st("Obj. 14 — Réaction aux crises cyber", "Set up cyber-crisis management and secure emergency communications.", L.crisis),
+        st("Obj. 15 — Exercices, tests & entraînements", "Run exercises, tests and drills to validate readiness.", L.crisis),
+      ]},
+    ],
+  },
+  {
     key: "dora", name: "DORA", provider: "EU (2022/2554)", kind: "Regulation", jurisdiction: "European Union",
     summary: "Digital Operational Resilience Act for EU financial entities: ICT risk management, incident reporting, resilience testing and third-party (ICT) oversight.",
     effort: "6–12 months",
@@ -368,11 +408,15 @@ function cols(table: string): Set<string> {
   try { return new Set((getDb("XCOMPLIANCE").prepare(`PRAGMA table_info("${table}")`).all() as { name: string }[]).map((c) => c.name)); }
   catch { return new Set(); }
 }
-function frameworkSummary(f: FrameworkT) {
+function frameworkSummary(f: FrameworkT, lang = "en") {
   const steps = f.phases.reduce((n, p) => n + p.steps.length, 0);
-  return { key: f.key, name: f.name, provider: f.provider, kind: f.kind, jurisdiction: f.jurisdiction, summary: f.summary, effort: f.effort, phases: f.phases.length, steps };
+  return {
+    key: f.key, name: f.name, provider: f.provider, kind: f.kind, kindLabel: tx(f.kind, lang),
+    jurisdiction: tx(f.jurisdiction, lang), summary: tx(f.summary, lang), effort: tx(f.effort, lang),
+    phases: f.phases.length, steps,
+  };
 }
-export function listFrameworks() { return FRAMEWORKS.map(frameworkSummary); }
+export function listFrameworks(lang = "en") { return FRAMEWORKS.map((f) => frameworkSummary(f, lang)); }
 
 function tw(tenant: number | null): string { return tenant != null ? `WHERE (TenantID = ${tenant} OR TenantID IS NULL)` : ""; }
 
@@ -387,7 +431,7 @@ function journeyProgress(journeyId: number): { total: number; done: number; na: 
 }
 
 // ── dashboard / read ────────────────────────────────────────────────────────────
-export function journeysDashboard(tenant: number | null): { frameworks: any[]; journeys: any[]; summary: any } {
+export function journeysDashboard(tenant: number | null, lang = "en"): { frameworks: any[]; journeys: any[]; summary: any } {
   const db = getDb("XCOMPLIANCE");
   let journeys: any[] = [];
   try {
@@ -412,10 +456,10 @@ export function journeysDashboard(tenant: number | null): { frameworks: any[]; j
     avgProgress: active.length ? Math.round(active.reduce((s, j) => s + j.pct, 0) / active.length) : 0,
     inFlight: active.filter((j) => j.pct < 100).length,
   };
-  return { frameworks: listFrameworks(), journeys, summary };
+  return { frameworks: listFrameworks(lang), journeys, summary };
 }
 
-export function getJourney(id: number, tenant: number | null): { journey: any; phases: any[]; progress: any } | null {
+export function getJourney(id: number, tenant: number | null, lang = "en"): { journey: any; phases: any[]; progress: any } | null {
   const db = getDb("XCOMPLIANCE");
   const j = db.prepare(`SELECT * FROM COMPLIANCEJOURNEY WHERE JourneyID = ? ${tenant != null ? "AND (TenantID = ? OR TenantID IS NULL)" : ""}`)
     .get(...(tenant != null ? [id, tenant] : [id])) as Record<string, any> | undefined;
@@ -425,8 +469,8 @@ export function getJourney(id: number, tenant: number | null): { journey: any; p
   for (const s of steps) {
     const po = Number(s.PhaseOrder);
     let ph = phaseMap.get(po);
-    if (!ph) { ph = { order: po, name: String(s.Phase ?? `Phase ${po}`), steps: [] }; phaseMap.set(po, ph); }
-    ph.steps.push({ id: Number(s.StepID), title: String(s.Title ?? ""), description: String(s.Description ?? ""), link: s.Link || null, status: String(s.Status ?? "todo"), notes: String(s.Notes ?? "") });
+    if (!ph) { ph = { order: po, name: tx(String(s.Phase ?? `Phase ${po}`), lang), steps: [] }; phaseMap.set(po, ph); }
+    ph.steps.push({ id: Number(s.StepID), title: tx(String(s.Title ?? ""), lang), description: tx(String(s.Description ?? ""), lang), link: s.Link || null, status: String(s.Status ?? "todo"), notes: String(s.Notes ?? "") });
   }
   const phases = [...phaseMap.values()].sort((a, b) => a.order - b.order).map((ph) => {
     const applicable = ph.steps.filter((s: any) => s.status !== "na").length;
@@ -436,7 +480,7 @@ export function getJourney(id: number, tenant: number | null): { journey: any; p
   const f = BY_KEY.get(String(j.FrameworkKey));
   const journey = {
     id: Number(j.JourneyID), framework: String(j.FrameworkKey ?? ""), frameworkName: String(j.FrameworkName ?? (f?.name ?? "")),
-    kind: f?.kind ?? "", summary: f?.summary ?? "", name: String(j.Name ?? ""), scope: String(j.Scope ?? ""), owner: String(j.Owner ?? ""),
+    kind: f?.kind ?? "", kindLabel: tx(f?.kind ?? "", lang), summary: tx(f?.summary ?? "", lang), name: String(j.Name ?? ""), scope: String(j.Scope ?? ""), owner: String(j.Owner ?? ""),
     status: String(j.Status ?? "Active"), startedDate: j.StartedDate ? String(j.StartedDate).slice(0, 10) : "", targetDate: j.TargetDate ? String(j.TargetDate).slice(0, 10) : "",
     assessmentId: j.ComplianceAssessmentID != null ? Number(j.ComplianceAssessmentID) : null,
   };

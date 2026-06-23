@@ -2,6 +2,7 @@
 import { Router, Request, Response } from "express";
 import { userCan, clientIp } from "../auth";
 import { journeysDashboard, getJourney, startJourney, updateStep, deleteJourney } from "../journeys";
+import { negotiateLang } from "../i18n";
 import * as xid from "../xid";
 
 const router = Router();
@@ -10,13 +11,13 @@ const ten = (req: Request): number | null => (req.user!.isSuperAdmin ? null : (r
 router.get("/compliance-journeys", (req: Request, res: Response) => {
   if (!req.user) return void res.status(401).json({ error: "auth" });
   if (!userCan(req.user, "read", "XCOMPLIANCE", "COMPLIANCEASSESSMENT")) return void res.status(403).json({ error: "forbidden" });
-  try { res.json(journeysDashboard(ten(req))); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+  try { res.json(journeysDashboard(ten(req), negotiateLang(req))); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
 router.get("/compliance-journeys/item/:id", (req: Request, res: Response) => {
   if (!req.user) return void res.status(401).json({ error: "auth" });
   if (!userCan(req.user, "read", "XCOMPLIANCE", "COMPLIANCEASSESSMENT")) return void res.status(403).json({ error: "forbidden" });
-  const out = getJourney(Number(req.params.id), ten(req));
+  const out = getJourney(Number(req.params.id), ten(req), negotiateLang(req));
   if (!out) return void res.status(404).json({ error: "not found" });
   res.json(out);
 });
