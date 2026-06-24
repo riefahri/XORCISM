@@ -13,6 +13,14 @@
   .kpi .k-lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
   .kpi .k-foot{font-size:11px;color:#64748b;margin-top:2px}
   .kpi-sec{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin:2px 0 -6px 2px}
+  .tl-banner{display:flex;align-items:center;gap:18px;background:#13162a;border:1px solid #2d3250;border-left-width:5px;border-radius:10px;padding:14px 18px;margin-bottom:16px}
+  .tl-gauge{flex:none}
+  .tl-meta{flex:1;min-width:0}
+  .tl-label{font-size:22px;font-weight:800;letter-spacing:.5px;line-height:1.1}
+  .tl-sub{font-size:12px;color:#94a3b8;margin-top:3px}
+  .tl-drivers{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tl-chip{font-size:11px;color:#cbd5e1;background:#0f1117;border:1px solid #2d3250;border-radius:999px;padding:2px 9px}
+  .tl-chip b{color:#e2e8f0}
 </style>
 </head>
 <body>
@@ -26,6 +34,8 @@
 </div>
 
 <div class="container">
+  <div id="threat-level" class="tl-banner" style="display:none"></div>
+
   <div class="kpi-sec" data-i18n="dash.kpiTitle">Security posture — key indicators</div>
   <div class="kpi-strip" id="kpi-strip"></div>
 

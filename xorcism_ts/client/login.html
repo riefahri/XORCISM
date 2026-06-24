@@ -75,6 +75,21 @@
       </div>
     </div>
 
+    <!-- Two-factor (authenticator app, TOTP) -->
+    <div id="totp-view" style="display:none">
+      <div class="card-header"><span class="card-title" data-i18n="login.totpTitle">V&eacute;rification en deux &eacute;tapes</span></div>
+      <p style="font-size:12px;color:#94a3b8;margin-bottom:12px" data-i18n="login.totpHint">Saisissez le code &agrave; 6 chiffres affich&eacute; dans votre application d'authentification.</p>
+      <form id="totp-form">
+        <input id="totp-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" placeholder="000000" required
+               style="width:100%;background:#0f1117;border:1px solid #2d3250;border-radius:6px;padding:9px 11px;color:#e2e8f0;font-size:22px;letter-spacing:8px;text-align:center;margin-bottom:12px">
+        <div id="totp-error" style="color:#f87171;font-size:13px;min-height:18px;margin:8px 0"></div>
+        <button class="btn btn-primary" id="totp-btn" type="submit" data-i18n="login.submit" style="width:100%;justify-content:center;padding:10px">Se connecter</button>
+      </form>
+      <div style="text-align:center;margin-top:10px">
+        <a href="#" id="totp-cancel" data-i18n="login.usePassword" style="color:#7c83fd;text-decoration:none;font-size:12px">&#8592; Mot de passe</a>
+      </div>
+    </div>
+
     <!-- Mandatory password change -->
     <div id="change-view" style="display:none">
       <div class="card-header"><span class="card-title" data-i18n="login.changeTitle">Changement de mot de passe requis</span></div>

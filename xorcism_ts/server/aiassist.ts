@@ -560,3 +560,79 @@ export async function tprmDraftAnswers(opts: { runId?: number; knowledge?: strin
   return { ...out, suggestions };
 }
 function shorten(s: string, n = 80): string { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n) + "…" : s; }
+
+// ───────────────────────── ITDR investigation copilot ─────────────────────────
+/** Per-rule deterministic investigation playbooks (what to check, what to contain). */
+const ITDR_PLAYBOOK: Record<string, { check: string[]; contain: string[] }> = {
+  brute_force: { check: ["Did any attempt succeed after the failures?", "Is the source IP known/expected for this user?", "Are other accounts targeted from the same IP (spray)?"],
+    contain: ["Lock the account and force a password reset.", "Enforce MFA and account lockout thresholds.", "Block/throttle the source IP at the IdP/edge."] },
+  password_spray: { check: ["Which accounts authenticated successfully from this IP?", "Is the IP a known proxy/VPN/Tor exit?", "Is legacy/basic auth enabled (no MFA path)?"],
+    contain: ["Block the source IP.", "Reset any account that authenticated from it.", "Disable legacy auth and enforce MFA tenant-wide."] },
+  cred_compromise: { check: ["What did the session do post-auth (mailbox rules, OAuth grants, downloads)?", "Were new MFA methods registered?", "Was privilege or group membership changed?"],
+    contain: ["Revoke all sessions & refresh tokens immediately.", "Force password reset + MFA re-registration.", "Remove attacker-added inbox rules / OAuth consents.", "Hunt for lateral movement from the source."] },
+  impossible_travel: { check: ["Is a VPN/relay the explanation (confirm with the user)?", "Did both locations perform sensitive actions?", "Any concurrent active sessions in both geographies?"],
+    contain: ["Confirm with the user; if unconfirmed, revoke sessions and reset credentials.", "Tighten conditional-access / named-location policies."] },
+  mfa_fatigue: { check: ["How many push/OTP prompts and over what interval?", "Was a prompt ultimately approved?", "Is the user aware of the prompts?"],
+    contain: ["Move to number-matching / phishing-resistant MFA.", "Reset the password (it is likely already known).", "Confirm no approval was granted; revoke sessions if it was."] },
+  idp_risk: { check: ["What risk reason did the IdP cite (anonymous IP, leaked creds, malware-linked IP)?", "Did the risky sign-in succeed?", "Pattern across the user's other sign-ins?"],
+    contain: ["Require MFA / re-authentication.", "Revoke sessions if the risk is confirmed.", "Investigate per the IdP's risk reason."] },
+  dormant_reactivation: { check: ["Was the account expected to be disabled/dormant?", "Who/what reactivated or used it?", "Does it hold standing privilege?"],
+    contain: ["Disable the account pending verification.", "Investigate the source of the sign-in.", "Deprovision if no longer needed."] },
+  kerberoasting: { check: ["Which SPNs were requested and by whom?", "Were RC4 (weak) tickets requested where AES is available?", "Is the requesting account a normal user (not a service)?"],
+    contain: ["Rotate the targeted service-account passwords (use long, random, gMSA where possible).", "Disable RC4; enforce AES.", "Hunt for offline cracking and subsequent service-account logons."] },
+  asrep_roasting: { check: ["Which accounts have Kerberos pre-authentication disabled?", "Were AS-REP responses harvested at scale?"],
+    contain: ["Re-enable Kerberos pre-authentication on the affected accounts.", "Reset those account passwords (likely targeted for offline cracking)."] },
+  dcsync: { check: ["Is the requesting principal a Domain Controller? (only DCs should replicate)", "Which directory objects/secrets were requested (krbtgt, admins)?"],
+    contain: ["Treat as domain compromise: rotate krbtgt twice and reset privileged credentials.", "Remove the replication rights (DS-Replication-Get-Changes-All) from the non-DC principal.", "Engage full DFIR."] },
+  golden_ticket: { check: ["Anomalous TGT lifetime / encryption / mismatched account?", "Was krbtgt recently compromised (see DCSync)?"],
+    contain: ["Rotate krbtgt twice (invalidate forged tickets).", "Reset privileged credentials and hunt for persistence.", "Engage full DFIR."] },
+  mfa_less_priv: { check: ["Why is MFA not enforced on this privileged identity?", "Is it covered by a conditional-access exclusion?"],
+    contain: ["Enforce phishing-resistant MFA.", "Remove any CA exclusion."] },
+  priv_orphaned: { check: ["Who should own this privileged principal?", "Is it still required?"],
+    contain: ["Assign an accountable owner or deprovision.", "Right-size its entitlements."] },
+  stale_priv: { check: ["Is the account still needed?", "Any recent unexpected use?"],
+    contain: ["Disable or deprovision the dormant privileged account."] },
+};
+
+export async function itdrInvestigate(opts: { detectionId?: number; tenant?: number | null }): Promise<AiText> {
+  const xo = getDb("XORCISM");
+  let d: Record<string, any> | undefined;
+  try {
+    const w = opts.tenant != null ? "AND (TenantID = ? OR TenantID IS NULL)" : "";
+    d = xo.prepare(`SELECT * FROM IDENTITYDETECTION WHERE DetectionID=? ${w}`)
+      .get(...[opts.detectionId, ...(opts.tenant != null ? [opts.tenant] : [])]) as Record<string, any> | undefined;
+  } catch { /* optional */ }
+  if (!d) return { content: "Detection not found.", model: "deterministic", offline: true };
+
+  let signins: Record<string, any>[] = [];
+  try {
+    if (d.IdentityName && cols(xo, "IDENTITYSIGNIN").size) {
+      signins = xo.prepare("SELECT Timestamp, Country, SourceIP, MFAUsed, Result, FailureReason, RiskLevel, ClientApp FROM IDENTITYSIGNIN WHERE IdentityName=? ORDER BY Timestamp DESC LIMIT 20")
+        .all(d.IdentityName) as Record<string, any>[];
+    }
+  } catch { /* optional */ }
+
+  const pb = ITDR_PLAYBOOK[d.RuleKey] || { check: ["Review the surrounding sign-in activity for this principal."], contain: [String(d.ResponseAction || "Investigate and contain per policy.")] };
+  const ctx = [
+    `Detection: ${d.Title}`,
+    `Severity: ${d.Severity} · ATT&CK: ${d.Technique} ${d.TechniqueName} (${d.Tactic})`,
+    d.IdentityName ? `Identity: ${d.IdentityName}` : "", d.SourceIP ? `Source IP: ${d.SourceIP}${d.Country ? " (" + d.Country + ")" : ""}` : "",
+    `Evidence: ${d.Evidence}`,
+    signins.length ? `Recent sign-ins for this identity:\n` + signins.slice(0, 15).map((s) =>
+      `- ${String(s.Timestamp || "").slice(0, 16)} ${s.Result || ""} ${s.Country || ""} ${s.SourceIP || ""} mfa=${s.MFAUsed || "?"}${s.FailureReason ? " reason=" + s.FailureReason : ""}${s.RiskLevel ? " risk=" + s.RiskLevel : ""}`).join("\n") : "",
+  ].filter(Boolean).join("\n");
+
+  const det = [
+    `## ITDR investigation — ${d.Title}`, OFF, "",
+    `**Severity:** ${d.Severity} · **ATT&CK:** ${d.Technique} ${d.TechniqueName} (${d.Tactic})`,
+    d.IdentityName ? `**Identity:** ${d.IdentityName}` : "", "",
+    `**Assessment.** ${d.Evidence} This matches ${d.TechniqueName} (${d.Technique}); the likely objective is ${d.Tactic.toLowerCase()}.`, "",
+    "**Investigate.**", ...pb.check.map((c) => `- ${c}`), "",
+    "**Contain.**", ...pb.contain.map((c) => `- ${c}`), "",
+    "**Verdict.** Treat as a probable true positive until disproved; validate against the points above before closing.",
+  ].filter(Boolean).join("\n");
+
+  const sys = "You are a senior identity-security (ITDR) analyst. Given an identity-threat detection and the recent sign-in history for the affected principal, write a tight Markdown investigation brief with exactly these sections: **Assessment** (what likely happened and the attacker objective, tied to the named MITRE ATT&CK technique), **Investigate** (specific things to check — other sign-ins, active sessions/tokens, MFA registrations, mailbox/inbox rules, OAuth grants, privilege/group changes, and for Kerberos cases the DC/replication specifics), **Contain** (concrete, ordered response actions), and **Verdict** (likely true positive / needs validation / likely benign, with reasoning). Be specific to the technique and the evidence provided; never invent facts not implied by the evidence.";
+  const out = await aiOrDet(sys, ctx, det, 0.3, 40);
+  return { ...out, detectionId: d.DetectionID, technique: d.Technique };
+}

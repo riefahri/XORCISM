@@ -142,6 +142,7 @@ import { crisisInventory } from "../crisis";
 import { riskRegisterInventory } from "../riskregister";
 import { pqcmmInventory } from "../pqcmm";
 import { patchInventory } from "../patchmgmt";
+import { threatLevel } from "../threatlevel";
 
 // Removes the forbidden columns from a row object (keeps rowid)
 function stripCols(row: Record<string, unknown>, denied: Set<string>): Record<string, unknown> {
@@ -371,6 +372,15 @@ router.get("/dashboard/kpis", (req: Request, res: Response) => {
     patch: pm && pm.instances ? { coverage: pm.coverage, overdue: pm.overdue, kevUnpatched: pm.kevUnpatched, unpatched: pm.unpatched, instances: pm.instances, mttr: pm.mttr } : null,
     policy: po && po.requiringAck ? { published: po.published, requiringAck: po.requiringAck, ackCoverage: po.ackCoverage, pendingAcks: po.pendingAcks, fullyAcknowledged: po.fullyAcknowledged } : null,
   });
+});
+
+// GET /api/dashboard/threat-level — global cyber threat-level gauge (DEFCON/advisory style)
+// aggregating recent KEV / high-EPSS / CTI / incident signals into a 1-5 condition.
+router.get("/dashboard/threat-level", (req: Request, res: Response) => {
+  const tenant = req.user!.isSuperAdmin ? null : (req.user!.tenantId ?? null);
+  let kevUnpatched = 0;
+  try { kevUnpatched = Number(patchInventory(tenant).summary.kevUnpatched) || 0; } catch { /* tolerate */ }
+  res.json(threatLevel(req.user!.tenantId ?? null, { kevUnpatched }));
 });
 
 // GET /api/dashboard/risk-history?days=90 — the EnterpriseRiskScore over time for the current

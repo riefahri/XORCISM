@@ -24,6 +24,18 @@ function showChangeView(): void {
   $("change-view").style.display = "";
 }
 
+// ── Two-factor (authenticator app, TOTP) ──────────────────────────────
+let totpPendingToken = "";
+
+function showTotpView(): void {
+  $("login-view").style.display = "none";
+  $("totp-view").style.display = "";
+  const code = $("totp-code") as HTMLInputElement;
+  code.value = "";
+  $("totp-error").textContent = "";
+  code.focus();
+}
+
 // ── PIN login (scrambled keypad) ──────────────────────────────────────
 let pinChallengeId = "";
 let pinPositions: number[] = [];
@@ -105,12 +117,42 @@ document.addEventListener("DOMContentLoaded", () => {
       $("login-error").textContent = data.error || "Échec de la connexion.";
       return;
     }
+    if (data.totpRequired) {
+      totpPendingToken = data.pendingToken;
+      showTotpView();
+      return;
+    }
     if (data.mustChangePassword) {
       ($("cur-pw") as HTMLInputElement).value = password; // pre-filled for convenience
       showChangeView();
     } else {
       location.href = "/";
     }
+  };
+
+  // Two-factor: submit the 6-digit authenticator code
+  ($("totp-form") as HTMLFormElement).onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $("totp-btn") as HTMLButtonElement;
+    const code = ($("totp-code") as HTMLInputElement).value.replace(/\D/g, "");
+    $("totp-error").textContent = "";
+    if (code.length !== 6) { $("totp-error").textContent = "Code à 6 chiffres requis."; return; }
+    btn.disabled = true;
+    const { ok, data } = await post("/api/auth/totp/verify", { pendingToken: totpPendingToken, code });
+    btn.disabled = false;
+    if (!ok) {
+      $("totp-error").textContent = data.error || "Code invalide.";
+      ($("totp-code") as HTMLInputElement).value = "";
+      return;
+    }
+    if (data.mustChangePassword) showChangeView();
+    else location.href = "/";
+  };
+  $("totp-cancel").onclick = (e) => {
+    e.preventDefault();
+    totpPendingToken = "";
+    $("totp-view").style.display = "none";
+    $("login-view").style.display = "";
   };
 
   // Passkey login (WebAuthn) — button shown if the browser supports it

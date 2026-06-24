@@ -25,6 +25,8 @@ const MESSAGES: Record<string, { fr: string; en: string }> = {
   "err.notAuthenticated": { fr: "Non authentifié", en: "Not authenticated" },
   "pin.invalid": { fr: "Le PIN doit comporter 4 à 6 chiffres.", en: "The PIN must be 4 to 6 digits." },
   "pin.weak": { fr: "PIN trop simple (chiffres identiques ou suite).", en: "PIN too simple (repeated digits or sequence)." },
+  "totp.notEnrolled": { fr: "Aucune application d'authentification n'est en cours d'enregistrement.", en: "No authenticator app enrolment in progress." },
+  "totp.badCode": { fr: "Code à 6 chiffres invalide.", en: "Invalid 6-digit code." },
   "register.disabled": { fr: "L'inscription est désactivée.", en: "Self-registration is disabled." },
   "register.badEmail": { fr: "Adresse e-mail invalide.", en: "Invalid email address." },
   "register.exists": { fr: "Un compte existe déjà avec cet e-mail.", en: "An account with this email already exists." },

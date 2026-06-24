@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Identity Threat Detection &amp; Response</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .it-wrap{max-width:1340px;margin:0 auto;padding:18px}
+  .it-wrap h1{font-size:20px;margin:0 0 2px}
+  .it-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1080px}
+  .it-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:12px;margin-bottom:6px}
+  .it-card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .it-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .it-card .val{font-size:25px;font-weight:700;margin-top:3px}
+  .it-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .it-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+  .it-section .spacer{flex:1}
+  /* ATT&CK tactic coverage */
+  .tac-strip{display:flex;gap:10px;flex-wrap:wrap}
+  .tac{background:#13162a;border:1px solid #2d3250;border-left-width:4px;border-radius:9px;padding:9px 13px;min-width:150px}
+  .tac .tn{font-size:13px;font-weight:700;color:#e7ebf3}
+  .tac .tc{font-size:22px;font-weight:800;margin-top:1px}
+  .tac .tt{font-size:10.5px;color:#64748b;margin-top:3px}
+  /* detection rows */
+  .dl{background:#13162a;border:1px solid #2d3250;border-radius:10px;overflow:hidden}
+  .de{padding:12px 14px;border-bottom:1px solid #1e2133;display:flex;gap:12px;align-items:flex-start}
+  .de:last-child{border-bottom:none}
+  .sev{font-size:9px;font-weight:800;border-radius:4px;padding:2px 7px;text-transform:uppercase;flex:0 0 auto;margin-top:2px}
+  .sev-critical{background:#7f1d1d;color:#fecaca}.sev-high{background:#7c2d12;color:#fed7aa}.sev-medium{background:#78350f;color:#fde68a}.sev-low{background:#1e3a5f;color:#bfdbfe}
+  .de .body{flex:1;min-width:0}
+  .de .dt{font-size:14px;font-weight:700;color:#e7ebf3}
+  .de .who{color:#7dd3fc;font-weight:600}
+  .de .ev{font-size:12px;color:#94a3b8;margin-top:3px}
+  .de .resp{font-size:11.5px;color:#cbd5e1;background:#0f1117;border:1px solid #232a45;border-radius:6px;padding:6px 9px;margin-top:7px}
+  .de .resp b{color:#86efac}
+  .de .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px;align-items:center}
+  .chip{font-size:10px;color:#cbd5e1;background:#0f1117;border:1px solid #2d3250;border-radius:999px;padding:2px 8px}
+  .chip.att{color:#c7d2fe;border-color:#3730a3}
+  .stsel{background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;font-size:11.5px;padding:4px 7px}
+  .btnx{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11.5px;padding:4px 10px;cursor:pointer}
+  .btnx:hover{border-color:#f87171}
+  .btnx.inc{border-color:#3730a3}
+  .btnx.ai{border-color:#7c3aed;color:#ddd6fe}
+  .ai-panel{margin-top:8px;background:#0f1117;border:1px solid #2d2150;border-radius:8px;padding:9px 12px;font-size:12.5px;color:#cbd5e1;line-height:1.5}
+  .st-resolved,.st-dismissed{opacity:.55}
+  .lk{font-size:10px;color:#86efac}
+  .muted{color:#64748b}
+  .barbtn{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:12.5px;padding:7px 13px;cursor:pointer}
+  .barbtn:hover{border-color:#38bdf8}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/identities">&#128273; Identities</a>
+  <a href="/zero-trust">&#128737;&#65039; Zero Trust</a>
+  <a href="/soc">&#128225; SOC</a>
+  <span class="spacer"></span>
+  <span class="title">&#128373;&#65039; Identity Threat Detection &amp; Response</span>
+</div>
+<div class="it-wrap">
+  <h1>Identity Threat Detection &amp; Response (ITDR)</h1>
+  <div class="it-sub">Detects identity-based attacks from your sign-in telemetry (<b>IDENTITYSIGNIN</b>) and identity
+    posture (<b>IDENTITY</b>) — brute force, password spraying, impossible travel, MFA fatigue, IdP-flagged risk,
+    credential compromise, dormant-account reactivation, and privileged exposure. Each detection is mapped to a
+    <b>MITRE ATT&amp;CK</b> technique with a recommended response; triage detections and raise an incident when needed.</div>
+  <div id="it-body"><div class="muted" style="padding:24px;text-align:center">Running identity threat detectors…</div></div>
+</div>
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/itdr.js"></script>
+</body>
+</html>

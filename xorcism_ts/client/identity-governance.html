@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Identity Governance (IGA)</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ig-wrap{max-width:1340px;margin:0 auto;padding:18px}
+  .ig-wrap h1{font-size:20px;margin:0 0 2px}
+  .ig-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1080px}
+  .ig-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:12px;margin-bottom:6px}
+  .ig-card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .ig-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .ig-card .val{font-size:25px;font-weight:700;margin-top:3px}
+  .ig-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .ig-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+  .ig-section .spacer{flex:1}
+  .life{display:flex;gap:10px;flex-wrap:wrap}
+  .lifecell{background:#13162a;border:1px solid #2d3250;border-radius:9px;padding:8px 13px;min-width:108px}
+  .lifecell .n{font-size:20px;font-weight:800}
+  .lifecell .k{font-size:10.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+  .camp{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px;margin-bottom:9px;display:flex;align-items:center;gap:14px;cursor:pointer}
+  .camp:hover{border-color:#a78bfa}
+  .camp .cn{font-size:14px;font-weight:700;color:#e7ebf3;min-width:230px}
+  .camp .cscope{font-size:10px;color:#c7d2fe;background:#0f1117;border:1px solid #3730a3;border-radius:999px;padding:2px 8px;margin-left:6px}
+  .camp .track{flex:1;min-width:150px}
+  .pbar{height:9px;border-radius:5px;background:#1e2133;overflow:hidden}
+  .pbar > i{display:block;height:100%;background:#a78bfa}
+  .camp .pmeta{font-size:11px;color:#64748b;margin-top:3px}
+  .camp .cstat{font-size:9px;font-weight:700;border-radius:4px;padding:2px 7px;text-transform:uppercase}
+  .cstat-active{background:#1e3a5f;color:#bfdbfe}.cstat-completed{background:#14532d;color:#bbf7d0}
+  .ovd{font-size:9px;font-weight:700;color:#fecaca;background:#7f1d1d;border-radius:4px;padding:2px 6px}
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;margin-bottom:12px;overflow:hidden}
+  .panel .ph{padding:10px 14px;background:#161a30;border-bottom:1px solid #2d3250;font-size:12.5px;font-weight:700;color:#e2e8f0;display:flex;align-items:center;gap:10px}
+  .ri{padding:10px 14px;border-bottom:1px solid #1e2133;display:flex;gap:12px;align-items:center}
+  .ri:last-child{border-bottom:none}
+  .ri .who{font-size:13px;font-weight:600;color:#e2e8f0;min-width:170px}
+  .ri .attr{font-size:11px;color:#94a3b8;flex:1;min-width:0}
+  .ri .tag{font-size:9px;border-radius:4px;padding:1px 6px;margin-right:4px}
+  .tag-priv{background:#78350f;color:#fde68a}.tag-nomfa{background:#7f1d1d;color:#fecaca}.tag-orph{background:#3730a3;color:#c7d2fe}.tag-stale{background:#374151;color:#d1d5db}
+  .dec{font-size:9px;font-weight:700;border-radius:4px;padding:2px 7px;text-transform:uppercase}
+  .dec-certify{background:#14532d;color:#bbf7d0}.dec-revoke{background:#7f1d1d;color:#fecaca}.dec-delegate{background:#374151;color:#d1d5db}.dec-pending{background:#1e3a5f;color:#bfdbfe}
+  .rbtn{background:#0f1117;border:1px solid #2d3250;border-radius:6px;font-size:11px;padding:4px 9px;cursor:pointer;color:#cbd5e1}
+  .rbtn.cert:hover{border-color:#22c55e;color:#bbf7d0}.rbtn.rev:hover{border-color:#ef4444;color:#fecaca}.rbtn.del:hover{border-color:#94a3b8}
+  .barbtn{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:12.5px;padding:7px 13px;cursor:pointer}
+  .barbtn:hover{border-color:#a78bfa}
+  .barbtn.go{background:#7c3aed;border:none;color:#fff;font-weight:700}
+  .muted{color:#64748b}
+  .ig-modal{position:fixed;inset:0;background:rgba(5,7,15,.72);display:none;align-items:center;justify-content:center;z-index:50}
+  .ig-modal.show{display:flex}
+  .ig-dlg{background:#0f1322;border:1px solid #2d3250;border-radius:14px;padding:20px 22px;width:min(520px,93vw)}
+  .ig-dlg h3{margin:0 0 12px;font-size:16px;color:#e7ebf3}
+  .ig-dlg label{display:block;font-size:12px;color:#94a3b8;margin:10px 0 4px}
+  .ig-dlg input,.ig-dlg select{width:100%;background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:7px;padding:8px 10px;font-size:13px;box-sizing:border-box}
+  .ig-dlg .hint{font-size:11px;color:#64748b;margin-top:4px}
+  .ig-dlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+  .btn-go{background:#7c3aed;border:none;color:#fff;border-radius:7px;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer}
+  .btn-cancel{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:13px;padding:8px 14px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/identities">&#128273; Identities</a>
+  <a href="/itdr">&#128373;&#65039; ITDR</a>
+  <a href="/zero-trust">&#128737;&#65039; Zero Trust</a>
+  <span class="spacer"></span>
+  <span class="title">&#9989; Identity Governance (IGA)</span>
+</div>
+<div class="ig-wrap">
+  <h1>Identity Governance &amp; Administration (IGA)</h1>
+  <div class="ig-sub">The access-review layer over your identity inventory: launch <b>access-certification campaigns</b>
+    (reviewers attest that each in-scope identity still needs its access — certify, revoke or delegate), track
+    <b>certification coverage</b> of privileged access, govern the identity <b>lifecycle</b> (joiner/mover/leaver), and
+    work the <b>revocation queue</b>. Complements the inventory (/identities) and detection (/itdr).</div>
+  <div id="ig-body"><div class="muted" style="padding:24px;text-align:center">Loading identity governance…</div></div>
+</div>
+
+<div class="ig-modal" id="ig-modal">
+  <div class="ig-dlg">
+    <h3>New access-certification campaign</h3>
+    <label>Campaign name</label>
+    <input type="text" id="f-name" placeholder="(optional — derived from scope)" autocomplete="off">
+    <label>Scope</label>
+    <select id="f-scope"></select>
+    <div class="hint" id="f-scope-hint"></div>
+    <label>Due date</label>
+    <input type="date" id="f-due">
+    <div class="acts">
+      <button class="btn-cancel" id="ig-cancel">Cancel</button>
+      <button class="btn-go" id="ig-create">Launch campaign</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/identity-governance.js"></script>
+</body>
+</html>

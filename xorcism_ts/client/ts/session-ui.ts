@@ -95,6 +95,17 @@ function openSettings(me: any): void {
     pkBtn.onclick = openPasskeyManager;
     security.appendChild(row(t("settings.passkeys"), pkBtn));
   }
+
+  // Two-factor (authenticator app, TOTP)
+  const totpBtn = document.createElement("button");
+  totpBtn.className = "btn btn-ghost btn-sm";
+  totpBtn.textContent = t("totp.manage");
+  totpBtn.title = t("totp.manage");
+  totpBtn.onclick = openTotpManager;
+  fetch("/api/auth/totp/status").then((r) => (r.ok ? r.json() : null)).then((s) => {
+    if (s && s.enabled) totpBtn.textContent = t("totp.manage") + " ✓";
+  }).catch(() => {});
+  security.appendChild(row(t("settings.totp"), totpBtn));
   card.appendChild(security);
 
   // ── Notifications: which events auto-create a notification ──
@@ -393,6 +404,129 @@ function openPasskeyManager(): void {
   bg.appendChild(card);
   document.body.appendChild(bg);
   void refresh();
+}
+
+// Two-factor (authenticator app, TOTP) enrolment / removal.
+function openTotpManager(): void {
+  const bg = document.createElement("div");
+  bg.style.cssText =
+    "position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:2000";
+  bg.onclick = (e) => { if (e.target === bg) bg.remove(); };
+  const card = document.createElement("div");
+  card.style.cssText =
+    "background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:18px;width:460px;max-width:94vw";
+  const body = document.createElement("div");
+  card.innerHTML =
+    `<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">🔐 ${t("totp.manage")}</div>` +
+    `<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${t("totp.hint")}</div>`;
+  card.appendChild(body);
+  const err = document.createElement("div");
+  err.style.cssText = "color:var(--danger);font-size:12px;min-height:16px;margin:8px 0";
+  card.appendChild(err);
+  const footer = document.createElement("div");
+  footer.style.cssText = "display:flex;justify-content:flex-end;margin-top:6px";
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "btn btn-ghost btn-sm";
+  closeBtn.textContent = t("modal.close") || "Fermer";
+  closeBtn.onclick = () => bg.remove();
+  footer.appendChild(closeBtn);
+  card.appendChild(footer);
+
+  // Already-enabled view: a code field that disables 2FA.
+  function showEnabled(): void {
+    body.innerHTML =
+      `<div style="font-size:13px;color:var(--text);margin-bottom:10px">${t("totp.enabled")} ✓</div>` +
+      `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${t("totp.disablePrompt")}</div>`;
+    const code = document.createElement("input");
+    code.type = "text"; code.inputMode = "numeric"; code.maxLength = 6; code.placeholder = "000000";
+    code.style.cssText = "width:140px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:18px;letter-spacing:6px;text-align:center";
+    const btn = document.createElement("button");
+    btn.className = "btn btn-ghost btn-sm"; btn.textContent = t("totp.disable");
+    btn.style.marginLeft = "8px";
+    btn.onclick = async () => {
+      err.textContent = "";
+      const c = code.value.replace(/\D/g, "");
+      if (c.length !== 6) { err.textContent = t("totp.badCode"); return; }
+      btn.disabled = true;
+      try {
+        const r = await fetch("/api/auth/totp/disable", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: c }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { err.textContent = d.error || t("totp.badCode"); return; }
+        bg.remove();
+      } finally { btn.disabled = false; }
+    };
+    const wrap = document.createElement("div");
+    wrap.appendChild(code); wrap.appendChild(btn);
+    body.appendChild(wrap);
+  }
+
+  // Enrolment view: enable button → secret → code field → activate.
+  function showSetup(): void {
+    body.innerHTML = "";
+    const enableBtn = document.createElement("button");
+    enableBtn.className = "btn btn-primary btn-sm";
+    enableBtn.textContent = t("totp.enable");
+    enableBtn.onclick = async () => {
+      err.textContent = ""; enableBtn.disabled = true;
+      try {
+        const r = await fetch("/api/auth/totp/enroll", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.secret) { err.textContent = d.error || "Échec."; enableBtn.disabled = false; return; }
+        renderSecret(d.secret as string, d.otpauthUri as string);
+      } catch { err.textContent = "Échec réseau."; enableBtn.disabled = false; }
+    };
+    body.appendChild(enableBtn);
+  }
+
+  function renderSecret(secret: string, uri: string): void {
+    body.innerHTML = "";
+    const grouped = (secret.match(/.{1,4}/g) || [secret]).join(" ");
+    const step1 = document.createElement("div");
+    step1.style.cssText = "font-size:12px;color:var(--text-muted);margin-bottom:6px";
+    step1.textContent = t("totp.setupStep1");
+    body.appendChild(step1);
+    const sec = document.createElement("div");
+    sec.style.cssText = "font-family:monospace;font-size:15px;letter-spacing:2px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;margin-bottom:6px;user-select:all;word-break:break-all";
+    sec.textContent = grouped;
+    body.appendChild(sec);
+    const uriEl = document.createElement("div");
+    uriEl.style.cssText = "font-size:10px;color:var(--text-dim);word-break:break-all;margin-bottom:12px;user-select:all";
+    uriEl.textContent = uri;
+    body.appendChild(uriEl);
+    const step2 = document.createElement("div");
+    step2.style.cssText = "font-size:12px;color:var(--text-muted);margin-bottom:6px";
+    step2.textContent = t("totp.setupStep2");
+    body.appendChild(step2);
+    const code = document.createElement("input");
+    code.type = "text"; code.inputMode = "numeric"; code.maxLength = 6; code.placeholder = "000000";
+    code.style.cssText = "width:140px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:18px;letter-spacing:6px;text-align:center";
+    const btn = document.createElement("button");
+    btn.className = "btn btn-primary btn-sm"; btn.textContent = t("totp.activate");
+    btn.style.marginLeft = "8px";
+    btn.onclick = async () => {
+      err.textContent = "";
+      const c = code.value.replace(/\D/g, "");
+      if (c.length !== 6) { err.textContent = t("totp.badCode"); return; }
+      btn.disabled = true;
+      try {
+        const r = await fetch("/api/auth/totp/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: c }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { err.textContent = d.error || t("totp.badCode"); return; }
+        showEnabled();
+      } finally { btn.disabled = false; }
+    };
+    const wrap = document.createElement("div");
+    wrap.appendChild(code); wrap.appendChild(btn);
+    body.appendChild(wrap);
+  }
+
+  body.innerHTML = `<div style="padding:6px;color:var(--text-dim);font-size:12px">…</div>`;
+  fetch("/api/auth/totp/status").then((r) => (r.ok ? r.json() : null)).then((s) => {
+    if (s && s.enabled) showEnabled(); else showSetup();
+  }).catch(() => showSetup());
+
+  bg.appendChild(card);
+  document.body.appendChild(bg);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {

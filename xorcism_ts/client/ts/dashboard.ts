@@ -669,8 +669,61 @@ async function initKpis(): Promise<void> {
   strip.innerHTML = tiles.join("");
 }
 
+// ── Global threat-level gauge (DEFCON / national-advisory style) ───────────────
+interface ThreatLvl {
+  level: number; label: string; score: number; color: string; windowDays: number;
+  signals: Record<string, number>;
+  contributors: { key: string; label: string; count: number; points: number }[];
+}
+const escapeHtml = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
+async function initThreatLevel(): Promise<void> {
+  const el = document.getElementById("threat-level");
+  if (!el) return;
+  let d: ThreatLvl;
+  try { const r = await fetch("/api/dashboard/threat-level"); if (!r.ok) throw new Error(String(r.status)); d = await r.json(); }
+  catch { el.style.display = "none"; return; }
+
+  // 270° arc gauge (opening at the bottom), filled proportionally to score/100.
+  const R = 44, CX = 54, CY = 52, START = 135, SWEEP = 270; // degrees (SVG y-down)
+  const pol = (deg: number): [number, number] => {
+    const a = (deg * Math.PI) / 180;
+    return [CX + R * Math.cos(a), CY + R * Math.sin(a)];
+  };
+  const arc = (frac: number): string => {
+    const f = Math.max(0, Math.min(1, frac));
+    if (f <= 0) return "";
+    const end = START + SWEEP * f;
+    const [x1, y1] = pol(START), [x2, y2] = pol(end);
+    const large = SWEEP * f > 180 ? 1 : 0;
+    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${R} ${R} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+  };
+  const gauge =
+    `<svg width="110" height="96" viewBox="0 0 108 96" class="tl-gauge" role="img" aria-label="Threat level ${escapeHtml(d.label)}">
+      <path d="${arc(1)}" fill="none" stroke="#262b45" stroke-width="9" stroke-linecap="round"/>
+      <path d="${arc(d.score / 100)}" fill="none" stroke="${d.color}" stroke-width="9" stroke-linecap="round"/>
+      <text x="${CX}" y="49" text-anchor="middle" font-size="23" font-weight="800" fill="${d.color}">${d.score}</text>
+      <text x="${CX}" y="64" text-anchor="middle" font-size="9" fill="#94a3b8">/ 100</text>
+    </svg>`;
+
+  const drivers = d.contributors.filter((c) => c.points > 0).slice(0, 4)
+    .map((c) => `<span class="tl-chip">${escapeHtml(c.label)} <b>${c.count}</b></span>`).join("");
+  const driversHtml = drivers || `<span class="tl-chip">No elevated signals in the last ${d.windowDays} days</span>`;
+
+  el.style.borderLeftColor = d.color;
+  el.innerHTML =
+    `${gauge}
+     <div class="tl-meta">
+       <div class="tl-label" style="color:${d.color}">${escapeHtml(d.label)} <span style="font-size:13px;color:#64748b;font-weight:600">· Threat level ${d.level}/5</span></div>
+       <div class="tl-sub">Global cyber threat condition — recent known-exploited (KEV), high-EPSS, CTI and incident signals (rolling ${d.windowDays}–30 day window).</div>
+       <div class="tl-drivers">${driversHtml}</div>
+     </div>`;
+  el.style.display = "flex";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initI18n();
+  initThreatLevel();
   initKpis();
   initRiskHistory();
   initRiskScore();

@@ -856,6 +856,9 @@ export const TENANT_SCOPED_TABLES = new Set<string>([
   "XCOMPLIANCE.ZTMATURITYASSESSMENT",
   "XCOMPLIANCE.ZTMATURITYITEM",
   "XORCISM.IDENTITYSIGNIN",
+  "XORCISM.IDENTITYDETECTION",
+  "XORCISM.ACCESSCAMPAIGN",
+  "XORCISM.ACCESSREVIEWITEM",
   "XCOMPLIANCE.ZTPOLICY",
   // ── Crisis management / tabletop exercises (multi-tenant isolation) ──
   "XCOMPLIANCE.CRISISSCENARIO",
@@ -4803,6 +4806,56 @@ export function ensureZtPolicyTable(): void {
         RequireMfa INTEGER, RequireCompliantDevice INTEGER, Block INTEGER,
         TenantID INTEGER, CreatedDate TEXT);
       CREATE INDEX IF NOT EXISTS ix_ztpolicy_extid ON ZTPOLICY(Source, ExternalID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Identity Threat Detection & Response (ITDR) — XORCISM.IDENTITYDETECTION holds the detections raised
+ * by the itdr.ts engine (rule-based detectors over IDENTITYSIGNIN telemetry + IDENTITY posture),
+ * each mapped to a MITRE ATT&CK technique with a recommended response and an analyst workflow status.
+ * Idempotent re-scans upsert by (DedupKey, TenantID); a resolved/dismissed detection is preserved.
+ */
+export function ensureItdrTables(): void {
+  try {
+    const db = getDb("XORCISM");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS IDENTITYDETECTION (
+        DetectionID INTEGER PRIMARY KEY, DetectionGUID TEXT,
+        RuleKey TEXT, DedupKey TEXT, Title TEXT, Severity TEXT,
+        Tactic TEXT, Technique TEXT, TechniqueName TEXT,
+        IdentityName TEXT, IdentityID INTEGER, SourceIP TEXT, Country TEXT,
+        Evidence TEXT, EventCount INTEGER,
+        Status TEXT, ResponseAction TEXT,
+        FirstSeen TEXT, LastSeen TEXT, ResolvedDate TEXT, ResolvedBy TEXT, Notes TEXT,
+        IncidentAlertID INTEGER, TenantID INTEGER, CreatedDate TEXT, ModifiedDate TEXT);
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_itdr_dedup ON IDENTITYDETECTION(DedupKey, TenantID);
+      CREATE INDEX IF NOT EXISTS ix_itdr_status ON IDENTITYDETECTION(Status);
+      CREATE INDEX IF NOT EXISTS ix_itdr_identity ON IDENTITYDETECTION(IdentityName);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Identity Governance & Administration (IGA / IDMS) — access certification campaigns over the IDENTITY
+ * inventory. ACCESSCAMPAIGN is a recertification campaign (scoped to e.g. all privileged identities);
+ * ACCESSREVIEWITEM is one identity under review, snapshotted at campaign creation, with the reviewer's
+ * certify / revoke / delegate decision. This is the access-review layer ([[identity-iam]] is inventory,
+ * itdr is detection) — the SailPoint/Saviynt recertification capability.
+ */
+export function ensureIdGovTables(): void {
+  try {
+    const db = getDb("XORCISM");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ACCESSCAMPAIGN (
+        CampaignID INTEGER PRIMARY KEY, CampaignGUID TEXT, Name TEXT, Description TEXT,
+        Scope TEXT, Status TEXT, DueDate TEXT, ItemCount INTEGER,
+        CreatedBy TEXT, CreatedDate TEXT, CompletedDate TEXT, TenantID INTEGER);
+      CREATE TABLE IF NOT EXISTS ACCESSREVIEWITEM (
+        ItemID INTEGER PRIMARY KEY, ItemGUID TEXT, CampaignID INTEGER,
+        IdentityID INTEGER, IdentityName TEXT, Snapshot TEXT,
+        Decision TEXT, Reviewer TEXT, DecidedDate TEXT, Comment TEXT, Actioned INTEGER DEFAULT 0,
+        TenantID INTEGER, CreatedDate TEXT);
+      CREATE INDEX IF NOT EXISTS ix_reviewitem_campaign ON ACCESSREVIEWITEM(CampaignID);
+      CREATE INDEX IF NOT EXISTS ix_reviewitem_identity ON ACCESSREVIEWITEM(IdentityID);`);
   } catch { /* best-effort */ }
 }
 

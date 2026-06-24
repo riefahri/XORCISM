@@ -287,6 +287,7 @@ export function seedCrocPolicies(tenant: number | null): void {
     { name: "Incident → reprioritize exposure", eventFilter: "incident,alert,malware", minSeverity: "high", direction: "soc->croc", action: "reprioritize", description: "A high+ incident reprioritizes matching exposures across the estate (SOC→CROC feedback)." },
     { name: "Detection drift → ticket", eventFilter: "drift", minSeverity: "high", direction: "any", action: "ticket", description: "A regressed detection (BAS re-validation) opens a remediation ticket." },
     { name: "Over-scoped agent identity → constrain", eventFilter: "identity", minSeverity: "high", direction: "any", action: "constrain", description: "A high-risk non-human/over-privileged identity drives a least-privilege constraint upstream." },
+    { name: "Identity threat detected → escalate", eventFilter: "identity.threat", minSeverity: "high", direction: "any", action: "escalate", description: "A high/critical ITDR detection (brute force, spray, impossible travel, DCSync…) escalates into the SOC detection queue at machine speed." },
   ];
   for (const d of defaults) if (!have.has(d.name)) addPolicy(tenant, d);
 }

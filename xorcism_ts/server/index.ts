@@ -62,6 +62,10 @@ import tprmRouter from "./routes/tprm";
 import { seedTprmDemo } from "./tprm";
 import zeroTrustRouter from "./routes/zerotrust";
 import { seedZtFunctions, seedZtSigninDemo, seedZtPolicyDemo } from "./zerotrust";
+import itdrRouter from "./routes/itdr";
+import { seedItdrDemo } from "./itdr";
+import identityGovRouter from "./routes/identity-governance";
+import { seedIdGovDemo } from "./identitygov";
 import socRouter from "./routes/soc";
 import soccmmRouter from "./routes/soccmm";
 import certopsRouter from "./routes/certops";
@@ -140,7 +144,7 @@ import {
   seedAdmin,
 } from "./auth";
 import { purgeExpiredSessions, seedFeaturePageGrants } from "./xid";
-import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureComplianceJourneyTables, ensureQuestionnaireRunTables, ensureTprmTables, ensureZeroTrustTables, ensureZtSigninTable, ensureZtPolicyTable, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable } from "./db";
+import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureComplianceJourneyTables, ensureQuestionnaireRunTables, ensureTprmTables, ensureZeroTrustTables, ensureZtSigninTable, ensureZtPolicyTable, ensureItdrTables, ensureIdGovTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable } from "./db";
 import { tr } from "./i18n";
 
 const PORT = Number(process.env.PORT) || 9292;
@@ -259,6 +263,8 @@ app.use("/api", journeysRouter); // Compliance journeys: guided multi-framework 
 app.use("/api", questionnaireJourneysRouter); // Questionnaire journeys: guided runner for QUESTIONNAIREs (OCIL, CSA AI-CAIQ TPRM)
 app.use("/api", tprmRouter); // TPRM cockpit: vendor risk, outside-in posture, questionnaire conformance, AI copilots
 app.use("/api", zeroTrustRouter); // Zero Trust cockpit: CISA ZTMM maturity + live pillar signals + fused trust score
+app.use("/api", itdrRouter); // ITDR: identity threat detection (sign-in telemetry + posture) → ATT&CK-mapped detections + response
+app.use("/api", identityGovRouter); // IGA/IDMS: access certification campaigns + lifecycle posture + revocation worklist over IDENTITY
 app.use("/api", socRouter); // SOC Operations: shifts/on-call, MTTD/MTTA/MTTR, escalation procedure, IR playbooks
 app.use("/api", soccmmRouter); // SOC-CMM maturity self-assessment
 app.use("/api", certopsRouter); // CERT/CSIRT operations: forensic cases + chain of custody
@@ -450,6 +456,12 @@ app.get("/questionnaire-journeys", pageGuard("/"), (_req: Request, res: Response
 });
 app.get("/zero-trust", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "zero-trust.html"));
+});
+app.get("/itdr", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "itdr.html"));
+});
+app.get("/identity-governance", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "identity-governance.html"));
 });
 app.get("/soc", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "soc.html"));
@@ -686,9 +698,13 @@ ensureTprmTables(); // TPRM cockpit (XCOMPLIANCE.TPRMVENDOR/TPRMFINDING)
 ensureZeroTrustTables(); // Zero Trust maturity (XCOMPLIANCE.ZTFUNCTION/ZTMATURITYASSESSMENT/ZTMATURITYITEM)
 ensureZtSigninTable(); // Zero Trust sign-in/access telemetry (XORCISM.IDENTITYSIGNIN) for UEBA
 ensureZtPolicyTable(); // Zero Trust policy register (XCOMPLIANCE.ZTPOLICY) — conditional-access policies
+ensureItdrTables(); // ITDR detections (XORCISM.IDENTITYDETECTION) — ATT&CK-mapped identity threat detection
+ensureIdGovTables(); // IGA/IDMS access certification (XORCISM.ACCESSCAMPAIGN/ACCESSREVIEWITEM)
 try { seedZtFunctions(); } catch { /* catalogue seed best-effort */ } // CISA ZTMM v2.0 function catalogue
 try { seedZtSigninDemo(3); } catch { /* demo only */ } // UEBA demo: sign-in telemetry for tenant 3
 try { seedZtPolicyDemo(3); } catch { /* demo only */ } // ZT policy register demo for tenant 3
+try { seedItdrDemo(3); } catch { /* demo only */ } // ITDR demo: spray/MFA-bomb telemetry + run detectors for tenant 3
+try { seedIdGovDemo(3); } catch { /* demo only */ } // IGA demo: a privileged recertification campaign for tenant 3
 ensureNotificationRuleTable(); // per-user event→notification rules (XORCISM.NOTIFICATIONRULE)
 ensureSocTables(); // SOC operations: shifts/on-call, escalation policy+log, IR playbooks (XINCIDENT)
 ensureSocCmmTables(); // SOC-CMM maturity self-assessment (XINCIDENT)

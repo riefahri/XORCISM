@@ -182,6 +182,8 @@ function ensureSchema(db: Database.Database): void {
   // membership and filtering of operational data.
   addColumnIfMissing(db, "XUSER", "TenantID", "INTEGER");
   addColumnIfMissing(db, "XUSER", "PinHash", "TEXT"); // PIN (scrambled keypad)
+  addColumnIfMissing(db, "XUSER", "TotpSecret", "TEXT");    // TOTP base32 secret (RFC 6238 2FA)
+  addColumnIfMissing(db, "XUSER", "TotpEnabled", "INTEGER"); // 1 once a code has been verified (opt-in)
   addColumnIfMissing(db, "XAUDITLOG", "TenantID", "INTEGER");
   addColumnIfMissing(db, "XAPIKEY", "ExpiresDate", "TEXT"); // optional key expiry (null = never)
   db.exec("CREATE INDEX IF NOT EXISTS ix_user_tenant ON XUSER(TenantID);");
@@ -216,6 +218,8 @@ export interface XUser {
   LastLoginDate: string | null;
   TenantID: number | null;
   PinHash: string | null;
+  TotpSecret: string | null;
+  TotpEnabled: number | null;
 }
 
 export interface Tenant {
@@ -379,6 +383,12 @@ export function setPassword(userId: number, passwordHash: string, mustChange = 0
        WHERE UserID=?`
     )
     .run(passwordHash, mustChange, now(), userId);
+}
+
+/** Sets/clears a user's TOTP secret + enabled flag (RFC 6238 2FA). secret=null clears both. */
+export function setUserTotp(userId: number, secret: string | null, enabled: 0 | 1): void {
+  getXidDb().prepare("UPDATE XUSER SET TotpSecret=?, TotpEnabled=? WHERE UserID=?")
+    .run(secret, secret ? enabled : 0, userId);
 }
 
 /** Sets (or clears if null) a user's PIN hash. */

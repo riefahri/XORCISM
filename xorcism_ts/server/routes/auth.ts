@@ -20,6 +20,7 @@ import {
 import { tr } from "../i18n";
 import { honeypotTriggered } from "../antibot";
 import { verifyRegistration, verifyAssertion, bufToB64url } from "../webauthn";
+import { randomSecret, verifyTotp, otpauthUri } from "../totp";
 
 const router = Router();
 
@@ -68,6 +69,17 @@ router.post("/login", (req: Request, res: Response) => {
     return void res.status(401).json({ error: GENERIC });
   }
 
+  // Password OK. If the user enrolled an authenticator app (TOTP), require the second
+  // factor before opening a session: issue a short-lived pending token, do NOT start a
+  // session yet. The client then POSTs /totp/verify with the 6-digit code.
+  if (user.TotpEnabled) {
+    purgePendingTotp();
+    const pendingToken = crypto.randomBytes(24).toString("base64url");
+    pendingTotp.set(pendingToken, { userId: user.UserID, expires: Date.now() + TOTP_PENDING_TTL });
+    xid.addAudit({ userId: user.UserID, action: "login_totp_required", ip });
+    return void res.json({ totpRequired: true, pendingToken });
+  }
+
   // Success: regenerates the session (fixation), logs
   xid.recordLoginSuccess(user.UserID);
   startSession(req, res, user.UserID);
@@ -77,6 +89,96 @@ router.post("/login", (req: Request, res: Response) => {
     mustChangePassword: !!user.MustChangePassword,
     email: user.Email,
   });
+});
+
+// ── TOTP (authenticator-app 2FA, RFC 6238) ───────────────────────────────────
+// Opt-in second factor (XUSER.TotpEnabled). A successful password login for an
+// enrolled user yields a short-lived pending token; the code is then submitted to
+// /totp/verify which finally opens the session.
+const TOTP_RE = /^[0-9]{6}$/;
+const TOTP_PENDING_TTL = 5 * 60 * 1000;
+interface PendingTotp { userId: number; expires: number }
+const pendingTotp = new Map<string, PendingTotp>();
+function purgePendingTotp(): void {
+  const now = Date.now();
+  for (const [k, v] of pendingTotp) if (v.expires < now) pendingTotp.delete(k);
+}
+
+// POST /api/auth/totp/verify { pendingToken, code } — public, 2nd step of login
+router.post("/totp/verify", (req: Request, res: Response) => {
+  const ip = clientIp(req);
+  const GENERIC = tr(req, "err.badCredentials");
+  if (rateLimited(ip)) return void res.status(429).json({ error: tr(req, "err.tooManyAttempts") });
+  purgePendingTotp();
+  const { pendingToken, code } = req.body as { pendingToken?: string; code?: string };
+  const pend = pendingToken ? pendingTotp.get(pendingToken) : undefined;
+  if (!pend || pend.expires < Date.now()) {
+    return void res.status(401).json({ error: GENERIC });
+  }
+  const user = xid.getUserById(pend.userId);
+  if (!user || !user.TotpEnabled || !user.TotpSecret) {
+    pendingTotp.delete(pendingToken!);
+    return void res.status(401).json({ error: GENERIC });
+  }
+  if (user.IsLockedOut) {
+    pendingTotp.delete(pendingToken!);
+    return void res.status(403).json({ error: tr(req, "err.accountLocked") });
+  }
+  if (!TOTP_RE.test(String(code || "")) || !verifyTotp(user.TotpSecret, String(code))) {
+    xid.recordLoginFailure(user.UserID); // shares the lockout counter
+    xid.addAudit({ userId: user.UserID, action: "login_totp_failed", ip });
+    return void res.status(401).json({ error: GENERIC });
+  }
+  pendingTotp.delete(pendingToken!); // single use
+  xid.recordLoginSuccess(user.UserID);
+  startSession(req, res, user.UserID);
+  xid.addAudit({ userId: user.UserID, action: "login_totp", ip });
+  res.json({ ok: true, mustChangePassword: !!user.MustChangePassword, email: user.Email });
+});
+
+// GET /api/auth/totp/status — authenticated → { enabled }
+router.get("/totp/status", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: tr(req, "err.notAuthenticated") });
+  const u = xid.getUserById(req.user.UserID);
+  res.json({ enabled: !!u?.TotpEnabled });
+});
+
+// POST /api/auth/totp/enroll — authenticated → generates a fresh (un-activated) secret
+router.post("/totp/enroll", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: tr(req, "err.notAuthenticated") });
+  const secret = randomSecret();
+  // Stored but not yet enabled — only activation (a verified code) flips TotpEnabled on.
+  xid.setUserTotp(req.user.UserID, secret, 0);
+  xid.addAudit({ userId: req.user.UserID, action: "totp_enroll", ip: clientIp(req) });
+  res.json({ secret, otpauthUri: otpauthUri(secret, req.user.Email) });
+});
+
+// POST /api/auth/totp/activate { code } — authenticated → confirms enrolment
+router.post("/totp/activate", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: tr(req, "err.notAuthenticated") });
+  const u = xid.getUserById(req.user.UserID);
+  if (!u?.TotpSecret) return void res.status(400).json({ error: tr(req, "totp.notEnrolled") });
+  const code = String((req.body as { code?: string }).code || "");
+  if (!TOTP_RE.test(code) || !verifyTotp(u.TotpSecret, code)) {
+    return void res.status(400).json({ error: tr(req, "totp.badCode") });
+  }
+  xid.setUserTotp(req.user.UserID, u.TotpSecret, 1);
+  xid.addAudit({ userId: req.user.UserID, action: "totp_activate", ip: clientIp(req) });
+  res.json({ ok: true, enabled: true });
+});
+
+// POST /api/auth/totp/disable { code } — authenticated → turns 2FA off (requires a valid code)
+router.post("/totp/disable", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: tr(req, "err.notAuthenticated") });
+  const u = xid.getUserById(req.user.UserID);
+  if (!u?.TotpEnabled || !u.TotpSecret) return void res.json({ ok: true, enabled: false });
+  const code = String((req.body as { code?: string }).code || "");
+  if (!TOTP_RE.test(code) || !verifyTotp(u.TotpSecret, code)) {
+    return void res.status(400).json({ error: tr(req, "totp.badCode") });
+  }
+  xid.setUserTotp(req.user.UserID, null, 0);
+  xid.addAudit({ userId: req.user.UserID, action: "totp_disable", ip: clientIp(req) });
+  res.json({ ok: true, enabled: false });
 });
 
 // ── PIN authentication (scrambled keypad, bank style) ─────────────────
