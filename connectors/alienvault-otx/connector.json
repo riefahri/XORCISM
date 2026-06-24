@@ -1,0 +1,17 @@
+{
+  "id": "alienvault-otx",
+  "name": "AlienVault OTX - threat pulses (CTI)",
+  "type": "import",
+  "category": "Cyber Threat Intelligence",
+  "description": "Pulls threat 'pulses' from AlienVault OTX / LevelBlue Open Threat Exchange and maps each to a normalized XORCISM intel item -> XTHREAT.INTELEXCHANGE (the threat graph + ATT&CK coverage heatmap). Each pulse carries indicators (IPs, domains, hostnames, URLs, file hashes, CVEs), MITRE ATT&CK technique ids, adversary, malware families, targeted industries/countries and tags. The named CTI source XORCISM was missing alongside MISP / OpenCTI / abuse.ch / VirusTotal / GreyNoise / Shodan. Modes: live (your subscribed pulses via the OTX API key), file (an exported pulses JSON), or demo. Read-only. Config: OTX_API_KEY (or pass api_key).",
+  "intrusive": false,
+  "permission": "connector:alienvault-otx",
+  "run": "run.py",
+  "mapping": "alienvault-otx",
+  "parameters": [
+    { "name": "api_key", "type": "string", "default": "", "help": "OTX API key (overrides OTX_API_KEY) for live /pulses/subscribed" },
+    { "name": "limit", "type": "int", "default": 50, "help": "Max pulses to pull (live)" },
+    { "name": "modified_since", "type": "string", "default": "", "help": "ISO timestamp - only pulses modified since (live; default: all subscribed)" },
+    { "name": "file", "type": "string", "default": "", "help": "Path to an exported OTX pulses JSON ({\"results\":[...]} or an array). A demo sample is used if omitted and no API key is set." }
+  ]
+}
