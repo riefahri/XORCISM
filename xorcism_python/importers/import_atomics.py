@@ -11,7 +11,8 @@ Target: XTHREAT.db, table ATOMICTEST (created if missing). Idempotent by the tes
 auto_generated_guid (AtomicGUID). AttackTechniqueID is resolved from ATTACKTECHNIQUE.
 
 Usage:
-    python import_atomics.py --sample            # seed a built-in demo set (no dependency)
+    python import_atomics.py --xorcism           # XORCISM curated BAS/AEV catalogue + scenarios (safe, modern; no dependency)
+    python import_atomics.py --sample            # seed a small built-in demo set (no dependency)
     python import_atomics.py --file index.yaml   # local Atomic Red Team index (needs PyYAML)
     python import_atomics.py                      # download the ART index (needs PyYAML + requests)
 
@@ -83,18 +84,67 @@ def _tech_id(cur, attack_id: str, has_attack: bool):
     return r[0] if r else None
 
 
-def upsert(cur, has_attack: bool, guid, name, desc, attack_id, platform, executor, command, cleanup) -> int:
+def upsert(cur, has_attack: bool, guid, name, desc, attack_id, platform, executor, command, cleanup,
+           source=SOURCE, references="") -> int:
     techid = _tech_id(cur, attack_id, has_attack)
     cur.execute(
         """INSERT INTO ATOMICTEST
-             (AtomicGUID, Name, Description, AttackID, AttackTechniqueID, Platform, Executor, Command, Cleanup, Source, CreatedDate)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?)
+             (AtomicGUID, Name, Description, AttackID, AttackTechniqueID, Platform, Executor, Command, Cleanup, Source, ExternalReferences, CreatedDate)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
            ON CONFLICT(AtomicGUID) DO UPDATE SET Name=excluded.Name, Description=excluded.Description,
              AttackID=excluded.AttackID, AttackTechniqueID=excluded.AttackTechniqueID, Platform=excluded.Platform,
-             Executor=excluded.Executor, Command=excluded.Command, Cleanup=excluded.Cleanup""",
-        (guid, name, desc, attack_id, techid, platform, executor, command, cleanup, SOURCE, now()),
+             Executor=excluded.Executor, Command=excluded.Command, Cleanup=excluded.Cleanup,
+             Source=excluded.Source, ExternalReferences=excluded.ExternalReferences""",
+        (guid, name, desc, attack_id, techid, platform, executor, command, cleanup, source, references, now()),
     )
     return 1 if cur.rowcount else 0
+
+
+def ensure_scenario_tables(cur) -> None:
+    """EMULATIONSCENARIO + SCENARIOTEST (created if missing — they normally exist via the server's
+    ensureEmulationTables; recreated here so the importer works on a fresh XTHREAT.db too)."""
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS EMULATIONSCENARIO (
+             ScenarioID INTEGER PRIMARY KEY, ScenarioGUID TEXT, Name TEXT, Description TEXT,
+             AdversaryRef TEXT, KillChainPhase TEXT, Status TEXT, Confidence INTEGER, TLP TEXT, Labels TEXT,
+             CreatedDate DATE, ValidFrom DATE, ValidUntil DATE)"""
+    )
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS SCENARIOTEST (
+             ScenarioTestID INTEGER PRIMARY KEY, ScenarioID INTEGER, AtomicTestID INTEGER,
+             StepOrder INTEGER, CreatedDate DATE, UNIQUE(ScenarioID, AtomicTestID))"""
+    )
+
+
+def build_scenarios(cur, scenarios, source) -> tuple[int, int]:
+    """Create EMULATIONSCENARIO rows and link the named tests via SCENARIOTEST. Idempotent
+    (scenario GUID = uuid5 of the name; SCENARIOTEST has UNIQUE(ScenarioID, AtomicTestID))."""
+    name2id = {r[1]: r[0] for r in cur.execute("SELECT AtomicTestID, Name FROM ATOMICTEST WHERE Source=?", (source,)).fetchall()}
+    n_sc = n_link = 0
+    for sc in scenarios:
+        guid = str(uuid5(NAMESPACE_URL, "xorcism-scenario:" + sc["name"]))
+        row = cur.execute("SELECT ScenarioID FROM EMULATIONSCENARIO WHERE ScenarioGUID=?", (guid,)).fetchone()
+        if row:
+            sid = row[0]
+            cur.execute("UPDATE EMULATIONSCENARIO SET Name=?, Description=?, KillChainPhase=?, Status=? WHERE ScenarioID=?",
+                        (sc["name"], sc.get("description", ""), sc.get("killChain", ""), "Ready", sid))
+        else:
+            cur.execute(
+                """INSERT INTO EMULATIONSCENARIO (ScenarioGUID, Name, Description, AdversaryRef, KillChainPhase, Status, TLP, CreatedDate)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (guid, sc["name"], sc.get("description", ""), "XORCISM curated", sc.get("killChain", ""), "Ready", "CLEAR", now()),
+            )
+            sid = cur.lastrowid
+            n_sc += 1
+        for order, tname in enumerate(sc.get("tests", []), 1):
+            tid = name2id.get(tname)
+            if tid is None:
+                log(f"  ! scenario '{sc['name']}' references unknown test '{tname}'")
+                continue
+            cur.execute("INSERT OR IGNORE INTO SCENARIOTEST (ScenarioID, AtomicTestID, StepOrder, CreatedDate) VALUES (?,?,?,?)",
+                        (sid, tid, order, now()))
+            n_link += cur.rowcount
+    return n_sc, n_link
 
 
 def iter_index(data):
@@ -122,11 +172,53 @@ def iter_index(data):
                 )
 
 
+XORCISM_SOURCE = "XORCISM curated atomics"
+
+
+def _import_xorcism() -> None:
+    """Import the XORCISM curated BAS/AEV catalogue (xor_atomics_catalog.py) into ATOMICTEST and
+    build the runnable EMULATIONSCENARIO groupings. Idempotent."""
+    try:
+        from xorcism_python.importers import xor_atomics_catalog as cat  # package import
+    except ImportError:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import xor_atomics_catalog as cat  # type: ignore  # run directly from importers/
+    tests, scenarios = cat.TESTS, cat.SCENARIOS
+    log(f"XORCISM curated catalogue: {len(tests)} atomic tests, {len(scenarios)} scenarios")
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA busy_timeout = 15000")
+    cur = conn.cursor()
+    ensure_table(cur)
+    ensure_scenario_tables(cur)
+    has_attack = cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ATTACKTECHNIQUE'").fetchone() is not None
+    new = 0
+    for d in tests:
+        guid = str(uuid5(NAMESPACE_URL, "xorcism-curated:" + d["name"]))
+        new += upsert(cur, has_attack, guid, d["name"], d.get("description", ""), d["attackId"],
+                      d.get("platform", ""), d.get("executor", ""), d.get("command", ""), d.get("cleanup", ""),
+                      XORCISM_SOURCE, d.get("references", ""))
+    n_sc, n_link = build_scenarios(cur, scenarios, XORCISM_SOURCE)
+    conn.commit()
+    total = cur.execute("SELECT COUNT(*) FROM ATOMICTEST WHERE Source=?", (XORCISM_SOURCE,)).fetchone()[0]
+    resolved = cur.execute("SELECT COUNT(*) FROM ATOMICTEST WHERE Source=? AND AttackTechniqueID IS NOT NULL", (XORCISM_SOURCE,)).fetchone()[0]
+    techniques = cur.execute("SELECT COUNT(DISTINCT AttackID) FROM ATOMICTEST WHERE Source=?", (XORCISM_SOURCE,)).fetchone()[0]
+    conn.close()
+    log(f"Done ({now()}) - {new} tests new/updated, {total} XORCISM atomics ({techniques} distinct ATT&CK techniques, "
+        f"{resolved} linked to ATTACKTECHNIQUE); {n_sc} scenarios created, {n_link} test links added.")
+    log("Run a scenario from the agent:  python xor_agent.py --scan emulate --scenario <ScenarioID>  "
+        "(set XOR_ALLOW_EMULATION=1 for recon, or XOR_ALLOW_ATOMIC_EXEC=1 for the full procedures, on the authorized host)")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Import Atomic Red Team tests into XTHREAT.ATOMICTEST")
     ap.add_argument("--sample", action="store_true", help="Seed a built-in demo set (no dependency)")
+    ap.add_argument("--xorcism", action="store_true",
+                    help="Import the XORCISM curated BAS/AEV catalogue (safe-by-design, modern ATT&CK coverage) + scenarios")
     ap.add_argument("--file", help="Local Atomic Red Team index.yaml (needs PyYAML)")
     args = ap.parse_args()
+
+    if args.xorcism:
+        return _import_xorcism()
 
     rows = []
     if args.sample:

@@ -27,6 +27,24 @@ if not exist "%SERVER%" (
   exit /b 1
 )
 
+REM --- Ollama backend (powers the local AI copilots; the server reads OLLAMA_URL / OLLAMA_MODEL) ---
+REM  Locate ollama.exe: the standard per-user install, then anything on PATH.
+set "OLLAMA="
+if exist "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" set "OLLAMA=%LOCALAPPDATA%\Programs\Ollama\ollama.exe"
+if not defined OLLAMA for %%I in (ollama.exe) do if not "%%~$PATH:I"=="" set "OLLAMA=%%~$PATH:I"
+
+echo Starting Ollama backend (local AI) ...
+netstat -ano | findstr ":11434 " | findstr LISTENING >nul 2>&1
+if not errorlevel 1 (
+  echo   Ollama   =   already running on http://localhost:11434
+) else if defined OLLAMA (
+  start "Ollama (XORCISM local AI)" /MIN "%OLLAMA%" serve
+  echo   Ollama   =   launched "%OLLAMA%" serve  ^(http://localhost:11434^)
+) else (
+  echo   Ollama   =   NOT FOUND - AI copilots will use deterministic fallbacks.
+  echo                Install from https://ollama.com then:  ollama pull llama3.1
+)
+
 echo Stopping any XORCISM server already listening on port %PORT% ...
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":%PORT% " ^| findstr LISTENING') do taskkill /F /PID %%P >nul 2>&1
 
@@ -34,7 +52,7 @@ echo.
 echo   XORCISM  -^>  http://localhost:%PORT%/login
 echo   DB_DIR   =   %DB_DIR%
 echo   Node     =   %NODE%
-echo   (Press Ctrl+C to stop.)
+echo   (Press Ctrl+C to stop. Ollama keeps running in its own window.)
 echo.
 
 "%NODE%" "%SERVER%"
