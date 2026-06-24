@@ -82,6 +82,7 @@ const entryPoints = [
   "client/ts/security-awareness.ts",
   "client/ts/malware-scan.ts",
   "client/ts/compliance-journeys.ts",
+  "client/ts/questionnaire-journeys.ts",
   "client/ts/soc.ts",
   "client/ts/soc-cmm.ts",
   "client/ts/cert-ops.ts",

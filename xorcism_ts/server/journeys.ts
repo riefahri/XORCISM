@@ -45,6 +45,10 @@ const L = {
   pqcmm: "/pqcmm",
   questionnaire: "/?db=XCOMPLIANCE&table=QUESTIONNAIRE",
   regulator: "/?db=XCOMPLIANCE&table=NOTIFICATIONREGULATOR",
+  aiguard: "/ai-guardrails",
+  agents: "/agents",
+  tprm: "/tprm",
+  aicmControls: "/?db=XORCISM&table=CONTROL",
 } as const;
 
 export type StepT = { title: string; desc: string; link?: string };
@@ -130,6 +134,45 @@ export const FRAMEWORKS: FrameworkT[] = [
         st("Collect evidence", "Gather evidence of AIMS operation for the audit.", L.evidence),
       ]},
       auditPhase("AIMS certification audit"),
+    ],
+  },
+  {
+    key: "aisecurity", name: "AI Security Management (AI-TRiSM)", provider: "XORCISM — AI Trust, Risk & Security Management", kind: "Framework", jurisdiction: "International",
+    summary: "An end-to-end program to secure and govern AI: stand up AI governance and policy, inventory your AI systems and the non-human identities behind them, comply with the AI standards (ISO/IEC 42001 + the CSA AI Controls Matrix), assess third-party AI with the AICM AI-CAIQ questionnaire, and continuously monitor and guardrail AI at runtime via the XOR agent. Spans governance → identities → compliance → third-party → runtime assurance.",
+    effort: "6–12 months",
+    phases: [
+      { name: "Govern", steps: [
+        st("Establish AI governance & roles", "Set up the AI governance body, accountability (RACI) and a named AI security/ethics owner.", L.identity),
+        st("AI policy framework", "Adopt the AI policies (responsible AI, acceptable use, data, transparency, human oversight) — 10 AIMS policies are seedable.", L.policies),
+        st("AI risk appetite & register", "Define AI risk appetite and open an AI risk register (bias, safety, robustness, privacy, security, misuse).", L.riskReg),
+      ]},
+      { name: "Inventory & Identities", steps: [
+        st("Inventory AI systems, models & agents", "Catalogue every AI system / model / agent, its purpose, data and owner.", L.identity),
+        st("Govern non-human identities (NHI)", "Inventory and constrain the service accounts, API keys and agent identities that run or serve AI — least privilege, rotation, lifecycle.", L.identity),
+        st("Map AI assets & data flows", "Map the assets, datasets and interconnections supporting the AI systems in scope.", L.assets),
+      ]},
+      { name: "Comply with the AI standards", steps: [
+        st("ISO/IEC 42001 AI Management System", "Run the AIMS clauses & Annex A controls (scope, leadership, AI risk & impact assessment, controls, evidence) — start the dedicated ISO 42001 journey too.", L.assess),
+        st("CSA AI Controls Matrix (AICM)", "Implement and track the 247 AICM controls (18 domains) — imported as a framework with built-in mappings to ISO 42001, the EU AI Act and BSI AI C4.", L.aicmControls),
+        st("AI system impact assessment", "Run the AI impact assessment on individuals and society (and a DPIA where personal data is processed).", L.assess),
+      ]},
+      { name: "Third-party AI risk (TPRM)", steps: [
+        st("Send the AICM AI-CAIQ questionnaire", "Assess AI vendors and model providers with the CSA AI-CAIQ (320 questions, imported) as a TPRM questionnaire.", L.tprm),
+        st("Score & track vendor AI risk", "Collect responses, score third-party AI risk, and set vendor criticality and due dates.", L.tprm),
+        st("Supply-chain & model provenance", "Track the AI / software supply chain and model provenance (SBOM, components).", L.sca),
+      ]},
+      { name: "Monitor & Guardrail (runtime, via the agent)", steps: [
+        st("Deploy AI guardrails", "Stand up the AI guardrails (prompt-injection, data-leak, jailbreak, tool-abuse) and review guardrail coverage & violations.", L.aiguard),
+        st("Task the XOR agent", "Use the XOR endpoint agent to discover AI usage on hosts and run AI-guardrail / log-hunt scans — 100% local.", L.agents),
+        st("Monitor AI assets", "Continuously monitor the availability, health and drift of AI endpoints and services.", L.monitoring),
+        st("Detect & respond to AI incidents", "Operate detection and incident response for AI-specific events (misuse, model compromise, data exposure).", L.incident),
+        st("AI usage awareness & training", "Roll out AI acceptable-use awareness and role-based training.", L.awareness),
+      ]},
+      { name: "Assure & Improve", steps: [
+        st("Evidence & continuous assurance", "Gather evidence per control and prove the AI controls continuously from live telemetry.", L.evidence),
+        st("Publish the AI trust posture", "Share your AI governance & security posture via the Trust Center.", L.trust),
+        st("Review & improve", "Review the AIMS, AICM coverage, incidents and metrics; drive corrective actions and re-assess.", L.assess),
+      ]},
     ],
   },
   {

@@ -430,3 +430,133 @@ export async function ovalRemediation(opts: { check?: string; result?: string; p
   const sys = "You are a systems-hardening engineer. For the failed OVAL/CIS check, produce Markdown: why it matters, concrete remediation steps (the setting to change and how, per the platform), how to validate, how to roll out at scale (config mgmt), rollback, and a caution about functional impact. Under 240 words.";
   return aiOrDet(sys, `Check: ${check}\nPlatform: ${opts.platform || ""}\nResult: ${opts.result || ""}`, det);
 }
+
+// ───────────────────────── 13. TPRM — vendor risk brief (Vendict-style) ─────────────────────────
+export async function tprmVendorBrief(opts: {
+  name?: string; services?: string; domain?: string; dataSensitivity?: string; businessCriticality?: string;
+  tier?: string; postureScore?: number; postureGrade?: string; conformance?: number; residualTier?: string;
+  usesAI?: boolean; aiUse?: string; findings?: { title?: string; severity?: string; detail?: string }[];
+}): Promise<AiText> {
+  const name = (opts.name || "the vendor").trim();
+  const f = (opts.findings || []).filter((x) => (x.severity || "").toLowerCase() !== "info");
+  const high = f.filter((x) => /crit|high/i.test(x.severity || ""));
+  const aiFollow = opts.usesAI ? [
+    "Does the vendor train or fine-tune models on our data, and can we opt out?",
+    "What is the retention/deletion timeframe for prompts and outputs?",
+    "What guardrails exist against prompt injection, data leakage and harmful output?",
+    "Is there human oversight and an incident process for AI failures (per ISO/IEC 42001)?",
+  ] : [];
+  const baseFollow = [
+    /pii|phi|regulated|restricted/i.test(opts.dataSensitivity || "") ? "Confirm data-processing terms, sub-processors and breach-notification SLAs (GDPR Art. 28/33)." : "Confirm what data is shared and where it is stored/processed.",
+    Number(opts.postureScore ?? 100) < 80 ? "Remediate the open external posture findings (TLS/headers) before go-live." : "Maintain the current external posture and re-scan on cadence.",
+    opts.conformance == null ? "Send the security questionnaire (CSA AI-CAIQ / OCIL) and collect evidence." : (Number(opts.conformance) < 70 ? "Close the questionnaire gaps; require evidence for any 'No'/'Partial'." : "Spot-check the questionnaire evidence at renewal."),
+  ];
+  const det = [
+    `## Vendor risk brief — ${name}`, OFF, "",
+    `**Service:** ${opts.services || "—"}${opts.domain ? ` · **Domain:** ${opts.domain}` : ""}`,
+    `**Inherent:** ${opts.tier || tierFromWords(opts.dataSensitivity, opts.businessCriticality)} (data ${opts.dataSensitivity || "?"} × criticality ${opts.businessCriticality || "?"}) · **Posture:** ${opts.postureGrade || "—"}${opts.postureScore != null ? ` (${opts.postureScore}/100)` : ""} · **Questionnaire:** ${opts.conformance != null ? `${opts.conformance}% conformance` : "not assessed"} · **Residual:** ${opts.residualTier || "—"}`,
+    opts.usesAI ? `\n**AI use:** ${opts.aiUse || "this vendor processes data with AI — treat as in-scope for AI-TRiSM."}` : "",
+    "", "### Key risks",
+    ...(high.length ? high.map((x) => `- **${x.severity?.toUpperCase()}** — ${x.title}${x.detail ? `: ${x.detail}` : ""}`) : ["- No critical/high findings recorded yet — complete the external scan and questionnaire."]),
+    "", "### Recommended verdict",
+    `- ${verdictFor(opts)}`,
+    "", "### Follow-up questions to send the vendor",
+    ...[...aiFollow, ...baseFollow].map((q) => `- ${q}`),
+  ].filter((l) => l !== "").join("\n");
+  const sys = "You are a third-party risk (TPRM) analyst. From the vendor signals, write a concise Markdown brief: 1-line service summary, the key risks (call out AI-specific risk if the vendor uses AI), a recommended verdict (approve / approve-with-conditions / remediate-then-approve / reject) with the conditions, and 4-6 targeted follow-up questions to send the vendor. Ground it in the data sensitivity, posture and questionnaire conformance. Under 260 words.";
+  const user = JSON.stringify(opts).slice(0, 6000);
+  return aiOrDet(sys, user, det);
+}
+function tierFromWords(data?: string, crit?: string): string {
+  const dw: Record<string, number> = { none: 0, internal: 25, confidential: 50, pii: 75, phi: 85, regulated: 100, restricted: 100 };
+  const cw: Record<string, number> = { low: 25, medium: 50, high: 75, critical: 100 };
+  const s = 0.5 * (dw[(data || "").toLowerCase().replace(/[^a-z]/g, "")] ?? 25) + 0.5 * (cw[(crit || "").toLowerCase().replace(/[^a-z]/g, "")] ?? 50);
+  return s >= 75 ? "Critical" : s >= 50 ? "High" : s >= 25 ? "Medium" : "Low";
+}
+function verdictFor(o: { postureScore?: number; conformance?: number; residualTier?: string; findings?: { severity?: string }[] }): string {
+  const crit = (o.findings || []).some((x) => /crit/i.test(x.severity || ""));
+  const p = o.postureScore ?? 100, c = o.conformance ?? 0;
+  if (crit || p < 55) return "**Remediate-then-approve** — critical exposure or a failing posture grade must be fixed before onboarding.";
+  if (o.residualTier === "Critical" || o.residualTier === "High") return "**Approve with conditions** — accept under a remediation plan, evidence for questionnaire gaps and a short review cadence.";
+  if (o.conformance != null && c < 70) return "**Approve with conditions** — close the questionnaire gaps and collect evidence.";
+  return "**Approve** — residual risk is within appetite; review on the standard cadence.";
+}
+
+// ───────────────────────── 14. TPRM — questionnaire review (gaps / red flags / verdict) ─────────────────────────
+export async function tprmReviewQuestionnaire(opts: { runId?: number; tenant?: number | null }): Promise<AiText> {
+  let rows: { name: string; text: string; answer: string; comment: string; section: string }[] = [];
+  let runName = "the questionnaire run"; let conf: number | null = null;
+  if (opts.runId) {
+    try {
+      const db = getDb("XCOMPLIANCE");
+      const run = db.prepare("SELECT Name, QuestionnaireName, Conformance FROM QUESTIONNAIRERUN WHERE RunID = ?").get(opts.runId) as any;
+      if (run) { runName = String(run.Name || run.QuestionnaireName || runName); conf = run.Conformance != null ? Number(run.Conformance) : null; }
+      rows = (db.prepare(`SELECT r.Section, r.Answer, r.Comment, q.QuestionName, q.QuestionText
+        FROM QUESTIONNAIRERESPONSE r LEFT JOIN QUESTION q ON q.QuestionID = r.QuestionID WHERE r.RunID = ? ORDER BY r.DisplayOrder`).all(opts.runId) as any[])
+        .map((x) => ({ name: String(x.QuestionName || ""), text: String(x.QuestionText || ""), answer: String(x.Answer || "").toLowerCase(), comment: String(x.Comment || ""), section: String(x.Section || "") }));
+    } catch { /* none */ }
+  }
+  const answered = rows.filter((r) => r.answer);
+  const nos = rows.filter((r) => r.answer === "no");
+  const partials = rows.filter((r) => r.answer === "partial");
+  const noEvidence = answered.filter((r) => (r.answer === "yes") && !r.comment.trim());
+  const det = [
+    `## Questionnaire review — ${runName}`, OFF, "",
+    `**Answered:** ${answered.length}/${rows.length}${conf != null ? ` · **Conformance:** ${conf}%` : ""}`,
+    "", "### Gaps (answered No)",
+    ...(nos.length ? nos.slice(0, 20).map((r) => `- **${r.name}** — ${shorten(r.text)}${r.comment ? ` _(note: ${shorten(r.comment, 100)})_` : ""}`) : ["- None."]),
+    "", "### Partial / needs follow-up",
+    ...(partials.length ? partials.slice(0, 20).map((r) => `- **${r.name}** — ${shorten(r.text)}`) : ["- None."]),
+    "", "### Red flags",
+    ...redFlags(nos, partials, noEvidence),
+    "", "### Verdict",
+    `- ${conf == null ? "Incomplete — finish the questionnaire before deciding." : conf >= 80 ? "**Acceptable** — strong conformance; spot-check evidence." : conf >= 60 ? "**Conditional** — acceptable only with a remediation plan for the gaps above." : "**Insufficient** — too many gaps; require remediation and re-assessment before onboarding."}`,
+  ].join("\n");
+  const sys = "You are a TPRM analyst reviewing a completed vendor security questionnaire. Identify the material gaps (answered No), the items needing follow-up (Partial), any red flags (e.g. Yes with no evidence on a critical control), and give a verdict (acceptable / conditional / insufficient) with the conditions. Markdown, under 280 words.";
+  const user = JSON.stringify({ runName, conf, responses: rows.slice(0, 120) }).slice(0, 11000);
+  return aiOrDet(sys, user, det);
+}
+function redFlags(nos: any[], partials: any[], noEvidence: any[]): string[] {
+  const out: string[] = [];
+  const hit = (arr: any[], re: RegExp) => arr.filter((r) => re.test(r.text + " " + r.name));
+  const enc = hit(nos, /encrypt/i); if (enc.length) out.push(`- Encryption gap: ${enc.length} encryption control(s) answered No.`);
+  const mfa = hit(nos, /mfa|multi-factor|authentication/i); if (mfa.length) out.push(`- Authentication gap: ${mfa.length} access/MFA control(s) answered No.`);
+  const ir = hit(nos, /incident|breach|notif/i); if (ir.length) out.push(`- Incident-response gap: ${ir.length} incident/breach control(s) answered No.`);
+  if (noEvidence.length > 5) out.push(`- ${noEvidence.length} "Yes" answers carry no evidence/comment — request supporting evidence.`);
+  if (!out.length) out.push("- No automatic red flags detected — confirm evidence for the high-impact controls.");
+  return out;
+}
+
+// ───────────────────────── 15. TPRM — auto-draft questionnaire answers (Vendict-style) ─────────────────────────
+export async function tprmDraftAnswers(opts: { runId?: number; knowledge?: string; max?: number; tenant?: number | null }): Promise<AiText & { suggestions: { name: string; answer: string; rationale: string }[] }> {
+  const kb = (opts.knowledge || "").trim();
+  const kbTokens = tokens(kb);
+  let rows: { name: string; text: string; answer: string }[] = [];
+  if (opts.runId) {
+    try {
+      const db = getDb("XCOMPLIANCE");
+      rows = (db.prepare(`SELECT r.Answer, q.QuestionName, q.QuestionText FROM QUESTIONNAIRERESPONSE r LEFT JOIN QUESTION q ON q.QuestionID = r.QuestionID
+        WHERE r.RunID = ? AND (r.Answer IS NULL OR r.Answer = '') ORDER BY r.DisplayOrder LIMIT ?`).all(opts.runId, Math.min(opts.max || 40, 120)) as any[])
+        .map((x) => ({ name: String(x.QuestionName || ""), text: String(x.QuestionText || ""), answer: "" }));
+    } catch { /* none */ }
+  }
+  // deterministic suggestion: if the knowledge base overlaps the question, suggest Yes w/ that evidence, else flag
+  const suggestions = rows.map((r) => {
+    const overlap = jaccard(tokens(r.text + " " + r.name), kbTokens);
+    if (kb && overlap >= 0.06) return { name: r.name, answer: "yes", rationale: "Supported by the knowledge base — attach the relevant policy/control as evidence." };
+    if (/encrypt|tls|https/i.test(r.text) && /encrypt|tls|aes|https/i.test(kb)) return { name: r.name, answer: "yes", rationale: "Encryption is documented in the knowledge base." };
+    return { name: r.name, answer: "", rationale: "Not covered by the knowledge base — answer manually and provide evidence." };
+  });
+  const covered = suggestions.filter((s) => s.answer === "yes").length;
+  const det = [
+    `## Draft questionnaire answers`, OFF, "",
+    kb ? `Matched **${covered}/${suggestions.length}** unanswered question(s) to your knowledge base.` : "_Provide a knowledge base (policies, prior answers, control descriptions) so answers can be drafted._",
+    "", ...suggestions.slice(0, 40).map((s) => `- **${s.name}** → ${s.answer ? `**${s.answer.toUpperCase()}**` : "_manual_"} — ${s.rationale}`),
+    "", "_Review every suggested answer before submitting — drafts must be verified against evidence._",
+  ].join("\n");
+  const sys = "You are a vendor security analyst auto-filling a security questionnaire from a knowledge base of policies and prior answers. For each unanswered question, propose Yes/No/Partial/NA and a one-line rationale citing the knowledge base. Only answer Yes when the knowledge base supports it; otherwise flag for manual review. Return Markdown.";
+  const user = JSON.stringify({ knowledge: kb.slice(0, 6000), questions: rows.slice(0, 60) }).slice(0, 12000);
+  const out = await aiOrDet(sys, user, det);
+  return { ...out, suggestions };
+}
+function shorten(s: string, n = 80): string { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n) + "…" : s; }

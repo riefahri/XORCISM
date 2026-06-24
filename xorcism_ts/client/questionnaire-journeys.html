@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Questionnaire Journeys</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .qj-wrap{max-width:1340px;margin:0 auto;padding:18px}
+  .qj-wrap h1{font-size:20px;margin:0 0 2px}
+  .qj-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1040px}
+  .qj-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .qj-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .qj-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .qj-card .val{font-size:26px;font-weight:700;margin-top:3px}.qj-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .qj-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+  .qj-section .spacer{flex:1}
+  /* questionnaire catalogue */
+  .qn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .qn{background:#13162a;border:1px solid #2d3250;border-radius:11px;padding:14px 15px;cursor:pointer;transition:border-color .15s,transform .1s;display:flex;flex-direction:column;gap:6px}
+  .qn:hover{border-color:#7c83fd;transform:translateY(-2px)}
+  .qn .top{display:flex;align-items:center;gap:8px}
+  .qn .nm{font-size:14.5px;font-weight:700;color:#e7ebf3}
+  .qn .badge{font-size:9px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase;background:#3730a3;color:#c7d2fe}
+  .qn .desc{font-size:12px;color:#94a3b8;line-height:1.45;flex:1}
+  .qn .meta{font-size:11px;color:#64748b;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .qn .start{align-self:flex-start;margin-top:4px;background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:12px;padding:5px 12px;cursor:pointer}
+  .qn:hover .start{border-color:#7c83fd;color:#c7d2fe}
+  /* runs list */
+  .rn{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer}
+  .rn:hover{border-color:#7c83fd}
+  .rn .row1{display:flex;align-items:center;gap:10px}
+  .rn .jn{font-size:14px;font-weight:700;color:#e7ebf3}
+  .rn .qnm{font-size:9px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase;background:#3730a3;color:#c7d2fe}
+  .rn .meta{font-size:11px;color:#64748b;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap}
+  .st-pill{font-size:9px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .st-in_progress{background:#78350f;color:#fcd34d}.st-submitted{background:#14532d;color:#bbf7d0}.st-reviewed{background:#1e3a5f;color:#bfdbfe}
+  .pbar{height:8px;border-radius:5px;background:#1e2133;overflow:hidden;flex:1;min-width:120px}
+  .pbar > i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#6366f1,#7c83fd)}
+  .pct{font-size:13px;font-weight:700;color:#7c83fd;min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
+  /* runner */
+  .sec{background:#13162a;border:1px solid #2d3250;border-radius:10px;margin-bottom:12px;overflow:hidden}
+  .sec .sec-head{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#161a30;border-bottom:1px solid #2d3250;cursor:pointer}
+  .sec .sec-name{font-size:13px;font-weight:700;color:#e2e8f0}
+  .sec .sec-num{flex:0 0 auto;min-width:34px;height:22px;padding:0 8px;border-radius:11px;background:#1e2440;color:#7c83fd;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .sec .caret{color:#64748b;font-size:12px;transition:transform .15s}
+  .sec.collapsed .caret{transform:rotate(-90deg)}
+  .sec.collapsed .sec-body{display:none}
+  .q{display:flex;flex-direction:column;gap:7px;padding:11px 14px;border-bottom:1px solid #1e2133}
+  .q:last-child{border-bottom:none}
+  .q.answered{border-left:3px solid #6366f1}.q.unanswered{border-left:3px solid #475569}.q.na{border-left:3px solid #334155;opacity:.75}
+  .q .q-top{display:flex;align-items:flex-start;gap:8px}
+  .q .q-name{flex:0 0 auto;font-size:10px;font-weight:700;color:#c7d2fe;background:#1e2440;border-radius:5px;padding:2px 7px;font-family:ui-monospace,monospace}
+  .q .q-text{font-size:13px;color:#e2e8f0;line-height:1.45}
+  .q .q-ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .q .q-ans{background:#0f1117;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:12px;padding:5px 8px;min-width:96px}
+  .q .q-comment{flex:1;min-width:180px;background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;font-size:12px;padding:5px 9px}
+  .q .q-evidence{width:200px;background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;font-size:12px;padding:5px 9px}
+  .a-yes{border-color:#22c55e !important;color:#bbf7d0 !important}.a-no{border-color:#ef4444 !important;color:#fecaca !important}
+  .a-partial{border-color:#fbbf24 !important;color:#fde68a !important}.a-na{border-color:#475569 !important;color:#94a3b8 !important}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:12px;padding:5px 11px;cursor:pointer}
+  .btn-sm2:hover{border-color:#7c83fd}
+  .muted{color:#64748b}
+  /* modal */
+  .qj-modal{position:fixed;inset:0;background:rgba(5,7,15,.72);display:none;align-items:center;justify-content:center;z-index:50}
+  .qj-modal.show{display:flex}
+  .qj-dlg{background:#0f1322;border:1px solid #2d3250;border-radius:14px;padding:20px 22px;width:min(520px,92vw);max-height:88vh;overflow:auto}
+  .qj-dlg h3{margin:0 0 4px;font-size:16px;color:#e7ebf3}
+  .qj-dlg .qnline{font-size:12px;color:#94a3b8;margin-bottom:14px}
+  .qj-dlg label{display:block;font-size:12px;color:#94a3b8;margin:10px 0 4px}
+  .qj-dlg input{width:100%;background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:7px;padding:8px 10px;font-size:13px;box-sizing:border-box}
+  .qj-dlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+  .btn-go{background:#7c83fd;border:none;color:#06081a;border-radius:7px;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer}
+  .btn-cancel{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:13px;padding:8px 14px;cursor:pointer}
+  .btn-submit{background:#22c55e;border:none;color:#04130a;border-radius:7px;font-size:12.5px;font-weight:700;padding:6px 14px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/compliance-journeys" data-i18n="qj.nav.journeys">&#129517; Compliance Journeys</a>
+  <a href="/compliance-management" data-i18n="qj.nav.compliance">&#9989; Compliance</a>
+  <a href="/tprm" data-i18n="qj.nav.tprm">&#129309; TPRM</a>
+  <span class="spacer"></span>
+  <span class="title" data-i18n="qj.nav.title">&#128221; Questionnaire Journeys</span>
+</div>
+<div class="qj-wrap">
+  <h1 data-i18n="qj.title">Questionnaire Journeys</h1>
+  <div class="qj-sub" data-i18n="qj.subtitle">Guided, step-by-step runs over your questionnaires — OCIL assessment questionnaires and
+    the CSA AI Controls Matrix AI-CAIQ used for AI third-party risk (TPRM). Pick a questionnaire, scope the run to a vendor,
+    system or AI model, and the wizard groups the questions into sections and walks you through them — capturing an answer,
+    a comment and an evidence reference per question, tracking completion and a conformance score you can submit.</div>
+  <div id="qj-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="qj.loading">Loading questionnaires…</div></div>
+</div>
+
+<div class="qj-modal" id="qj-modal">
+  <div class="qj-dlg">
+    <h3 id="qj-dlg-title" data-i18n="qj.modal.title">Start a questionnaire run</h3>
+    <div class="qnline" id="qj-dlg-qn"></div>
+    <label data-i18n="qj.modal.name">Run name</label>
+    <input type="text" id="qj-name" autocomplete="off">
+    <label data-i18n="qj.modal.subject">Subject (vendor / system / AI model)</label>
+    <input type="text" id="qj-subject" autocomplete="off" data-i18n-placeholder="qj.modal.subjectph" placeholder="e.g. Acme LLM API — model provider">
+    <label data-i18n="qj.modal.respondent">Respondent</label>
+    <input type="text" id="qj-respondent" autocomplete="off" data-i18n-placeholder="qj.modal.respondentph" placeholder="e.g. Vendor security contact">
+    <label data-i18n="qj.modal.owner">Owner</label>
+    <input type="text" id="qj-owner" autocomplete="off" data-i18n-placeholder="qj.modal.ownerph" placeholder="e.g. TPRM / GRC Lead">
+    <label data-i18n="qj.modal.target">Target date</label>
+    <input type="date" id="qj-target">
+    <div class="acts">
+      <button class="btn-cancel" id="qj-cancel" data-i18n="qj.modal.cancel">Cancel</button>
+      <button class="btn-go" id="qj-create" data-i18n="qj.modal.start">Start run</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/questionnaire-journeys.js"></script>
+</body>
+</html>

@@ -1,47 +1,113 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — TPRM</title>
+<title>XORCISM — Third-Party Risk Management</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
-  .tprm-wrap{max-width:1200px;margin:0 auto;padding:16px}
-  .tprm-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
-  .tprm-head h2{margin:0;font-size:18px;color:#e2e8f0}
-  .tprm-stats{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}
-  .tprm-stat{background:#13162a;border:1px solid #2d3250;border-radius:8px;padding:10px 14px;min-width:120px}
-  .tprm-stat .n{font-size:22px;font-weight:700;color:#e2e8f0}
-  .tprm-stat .l{font-size:11px;color:#94a3b8;margin-top:2px}
-  table.tprm{width:100%;border-collapse:collapse;font-size:13px}
-  table.tprm th{text-align:left;padding:7px 10px;color:#94a3b8;border-bottom:1px solid #2d3250;position:sticky;top:0;background:#0f1117;font-weight:600}
-  table.tprm td{padding:6px 10px;border-bottom:1px solid #1e2133;color:#cbd5e1;vertical-align:top}
-  table.tprm tr:hover td{background:#13162a}
-  .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;border:1px solid currentColor}
-  .ov{color:#f87171;font-weight:700}
-  .tprm-filter{background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:13px;padding:6px 9px;min-width:220px}
+  .tp-wrap{max-width:1340px;margin:0 auto;padding:18px}
+  .tp-wrap h1{font-size:20px;margin:0 0 2px}
+  .tp-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1040px}
+  .tp-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .tp-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .tp-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .tp-card .val{font-size:26px;font-weight:700;margin-top:3px}.tp-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .tp-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+  .tp-section .spacer{flex:1}
+  .vn{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px}
+  .vn:hover{border-color:#2dd4bf}
+  .vn .nm{font-size:14.5px;font-weight:700;color:#e7ebf3}
+  .vn .dom{font-size:11.5px;color:#64748b}
+  .vn .grow{flex:1;min-width:0}
+  .vn .meta{font-size:11px;color:#64748b;margin-top:3px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .tier{font-size:9px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .tier-Critical{background:#7f1d1d;color:#fecaca}.tier-High{background:#7c2d12;color:#fed7aa}.tier-Medium{background:#78350f;color:#fde68a}.tier-Low{background:#14532d;color:#bbf7d0}
+  .grade{font-size:15px;font-weight:800;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .g-A,.g-B{background:#14532d;color:#bbf7d0}.g-C{background:#78350f;color:#fde68a}.g-D,.g-F{background:#7f1d1d;color:#fecaca}.g-none{background:#1e2440;color:#64748b;font-size:11px}
+  .ai-badge{font-size:9px;font-weight:700;border-radius:5px;padding:1px 6px;background:#3730a3;color:#c7d2fe}
+  .rbar{height:8px;border-radius:5px;background:#1e2133;overflow:hidden;width:90px;flex:0 0 auto}
+  .rbar>i{display:block;height:100%;border-radius:5px}
+  .pct{font-size:13px;font-weight:700;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  .pill{font-size:9px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase;background:#1e2440;color:#94a3b8}
+  .pill-warn{background:#78350f;color:#fde68a}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+  .btn2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:12.5px;padding:7px 13px;cursor:pointer}
+  .btn2:hover{border-color:#2dd4bf}
+  .btn2.ai{border-color:#4338ca;color:#c7d2fe}
+  .btn2.go{background:#2dd4bf;border:none;color:#06231f;font-weight:700}
+  .fnd{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid #1e2133}
+  .fnd:last-child{border-bottom:none}
+  .sev{font-size:9px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase;flex:0 0 auto;margin-top:2px}
+  .sev-critical{background:#7f1d1d;color:#fecaca}.sev-high{background:#7c2d12;color:#fed7aa}.sev-medium{background:#78350f;color:#fde68a}.sev-low{background:#1e3a5f;color:#bfdbfe}.sev-info{background:#1e2440;color:#94a3b8}
+  .fnd .ft{flex:1;min-width:0}.fnd .ft b{font-size:13px;color:#e2e8f0}.fnd .ft span{display:block;font-size:12px;color:#94a3b8;margin-top:1px}
+  .fnd .src{font-size:10px;color:#64748b;text-transform:uppercase}
+  .fnd select{background:#0f1117;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:3px 6px}
+  .st-remediated{opacity:.5}.st-accepted{opacity:.7}
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;margin-bottom:12px;overflow:hidden}
+  .panel .ph{padding:10px 14px;background:#161a30;border-bottom:1px solid #2d3250;font-size:12.5px;font-weight:700;color:#e2e8f0;display:flex;align-items:center;gap:8px}
+  .ai-out{white-space:pre-wrap;font-size:12.5px;line-height:1.55;color:#cbd5e1;padding:14px;max-height:460px;overflow:auto;margin:0}
+  .ai-out b{color:#e7ebf3}
+  .muted{color:#64748b}
+  .tp-modal{position:fixed;inset:0;background:rgba(5,7,15,.72);display:none;align-items:center;justify-content:center;z-index:50}
+  .tp-modal.show{display:flex}
+  .tp-dlg{background:#0f1322;border:1px solid #2d3250;border-radius:14px;padding:20px 22px;width:min(560px,93vw);max-height:90vh;overflow:auto}
+  .tp-dlg h3{margin:0 0 12px;font-size:16px;color:#e7ebf3}
+  .tp-dlg label{display:block;font-size:12px;color:#94a3b8;margin:10px 0 4px}
+  .tp-dlg input,.tp-dlg textarea,.tp-dlg select{width:100%;background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:7px;padding:8px 10px;font-size:13px;box-sizing:border-box}
+  .tp-dlg .row{display:flex;gap:10px}.tp-dlg .row>div{flex:1}
+  .tp-dlg .chk{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#cbd5e1;margin-top:12px}
+  .tp-dlg .acts2{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+  .btn-go{background:#2dd4bf;border:none;color:#06231f;border-radius:7px;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer}
+  .btn-cancel{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:13px;padding:8px 14px;cursor:pointer}
 </style>
 </head>
 <body>
 <div class="topbar">
-  <a href="/" class="logo" style="text-decoration:none;color:inherit">&#9670; XORCISM</a>
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/questionnaire-journeys">&#128221; Questionnaires</a>
+  <a href="/compliance-management">&#9989; Compliance</a>
+  <a href="/risk-register">&#128202; Risk Register</a>
   <span class="spacer"></span>
-  <a href="/?db=XORCISM&amp;table=ASSET">&#128450;&#65039; Assets</a>
-  <a href="/dashboard">&#128202; Dashboard</a>
-  <a href="/tprm" style="color:#7c83fd">&#129309; TPRM</a>
-  <a href="/?db=XCOMPLIANCE&amp;table=QUESTIONNAIREFORORGANISATION">&#9881;&#65039; Assessments</a>
+  <span class="title">&#129309; Third-Party Risk (TPRM)</span>
+</div>
+<div class="tp-wrap">
+  <h1>Third-Party Risk Management</h1>
+  <div class="tp-sub">Vendor risk the way Panorays &amp; Vendict do it — an inherent-risk tier from data sensitivity &amp; business criticality,
+    an <b>outside-in posture grade</b> from a safe external scan of the vendor's domain (TLS &amp; security headers), the
+    <b>security-questionnaire conformance</b> (CSA AI-CAIQ / OCIL), a combined <b>residual risk</b> with a review cadence, and
+    <b>local-AI copilots</b> (vendor risk brief, questionnaire review, auto-draft answers). 100% on your infrastructure.</div>
+  <div id="tp-body"><div class="muted" style="padding:24px;text-align:center">Loading vendors…</div></div>
 </div>
 
-<div class="tprm-wrap">
-  <div class="tprm-head">
-    <h2>&#129309; <span data-i18n="tprm.title">Third-Party Risk Management</span></h2>
-    <input id="tprm-search" class="tprm-filter" type="search" data-i18n-placeholder="tprm.search" placeholder="Filtrer (organisation, questionnaire, statut…)">
-    <span style="flex:1"></span>
-    <a class="btn btn-primary btn-sm" href="/?db=XCOMPLIANCE&amp;table=QUESTIONNAIREFORORGANISATION" data-i18n="tprm.new">+ Nouvelle évaluation</a>
+<div class="tp-modal" id="tp-modal">
+  <div class="tp-dlg">
+    <h3 id="tp-dlg-title">New vendor</h3>
+    <label>Vendor name *</label>
+    <input type="text" id="f-name" autocomplete="off">
+    <div class="row">
+      <div><label>Domain</label><input type="text" id="f-domain" placeholder="vendor.com" autocomplete="off"></div>
+      <div><label>Category</label><input type="text" id="f-category" placeholder="AI / Payments / SaaS…" autocomplete="off"></div>
+    </div>
+    <label>Services provided</label>
+    <input type="text" id="f-services" autocomplete="off">
+    <div class="row">
+      <div><label>Data sensitivity</label><select id="f-data"><option>None</option><option>Internal</option><option selected>Confidential</option><option value="PII">PII / personal data</option><option value="PHI">PHI / health</option><option value="Regulated">Regulated / Restricted</option></select></div>
+      <div><label>Business criticality</label><select id="f-crit"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>Owner</label><input type="text" id="f-owner" placeholder="TPRM / GRC Lead" autocomplete="off"></div>
+      <div><label>Contact email</label><input type="text" id="f-contact" autocomplete="off"></div>
+    </div>
+    <div class="chk"><input type="checkbox" id="f-ai"> <span>This vendor processes our data with AI (in scope for AI-TRiSM)</span></div>
+    <label>AI use description</label>
+    <input type="text" id="f-aiuse" placeholder="e.g. hosted LLM for support; retains prompts 30 days" autocomplete="off">
+    <div class="acts2">
+      <button class="btn-cancel" id="tp-cancel">Cancel</button>
+      <button class="btn-go" id="tp-create">Create vendor</button>
+    </div>
   </div>
-  <div class="tprm-stats" id="tprm-stats"></div>
-  <div id="tprm-table"></div>
-  <div class="tprm-hint" id="tprm-hint" style="font-size:12px;color:#64748b;margin-top:12px"></div>
 </div>
 
 <div id="toast"></div>

@@ -9,6 +9,7 @@ import {
   draftControlImplementation, draftPoam, complianceGapAnalysis, remediationAdvice, draftDpia,
   assessBreach, draftPhishingTemplate, awarenessCoaching, socTriage, shiftHandover,
   synthesizeMalwareVerdict, osintGraphInsights, ovalRemediation,
+  tprmVendorBrief, tprmReviewQuestionnaire, tprmDraftAnswers,
 } from "../aiassist";
 import { userCan } from "../auth";
 import { getRun } from "../chain";
@@ -196,5 +197,8 @@ aiRoute("/ai/shift-handover", (r) => shiftHandover({ tenant: ten(r) }));
 aiRoute("/ai/malware-verdict", (r) => synthesizeMalwareVerdict({ indicator: S(r.body, "indicator"), type: S(r.body, "type"), engines: Array.isArray(r.body?.engines) ? r.body.engines : undefined }));
 aiRoute("/ai/osint-insights", (r) => osintGraphInsights({ tenant: ten(r) }));
 aiRoute("/ai/oval-remediation", (r) => ovalRemediation({ check: S(r.body, "check"), result: S(r.body, "result"), platform: S(r.body, "platform") }));
+aiRoute("/ai/tprm-vendor-brief", (r) => tprmVendorBrief({ name: S(r.body, "name"), services: S(r.body, "services"), domain: S(r.body, "domain"), dataSensitivity: S(r.body, "dataSensitivity"), businessCriticality: S(r.body, "businessCriticality"), tier: S(r.body, "tier"), postureScore: N(r.body, "postureScore"), postureGrade: S(r.body, "postureGrade"), conformance: N(r.body, "conformance"), residualTier: S(r.body, "residualTier"), usesAI: !!r.body?.usesAI, aiUse: S(r.body, "aiUse"), findings: Array.isArray(r.body?.findings) ? r.body.findings : undefined }));
+aiRoute("/ai/tprm-review-questionnaire", (r) => tprmReviewQuestionnaire({ runId: N(r.body, "runId"), tenant: ten(r) }));
+aiRoute("/ai/tprm-draft-answers", (r) => tprmDraftAnswers({ runId: N(r.body, "runId"), knowledge: S(r.body, "knowledge", 12000), max: N(r.body, "max"), tenant: ten(r) }));
 
 export default router;

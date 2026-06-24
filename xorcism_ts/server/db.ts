@@ -846,6 +846,12 @@ export const TENANT_SCOPED_TABLES = new Set<string>([
   "XCOMPLIANCE.QUESTIONFORQUESTIONNAIRE",
   "XCOMPLIANCE.ANSWER",
   "XCOMPLIANCE.ANSWERFORQUESTION",
+  // ── Questionnaire runner / journey (guided responses; multi-tenant isolation) ──
+  "XCOMPLIANCE.QUESTIONNAIRERUN",
+  "XCOMPLIANCE.QUESTIONNAIRERESPONSE",
+  // ── TPRM (third-party risk; multi-tenant isolation) ──
+  "XCOMPLIANCE.TPRMVENDOR",
+  "XCOMPLIANCE.TPRMFINDING",
   // ── Crisis management / tabletop exercises (multi-tenant isolation) ──
   "XCOMPLIANCE.CRISISSCENARIO",
   "XCOMPLIANCE.EXERCISEINJECT",
@@ -4661,6 +4667,69 @@ export function ensureComplianceJourneyTables(): void {
         Status TEXT DEFAULT 'todo', Notes TEXT, CompletedDate TEXT, TenantID INTEGER);
       CREATE INDEX IF NOT EXISTS ix_journey_tenant ON COMPLIANCEJOURNEY(TenantID);
       CREATE INDEX IF NOT EXISTS ix_journeystep_journey ON COMPLIANCEJOURNEYSTEP(JourneyID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Guided questionnaire runner / journey (XCOMPLIANCE). A QUESTIONNAIRERUN is a per-tenant guided
+ * pass over an existing QUESTIONNAIRE (OCIL questionnaires, the CSA AI-CAIQ TPRM questionnaire, …):
+ * the wizard materializes one QUESTIONNAIRERESPONSE per linked QUESTION (grouped into sections by
+ * control-domain prefix), captures an answer + comment + evidence per question, tracks completion
+ * and a conformance score, and can be submitted/reviewed. Sits above the read-only QUESTIONNAIRE /
+ * QUESTION / QUESTIONFORQUESTIONNAIRE definition model — same shape as the compliance-journey wizard.
+ */
+export function ensureQuestionnaireRunTables(): void {
+  try {
+    const db = getDb("XCOMPLIANCE");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS QUESTIONNAIRERUN (
+        RunID INTEGER PRIMARY KEY, RunGUID TEXT,
+        QuestionnaireID INTEGER, QuestionnaireName TEXT,
+        Name TEXT, Subject TEXT, Respondent TEXT, Owner TEXT,
+        Status TEXT DEFAULT 'in_progress', StartedDate TEXT, TargetDate TEXT, SubmittedDate TEXT,
+        Score INTEGER, Conformance INTEGER,
+        TenantID INTEGER, CreatedBy TEXT, CreatedDate TEXT);
+      CREATE TABLE IF NOT EXISTS QUESTIONNAIRERESPONSE (
+        ResponseID INTEGER PRIMARY KEY, RunID INTEGER,
+        QuestionID INTEGER, Section TEXT, DisplayOrder INTEGER,
+        Answer TEXT, Comment TEXT, Evidence TEXT,
+        AnsweredDate TEXT, TenantID INTEGER);
+      CREATE INDEX IF NOT EXISTS ix_qrun_tenant ON QUESTIONNAIRERUN(TenantID);
+      CREATE INDEX IF NOT EXISTS ix_qresp_run ON QUESTIONNAIRERESPONSE(RunID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Third-Party Risk Management (TPRM) — Panorays/Vendict-style vendor risk (XCOMPLIANCE). A
+ * TPRMVENDOR carries the inherent risk (data sensitivity x business criticality -> tier), an
+ * outside-in PostureScore/Grade (from a safe external probe -> TPRMFINDING rows), the security
+ * questionnaire conformance (linked QUESTIONNAIRERUN), and the computed residual risk + review
+ * cadence. TPRMFINDING holds findings from any source (external posture, questionnaire gap, breach,
+ * AI). Dedicated tables (NOT the CPE-publisher VENDOR table) so the vendor list stays clean.
+ */
+export function ensureTprmTables(): void {
+  try {
+    const db = getDb("XCOMPLIANCE");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS TPRMVENDOR (
+        VendorID INTEGER PRIMARY KEY, VendorGUID TEXT,
+        Name TEXT, Domain TEXT, Description TEXT, Category TEXT, ServicesProvided TEXT,
+        ContactName TEXT, ContactEmail TEXT, Owner TEXT,
+        Tier TEXT, DataSensitivity TEXT, BusinessCriticality TEXT,
+        Status TEXT DEFAULT 'onboarding',
+        UsesAI INTEGER DEFAULT 0, AIUseDescription TEXT,
+        InherentRisk INTEGER, PostureScore INTEGER, PostureGrade TEXT,
+        QuestionnaireRunID INTEGER, QuestionnaireConformance INTEGER,
+        ResidualRisk INTEGER, ResidualTier TEXT,
+        LastAssessedDate TEXT, NextReviewDate TEXT, ReviewCadenceDays INTEGER DEFAULT 365,
+        TenantID INTEGER, CreatedBy TEXT, CreatedDate TEXT);
+      CREATE TABLE IF NOT EXISTS TPRMFINDING (
+        FindingID INTEGER PRIMARY KEY, FindingGUID TEXT, VendorID INTEGER,
+        Source TEXT, Category TEXT, Title TEXT, Detail TEXT,
+        Severity TEXT, Status TEXT DEFAULT 'open', Evidence TEXT,
+        CreatedDate TEXT, TenantID INTEGER);
+      CREATE INDEX IF NOT EXISTS ix_tprmvendor_tenant ON TPRMVENDOR(TenantID);
+      CREATE INDEX IF NOT EXISTS ix_tprmfinding_vendor ON TPRMFINDING(VendorID);`);
   } catch { /* best-effort */ }
 }
 
