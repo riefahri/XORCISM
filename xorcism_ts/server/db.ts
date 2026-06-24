@@ -852,6 +852,11 @@ export const TENANT_SCOPED_TABLES = new Set<string>([
   // ── TPRM (third-party risk; multi-tenant isolation) ──
   "XCOMPLIANCE.TPRMVENDOR",
   "XCOMPLIANCE.TPRMFINDING",
+  // ── Zero Trust maturity (ZTFUNCTION is global reference; assessments are tenant-scoped) ──
+  "XCOMPLIANCE.ZTMATURITYASSESSMENT",
+  "XCOMPLIANCE.ZTMATURITYITEM",
+  "XORCISM.IDENTITYSIGNIN",
+  "XCOMPLIANCE.ZTPOLICY",
   // ── Crisis management / tabletop exercises (multi-tenant isolation) ──
   "XCOMPLIANCE.CRISISSCENARIO",
   "XCOMPLIANCE.EXERCISEINJECT",
@@ -4730,6 +4735,74 @@ export function ensureTprmTables(): void {
         CreatedDate TEXT, TenantID INTEGER);
       CREATE INDEX IF NOT EXISTS ix_tprmvendor_tenant ON TPRMVENDOR(TenantID);
       CREATE INDEX IF NOT EXISTS ix_tprmfinding_vendor ON TPRMFINDING(VendorID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Zero Trust Maturity (CISA ZTMM v2.0) (XCOMPLIANCE). ZTFUNCTION is the seeded global catalogue
+ * (5 pillars + 3 cross-cutting capabilities × functions × 4 maturity stages); ZTMATURITYASSESSMENT
+ * is a per-tenant assessment header; ZTMATURITYITEM is one row per function (current/target/auto
+ * stage). The /zero-trust cockpit also derives per-pillar maturity from live XORCISM signals and a
+ * fused trust score from the identity & asset inventories — see zerotrust.ts.
+ */
+export function ensureZeroTrustTables(): void {
+  try {
+    const db = getDb("XCOMPLIANCE");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ZTFUNCTION (
+        FunctionID INTEGER PRIMARY KEY, FunctionKey TEXT UNIQUE, Pillar TEXT, PillarKey TEXT,
+        IsCrossCutting INTEGER DEFAULT 0, Name TEXT, Description TEXT,
+        Stage0 TEXT, Stage1 TEXT, Stage2 TEXT, Stage3 TEXT, DisplayOrder INTEGER);
+      CREATE TABLE IF NOT EXISTS ZTMATURITYASSESSMENT (
+        AssessmentID INTEGER PRIMARY KEY, AssessmentGUID TEXT, Name TEXT, Scope TEXT, Owner TEXT,
+        Status TEXT DEFAULT 'in_progress', OverallStage REAL, Score INTEGER, TargetStage INTEGER DEFAULT 3,
+        StartedDate TEXT, TargetDate TEXT, TenantID INTEGER, CreatedBy TEXT, CreatedDate TEXT);
+      CREATE TABLE IF NOT EXISTS ZTMATURITYITEM (
+        ItemID INTEGER PRIMARY KEY, AssessmentID INTEGER, FunctionKey TEXT, Pillar TEXT, PillarKey TEXT,
+        CurrentStage INTEGER, TargetStage INTEGER, AutoStage INTEGER, Notes TEXT, Evidence TEXT, TenantID INTEGER);
+      CREATE INDEX IF NOT EXISTS ix_ztassessment_tenant ON ZTMATURITYASSESSMENT(TenantID);
+      CREATE INDEX IF NOT EXISTS ix_ztitem_assessment ON ZTMATURITYITEM(AssessmentID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Sign-in / access telemetry (XORCISM) — the continuous-verification signal that matures the Zero
+ * Trust Identity pillar. IDENTITYSIGNIN holds normalized sign-in events ingested by the inbound
+ * IdP/ZTNA connectors (entra-signin, okta-signin, …); zerotrust.ts sessionRisk() derives per-identity
+ * behavioral risk (MFA-less sign-ins, failed bursts, impossible travel, IdP-flagged risk).
+ */
+export function ensureZtSigninTable(): void {
+  try {
+    const db = getDb("XORCISM");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS IDENTITYSIGNIN (
+        SigninID INTEGER PRIMARY KEY, SigninGUID TEXT,
+        IdentityName TEXT, IdentityID INTEGER,
+        Timestamp TEXT, SourceIP TEXT, Country TEXT, City TEXT, Device TEXT, ClientApp TEXT,
+        MFAUsed TEXT, Result TEXT, FailureReason TEXT, RiskLevel TEXT,
+        Source TEXT, ExternalID TEXT, TenantID INTEGER, CreatedDate TEXT);
+      CREATE INDEX IF NOT EXISTS ix_signin_identity ON IDENTITYSIGNIN(IdentityName);
+      CREATE INDEX IF NOT EXISTS ix_signin_extid ON IDENTITYSIGNIN(Source, ExternalID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Zero Trust policy register (XCOMPLIANCE) — the access policies modeled as data (NIST SP 800-207
+ * Policy Engine view). ZTPOLICY holds conditional-access / ZTNA policies ingested by the inbound
+ * connectors (entra-conditional-access, …): subject × resource × conditions × grant controls. Feeds
+ * the /zero-trust Automation/Governance pillar signals. XORCISM models & measures policy; it does
+ * not enforce it (the IdP/ZTNA does).
+ */
+export function ensureZtPolicyTable(): void {
+  try {
+    const db = getDb("XCOMPLIANCE");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ZTPOLICY (
+        PolicyID INTEGER PRIMARY KEY, PolicyGUID TEXT, Name TEXT, Source TEXT, ExternalID TEXT,
+        State TEXT, Subjects TEXT, Resources TEXT, Conditions TEXT, GrantControls TEXT,
+        RequireMfa INTEGER, RequireCompliantDevice INTEGER, Block INTEGER,
+        TenantID INTEGER, CreatedDate TEXT);
+      CREATE INDEX IF NOT EXISTS ix_ztpolicy_extid ON ZTPOLICY(Source, ExternalID);`);
   } catch { /* best-effort */ }
 }
 

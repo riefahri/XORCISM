@@ -1,0 +1,16 @@
+{
+  "id": "entra-signin",
+  "name": "Microsoft Entra ID - sign-in logs (UEBA / Zero Trust)",
+  "type": "import",
+  "category": "Identity & Access Management",
+  "description": "Inbound connector: ingests Microsoft Entra ID sign-in logs into XORCISM.IDENTITYSIGNIN - the continuous-verification telemetry behind the /zero-trust Identity pillar and the UEBA session-risk (zerotrust.ts sessionRisk: MFA-less sign-ins, failed bursts, impossible travel, Entra risk level). Normalizes user, time, IP, location, device, MFA, result and risk. Modes: `file` (an exported sign-in JSON - a Graph value[] array), `live` (Microsoft Graph /auditLogs/signIns with a token), or `demo` (a built-in sample). Read-only against Entra. Config: GRAPH_TOKEN (or pass `token`). Idempotent by Entra sign-in id.",
+  "intrusive": false,
+  "permission": "connector:entra-signin",
+  "run": "run.py",
+  "mapping": "entra-signin",
+  "parameters": [
+    { "name": "file", "type": "string", "default": "", "help": "Path to an exported Entra sign-in log (a JSON array, or a Graph {\"value\":[...]} object). A demo sample is used if omitted and no token is set." },
+    { "name": "token", "type": "string", "default": "", "help": "Microsoft Graph bearer token (overrides GRAPH_TOKEN) for live /auditLogs/signIns" },
+    { "name": "top", "type": "int", "default": 200, "help": "Max sign-ins to pull in live mode" }
+  ]
+}

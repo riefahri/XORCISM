@@ -1,0 +1,17 @@
+{
+  "id": "okta-signin",
+  "name": "Okta - System Log sign-ins (UEBA / Zero Trust)",
+  "type": "import",
+  "category": "Identity & Access Management",
+  "description": "Inbound connector: ingests Okta System Log authentication events into XORCISM.IDENTITYSIGNIN - the continuous-verification telemetry behind the /zero-trust Identity pillar and the UEBA session-risk. Normalizes user, time, IP, location, device, MFA, result. Modes: `file` (an exported System Log JSON array), `live` (Okta /api/v1/logs with an org URL + API token), or `demo` (a built-in sample). Read-only against Okta. Config: OKTA_URL + OKTA_TOKEN (or pass `org` / `token`). Idempotent by Okta event uuid.",
+  "intrusive": false,
+  "permission": "connector:okta-signin",
+  "run": "run.py",
+  "mapping": "okta-signin",
+  "parameters": [
+    { "name": "file", "type": "string", "default": "", "help": "Path to an exported Okta System Log (a JSON array of log events). A demo sample is used if omitted and no token is set." },
+    { "name": "org", "type": "string", "default": "", "help": "Okta org base URL, e.g. https://acme.okta.com (overrides OKTA_URL)" },
+    { "name": "token", "type": "string", "default": "", "help": "Okta API token (SSWS) (overrides OKTA_TOKEN) for live /api/v1/logs" },
+    { "name": "limit", "type": "int", "default": 200, "help": "Max events to pull in live mode" }
+  ]
+}

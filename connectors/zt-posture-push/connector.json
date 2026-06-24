@@ -1,0 +1,20 @@
+{
+  "id": "zt-posture-push",
+  "name": "Zero Trust posture push (ZTNA / IdP enforcement plane)",
+  "type": "import",
+  "category": "Identity & Access Management",
+  "description": "Outbound (action) connector: pushes the XORCISM device-trust feed (GET /api/zero-trust/device-trust) to your enforcement plane — a ZTNA / IdP / PEP device-posture endpoint (Cloudflare Access, Zscaler, Microsoft Entra Conditional Access, Okta or a custom PDP) — so access decisions can gate on the XORCISM-computed device trust. Reads the feed from a `file` (the exported JSON), an inline `feed`, or builds a demo feed; shapes the payload per target (generic | cloudflare | zscaler | okta | entra); only the devices below `min_trust` (the non-compliant set) are pushed. With no webhook (or dry_run) it returns the built payload WITHOUT sending. Config: ZT_POSTURE_WEBHOOK / ZT_POSTURE_TOKEN (or pass `webhook` / `token`). Does NOT read or write the database.",
+  "intrusive": false,
+  "permission": "connector:zt-posture-push",
+  "run": "run.py",
+  "mapping": "zt-posture-push",
+  "parameters": [
+    { "name": "webhook", "type": "string", "default": "", "help": "Enforcement-plane device-posture webhook URL (overrides ZT_POSTURE_WEBHOOK)" },
+    { "name": "format", "type": "string", "default": "generic", "help": "generic | cloudflare | zscaler | okta | entra — shapes the per-device payload" },
+    { "name": "file", "type": "string", "default": "", "help": "Path to the exported device-trust JSON (GET /api/zero-trust/device-trust). A demo feed is used if omitted." },
+    { "name": "feed", "type": "string", "default": "", "help": "Inline device-trust JSON (alternative to file)" },
+    { "name": "min_trust", "type": "int", "default": 60, "help": "Push only devices with trust below this threshold (the non-compliant set); 0 = push all" },
+    { "name": "token", "type": "string", "default": "", "help": "Bearer/API token for the webhook (overrides ZT_POSTURE_TOKEN)" },
+    { "name": "dry_run", "type": "bool", "default": false, "help": "Build the payload but do not send it (returns the payload)" }
+  ]
+}

@@ -387,6 +387,10 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
         counts.update(import_yara_rules(result))
     if result.get("identities"):
         counts.update(import_identities(result))
+    if result.get("signins"):
+        counts.update(import_signins(result))
+    if result.get("zt_policies"):
+        counts.update(import_zt_policies(result))
     if result.get("monitors") or result.get("monitoring_incidents"):
         counts.update(import_monitoring(result))
     if result.get("documents"):
@@ -742,6 +746,131 @@ def import_identities(result: Dict[str, Any]) -> Dict[str, int]:
                 (*common, str(uuid4()), _now(), tid),
             )
             counts["identities"] += 1
+    con.commit()
+    con.close()
+    return counts
+
+
+# IDENTITYSIGNIN schema (kept in sync with ensureZtSigninTable() in db.ts).
+_SIGNIN_COLUMNS = {
+    "SigninID": "INTEGER PRIMARY KEY", "SigninGUID": "TEXT", "IdentityName": "TEXT", "IdentityID": "INTEGER",
+    "Timestamp": "TEXT", "SourceIP": "TEXT", "Country": "TEXT", "City": "TEXT", "Device": "TEXT", "ClientApp": "TEXT",
+    "MFAUsed": "TEXT", "Result": "TEXT", "FailureReason": "TEXT", "RiskLevel": "TEXT",
+    "Source": "TEXT", "ExternalID": "TEXT", "TenantID": "INTEGER", "CreatedDate": "TEXT",
+}
+
+
+def import_signins(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import normalized sign-in / access events into XORCISM.IDENTITYSIGNIN — the continuous-
+    verification telemetry that matures the Zero Trust Identity pillar (zerotrust.ts sessionRisk()).
+    Used by the inbound IdP/ZTNA connectors (entra-signin, okta-signin, …). Idempotent by
+    (Source, ExternalID); resolves IdentityID by IdentityName. Each item (dict):
+        {"user"/"identity", "timestamp", "ip", "country", "city", "device", "client_app",
+         "mfa" (yes/no), "result" (success/failure), "failure_reason", "risk", "id" (unique)}"""
+    from uuid import uuid4
+
+    items = result.get("signins") or []
+    counts = {"signins": 0, "signins_updated": 0}
+    if not items:
+        return counts
+    tid = _import_tenant_id()
+    con = sqlite3.connect(os.path.join(_db_dir(), "XORCISM.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    cols_sql = ", ".join(f"{n} {t}" for n, t in _SIGNIN_COLUMNS.items())
+    cur.execute(f"CREATE TABLE IF NOT EXISTS IDENTITYSIGNIN ({cols_sql})")
+    existing = {r[1] for r in cur.execute("PRAGMA table_info(IDENTITYSIGNIN)").fetchall()}
+    for name, typ in _SIGNIN_COLUMNS.items():
+        if name not in existing:
+            cur.execute(f"ALTER TABLE IDENTITYSIGNIN ADD COLUMN {name} {typ.replace(' PRIMARY KEY', '')}")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_signin_extid ON IDENTITYSIGNIN(Source, ExternalID)")
+    src = result.get("source") or "IdP sign-in import"
+
+    def _identity_id(name):
+        if not name:
+            return None
+        r = cur.execute("SELECT IdentityID FROM IDENTITY WHERE IdentityName=? LIMIT 1", (name,)).fetchone()
+        return r[0] if r else None
+
+    for it in items:
+        ext = it.get("id") or it.get("external_id")
+        user = it.get("user") or it.get("identity") or it.get("userPrincipalName")
+        if not ext or not user:
+            continue
+        common = (user, _identity_id(user), it.get("timestamp"), it.get("ip"), it.get("country"), it.get("city"),
+                  it.get("device"), it.get("client_app"), it.get("mfa"), it.get("result"), it.get("failure_reason"),
+                  it.get("risk"), src, str(ext))
+        row = cur.execute("SELECT SigninID FROM IDENTITYSIGNIN WHERE Source=? AND ExternalID=?", (src, str(ext))).fetchone()
+        if row:
+            cur.execute(
+                """UPDATE IDENTITYSIGNIN SET IdentityName=?, IdentityID=?, Timestamp=?, SourceIP=?, Country=?, City=?,
+                     Device=?, ClientApp=?, MFAUsed=?, Result=?, FailureReason=?, RiskLevel=?, Source=?, ExternalID=?
+                   WHERE SigninID=?""", (*common, row[0]))
+            counts["signins_updated"] += 1
+        else:
+            cur.execute(
+                """INSERT INTO IDENTITYSIGNIN (IdentityName, IdentityID, Timestamp, SourceIP, Country, City, Device,
+                     ClientApp, MFAUsed, Result, FailureReason, RiskLevel, Source, ExternalID, SigninGUID, CreatedDate, TenantID)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (*common, str(uuid4()), _now(), tid))
+            counts["signins"] += 1
+    con.commit()
+    con.close()
+    return counts
+
+
+# ZTPOLICY schema (kept in sync with ensureZtPolicyTable() in db.ts), in XCOMPLIANCE.
+_ZTPOLICY_COLUMNS = {
+    "PolicyID": "INTEGER PRIMARY KEY", "PolicyGUID": "TEXT", "Name": "TEXT", "Source": "TEXT", "ExternalID": "TEXT",
+    "State": "TEXT", "Subjects": "TEXT", "Resources": "TEXT", "Conditions": "TEXT", "GrantControls": "TEXT",
+    "RequireMfa": "INTEGER", "RequireCompliantDevice": "INTEGER", "Block": "INTEGER",
+    "TenantID": "INTEGER", "CreatedDate": "TEXT",
+}
+
+
+def import_zt_policies(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import normalized Zero Trust access policies into XCOMPLIANCE.ZTPOLICY (the policy register
+    behind the /zero-trust Automation/Governance pillars). Used by the inbound conditional-access /
+    ZTNA-policy connectors. Idempotent by (Source, ExternalID). Each item (dict):
+        {"name", "state", "subjects", "resources", "conditions", "grant_controls",
+         "require_mfa" (bool), "require_compliant_device" (bool), "block" (bool), "id"}"""
+    from uuid import uuid4
+
+    items = result.get("zt_policies") or []
+    counts = {"zt_policies": 0, "zt_policies_updated": 0}
+    if not items:
+        return counts
+    tid = _import_tenant_id()
+    con = sqlite3.connect(os.path.join(_db_dir(), "XCOMPLIANCE.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    cols_sql = ", ".join(f"{n} {t}" for n, t in _ZTPOLICY_COLUMNS.items())
+    cur.execute(f"CREATE TABLE IF NOT EXISTS ZTPOLICY ({cols_sql})")
+    existing = {r[1] for r in cur.execute("PRAGMA table_info(ZTPOLICY)").fetchall()}
+    for name, typ in _ZTPOLICY_COLUMNS.items():
+        if name not in existing:
+            cur.execute(f"ALTER TABLE ZTPOLICY ADD COLUMN {name} {typ.replace(' PRIMARY KEY', '')}")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_ztpolicy_extid ON ZTPOLICY(Source, ExternalID)")
+    src = result.get("source") or "Conditional Access import"
+    b = lambda v: 1 if v else 0  # noqa: E731
+    for it in items:
+        ext = it.get("id") or it.get("external_id")
+        if not ext:
+            continue
+        common = (it.get("name") or str(ext), src, str(ext), it.get("state"), it.get("subjects"), it.get("resources"),
+                  it.get("conditions"), it.get("grant_controls"), b(it.get("require_mfa")),
+                  b(it.get("require_compliant_device")), b(it.get("block")))
+        row = cur.execute("SELECT PolicyID FROM ZTPOLICY WHERE Source=? AND ExternalID=?", (src, str(ext))).fetchone()
+        if row:
+            cur.execute(
+                """UPDATE ZTPOLICY SET Name=?, Source=?, ExternalID=?, State=?, Subjects=?, Resources=?, Conditions=?,
+                     GrantControls=?, RequireMfa=?, RequireCompliantDevice=?, Block=? WHERE PolicyID=?""", (*common, row[0]))
+            counts["zt_policies_updated"] += 1
+        else:
+            cur.execute(
+                """INSERT INTO ZTPOLICY (Name, Source, ExternalID, State, Subjects, Resources, Conditions, GrantControls,
+                     RequireMfa, RequireCompliantDevice, Block, PolicyGUID, CreatedDate, TenantID)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (*common, str(uuid4()), _now(), tid))
+            counts["zt_policies"] += 1
     con.commit()
     con.close()
     return counts

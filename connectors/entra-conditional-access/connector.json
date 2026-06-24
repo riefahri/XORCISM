@@ -1,0 +1,15 @@
+{
+  "id": "entra-conditional-access",
+  "name": "Microsoft Entra ID - Conditional Access policies (Zero Trust policy register)",
+  "type": "import",
+  "category": "Identity & Access Management",
+  "description": "Inbound connector: ingests Microsoft Entra ID Conditional Access policies into XCOMPLIANCE.ZTPOLICY - the Zero Trust policy register (NIST SP 800-207 Policy Engine view) behind the /zero-trust Automation & Governance pillars. Normalizes each policy to subject x resource x conditions x grant controls (require MFA / compliant device / block) and state (enabled | disabled | report-only). Modes: `file` (an exported policies JSON - a Graph value[] array), `live` (Microsoft Graph /identity/conditionalAccess/policies with a token), or `demo` (a built-in sample). Read-only against Entra. Config: GRAPH_TOKEN (or pass `token`). Idempotent by policy id.",
+  "intrusive": false,
+  "permission": "connector:entra-conditional-access",
+  "run": "run.py",
+  "mapping": "entra-conditional-access",
+  "parameters": [
+    { "name": "file", "type": "string", "default": "", "help": "Path to an exported Conditional Access policies JSON (a Graph {\"value\":[...]} object or array). A demo sample is used if omitted and no token is set." },
+    { "name": "token", "type": "string", "default": "", "help": "Microsoft Graph bearer token (overrides GRAPH_TOKEN) for live /identity/conditionalAccess/policies" }
+  ]
+}
