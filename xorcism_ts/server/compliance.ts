@@ -9,6 +9,7 @@
  */
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
+import { remediationCounts } from "./findingremediation";
 
 export interface AuditRow {
   id: number;
@@ -34,6 +35,8 @@ export interface ComplianceFinding {
   noPlan: boolean;
   kind: "finding" | "policy";
   label: string;
+  plans?: number;
+  openPlans?: number;
 }
 export interface ComplianceInventory {
   rows: AuditRow[];
@@ -152,6 +155,10 @@ export function complianceInventory(tenant: number | null): ComplianceInventory 
 
   rows.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   worklist.sort((a, b) => (SEV_RANK[a.severity.toLowerCase()] - SEV_RANK[b.severity.toLowerCase()]) || (a.overdue === b.overdue ? 0 : a.overdue ? -1 : 1) || a.audit.localeCompare(b.audit));
+
+  // attach the remediation-plan counts to each finding (for the worklist "Plans" action)
+  const planCounts = remediationCounts(worklist.filter((w) => w.kind === "finding").map((w) => w.id), tenant);
+  for (const w of worklist) if (w.kind === "finding") { const c = planCounts.get(w.id); w.plans = c?.plans ?? 0; w.openPlans = c?.open ?? 0; }
 
   const bySeverity: Record<string, number> = {};
   for (const w of worklist) if (w.kind === "finding") bySeverity[w.severity] = (bySeverity[w.severity] || 0) + 1;

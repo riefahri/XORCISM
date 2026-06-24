@@ -90,8 +90,12 @@ const ENUM_COLUMNS: Record<string, string[]> = {
   "CRISISSCENARIO.ScenarioType": ["Ransomware", "Data Breach", "DDoS", "Insider Threat", "Supply Chain", "Cloud Account Compromise", "Business Email Compromise", "Phishing", "Physical / Environmental", "Third-Party Outage", "Other"],
   "CRISISSCENARIO.Severity": ["Critical", "High", "Medium", "Low"],
   "EXERCISEINJECT.InjectType": ["Event", "Decision", "Escalation", "Media", "Technical", "Communication"],
-  "EXERCISEINJECT.Status": ["Template", "Pending", "In progress", "Responded", "Done", "Skipped"],
+  "EXERCISEINJECT.Channel": ["email", "sms", "whatsapp", "phone", "media", "technical", "decision", "manual"],
+  "EXERCISEINJECT.Status": ["Template", "Pending", "Delivered", "In progress", "Responded", "Done", "Skipped"],
   "EXERCISEPARTICIPANT.CrisisRole": ["Incident Commander", "Communications Lead", "Legal / DPO", "HR", "IT / Security Lead", "Executive Sponsor", "Operations", "Scribe / Notetaker", "Observer", "Facilitator"],
+  "AUDITFINDINGREMEDIATION.Status": ["Planned", "In progress", "Implemented", "Verified", "Closed", "Cancelled"],
+  "AUDITFINDINGREMEDIATION.RemediationType": ["Corrective", "Preventive", "Compensating", "Mitigation", "Risk acceptance"],
+  "AUDITFINDINGREMEDIATION.Priority": ["Critical", "High", "Medium", "Low"],
   // XCOMPLIANCE — PQCMM post-quantum-crypto maturity assessments
   "PQCMMASSESSMENT.SubjectType": ["Asset", "Application", "Service", "Product", "Protocol", "Library", "Certificate / PKI"],
   "PQCMMASSESSMENT.Status": ["Active", "Planned", "Retired", "Superseded"],
@@ -179,7 +183,7 @@ function richTextOpts(table: string, col: string): { minHeight?: number } | unde
 }
 
 // Columns rendered as a PROMINENT input — the record's "title": large font, full width.
-const PROMINENT_INPUT_COLUMNS = new Set<string>(["POLICY.PolicyName", "CPE.CPEName", "RISKREGISTERENTRY.Title", "CRISISSCENARIO.ScenarioName"]);
+const PROMINENT_INPUT_COLUMNS = new Set<string>(["POLICY.PolicyName", "CPE.CPEName", "RISKREGISTERENTRY.Title", "CRISISSCENARIO.ScenarioName", "AUDIT.AuditName"]);
 function isProminentInput(table: string, col: string): boolean {
   return PROMINENT_INPUT_COLUMNS.has(`${table}.${col}`);
 }
@@ -206,7 +210,7 @@ function isReadonlyFormColumn(table: string, col: string): boolean {
 }
 
 // Tables whose modal is widened (relational sub-panels).
-const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO", "VULNERABILITY"]);
+const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO", "VULNERABILITY", "AUDIT"]);
 
 // Display reordering of fields in the forms:
 // table → list of [columnToMove, columnAfterWhich].
@@ -1081,6 +1085,11 @@ interface GridDisplaySpec extends NameHintSpec {
   srcCol: string; colLabel: string; yesno?: boolean; keyCol?: string; emptyLabel?: string;
 }
 const GRID_DISPLAY_COLUMNS: Record<string, GridDisplaySpec[]> = {
+  // AUDITFINDING: the parent audit's name, resolved from AuditID, shown just LEFT of FindingName
+  // (inserted after AuditFindingGUID since AuditID itself sits far right in the schema).
+  AUDITFINDING: [
+    { db: "XCOMPLIANCE", table: "AUDIT", idCol: "AuditID", labelCol: "AuditName", hintLabel: "AuditName", srcCol: "AuditFindingGUID", keyCol: "AuditID", colLabel: "AuditName" },
+  ],
   // ASSETCONTROL: resolved asset & control names, shown right after AssetID / ControlID.
   ASSETCONTROL: [
     { db: "XORCISM", table: "ASSET", idCol: "AssetID", labelCol: "AssetName", hintLabel: "AssetName", srcCol: "AssetID", colLabel: "AssetName" },
@@ -1582,6 +1591,11 @@ const GRID_LINK_COLUMNS: Record<string, GridLinkSpec[]> = {
     { col: "AssetName", srcCol: "AssetID", db: "XORCISM", table: "ASSET", idCol: "AssetID" },
     // VULReferential → edits the corresponding VULNERABILITY (XVULNERABILITY)
     { col: "VULReferential", srcCol: "VulnerabilityID", db: "XVULNERABILITY", table: "VULNERABILITY", idCol: "VulnerabilityID" },
+  ],
+  // FindingName → edits this AUDITFINDING row itself (self-link); AuditName → edits the parent AUDIT
+  AUDITFINDING: [
+    { col: "FindingName", srcCol: "AuditFindingID", db: "XCOMPLIANCE", table: "AUDITFINDING", idCol: "AuditFindingID" },
+    { col: "AuditName", srcCol: "AuditID", db: "XCOMPLIANCE", table: "AUDIT", idCol: "AuditID" },
   ],
 };
 function getGridLink(table: string, col: string): GridLinkSpec | undefined {
@@ -2278,6 +2292,8 @@ FK_COLUMNS["INDICATOROBSERVABLE.IOCID"] = { db: "XTHREAT", table: "IOC", idCol: 
 FK_COLUMNS["INDICATOROBSERVABLE.ObservableID"] = { db: "XTHREAT", table: "OBSERVABLE", idCol: "ObservableID", labelCol: "Value", distinct: true };
 // THREATREPORT author → PERSON (cross-database FK to XORCISM.PERSON).
 FK_COLUMNS["THREATREPORT.PersonID"] = { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", searchLabel: "Author" };
+FK_COLUMNS["AUDITFINDINGREMEDIATION.AuditFindingID"] = { db: "XCOMPLIANCE", table: "AUDITFINDING", idCol: "AuditFindingID", labelCol: "FindingName", distinct: true };
+FK_COLUMNS["AUDITFINDINGREMEDIATION.OwnerPersonID"] = { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", distinct: true };
 
 // Labels columns handled by a chip selector (reuses the ASSET tag-picker UX).
 const OPENCTI_LABEL_TABLES = new Set([...OPENCTI_ENTITY_TABLES]);
@@ -2400,7 +2416,7 @@ FK_COLUMNS["AUDITFINDING.RemediationOwnerPersonID"] = { db: "XORCISM", table: "P
 
 // ── Policy & document management metadata (ISO 42001 / 27001 / NIST AI RMF …) ──
 const DOC_LANGUAGES = ["en", "fr", "de", "es", "it", "nl", "pt", "ar"];
-const DOC_FRAMEWORKS = ["ISO/IEC 42001:2023", "ISO/IEC 27001:2022", "ISO/IEC 27031:2011", "ISO/IEC 27701:2019", "NIST AI RMF 1.0", "NIST SP 800-53", "Secure Controls Framework (SCF)", "CSA CCM v4", "OWASP ASVS 4.0.3", "PCI DSS v4.0", "ITMG IRCF v1.0", "EU AI Act", "DORA (EU 2022/2554)", "NIS2", "Référentiel Cyber France (ReCyF)", "SOC 2", "GDPR"];
+const DOC_FRAMEWORKS = ["ISO/IEC 42001:2023", "ISO/IEC 27001:2022", "ISO/IEC 27031:2011", "ISO/IEC 27701:2019", "NIST AI RMF 1.0", "NIST SP 800-53", "Secure Controls Framework (SCF)", "CSA CCM v4", "CSA AI Controls Matrix (AICM) v1.1", "OWASP ASVS 4.0.3", "PCI DSS v4.0", "ITMG IRCF v1.0", "EU AI Act", "DORA (EU 2022/2554)", "NIS2", "Référentiel Cyber France (ReCyF)", "SOC 2", "GDPR"];
 const DOC_CLASSIFICATION = ["Public", "Internal", "Confidential", "Restricted"];
 const DOC_CATEGORIES = ["AI Management System", "Information Security", "Privacy", "Data Governance", "Risk Management", "Operations", "Human Resources"];
 const DOC_TYPES = ["Policy", "Procedure", "Standard", "Guideline", "Record", "Report", "Evidence", "Form", "Plan"];
@@ -5989,6 +6005,7 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
       }
     }
     await appendAuditAssetSelector(body, "ef", new Set(linked));
+    await appendAuditFindingsChart(body, editAuditId);
   }
 
   // CATEGORY dropdown (vocabulary-dependent) for the THREATAGENT table
@@ -6276,6 +6293,44 @@ function collectCheckedAssets(prefix: string): number[] {
 
 // ── Multi-ASSET selector for AUDIT (relation via XORCISM.ASSETAUDIT) ─────────
 // Search field on AssetName + multiple selection in a table.
+/** Read-only chart of an audit's AUDITFINDINGs (severity bars + status chips + open/overdue), in the AUDIT form. */
+async function appendAuditFindingsChart(body: HTMLElement, auditId: number): Promise<void> {
+  if (!auditId) return;
+  const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  const div = document.createElement("div");
+  div.style.marginBottom = "10px";
+  const label = document.createElement("label");
+  label.textContent = t("audit.findingsChart");
+  label.style.cssText = "display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px";
+  div.appendChild(label);
+  const box = document.createElement("div");
+  box.style.cssText = "border:1px solid var(--border);border-radius:6px;background:var(--bg);padding:10px 12px";
+  box.innerHTML = `<span style="color:var(--text-dim);font-size:12px">…</span>`;
+  div.appendChild(box);
+  body.appendChild(div);
+
+  let d: { total: number; open: number; overdue: number; bySeverity: Record<string, number>; byStatus: Record<string, number> };
+  try { const r = await fetch(`/api/audit-findings-stats?auditId=${auditId}`); if (!r.ok) throw new Error(`HTTP ${r.status}`); d = await r.json(); }
+  catch (e) { box.innerHTML = `<span style="color:var(--text-dim);font-size:12px">${esc(String(e))}</span>`; return; }
+  if (!d.total) { box.innerHTML = `<span style="color:var(--text-dim);font-size:12px">${esc(t("audit.noFindings"))}</span>`; return; }
+
+  const SEV: [string, string][] = [["Critical", "#f87171"], ["High", "#fb923c"], ["Medium", "#fbbf24"], ["Low", "#34d399"], ["Info", "#60a5fa"]];
+  const extras: [string, string][] = Object.keys(d.bySeverity).filter((k) => !SEV.some(([s]) => s === k)).map((k) => [k, "#64748b"]);
+  const order = [...SEV, ...extras];
+  const max = Math.max(1, ...order.map(([k]) => d.bySeverity[k] || 0));
+  const bars = order.filter(([k]) => (d.bySeverity[k] || 0) > 0).map(([k, c]) => {
+    const n = d.bySeverity[k] || 0;
+    return `<div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+      <span style="width:64px;font-size:11px;color:var(--text-muted);text-align:right">${esc(k)}</span>
+      <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:4px;height:14px;overflow:hidden"><span style="display:block;height:100%;width:${Math.round((n / max) * 100)}%;background:${c}"></span></div>
+      <span style="width:26px;font-size:12px;font-weight:700;color:var(--text)">${n}</span></div>`;
+  }).join("");
+  const statusChips = Object.entries(d.byStatus).sort((a, b) => b[1] - a[1]).map(([k, n]) =>
+    `<span style="font-size:11px;background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:1px 7px;color:var(--text-muted)">${esc(k)} <b style="color:var(--text)">${n}</b></span>`).join(" ");
+  box.innerHTML = `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">${d.total} finding(s) · <b style="color:#fb923c">${d.open}</b> open${d.overdue ? ` · <b style="color:#f87171">${d.overdue}</b> overdue` : ""}</div>
+    ${bars}<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px">${statusChips}</div>`;
+}
+
 async function appendAuditAssetSelector(
   body: HTMLElement,
   prefix: string,
@@ -6287,6 +6342,11 @@ async function appendAuditAssetSelector(
   label.textContent = `${t("asset.linked")} (ASSETAUDIT)`;
   label.style.cssText = "display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px";
   div.appendChild(label);
+
+  // Tag picker: check all assets carrying the chosen ASSETTAG (e.g. all "endpoint")
+  const tagSel = document.createElement("select");
+  tagSel.style.cssText = "width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;margin-bottom:6px";
+  div.appendChild(tagSel);
 
   const search = document.createElement("input");
   search.type = "search";
@@ -6302,9 +6362,16 @@ async function appendAuditAssetSelector(
   div.appendChild(box);
   body.appendChild(div);
 
-  let assets: { id: unknown; label: unknown }[] = [];
+  let assets: { id: unknown; label: unknown; tags: string[] }[] = [];
   try {
-    assets = await api.getLookup("XORCISM", "ASSET", "AssetID", "AssetName");
+    const r = await fetch("/api/assets-with-tags");
+    if (r.ok) {
+      assets = ((await r.json()) as { AssetID: number; AssetName: string; Tags?: string }[]).map((a) => ({
+        id: a.AssetID, label: a.AssetName, tags: String(a.Tags ?? "").split(",").map((x) => x.trim()).filter(Boolean),
+      }));
+    } else {
+      assets = (await api.getLookup("XORCISM", "ASSET", "AssetID", "AssetName")).map((a) => ({ id: a.id, label: a.label, tags: [] as string[] }));
+    }
   } catch (e) {
     box.innerHTML = `<span style="color:var(--danger);font-size:12px;padding:6px;display:block">${t("asset.unavailable")} ${e}</span>`;
     return;
@@ -6326,6 +6393,7 @@ async function appendAuditAssetSelector(
     const name = a.label == null || a.label === "" ? `#${a.id}` : String(a.label);
     const tr = document.createElement("tr");
     tr.dataset.name = name.toLowerCase();
+    tr.dataset.tags = (a.tags || []).join("|").toLowerCase();
     tr.style.cursor = "pointer";
     const tdCb = document.createElement("td");
     tdCb.style.cssText = "padding:3px 8px;border-bottom:1px solid var(--surface)";
@@ -6355,6 +6423,23 @@ async function appendAuditAssetSelector(
       const cb = tr.querySelector<HTMLInputElement>("input[type=checkbox]");
       tr.style.display = !q || tr.dataset.name!.includes(q) || cb?.checked ? "" : "none";
     });
+  });
+
+  // Tag picker: distinct ASSETTAG values (+ counts); selecting one checks every asset carrying it.
+  const escO = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  const allTags = [...new Set(assets.flatMap((a) => a.tags))].sort((x, y) => x.localeCompare(y));
+  tagSel.innerHTML = `<option value="">${escO(t("asset.checkByTag"))}</option>` +
+    allTags.map((tg) => `<option value="${escO(tg.toLowerCase())}">${escO(tg)} (${assets.filter((a) => a.tags.some((x) => x.toLowerCase() === tg.toLowerCase())).length})</option>`).join("");
+  if (!allTags.length) tagSel.style.display = "none";
+  tagSel.addEventListener("change", () => {
+    const tg = tagSel.value; if (!tg) return;
+    tbody.querySelectorAll<HTMLTableRowElement>("tr").forEach((tr) => {
+      if ((tr.dataset.tags || "").split("|").includes(tg)) {
+        const cb = tr.querySelector<HTMLInputElement>("input[type=checkbox]"); if (cb) cb.checked = true;
+        tr.style.display = "";
+      }
+    });
+    tagSel.value = "";
   });
 }
 

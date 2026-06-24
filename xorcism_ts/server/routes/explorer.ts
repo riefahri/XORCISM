@@ -66,6 +66,7 @@ import {
   getIncidentThreatActor,
   setIncidentThreatActor,
   getAuditAssets,
+  getAuditFindingStats,
   setAuditAssets,
   getAssetAudits,
   setAssetAudits,
@@ -1659,6 +1660,15 @@ router.get("/audit-assets", (req: Request, res: Response) => {
     return deny(req, res, "read", "XCOMPLIANCE", "AUDIT");
   if (!parentTenantOr403(req, res, "XCOMPLIANCE", "AUDIT", "AuditID", auditId, "read")) return;
   res.json(getAuditAssets(auditId));
+});
+
+// GET /api/audit-findings-stats?auditId=N — findings breakdown (severity/status/open/overdue) for the AUDIT form chart
+router.get("/audit-findings-stats", (req: Request, res: Response) => {
+  const auditId = Number(req.query.auditId);
+  if (!auditId) return void res.status(400).json({ error: "auditId requis" });
+  if (!userCan(req.user, "read", "XCOMPLIANCE", "AUDIT")) return deny(req, res, "read", "XCOMPLIANCE", "AUDIT");
+  if (!parentTenantOr403(req, res, "XCOMPLIANCE", "AUDIT", "AuditID", auditId, "read")) return;
+  res.json(getAuditFindingStats(auditId));
 });
 
 // PUT /api/audit-assets { auditId, assetIds:[...] } — replaces the ASSET links

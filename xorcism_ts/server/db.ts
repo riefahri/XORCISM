@@ -850,6 +850,8 @@ export const TENANT_SCOPED_TABLES = new Set<string>([
   "XCOMPLIANCE.CRISISSCENARIO",
   "XCOMPLIANCE.EXERCISEINJECT",
   "XCOMPLIANCE.EXERCISEPARTICIPANT",
+  "XCOMPLIANCE.EXERCISELOG",
+  "XCOMPLIANCE.AUDITFINDINGREMEDIATION",
   // ── FAIR-MAM materiality assessments (multi-tenant isolation; FAIRMAMCATEGORY is global reference) ──
   "XCOMPLIANCE.FAIRMAMASSESSMENT",
   "XCOMPLIANCE.FAIRMAMLINEITEM",
@@ -2824,6 +2826,34 @@ export function getAuditAssets(auditId: number): number[] {
   ).map((r) => r.AssetID);
 }
 
+/** Findings breakdown for one audit (severity + status + open/overdue) — for the AUDIT form chart. */
+export function getAuditFindingStats(auditId: number): { total: number; open: number; overdue: number; bySeverity: Record<string, number>; byStatus: Record<string, number> } {
+  const out = { total: 0, open: 0, overdue: 0, bySeverity: {} as Record<string, number>, byStatus: {} as Record<string, number> };
+  let rows: Record<string, unknown>[] = [];
+  try { rows = getDb("XCOMPLIANCE").prepare("SELECT * FROM AUDITFINDING WHERE AuditID = ?").all(auditId) as Record<string, unknown>[]; }
+  catch { return out; }
+  const today = new Date().toISOString().slice(0, 10);
+  const normSev = (s: string): string => {
+    const t = (s || "").toLowerCase();
+    if (/crit/.test(t)) return "Critical";
+    if (/high|élev|elev/.test(t)) return "High";
+    if (/med|moy/.test(t)) return "Medium";
+    if (/low|faible|minor/.test(t)) return "Low";
+    if (/info/.test(t)) return "Info";
+    return s ? s : "Unrated";
+  };
+  for (const r of rows) {
+    out.total++;
+    const sev = normSev(String(r.Severity ?? r.FindingCriticity ?? ""));
+    out.bySeverity[sev] = (out.bySeverity[sev] || 0) + 1;
+    const st = String(r.WorkflowStatus ?? r.FindingStatus ?? "").trim() || "Unspecified";
+    out.byStatus[st] = (out.byStatus[st] || 0) + 1;
+    const closed = /clos|resolv|done|complet|remediat|accept|false[- ]?pos|n\/?a/i.test(`${r.FindingStatus ?? ""} ${r.WorkflowStatus ?? ""}`);
+    if (!closed) { out.open++; const due = r.DueDate ? String(r.DueDate).slice(0, 10) : ""; if (due && due < today) out.overdue++; }
+  }
+  return out;
+}
+
 /** Replaces an audit's ASSET links (DELETE then INSERT the chosen assets). */
 export function setAuditAssets(auditId: number, assetIds: number[]): void {
   const db = getDb("XORCISM");
@@ -3191,6 +3221,7 @@ export function ensureComplianceDb(): void {
     ensureGrcSchema(db);
     ensureOcilSchema(db); // OCIL 2.0-compatible questionnaires/questions/answers
     ensureCrisisSchema(db); // crisis-management: tabletop exercises (AUDIT subtype) + scenarios/injects/participants
+    ensureFindingRemediationSchema(db); // remediation plans / actions per AUDITFINDING
   } finally {
     db.close(); // getDb() will reopen the database with its own pragmas
   }
@@ -3223,11 +3254,32 @@ function ensureCrisisSchema(db: Database.Database): void {
       ParticipantGUID TEXT, AuditID INTEGER, PersonID INTEGER, ParticipantName TEXT,
       CrisisRole TEXT, Team TEXT, Attended INTEGER,
       CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS EXERCISELOG (
+      LogID INTEGER PRIMARY KEY,
+      LogGUID TEXT, AuditID INTEGER, InjectID INTEGER, ParticipantID INTEGER,
+      EventType TEXT, Channel TEXT, Message TEXT, LoggedAt TEXT, ByUser TEXT,
+      CreatedDate TEXT, TenantID INTEGER);
     CREATE INDEX IF NOT EXISTS ix_exerciseinject_audit ON EXERCISEINJECT(AuditID);
     CREATE INDEX IF NOT EXISTS ix_exerciseinject_scenario ON EXERCISEINJECT(ScenarioID);
     CREATE INDEX IF NOT EXISTS ix_exerciseparticipant_audit ON EXERCISEPARTICIPANT(AuditID);
     CREATE INDEX IF NOT EXISTS ix_crisisscenario_tenant ON CRISISSCENARIO(TenantID);
+    CREATE INDEX IF NOT EXISTS ix_exerciselog_audit ON EXERCISELOG(AuditID);
   `);
+  // OpenAEV-style enrichment (idempotent column adds): timed multi-channel injects
+  // (email / SMS / WhatsApp / phone / media …), participant contact details for messaging,
+  // and inject-delivery timestamps. New reactions/timeline live in EXERCISELOG above.
+  const addCol = (table: string, col: string, decl: string): void => {
+    const have = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name));
+    if (!have.has(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${decl}`);
+  };
+  addCol("EXERCISEINJECT", "Channel", "TEXT");
+  addCol("EXERCISEINJECT", "OffsetMinutes", "INTEGER");
+  addCol("EXERCISEINJECT", "Sender", "TEXT");
+  addCol("EXERCISEINJECT", "Recipients", "TEXT");
+  addCol("EXERCISEINJECT", "Subject", "TEXT");
+  addCol("EXERCISEINJECT", "DeliveredDate", "TEXT");
+  addCol("EXERCISEPARTICIPANT", "Email", "TEXT");
+  addCol("EXERCISEPARTICIPANT", "Phone", "TEXT");
 }
 
 /**
@@ -3290,6 +3342,20 @@ function ensureOcilSchema(db: Database.Database): void {
  * per-requirement answers, risk matrices, risk assessments and scenarios,
  * risk acceptances and security exceptions. Idempotent.
  */
+/** Remediation plans / corrective actions for audit findings (1 finding → many plans).
+ *  XCOMPLIANCE; tenant-scoped. Sibling of ASSETVULNERABILITYREMEDIATION (patch plans). */
+function ensureFindingRemediationSchema(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS AUDITFINDINGREMEDIATION (
+      RemediationID INTEGER PRIMARY KEY,
+      RemediationGUID TEXT, AuditFindingID INTEGER, RemediationName TEXT, Description TEXT,
+      RemediationType TEXT, Status TEXT, Priority TEXT, OwnerPersonID INTEGER,
+      TargetDate TEXT, CompletedDate TEXT, Progress INTEGER,
+      CreatedDate TEXT, CreatedBy TEXT, TenantID INTEGER);
+    CREATE INDEX IF NOT EXISTS ix_auditfindingremediation_finding ON AUDITFINDINGREMEDIATION(AuditFindingID);
+  `);
+}
+
 function ensureGrcSchema(db: Database.Database): void {
   db.exec(`
     -- Organisation / scope of application

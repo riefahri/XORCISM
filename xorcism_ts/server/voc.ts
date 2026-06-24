@@ -105,7 +105,7 @@ export function vocDashboard(tenant: number | null): any {
   const avgAge = open.length ? Math.round(open.reduce((s, r) => s + (r.ageDays ?? 0), 0) / open.length) : 0;
 
   // risk-ranked worklist
-  const worklist = open.map((r) => ({ id: r.id, cve: r.cve, asset: r.asset, severity: r.severity, kev: r.kev, epss: r.epss, cvss: r.cvss, slaStatus: r.slaStatus, overdueDays: r.overdueDays, ageDays: r.ageDays, dueDate: r.dueDate, owner: r.owner, patchStatus: r.patchStatus,
+  const worklist = open.map((r) => ({ id: r.id, vulnId: r.vulnId, cve: r.cve, asset: r.asset, severity: r.severity, kev: r.kev, epss: r.epss, cvss: r.cvss, slaStatus: r.slaStatus, overdueDays: r.overdueDays, ageDays: r.ageDays, dueDate: r.dueDate, owner: r.owner, patchStatus: r.patchStatus,
     score: (r.slaStatus === "breached" ? 100 : r.slaStatus === "approaching" ? 40 : 0) + (r.kev ? 50 : 0) + (3 - (SEV_RANK[r.severity] ?? 3)) * 15 + Math.round((r.epss ?? 0) * 30) }))
     .sort((a, b) => b.score - a.score).slice(0, 60);
 

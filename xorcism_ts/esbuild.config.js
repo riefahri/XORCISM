@@ -43,6 +43,7 @@ const entryPoints = [
   "client/ts/policy-management.ts",
   "client/ts/configuration-management.ts",
   "client/ts/crisis-management.ts",
+  "client/ts/crisis-exercise.ts",
   "client/ts/fair-mam.ts",
   "client/ts/fair-tef.ts",
   "client/ts/devsecops.ts",

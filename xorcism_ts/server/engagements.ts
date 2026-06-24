@@ -154,16 +154,31 @@ export function setEngagementAssets(auditId: number, assetIds: number[], tenant:
 }
 
 /** Web / network scan targets derived from the in-scope assets (for ROE + connector launch). */
-export function engagementTargets(assets: ScopeAsset[]): { asset: string; target: string; kind: "web" | "net" }[] {
-  const out: { asset: string; target: string; kind: "web" | "net" }[] = [];
+export interface EngagementTarget { asset: string; assetId: number; target: string; kind: "web" | "net"; tags: string[] }
+export function engagementTargets(assets: ScopeAsset[]): EngagementTarget[] {
+  const out: EngagementTarget[] = [];
+  // ASSETTAG values per asset id (e.g. "endpoint", "server", "prod") → tag-filterable target picker.
+  const tagsByAsset = new Map<number, string[]>();
+  try {
+    const xo = getDb("XORCISM");
+    const ids = [...new Set(assets.map((a) => a.AssetID).filter(Boolean))];
+    if (ids.length && xo.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ASSETTAG'").get()) {
+      const ph = ids.map(() => "?").join(",");
+      for (const r of xo.prepare(`SELECT AssetID, Tag FROM ASSETTAG WHERE AssetID IN (${ph}) AND COALESCE(Tag,'') <> ''`).all(...ids) as { AssetID: number; Tag: string }[]) {
+        const list = tagsByAsset.get(Number(r.AssetID)) || []; list.push(String(r.Tag).trim()); tagsByAsset.set(Number(r.AssetID), list);
+      }
+    }
+  } catch { /* tags best-effort */ }
   for (const a of assets) {
     const name = a.AssetName || `#${a.AssetID}`;
-    if (a.websiteurl) out.push({ asset: name, target: String(a.websiteurl).trim(), kind: "web" });
-    for (const ip of [a.ipaddressIPv4, a.ipaddressIPv6]) if (ip && String(ip).trim()) out.push({ asset: name, target: String(ip).trim(), kind: "net" });
-    if (a.ipnetrangestartIPv4 && a.ipnetrangeendIPv4) out.push({ asset: name, target: `${a.ipnetrangestartIPv4}-${a.ipnetrangeendIPv4}`, kind: "net" });
+    const tags = [...new Set(tagsByAsset.get(Number(a.AssetID)) || [])];
+    const push = (target: string, kind: "web" | "net"): void => { out.push({ asset: name, assetId: a.AssetID, target, kind, tags }); };
+    if (a.websiteurl) push(String(a.websiteurl).trim(), "web");
+    for (const ip of [a.ipaddressIPv4, a.ipaddressIPv6]) if (ip && String(ip).trim()) push(String(ip).trim(), "net");
+    if (a.ipnetrangestartIPv4 && a.ipnetrangeendIPv4) push(`${a.ipnetrangestartIPv4}-${a.ipnetrangeendIPv4}`, "net");
     // bare hostname/fqdn → both web and net candidates
     const host = (a.fqdn || a.hostname || "").toString().trim();
-    if (host && !a.websiteurl) out.push({ asset: name, target: host, kind: "net" });
+    if (host && !a.websiteurl) push(host, "net");
   }
   return out;
 }

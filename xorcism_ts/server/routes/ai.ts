@@ -4,6 +4,12 @@
  */
 import { Router, Request, Response } from "express";
 import { askThreatModel, suggestOcilAnswer, ollamaStatus, enrichThreatReport, triageVulnerability, buildIntelBrief, analyzeAttackChain, exposureBrief, feedDigest, draftPolicy, boardNarrative, draftCrisisScenario } from "../ai";
+import {
+  draftThreatModel, suggestControlMappings, incidentCopilot, draftRisk, calibrateFair,
+  draftControlImplementation, draftPoam, complianceGapAnalysis, remediationAdvice, draftDpia,
+  assessBreach, draftPhishingTemplate, awarenessCoaching, socTriage, shiftHandover,
+  synthesizeMalwareVerdict, osintGraphInsights, ovalRemediation,
+} from "../aiassist";
 import { userCan } from "../auth";
 import { getRun } from "../chain";
 import { getEngagement } from "../engagements";
@@ -160,5 +166,35 @@ router.post("/ai/board-narrative", async (req: Request, res: Response) => {
     res.status(502).json({ error: aiError(e) });
   }
 });
+
+// ── aiassist: the second-wave copilots (advisory; all authed, all degrade offline) ──
+const S = (b: any, k: string, max = 6000): string | undefined => (b?.[k] != null ? String(b[k]).slice(0, max) : undefined);
+const N = (b: any, k: string): number | undefined => (b?.[k] != null && Number.isFinite(Number(b[k])) ? Number(b[k]) : undefined);
+const ten = (req: Request): number | null => (req.user!.isSuperAdmin ? null : (req.user!.tenantId ?? null));
+function aiRoute(path: string, fn: (req: Request) => Promise<unknown>): void {
+  router.post(path, async (req: Request, res: Response) => {
+    if (!req.user) return void res.status(401).json({ error: "auth" });
+    try { res.json(await fn(req)); } catch (e) { res.status(502).json({ error: aiError(e) }); }
+  });
+}
+
+aiRoute("/ai/threat-model", (r) => draftThreatModel({ name: S(r.body, "name"), system: S(r.body, "system"), assets: S(r.body, "assets"), dataFlows: S(r.body, "dataFlows"), scope: S(r.body, "scope"), tenant: ten(r) }));
+aiRoute("/ai/control-mappings", (r) => suggestControlMappings({ sourceVocab: S(r.body, "sourceVocab") || "", targetVocab: S(r.body, "targetVocab") || "", max: N(r.body, "max"), tenant: ten(r) }));
+aiRoute("/ai/incident-copilot", (r) => incidentCopilot({ incidentId: N(r.body, "incidentId"), mode: S(r.body, "mode"), tenant: ten(r) }));
+aiRoute("/ai/draft-risk", (r) => draftRisk({ title: S(r.body, "title"), asset: S(r.body, "asset"), threat: S(r.body, "threat"), context: S(r.body, "context") }));
+aiRoute("/ai/calibrate-fair", (r) => calibrateFair({ scenario: S(r.body, "scenario"), asset: S(r.body, "asset"), context: S(r.body, "context") }));
+aiRoute("/ai/control-implementation", (r) => draftControlImplementation({ control: S(r.body, "control"), framework: S(r.body, "framework"), context: S(r.body, "context") }));
+aiRoute("/ai/draft-poam", (r) => draftPoam({ weakness: S(r.body, "weakness"), control: S(r.body, "control"), severity: S(r.body, "severity"), context: S(r.body, "context") }));
+aiRoute("/ai/gap-analysis", (r) => complianceGapAnalysis({ framework: S(r.body, "framework"), objective: S(r.body, "objective"), context: S(r.body, "context") }));
+aiRoute("/ai/remediation", (r) => remediationAdvice({ cve: S(r.body, "cve"), component: S(r.body, "component"), version: S(r.body, "version"), asset: S(r.body, "asset"), context: S(r.body, "context") }));
+aiRoute("/ai/draft-dpia", (r) => draftDpia({ processing: S(r.body, "processing"), dataCategories: S(r.body, "dataCategories"), context: S(r.body, "context") }));
+aiRoute("/ai/assess-breach", (r) => assessBreach({ description: S(r.body, "description"), dataCategories: S(r.body, "dataCategories"), recordCount: N(r.body, "recordCount") }));
+aiRoute("/ai/phishing-template", (r) => draftPhishingTemplate({ theme: S(r.body, "theme"), difficulty: S(r.body, "difficulty"), pretext: S(r.body, "pretext") }));
+aiRoute("/ai/awareness-coaching", (r) => awarenessCoaching({ name: S(r.body, "name"), phishProne: N(r.body, "phishProne"), fails: N(r.body, "fails"), role: S(r.body, "role") }));
+aiRoute("/ai/soc-triage", (r) => socTriage({ alerts: Array.isArray(r.body?.alerts) ? r.body.alerts : undefined, tenant: ten(r) }));
+aiRoute("/ai/shift-handover", (r) => shiftHandover({ tenant: ten(r) }));
+aiRoute("/ai/malware-verdict", (r) => synthesizeMalwareVerdict({ indicator: S(r.body, "indicator"), type: S(r.body, "type"), engines: Array.isArray(r.body?.engines) ? r.body.engines : undefined }));
+aiRoute("/ai/osint-insights", (r) => osintGraphInsights({ tenant: ten(r) }));
+aiRoute("/ai/oval-remediation", (r) => ovalRemediation({ check: S(r.body, "check"), result: S(r.body, "result"), platform: S(r.body, "platform") }));
 
 export default router;

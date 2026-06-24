@@ -23,7 +23,7 @@ function load(): void {
 
     const work = d.worklist.length
       ? `<table class="t"><thead><tr><th>CVE</th><th>Asset</th><th>Sev</th><th>EPSS</th><th>SLA</th><th>Age</th><th>Owner</th><th></th></tr></thead><tbody>${d.worklist.map((w: any) => `<tr>
-          <td><span class="mono">${esc(w.cve)}</span>${w.kev ? ` <span class="kev">KEV</span>` : ""}</td><td>${esc(w.asset)}</td>
+          <td>${w.vulnId ? `<a href="/?db=XVULNERABILITY&table=VULNERABILITY&editCol=VulnerabilityID&editVal=${w.vulnId}" title="Edit this vulnerability" style="text-decoration:none"><span class="mono">${esc(w.cve)}</span></a>` : `<span class="mono">${esc(w.cve)}</span>`}${w.kev ? ` <span class="kev">KEV</span>` : ""}</td><td>${esc(w.asset)}</td>
           <td><span class="sev ${scls(w.severity)}">${esc(w.severity)}</span></td><td>${w.epss != null ? Math.round(w.epss * 100) + "%" : "—"}</td>
           <td><span class="sla ${slaCls(w.slaStatus)}">${esc(w.slaStatus)}${w.overdueDays ? ` +${w.overdueDays}d` : ""}</span></td>
           <td>${w.ageDays != null ? w.ageDays + "d" : "—"}</td><td>${w.owner ? esc(w.owner) : "<span class='muted'>unassigned</span>"}</td>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Run Tabletop Exercise</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ex-wrap{max-width:1340px;margin:0 auto;padding:18px}
+  .ex-head{background:#13162a;border:1px solid #2d3250;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+  .ex-head h1{font-size:19px;margin:0 0 2px}
+  .ex-head .scn{color:#94a3b8;font-size:13px}
+  .ex-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .ex-clock{font-family:ui-monospace,monospace;font-size:22px;font-weight:700;color:#fb7185;min-width:96px}
+  .ex-chip{font-size:12px;background:#0f1117;border:1px solid #2d3250;border-radius:7px;padding:4px 10px;color:#cbd5e1}
+  .ex-chip b{color:#e7ebf3}
+  .st-pill{font-size:11px;font-weight:700;border-radius:6px;padding:2px 9px;text-transform:uppercase}
+  .st-planned{background:#1e2440;color:#cbd5e1}.st-progress{background:#3b2d12;color:#fcd34d}.st-completed{background:#14532d;color:#bbf7d0}
+  .btn-go{background:#22c55e;border:none;color:#04130a;border-radius:8px;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer}
+  .btn-stop{background:#7f1d1d;border:none;color:#fecaca;border-radius:8px;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer}
+  .btn-sm{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:12px;padding:5px 11px;cursor:pointer}
+  .btn-sm:hover{border-color:#fb7185}
+  .ex-grid{display:grid;grid-template-columns:1.7fr 1fr;gap:14px;align-items:start}
+  @media(max-width:980px){.ex-grid{grid-template-columns:1fr}}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:6px 0 8px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}
+  .sec .spacer{flex:1}
+  /* timeline */
+  .inj{position:relative;background:#13162a;border:1px solid #2d3250;border-left:3px solid #475569;border-radius:10px;padding:11px 13px;margin-bottom:10px}
+  .inj.delivered{border-left-color:#22c55e;opacity:.92}
+  .inj .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .inj .toff{font-family:ui-monospace,monospace;font-size:12px;color:#fbbf24;font-weight:700;min-width:54px}
+  .inj .chan{font-size:11px;font-weight:700;border-radius:5px;padding:1px 7px;background:#1e2440;color:#cbd5e1}
+  .inj .ttl{font-weight:700;color:#e7ebf3;font-size:14px}
+  .inj .meta{font-size:11.5px;color:#94a3b8;margin-top:3px}
+  .inj .body{font-size:13px;color:#cbd5e1;margin-top:6px;line-height:1.45;white-space:pre-wrap}
+  .inj .exp{font-size:12px;color:#7dd3fc;margin-top:5px}
+  .inj .resp{font-size:12px;color:#86efac;margin-top:5px;border-left:2px solid #16a34a;padding-left:7px}
+  .inj .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .inj .dlv{font-size:11px;color:#34d399;margin-left:auto}
+  /* side */
+  .panel{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 13px;margin-bottom:14px}
+  .pp{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .pp:last-child{border-bottom:none}
+  .pp .role{font-size:11px;color:#94a3b8}
+  .pp .ct{font-size:11px;color:#64748b;margin-left:auto;text-align:right}
+  .feed{max-height:520px;overflow:auto}
+  .fe{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #1e2133;font-size:12.5px}
+  .fe:last-child{border-bottom:none}
+  .fe .ts{font-family:ui-monospace,monospace;color:#64748b;font-size:11px;white-space:nowrap}
+  .fe .ic{font-size:14px}
+  .fe.deliver{color:#93c5fd}.fe.response{color:#86efac}.fe.decision{color:#fcd34d}.fe.escalation{color:#fca5a5}.fe.start,.fe.end{color:#cbd5e1;font-weight:700}
+  input,select,textarea{background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:7px;padding:7px 9px;font-size:12.5px;box-sizing:border-box;width:100%}
+  textarea{min-height:54px;resize:vertical}
+  .frm{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+  .frm .full{grid-column:1/-1}
+  .muted{color:#64748b}
+  /* inline reaction box */
+  .react{margin-top:8px;display:none;gap:6px}
+  .react.open{display:grid;grid-template-columns:130px 1fr auto;gap:6px}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:1100}
+  #toast.show{background:#13162a;border:1px solid #fb7185;color:#e2e8f0;border-radius:10px;padding:10px 15px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/crisis-management">&#127982; Crisis Management</a>
+  <a href="/?db=XCOMPLIANCE&amp;table=EXERCISEINJECT">&#128220; Injects</a>
+  <span class="spacer"></span>
+  <span class="title">&#9654;&#65039; Run Exercise</span>
+</div>
+<div class="ex-wrap"><div id="ex-body"><div class="muted" style="padding:24px;text-align:center">Loading exercise…</div></div></div>
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/crisis-exercise.js"></script>
+</body>
+</html>

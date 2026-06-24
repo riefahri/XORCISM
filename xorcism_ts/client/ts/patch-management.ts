@@ -104,7 +104,7 @@ async function load(): Promise<void> {
     <label class="ck"><input type="checkbox" id="pm-over"> Overdue only</label>
     <span id="pm-count" class="muted" style="font-size:12px"></span></div>`;
 
-  const pkgs = (d.packages || []);
+  const pkgs = (DATA!.packages || []);
   const pkgTable = pkgs.length
     ? `<table class="pm-pkg" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:#94a3b8;font-size:11px;text-transform:uppercase">
         <th style="text-align:left;padding:5px 9px">Patch package</th><th style="padding:5px 9px">CVEs fixed</th><th style="padding:5px 9px">Assets</th><th style="padding:5px 9px">Open</th><th style="text-align:left;padding:5px 9px">Status</th></tr></thead><tbody>${pkgs.map((p) => `<tr style="border-bottom:1px solid #1e2133">

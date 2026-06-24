@@ -6,7 +6,8 @@ function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
 
 interface AuditRow { id: number; name: string; type: string; status: string; date: string | null; completed: boolean; findings: number; open: number; high: number; overdue: number; unassigned: number; score: number; }
-interface Finding { id: number; audit: string; name: string; severity: "Critical" | "High" | "Medium" | "Low" | "Info"; overdue: boolean; unassigned: boolean; noPlan: boolean; kind: "finding" | "policy"; label: string; }
+interface Finding { id: number; audit: string; name: string; severity: "Critical" | "High" | "Medium" | "Low" | "Info"; overdue: boolean; unassigned: boolean; noPlan: boolean; kind: "finding" | "policy"; label: string; plans?: number; openPlans?: number; }
+const FLD = "background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:7px;padding:7px 9px;font-size:12.5px;box-sizing:border-box;width:100%";
 interface Inventory {
   rows: AuditRow[]; findings: Finding[];
   summary: { audits: number; inProgress: number; planned: number; completed: number; completionRate: number | null; findings: number; openFindings: number; highOpen: number; overdue: number; unassigned: number; policiesReview: number; bySeverity: Record<string, number>; byStatus: Record<string, number>; byType: Record<string, number>; };
@@ -37,9 +38,12 @@ function rowHtml(r: AuditRow): string {
 }
 
 function findingHtml(f: Finding): string {
+  const plansBtn = f.kind === "finding"
+    ? ` <button class="plan-btn" data-fid="${f.id}" title="Create / manage remediation plans for this finding" style="margin-left:6px;background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:1px 8px;cursor:pointer">⚙ Plans${f.plans ? ` (${f.openPlans ?? f.plans})` : ""}</button>`
+    : "";
   return `<li><span class="dot" style="background:${f.kind === "policy" ? "#c084fc" : "#fb923c"}"></span>
     <span class="sev-${f.severity}">${esc(f.severity)}</span> ·
-    <a href="/?db=XCOMPLIANCE&table=AUDITFINDING">${esc(f.audit)}</a> — ${esc(f.label)}</li>`;
+    <a href="/?db=XCOMPLIANCE&table=AUDITFINDING">${esc(f.audit)}</a> — ${esc(f.label)}${plansBtn}</li>`;
 }
 
 async function load(): Promise<void> {
@@ -84,6 +88,112 @@ async function load(): Promise<void> {
     <div class="legend">↳ <b>Score</b> is an audit's posture (higher = worse): open findings weighted by severity
       (critical 25 / high 18 / medium 8 / low 3) + overdue +10 + unassigned +3. Manage under
       <a href="/?db=XCOMPLIANCE&table=AUDIT">Audits</a> / <a href="/?db=XCOMPLIANCE&table=AUDITFINDING">Findings</a>.</div>`;
+
+  document.querySelectorAll<HTMLButtonElement>(".plan-btn").forEach((b) => b.addEventListener("click", () => void openPlansModal(Number(b.dataset.fid))));
+}
+
+// ── Remediation-plans modal (per finding) ──────────────────────────────────────
+let OWNERS: { id: number; label: string }[] | null = null;
+let CUR_FINDING = 0;
+async function loadOwners(): Promise<{ id: number; label: string }[]> {
+  if (OWNERS) return OWNERS;
+  try { const r = await fetch("/api/lookup?db=XORCISM&table=PERSON&idCol=PersonID&labelCol=FullName"); OWNERS = r.ok ? await r.json() : []; }
+  catch { OWNERS = []; }
+  return OWNERS!;
+}
+const stPill = (s: string): string =>
+  /implement|verif|clos|done|complet/i.test(s) ? "#14532d;color:#bbf7d0" : /cancel/i.test(s) ? "#3f3f46;color:#d4d4d8" : /progress/i.test(s) ? "#3b2d12;color:#fcd34d" : "#1e2440;color:#cbd5e1";
+
+function ensurePlansModal(): HTMLElement {
+  let m = document.getElementById("cp-plans-modal");
+  if (m) return m;
+  m = document.createElement("div");
+  m.id = "cp-plans-modal";
+  m.style.cssText = "position:fixed;inset:0;background:rgba(5,7,15,.72);display:none;align-items:flex-start;justify-content:center;z-index:1200;overflow:auto;padding:30px 12px";
+  m.innerHTML = `<div id="cp-plans-dlg" style="background:#0f1322;border:1px solid #2d3250;border-radius:14px;padding:18px 20px;width:min(760px,96vw)"></div>`;
+  m.addEventListener("click", (e) => { if (e.target === m) (m as HTMLElement).style.display = "none"; });
+  document.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Escape" && m) (m as HTMLElement).style.display = "none"; });
+  document.body.appendChild(m);
+  return m;
+}
+
+async function openPlansModal(findingId: number): Promise<void> {
+  CUR_FINDING = findingId;
+  const m = ensurePlansModal();
+  document.getElementById("cp-plans-dlg")!.innerHTML = `<div class="muted" style="padding:10px">Loading remediation plans…</div>`;
+  m.style.display = "flex";
+  await renderPlans();
+}
+
+async function renderPlans(): Promise<void> {
+  const dlg = document.getElementById("cp-plans-dlg")!;
+  let d: any;
+  try { const r = await fetch(`/api/compliance-management/finding/${CUR_FINDING}/remediations`); if (!r.ok) throw new Error(`HTTP ${r.status}`); d = await r.json(); }
+  catch (e) { dlg.innerHTML = `<div class="muted" style="padding:10px">⚠️ ${esc(e)}</div>`; return; }
+  const owners = await loadOwners();
+  const f = d.finding;
+  const sopt = (sel: string): string => (d.statuses as string[]).map((s) => `<option${s === sel ? " selected" : ""}>${esc(s)}</option>`).join("");
+  const planRow = (p: any): string => `<div style="border:1px solid #2d3250;border-radius:9px;padding:9px 11px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <b style="color:#e7ebf3">${esc(p.name)}</b>
+      <span style="font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;background:${stPill(p.status)}">${esc(p.status)}</span>
+      ${p.type ? `<span class="muted" style="font-size:11px">${esc(p.type)}</span>` : ""}${p.priority ? `<span class="muted" style="font-size:11px">· ${esc(p.priority)}</span>` : ""}
+      <span style="flex:1"></span>
+      <select class="pl-st" data-id="${p.id}" style="background:#0f1117;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:3px 6px">${sopt(p.status)}</select>
+      <button class="pl-del" data-id="${p.id}" title="Delete plan" style="background:#1e2440;border:1px solid #7f1d1d;color:#fca5a5;border-radius:6px;font-size:11px;padding:3px 8px;cursor:pointer">✕</button>
+    </div>
+    <div class="muted" style="font-size:11.5px;margin-top:4px">${p.owner ? `👤 ${esc(p.owner)} · ` : ""}${p.targetDate ? `🎯 ${esc(p.targetDate)} · ` : ""}${p.progress != null ? `${p.progress}% · ` : ""}${p.createdDate ? `created ${esc(p.createdDate)}` : ""}${p.completedDate ? ` · ✓ ${esc(p.completedDate)}` : ""}</div>
+    ${p.description ? `<div style="font-size:12px;color:#cbd5e1;margin-top:4px;white-space:pre-wrap">${esc(p.description)}</div>` : ""}
+  </div>`;
+  const ownerOpts = `<option value="">— owner —</option>` + owners.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join("");
+  dlg.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <h3 style="margin:0;font-size:16px;color:#e7ebf3">⚙ Remediation plans</h3><span style="flex:1"></span>
+      <button id="cp-plans-close" style="background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:12px;padding:5px 12px;cursor:pointer">Close</button>
+    </div>
+    <div class="muted" style="font-size:12.5px;margin-bottom:12px"><b style="color:#cbd5e1">${esc(f.name)}</b> · <a href="/?db=XCOMPLIANCE&table=AUDITFINDING&editCol=AuditFindingID&editVal=${f.id}" style="color:#7dd3fc">edit finding ↗</a>${f.audit ? ` · audit: ${esc(f.audit)}` : ""}${f.severity ? ` · ${esc(f.severity)}` : ""}</div>
+    <div>${d.plans.length ? d.plans.map(planRow).join("") : `<div class="muted" style="padding:6px 0 12px">No remediation plan yet — add the first one below.</div>`}</div>
+    <div style="border-top:1px solid #2d3250;margin-top:6px;padding-top:12px">
+      <div style="font-weight:700;color:#cbd5e1;font-size:12px;margin-bottom:7px">＋ New remediation plan</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+        <input id="pl-name" placeholder="Plan / action name *" style="grid-column:1/-1;${FLD}">
+        <select id="pl-type" style="${FLD}">${(d.types as string[]).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+        <select id="pl-prio" style="${FLD}"><option value="">— priority —</option>${(d.priorities as string[]).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+        <select id="pl-status" style="${FLD}">${(d.statuses as string[]).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+        <select id="pl-owner" style="${FLD}">${ownerOpts}</select>
+        <input id="pl-target" type="date" style="${FLD}">
+        <textarea id="pl-desc" placeholder="Description / steps…" style="grid-column:1/-1;min-height:54px;resize:vertical;${FLD}"></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:7px;margin-top:8px"><button id="pl-add" style="background:#22c55e;border:none;color:#04130a;border-radius:7px;font-weight:700;font-size:12.5px;padding:7px 14px;cursor:pointer">Add plan</button></div>
+      <div id="pl-err" style="color:#fca5a5;font-size:12px;margin-top:5px"></div>
+    </div>`;
+  document.getElementById("cp-plans-close")!.onclick = () => { document.getElementById("cp-plans-modal")!.style.display = "none"; };
+  dlg.querySelectorAll<HTMLSelectElement>(".pl-st").forEach((sel) => { sel.onchange = () => void planAction("POST", `/api/compliance-management/remediation/${sel.dataset.id}`, { status: sel.value }); });
+  dlg.querySelectorAll<HTMLButtonElement>(".pl-del").forEach((b) => { b.onclick = () => { if (confirm("Delete this remediation plan?")) void planAction("DELETE", `/api/compliance-management/remediation/${b.dataset.id}`); }; });
+  document.getElementById("pl-add")!.onclick = () => void addPlan();
+}
+
+async function planAction(method: string, url: string, body?: unknown): Promise<void> {
+  try {
+    const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body != null ? JSON.stringify(body) : undefined });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    await renderPlans(); await load();
+  } catch (e) { toast(`⚠️ ${e}`); }
+}
+
+async function addPlan(): Promise<void> {
+  const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
+  const name = v("pl-name").trim();
+  const err = document.getElementById("pl-err")!;
+  if (!name) { err.textContent = "⚠️ Enter a plan name."; return; }
+  try {
+    const body = { name, type: v("pl-type"), priority: v("pl-prio") || undefined, status: v("pl-status"), ownerPersonId: v("pl-owner") || undefined, targetDate: v("pl-target") || undefined, description: v("pl-desc").trim() || undefined };
+    const r = await fetch(`/api/compliance-management/finding/${CUR_FINDING}/remediation`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    toast("✅ Remediation plan added");
+    await renderPlans(); await load();
+  } catch (e) { err.textContent = `⚠️ ${e}`; }
 }
 
 // ── Guided "new audit" modal ──────────────────────────────────────────────────

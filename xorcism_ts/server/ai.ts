@@ -16,8 +16,38 @@ import { boardReport } from "./boardreport";
 
 const OLLAMA_URL = (process.env.OLLAMA_URL || "http://localhost:11434").replace(/\/$/, "");
 export const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
+export const OLLAMA_EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text";
 
 interface ChatMsg { role: "system" | "user" | "assistant"; content: string }
+
+/** Local embeddings via Ollama (`/api/embeddings`). Returns null if unavailable, so callers
+ *  fall back to keyword overlap — nothing leaves the machine. Used for semantic retrieval
+ *  (e.g. cross-framework control mapping). Caps the batch; embeds sequentially (small model). */
+export async function embedTexts(texts: string[], timeoutMs = 30000): Promise<number[][] | null> {
+  const out: number[][] = [];
+  try {
+    for (const t of texts.slice(0, 256)) {
+      const r = await fetch(`${OLLAMA_URL}/api/embeddings`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: OLLAMA_EMBED_MODEL, prompt: String(t || "").slice(0, 2000) }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!r.ok) return null;
+      const d = (await r.json()) as { embedding?: number[] };
+      if (!Array.isArray(d.embedding) || !d.embedding.length) return null;
+      out.push(d.embedding);
+    }
+    return out;
+  } catch { return null; }
+}
+
+/** Cosine similarity of two equal-length vectors. */
+export function cosine(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+}
 
 export async function ollamaChat(messages: ChatMsg[], temperature = 0.2, timeoutMs = 90000): Promise<string> {
   const r = await fetch(`${OLLAMA_URL}/api/chat`, {

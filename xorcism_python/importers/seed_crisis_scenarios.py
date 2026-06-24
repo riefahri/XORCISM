@@ -35,8 +35,27 @@ except Exception:
 SOURCE = "SeedCrisisScenarios"
 
 
-def _inj(time, title, description, expected, itype="Event"):
-    return {"time": time, "title": title, "description": description, "expected": expected, "type": itype}
+def _inj(time, title, description, expected, itype="Event", channel=None, sender=None, to=None, subject=None):
+    return {"time": time, "title": title, "description": description, "expected": expected, "type": itype,
+            "channel": channel, "sender": sender, "to": to, "subject": subject}
+
+
+# OpenAEV-style delivery defaults: channel + sender derived from the inject type (override per-inject).
+_CH_BY_TYPE = {"Event": "email", "Decision": "decision", "Escalation": "phone",
+               "Media": "media", "Technical": "technical", "Communication": "email"}
+_SENDER_BY_TYPE = {"Event": "SOC", "Decision": "Crisis cell", "Escalation": "On-call duty manager",
+                   "Media": "Press desk", "Technical": "SIEM", "Communication": "Communications lead"}
+
+
+def _offset(time, idx):
+    """Minutes after exercise start (T+). Parse 'T+1h' / 'T+15' / '15 min' from the time label, else ramp 15'/step."""
+    import re
+    s = str(time or "")
+    m = re.search(r"[Tt]\s*\+\s*(\d+)\s*(h|hr|hour|hours)?", s)
+    if m:
+        return int(m.group(1)) * 60 if m.group(2) else int(m.group(1))
+    m = re.search(r"(\d+)\s*min", s)
+    return int(m.group(1)) if m else (idx - 1) * 15
 
 
 # ── the scenario library ──────────────────────────────────────────────────────
@@ -161,6 +180,13 @@ def _ensure_schema(cur):
       InjectID INTEGER PRIMARY KEY, InjectGUID TEXT, AuditID INTEGER, ScenarioID INTEGER, StepOrder INTEGER,
       InjectTime TEXT, Title TEXT, Description TEXT, InjectType TEXT, ExpectedAction TEXT,
       ActualResponse TEXT, Status TEXT, CreatedDate TEXT, TenantID INTEGER)""")
+    # OpenAEV-style enrichment columns (idempotent; the server adds these too at boot).
+    for col, decl in (("Channel", "TEXT"), ("OffsetMinutes", "INTEGER"), ("Sender", "TEXT"),
+                      ("Recipients", "TEXT"), ("Subject", "TEXT"), ("DeliveredDate", "TEXT")):
+        try:
+            cur.execute(f"ALTER TABLE EXERCISEINJECT ADD COLUMN {col} {decl}")
+        except Exception:
+            pass
 
 
 def seed(tenant: int, list_only: bool = False) -> None:
@@ -202,12 +228,17 @@ def seed(tenant: int, list_only: bool = False) -> None:
         # replace template injects (AuditID NULL) for this scenario
         cur.execute("DELETE FROM EXERCISEINJECT WHERE ScenarioID=? AND AuditID IS NULL", (sid,))
         for i, inj in enumerate(s["injects"], 1):
+            ch = inj.get("channel") or _CH_BY_TYPE.get(inj["type"], "manual")
+            off = _offset(inj["time"], i)
+            sender = inj.get("sender") or _SENDER_BY_TYPE.get(inj["type"], "Exercise control")
+            to = inj.get("to") or "Crisis cell"
+            subject = inj.get("subject") or inj["title"]
             cur.execute(
-                "INSERT INTO EXERCISEINJECT (InjectGUID, AuditID, ScenarioID, StepOrder, InjectTime, Title, "
-                "Description, InjectType, ExpectedAction, Status, CreatedDate, TenantID) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                (str(uuid.uuid4()), None, sid, i, inj["time"], inj["title"], inj["description"],
-                 inj["type"], inj["expected"], "Template", now, tenant),
+                "INSERT INTO EXERCISEINJECT (InjectGUID, AuditID, ScenarioID, StepOrder, InjectTime, OffsetMinutes, "
+                "Channel, Sender, Recipients, Subject, Title, Description, InjectType, ExpectedAction, Status, CreatedDate, TenantID) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (str(uuid.uuid4()), None, sid, i, inj["time"], off, ch, sender, to, subject, inj["title"],
+                 inj["description"], inj["type"], inj["expected"], "Template", now, tenant),
             )
             n_inj += 1
     con.commit()

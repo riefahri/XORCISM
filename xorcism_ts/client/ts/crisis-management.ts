@@ -41,6 +41,7 @@ function rowHtml(r: ExerciseRow): string {
     <td>${posture}</td>
     <td>${aar}</td>
     <td class="score ${scoreClass(r.score)}">${r.score || ""}</td>
+    <td><a class="scn-run" href="/crisis-exercise?audit=${r.id}" title="Run this exercise: deliver injects (email/SMS/…) on a live timeline and log timestamped reactions">▶ Run</a></td>
   </tr>`;
 }
 
@@ -109,7 +110,7 @@ async function load(): Promise<void> {
     : `<div class="muted" style="padding:12px 0">No scenario templates. Seed them with <code>seed_crisis_scenarios.py</code>.</div>`;
 
   const table = d.rows.length ? `<table class="cr"><thead><tr>
-      <th>Exercise</th><th>Status</th><th title="injects played / total">Injects</th><th>People</th><th>Improvement actions</th><th title="after-action report">AAR</th><th title="outstanding-gaps score">Score</th>
+      <th>Exercise</th><th>Status</th><th title="injects played / total">Injects</th><th>People</th><th>Improvement actions</th><th title="after-action report">AAR</th><th title="outstanding-gaps score">Score</th><th></th>
     </tr></thead><tbody>${d.rows.map(rowHtml).join("")}</tbody></table>`
     : `<div class="muted" style="padding:12px 0">No exercises conducted yet — launch one from a scenario above.</div>`;
 

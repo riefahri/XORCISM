@@ -558,6 +558,9 @@ app.get("/compliance-management", pageGuard("/"), (_req: Request, res: Response)
 app.get("/crisis-management", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "crisis-management.html"));
 });
+app.get("/crisis-exercise", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "crisis-exercise.html"));
+});
 app.get("/fair-tef", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "fair-tef.html"));
 });
