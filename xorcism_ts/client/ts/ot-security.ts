@@ -3,8 +3,11 @@
  * assessments (IEC 62443 / NIST SP 800-82, over AUDIT), OT assets (by tag), IEC 62443 zones, the
  * findings worklist and the seeded requirement catalogues, + a guided "New OT assessment" modal.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface Assessment { id: number; name: string; standard: string; status: string; date: string | null; findings: number; open: number; high: number; overdue: number; score: number; }
 interface Finding { id: number; assessment: string; name: string; severity: string; overdue: boolean; }
@@ -28,15 +31,15 @@ function card(lbl: string, val: string, foot: string, color?: string): string {
 }
 
 function assessmentRow(a: Assessment): string {
-  const posture = a.open ? `<span class="chip">${a.open} open</span>${a.high ? `<span class="chip" style="color:#fca5a5">${a.high} high</span>` : ""}${a.overdue ? `<span class="chip" style="color:#fca5a5">${a.overdue} overdue</span>` : ""}` : `<span class="chip" style="color:#86efac">clean</span>`;
+  const posture = a.open ? `<span class="chip">${fmt("ot.openN", { n: a.open })}</span>${a.high ? `<span class="chip" style="color:#fca5a5">${fmt("ot.highN", { n: a.high })}</span>` : ""}${a.overdue ? `<span class="chip" style="color:#fca5a5">${fmt("ot.overdueN", { n: a.overdue })}</span>` : ""}` : `<span class="chip" style="color:#86efac">${t("ot.clean")}</span>`;
   return `<tr>
     <td><div class="aname">${esc(a.name)}</div></td>
     <td><span class="chip">${esc(a.standard)}</span></td>
     <td><span class="st ${stClass(a.status)}">${esc(a.status)}</span></td>
     <td>${a.findings}</td><td>${posture}</td>
     <td class="score ${scoreClass(a.score)}">${a.score || ""}</td>
-    <td><a class="chip" href="/?db=XCOMPLIANCE&table=AUDITFINDING&filterCol=AuditID&filterVal=${a.id}">findings ↗</a>
-        <a class="chip" href="/?db=XCOMPLIANCE&table=AUDIT&editCol=AuditID&editVal=${a.id}">edit ↗</a></td>
+    <td><a class="chip" href="/?db=XCOMPLIANCE&table=AUDITFINDING&filterCol=AuditID&filterVal=${a.id}">${t("ot.findingsLink")}</a>
+        <a class="chip" href="/?db=XCOMPLIANCE&table=AUDIT&editCol=AuditID&editVal=${a.id}">${t("ot.editLink")}</a></td>
   </tr>`;
 }
 
@@ -48,22 +51,22 @@ function slCell(z: Zone): string {
 
 function referenceHtml(cat: Inventory["summary"]["catalogue"]): string {
   return `<div class="ref">
-    <div class="col"><h4>IEC 62443 foundational requirements</h4><ul>
-      <li><b>FR1</b> Identification &amp; authentication control</li><li><b>FR2</b> Use control</li>
-      <li><b>FR3</b> System integrity</li><li><b>FR4</b> Data confidentiality</li>
-      <li><b>FR5</b> Restricted data flow (zones &amp; conduits)</li><li><b>FR6</b> Timely response to events</li>
-      <li><b>FR7</b> Resource availability</li></ul></div>
-    <div class="col"><h4>Security Levels (SL 1-4)</h4><ul>
-      <li><b>SL 1</b> protect against casual / coincidental violation</li>
-      <li><b>SL 2</b> intentional, simple means, low resources</li>
-      <li><b>SL 3</b> sophisticated means, moderate resources (ICS-specific skills)</li>
-      <li><b>SL 4</b> sophisticated means, extended resources (nation-state)</li></ul>
-      <div class="muted" style="font-size:11px;margin-top:5px">Each zone/conduit carries a target (SL-T), achieved (SL-A) and capability (SL-C) level.</div></div>
-    <div class="col"><h4>Seeded requirement catalogues</h4><ul>
-      <li><b>IEC 62443-3-3</b>: ${cat.iec62443 ?? 0} system requirements (FR1-7 / SR x.y)</li>
-      <li><b>NIST SP 800-82 Rev 3</b>: ${cat.nist80082 ?? 0} OT control-overlay families</li></ul>
-      ${cat.total ? `<a class="chip" href="/?db=XCOMPLIANCE&table=REFERENCECONTROL">browse the catalogue ↗</a>`
-        : `<div class="muted" style="font-size:11px">Run <code>python xorcism_python/importers/import_iec62443.py</code> to seed the catalogues.</div>`}</div>
+    <div class="col"><h4>${t("ot.refFrTitle")}</h4><ul>
+      <li><b>FR1</b> ${t("ot.fr1")}</li><li><b>FR2</b> ${t("ot.fr2")}</li>
+      <li><b>FR3</b> ${t("ot.fr3")}</li><li><b>FR4</b> ${t("ot.fr4")}</li>
+      <li><b>FR5</b> ${t("ot.fr5")}</li><li><b>FR6</b> ${t("ot.fr6")}</li>
+      <li><b>FR7</b> ${t("ot.fr7")}</li></ul></div>
+    <div class="col"><h4>${t("ot.refSlTitle")}</h4><ul>
+      <li><b>SL 1</b> ${t("ot.sl1")}</li>
+      <li><b>SL 2</b> ${t("ot.sl2")}</li>
+      <li><b>SL 3</b> ${t("ot.sl3")}</li>
+      <li><b>SL 4</b> ${t("ot.sl4")}</li></ul>
+      <div class="muted" style="font-size:11px;margin-top:5px">${t("ot.slNote")}</div></div>
+    <div class="col"><h4>${t("ot.refCatTitle")}</h4><ul>
+      <li><b>IEC 62443-3-3</b>: ${fmt("ot.catIec", { n: cat.iec62443 ?? 0 })}</li>
+      <li><b>NIST SP 800-82 Rev 3</b>: ${fmt("ot.catNist", { n: cat.nist80082 ?? 0 })}</li></ul>
+      ${cat.total ? `<a class="chip" href="/?db=XCOMPLIANCE&table=REFERENCECONTROL">${t("ot.browseCat")}</a>`
+        : `<div class="muted" style="font-size:11px">${t("ot.seedCat")}</div>`}</div>
   </div>`;
 }
 
@@ -74,48 +77,46 @@ async function load(): Promise<void> {
   const s = d.summary;
 
   const cards = [
-    card("OT assessments", String(s.assessments), `${s.inProgress} in progress · ${s.completed} done`),
-    card("OT assets", String(s.otAssets), "tagged ot/ics/scada/iot…", s.otAssets ? "#7dd3fc" : undefined),
-    card("Zones / conduits", `${s.zones}/${s.conduits}`, "IEC 62443 segmentation"),
-    card("SL gaps", String(s.slGaps), "zones below target SL", s.slGaps ? "#f87171" : "#34d399"),
-    card("Open findings", String(s.openFindings), `${s.highOpen} high/critical`, s.highOpen ? "#f87171" : s.openFindings ? "#fb923c" : "#34d399"),
-    card("Catalogue", String(s.catalogue.total), "IEC 62443 + 800-82 reqs", s.catalogue.total ? undefined : "#fbbf24"),
+    card(t("ot.cAssessments"), String(s.assessments), fmt("ot.cAssessments.foot", { p: s.inProgress, d: s.completed })),
+    card(t("ot.cAssets"), String(s.otAssets), t("ot.cAssets.foot"), s.otAssets ? "#7dd3fc" : undefined),
+    card(t("ot.cZones"), `${s.zones}/${s.conduits}`, t("ot.cZones.foot")),
+    card(t("ot.cSlGaps"), String(s.slGaps), t("ot.cSlGaps.foot"), s.slGaps ? "#f87171" : "#34d399"),
+    card(t("ot.cOpenFindings"), String(s.openFindings), fmt("ot.cOpenFindings.foot", { n: s.highOpen }), s.highOpen ? "#f87171" : s.openFindings ? "#fb923c" : "#34d399"),
+    card(t("ot.cCatalogue"), String(s.catalogue.total), t("ot.cCatalogue.foot"), s.catalogue.total ? undefined : "#fbbf24"),
   ].join("");
 
   const byTag = Object.entries(s.byTag).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="chip"><span class="tag">${esc(k)}</span> ${n}</span>`).join("");
   const byStd = Object.entries(s.byStandard).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="chip">${esc(k)} <b>${n}</b></span>`).join("");
 
   const assessTable = d.assessments.length
-    ? `<table class="ot"><thead><tr><th>Assessment</th><th>Standard</th><th>Status</th><th>Findings</th><th>Posture</th><th title="Posture score">Score</th><th></th></tr></thead>
+    ? `<table class="ot"><thead><tr><th>${t("ot.thAssessment")}</th><th>${t("ot.thStandard")}</th><th>${t("ot.thStatus")}</th><th>${t("ot.thFindings")}</th><th>${t("ot.thPosture")}</th><th title="${t("ot.thScore.title")}">${t("ot.thScore")}</th><th></th></tr></thead>
         <tbody>${d.assessments.map(assessmentRow).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:16px 0">No OT assessment yet. Click <b>+ New OT assessment</b> to start one against IEC 62443 / NIST 800-82.</div>`;
+    : `<div class="muted" style="padding:16px 0">${t("ot.noAssessments")}</div>`;
 
   const assetTable = d.otAssets.length
-    ? `<table class="ot"><thead><tr><th>OT asset</th><th>Criticality</th><th>Tags</th></tr></thead>
+    ? `<table class="ot"><thead><tr><th>${t("ot.thAsset")}</th><th>${t("ot.thCriticality")}</th><th>${t("ot.thTags")}</th></tr></thead>
         <tbody>${d.otAssets.map((a) => `<tr><td><a href="/?db=XORCISM&table=ASSET&editCol=AssetID&editVal=${a.id}">${esc(a.name)}</a></td>
           <td>${esc(a.criticality) || "<span class='muted'>—</span>"}</td>
-          <td>${a.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:12px 0">No assets tagged as OT yet. Tag your ICS/SCADA/IoT assets <span class="tag">ot</span><span class="tag">ics</span><span class="tag">scada</span>… on the ASSET form (these tags also drive CVE→asset matching).</div>`;
+          <td>${a.tags.map((tg) => `<span class="tag">${esc(tg)}</span>`).join("")}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:12px 0">${t("ot.noAssets")}</div>`;
 
   const zonesTable = d.zones.length
-    ? `<table class="ot"><thead><tr><th>Zone</th><th>Purdue</th><th>Criticality</th><th>Security Level</th></tr></thead>
+    ? `<table class="ot"><thead><tr><th>${t("ot.thZone")}</th><th>Purdue</th><th>${t("ot.thCriticality")}</th><th>${t("ot.thSecLevel")}</th></tr></thead>
         <tbody>${d.zones.map((z) => `<tr><td class="aname">${esc(z.name)}</td><td>${esc(z.purdue ?? "") || "—"}</td>
           <td>${esc(z.criticality ?? "") || "—"}</td><td>${slCell(z)}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:12px 0">No IEC 62443 zones defined yet — add <a href="/?db=XCOMPLIANCE&table=OTZONE">zones &amp; conduits</a> with target/achieved Security Levels.</div>`;
+    : `<div class="muted" style="padding:12px 0">${t("ot.noZones")}</div>`;
 
   $("ot-body").innerHTML = `<div class="ot-cards">${cards}</div>
-    ${byTag ? `<div class="ot-section">OT assets by tag</div><div>${byTag}</div>` : ""}
-    ${byStd ? `<div class="ot-section">Assessments by standard</div><div>${byStd}</div>` : ""}
-    <div class="ot-section">OT assessments (${d.assessments.length})</div>${assessTable}
-    <div class="ot-section">Open findings (${d.findings.length})</div>${d.findings.length
-      ? `<ul style="list-style:none;margin:0;padding:0">${d.findings.slice(0, 40).map((f) => `<li style="padding:5px 0;border-bottom:1px solid #1e2133;font-size:13px"><span class="sev-${esc(f.severity)}">${esc(f.severity)}</span> · <a href="/?db=XCOMPLIANCE&table=AUDITFINDING">${esc(f.assessment)}</a> — ${esc(f.name)}${f.overdue ? ' <span class="chip" style="color:#fca5a5">overdue</span>' : ""}</li>`).join("")}</ul>`
-      : `<div class="muted" style="padding:8px 0">✓ No open OT findings.</div>`}
-    <div class="ot-section">OT assets (${d.otAssets.length})</div>${assetTable}
-    <div class="ot-section">IEC 62443 zones (${d.zones.length})</div>${zonesTable}
-    <div class="ot-section">IEC 62443 / NIST SP 800-82 reference</div>${referenceHtml(s.catalogue)}
-    <div class="legend">↳ OT assessments reuse the AUDIT workflow (type <b>OT Security</b>); manage findings under
-      <a href="/?db=XCOMPLIANCE&table=AUDITFINDING">Findings</a>, zones/conduits under
-      <a href="/?db=XCOMPLIANCE&table=OTZONE">OTZONE</a>/<a href="/?db=XCOMPLIANCE&table=OTCONDUIT">OTCONDUIT</a>.</div>`;
+    ${byTag ? `<div class="ot-section">${t("ot.secByTag")}</div><div>${byTag}</div>` : ""}
+    ${byStd ? `<div class="ot-section">${t("ot.secByStandard")}</div><div>${byStd}</div>` : ""}
+    <div class="ot-section">${fmt("ot.secAssessments", { n: d.assessments.length })}</div>${assessTable}
+    <div class="ot-section">${fmt("ot.secOpenFindings", { n: d.findings.length })}</div>${d.findings.length
+      ? `<ul style="list-style:none;margin:0;padding:0">${d.findings.slice(0, 40).map((f) => `<li style="padding:5px 0;border-bottom:1px solid #1e2133;font-size:13px"><span class="sev-${esc(f.severity)}">${esc(f.severity)}</span> · <a href="/?db=XCOMPLIANCE&table=AUDITFINDING">${esc(f.assessment)}</a> — ${esc(f.name)}${f.overdue ? ` <span class="chip" style="color:#fca5a5">${t("ot.overdue")}</span>` : ""}</li>`).join("")}</ul>`
+      : `<div class="muted" style="padding:8px 0">${t("ot.noOpenFindings")}</div>`}
+    <div class="ot-section">${fmt("ot.secAssets", { n: d.otAssets.length })}</div>${assetTable}
+    <div class="ot-section">${fmt("ot.secZones", { n: d.zones.length })}</div>${zonesTable}
+    <div class="ot-section">${t("ot.secReference")}</div>${referenceHtml(s.catalogue)}
+    <div class="legend">${t("ot.legend")}</div>`;
 }
 
 // ── Guided "new OT assessment" modal ───────────────────────────────────────────
@@ -141,9 +142,9 @@ async function createAssessment(): Promise<void> {
   const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   const name = v("ot-f-name").trim();
   const err = $("ot-f-err");
-  if (!name) { err.textContent = "⚠️ Enter a name."; ($("ot-f-name") as HTMLInputElement).focus(); return; }
+  if (!name) { err.textContent = t("ot.errName"); ($("ot-f-name") as HTMLInputElement).focus(); return; }
   const btn = $("ot-create") as HTMLButtonElement;
-  btn.disabled = true; err.textContent = "Creating…";
+  btn.disabled = true; err.textContent = t("ot.creating");
   try {
     const body = {
       name, standard: v("ot-f-standard"), status: v("ot-f-status"),
@@ -155,12 +156,13 @@ async function createAssessment(): Promise<void> {
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     closeModal();
     await load();
-    toast(`✅ OT assessment created — <a href="/?db=XCOMPLIANCE&table=AUDIT&editCol=AuditID&editVal=${d.id}" style="color:#7dd3fc">open it ↗</a>`);
+    toast(fmt("ot.created", { id: d.id }));
   } catch (e) { err.textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("ot-new").addEventListener("click", openModal);
   $("ot-cancel").addEventListener("click", closeModal);
   $("ot-create").addEventListener("click", () => void createAssessment());

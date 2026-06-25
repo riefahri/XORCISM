@@ -2,8 +2,11 @@
  * compliance-management.ts — Compliance / GRC inventory + governance worklist
  * (/compliance-management). Audits + open-findings/policy worklist, from /api/compliance-management.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface AuditRow { id: number; name: string; type: string; status: string; date: string | null; completed: boolean; findings: number; open: number; high: number; overdue: number; unassigned: number; score: number; }
 interface Finding { id: number; audit: string; name: string; severity: "Critical" | "High" | "Medium" | "Low" | "Info"; overdue: boolean; unassigned: boolean; noPlan: boolean; kind: "finding" | "policy"; label: string; plans?: number; openPlans?: number; }
@@ -25,8 +28,8 @@ function card(lbl: string, val: string, foot: string, color?: string): string {
 
 function rowHtml(r: AuditRow): string {
   const posture = r.open
-    ? `<span class="pill p-open">${r.open} open</span>${r.high ? `<span class="pill p-high">${r.high} high</span>` : ""}${r.overdue ? `<span class="tag">${r.overdue} overdue</span>` : ""}`
-    : `<span class="pill p-clean">clean</span>`;
+    ? `<span class="pill p-open">${fmt("cm.open", { n: r.open })}</span>${r.high ? `<span class="pill p-high">${fmt("cm.high", { n: r.high })}</span>` : ""}${r.overdue ? `<span class="tag">${fmt("cm.overdueN", { n: r.overdue })}</span>` : ""}`
+    : `<span class="pill p-clean">${t("cm.clean")}</span>`;
   return `<tr>
     <td><div class="aname">${esc(r.name)}</div><div class="muted" style="font-size:11px">${esc(r.type)}${r.date ? ` · ${esc(r.date)}` : ""}</div></td>
     <td><span class="st ${stClass(r.status)}">${esc(r.status)}</span></td>
@@ -39,7 +42,7 @@ function rowHtml(r: AuditRow): string {
 
 function findingHtml(f: Finding): string {
   const plansBtn = f.kind === "finding"
-    ? ` <button class="plan-btn" data-fid="${f.id}" title="Create / manage remediation plans for this finding" style="margin-left:6px;background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:1px 8px;cursor:pointer">⚙ Plans${f.plans ? ` (${f.openPlans ?? f.plans})` : ""}</button>`
+    ? ` <button class="plan-btn" data-fid="${f.id}" title="${t("cm.plansTitle")}" style="margin-left:6px;background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:1px 8px;cursor:pointer">${t("cm.plans")}${f.plans ? ` (${f.openPlans ?? f.plans})` : ""}</button>`
     : "";
   return `<li><span class="dot" style="background:${f.kind === "policy" ? "#c084fc" : "#fb923c"}"></span>
     <span class="sev-${f.severity}">${esc(f.severity)}</span> ·
@@ -53,41 +56,37 @@ async function load(): Promise<void> {
   const s = d.summary;
 
   if (!d.rows.length) {
-    $("cp-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">
-      No audits yet. <a href="/?db=XCOMPLIANCE&table=AUDIT">Create your first audit</a>, record its
-      <a href="/?db=XCOMPLIANCE&table=AUDITFINDING">findings</a>, and the governance worklist appears here.</div>`;
+    $("cp-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("cm.empty")}</div>`;
     return;
   }
 
   const cards = [
-    card("Audits", String(s.audits), `${s.inProgress} in progress · ${s.completed} done`),
-    card("Completion", s.completionRate != null ? `${s.completionRate}%` : "—", "audits completed", s.completionRate != null ? (s.completionRate >= 70 ? "#34d399" : s.completionRate >= 40 ? "#fbbf24" : "#f87171") : undefined),
-    card("Open findings", String(s.openFindings), `of ${s.findings} total`, s.openFindings ? "#fb923c" : "#34d399"),
-    card("High / critical", String(s.highOpen), "open, high severity", s.highOpen ? "#f87171" : "#34d399"),
-    card("Overdue", String(s.overdue), "remediation past due", s.overdue ? "#f87171" : "#34d399"),
-    card("Unassigned", String(s.unassigned), "findings · no owner", s.unassigned ? "#fbbf24" : "#34d399"),
-    card("Policies to review", String(s.policiesReview), "past review date", s.policiesReview ? "#fbbf24" : undefined),
+    card(t("cm.cAudits"), String(s.audits), fmt("cm.cAudits.foot", { p: s.inProgress, d: s.completed })),
+    card(t("cm.cCompletion"), s.completionRate != null ? `${s.completionRate}%` : "—", t("cm.cCompletion.foot"), s.completionRate != null ? (s.completionRate >= 70 ? "#34d399" : s.completionRate >= 40 ? "#fbbf24" : "#f87171") : undefined),
+    card(t("cm.cOpenFindings"), String(s.openFindings), fmt("cm.cOpenFindings.foot", { n: s.findings }), s.openFindings ? "#fb923c" : "#34d399"),
+    card(t("cm.cHighCrit"), String(s.highOpen), t("cm.cHighCrit.foot"), s.highOpen ? "#f87171" : "#34d399"),
+    card(t("cm.cOverdue"), String(s.overdue), t("cm.cOverdue.foot"), s.overdue ? "#f87171" : "#34d399"),
+    card(t("cm.cUnassigned"), String(s.unassigned), t("cm.cUnassigned.foot"), s.unassigned ? "#fbbf24" : "#34d399"),
+    card(t("cm.cPolicies"), String(s.policiesReview), t("cm.cPolicies.foot"), s.policiesReview ? "#fbbf24" : undefined),
   ].join("");
 
   const bySev = Object.entries(s.bySeverity).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd"><span class="sev ${sevClass(k)}">${esc(k)}</span> <b>${n}</b></span>`).join("");
   const byType = Object.entries(s.byType).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd">${esc(k)} <b>${n}</b></span>`).join("");
 
   const findings = d.findings.length
-    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">+${d.findings.length - 60} more…</div>` : ""}`
-    : `<div class="muted" style="padding:12px 0">✓ No open findings or overdue policies — clean compliance posture.</div>`;
+    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">${fmt("cm.more", { n: d.findings.length - 60 })}</div>` : ""}`
+    : `<div class="muted" style="padding:12px 0">${t("cm.noFindings")}</div>`;
 
   const table = `<table class="cp"><thead><tr>
-      <th>Audit</th><th>Status</th><th>Findings</th><th>Posture</th><th>Unassigned</th><th title="Posture score">Score</th>
+      <th>${t("cm.thAudit")}</th><th>${t("cm.thStatus")}</th><th>${t("cm.thFindings")}</th><th>${t("cm.thPosture")}</th><th>${t("cm.thUnassigned")}</th><th title="${t("cm.thScore.title")}">${t("cm.thScore")}</th>
     </tr></thead><tbody>${d.rows.map(rowHtml).join("")}</tbody></table>`;
 
   $("cp-body").innerHTML = `<div class="cp-cards">${cards}</div>
-    <div class="cp-section">Remediation worklist (${d.findings.length})</div>${findings}
-    <div class="cp-section">Open findings by severity</div><div class="breakdown">${bySev || '<span class="muted">none</span>'}</div>
-    <div class="cp-section">Audits by type</div><div class="breakdown">${byType}</div>
-    <div class="cp-section">Audits (${d.rows.length})</div>${table}
-    <div class="legend">↳ <b>Score</b> is an audit's posture (higher = worse): open findings weighted by severity
-      (critical 25 / high 18 / medium 8 / low 3) + overdue +10 + unassigned +3. Manage under
-      <a href="/?db=XCOMPLIANCE&table=AUDIT">Audits</a> / <a href="/?db=XCOMPLIANCE&table=AUDITFINDING">Findings</a>.</div>`;
+    <div class="cp-section">${fmt("cm.secWorklist", { n: d.findings.length })}</div>${findings}
+    <div class="cp-section">${t("cm.secBySeverity")}</div><div class="breakdown">${bySev || `<span class="muted">${t("cm.none")}</span>`}</div>
+    <div class="cp-section">${t("cm.secByType")}</div><div class="breakdown">${byType}</div>
+    <div class="cp-section">${fmt("cm.secAudits", { n: d.rows.length })}</div>${table}
+    <div class="legend">${t("cm.legend")}</div>`;
 
   document.querySelectorAll<HTMLButtonElement>(".plan-btn").forEach((b) => b.addEventListener("click", () => void openPlansModal(Number(b.dataset.fid))));
 }
@@ -120,7 +119,7 @@ function ensurePlansModal(): HTMLElement {
 async function openPlansModal(findingId: number): Promise<void> {
   CUR_FINDING = findingId;
   const m = ensurePlansModal();
-  document.getElementById("cp-plans-dlg")!.innerHTML = `<div class="muted" style="padding:10px">Loading remediation plans…</div>`;
+  document.getElementById("cp-plans-dlg")!.innerHTML = `<div class="muted" style="padding:10px">${t("cm.loadingPlans")}</div>`;
   m.style.display = "flex";
   await renderPlans();
 }
@@ -140,36 +139,36 @@ async function renderPlans(): Promise<void> {
       ${p.type ? `<span class="muted" style="font-size:11px">${esc(p.type)}</span>` : ""}${p.priority ? `<span class="muted" style="font-size:11px">· ${esc(p.priority)}</span>` : ""}
       <span style="flex:1"></span>
       <select class="pl-st" data-id="${p.id}" style="background:#0f1117;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:3px 6px">${sopt(p.status)}</select>
-      <button class="pl-del" data-id="${p.id}" title="Delete plan" style="background:#1e2440;border:1px solid #7f1d1d;color:#fca5a5;border-radius:6px;font-size:11px;padding:3px 8px;cursor:pointer">✕</button>
+      <button class="pl-del" data-id="${p.id}" title="${t("cm.deletePlan")}" style="background:#1e2440;border:1px solid #7f1d1d;color:#fca5a5;border-radius:6px;font-size:11px;padding:3px 8px;cursor:pointer">✕</button>
     </div>
-    <div class="muted" style="font-size:11.5px;margin-top:4px">${p.owner ? `👤 ${esc(p.owner)} · ` : ""}${p.targetDate ? `🎯 ${esc(p.targetDate)} · ` : ""}${p.progress != null ? `${p.progress}% · ` : ""}${p.createdDate ? `created ${esc(p.createdDate)}` : ""}${p.completedDate ? ` · ✓ ${esc(p.completedDate)}` : ""}</div>
+    <div class="muted" style="font-size:11.5px;margin-top:4px">${p.owner ? `👤 ${esc(p.owner)} · ` : ""}${p.targetDate ? `🎯 ${esc(p.targetDate)} · ` : ""}${p.progress != null ? `${p.progress}% · ` : ""}${p.createdDate ? fmt("cm.createdAt", { d: esc(p.createdDate) }) : ""}${p.completedDate ? ` · ✓ ${esc(p.completedDate)}` : ""}</div>
     ${p.description ? `<div style="font-size:12px;color:#cbd5e1;margin-top:4px;white-space:pre-wrap">${esc(p.description)}</div>` : ""}
   </div>`;
-  const ownerOpts = `<option value="">— owner —</option>` + owners.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join("");
+  const ownerOpts = `<option value="">${t("cm.optOwner")}</option>` + owners.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join("");
   dlg.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-      <h3 style="margin:0;font-size:16px;color:#e7ebf3">⚙ Remediation plans</h3><span style="flex:1"></span>
-      <button id="cp-plans-close" style="background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:12px;padding:5px 12px;cursor:pointer">Close</button>
+      <h3 style="margin:0;font-size:16px;color:#e7ebf3">${t("cm.plansHeader")}</h3><span style="flex:1"></span>
+      <button id="cp-plans-close" style="background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:12px;padding:5px 12px;cursor:pointer">${t("cm.close")}</button>
     </div>
-    <div class="muted" style="font-size:12.5px;margin-bottom:12px"><b style="color:#cbd5e1">${esc(f.name)}</b> · <a href="/?db=XCOMPLIANCE&table=AUDITFINDING&editCol=AuditFindingID&editVal=${f.id}" style="color:#7dd3fc">edit finding ↗</a>${f.audit ? ` · audit: ${esc(f.audit)}` : ""}${f.severity ? ` · ${esc(f.severity)}` : ""}</div>
-    <div>${d.plans.length ? d.plans.map(planRow).join("") : `<div class="muted" style="padding:6px 0 12px">No remediation plan yet — add the first one below.</div>`}</div>
+    <div class="muted" style="font-size:12.5px;margin-bottom:12px"><b style="color:#cbd5e1">${esc(f.name)}</b> · <a href="/?db=XCOMPLIANCE&table=AUDITFINDING&editCol=AuditFindingID&editVal=${f.id}" style="color:#7dd3fc">${t("cm.editFinding")}</a>${f.audit ? ` · ${fmt("cm.auditLbl", { a: esc(f.audit) })}` : ""}${f.severity ? ` · ${esc(f.severity)}` : ""}</div>
+    <div>${d.plans.length ? d.plans.map(planRow).join("") : `<div class="muted" style="padding:6px 0 12px">${t("cm.noPlans")}</div>`}</div>
     <div style="border-top:1px solid #2d3250;margin-top:6px;padding-top:12px">
-      <div style="font-weight:700;color:#cbd5e1;font-size:12px;margin-bottom:7px">＋ New remediation plan</div>
+      <div style="font-weight:700;color:#cbd5e1;font-size:12px;margin-bottom:7px">${t("cm.newPlan")}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
-        <input id="pl-name" placeholder="Plan / action name *" style="grid-column:1/-1;${FLD}">
+        <input id="pl-name" placeholder="${t("cm.planNamePh")}" style="grid-column:1/-1;${FLD}">
         <select id="pl-type" style="${FLD}">${(d.types as string[]).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
-        <select id="pl-prio" style="${FLD}"><option value="">— priority —</option>${(d.priorities as string[]).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+        <select id="pl-prio" style="${FLD}"><option value="">${t("cm.optPriority")}</option>${(d.priorities as string[]).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
         <select id="pl-status" style="${FLD}">${(d.statuses as string[]).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
         <select id="pl-owner" style="${FLD}">${ownerOpts}</select>
         <input id="pl-target" type="date" style="${FLD}">
-        <textarea id="pl-desc" placeholder="Description / steps…" style="grid-column:1/-1;min-height:54px;resize:vertical;${FLD}"></textarea>
+        <textarea id="pl-desc" placeholder="${t("cm.planDescPh")}" style="grid-column:1/-1;min-height:54px;resize:vertical;${FLD}"></textarea>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:7px;margin-top:8px"><button id="pl-add" style="background:#22c55e;border:none;color:#04130a;border-radius:7px;font-weight:700;font-size:12.5px;padding:7px 14px;cursor:pointer">Add plan</button></div>
+      <div style="display:flex;justify-content:flex-end;gap:7px;margin-top:8px"><button id="pl-add" style="background:#22c55e;border:none;color:#04130a;border-radius:7px;font-weight:700;font-size:12.5px;padding:7px 14px;cursor:pointer">${t("cm.addPlan")}</button></div>
       <div id="pl-err" style="color:#fca5a5;font-size:12px;margin-top:5px"></div>
     </div>`;
   document.getElementById("cp-plans-close")!.onclick = () => { document.getElementById("cp-plans-modal")!.style.display = "none"; };
   dlg.querySelectorAll<HTMLSelectElement>(".pl-st").forEach((sel) => { sel.onchange = () => void planAction("POST", `/api/compliance-management/remediation/${sel.dataset.id}`, { status: sel.value }); });
-  dlg.querySelectorAll<HTMLButtonElement>(".pl-del").forEach((b) => { b.onclick = () => { if (confirm("Delete this remediation plan?")) void planAction("DELETE", `/api/compliance-management/remediation/${b.dataset.id}`); }; });
+  dlg.querySelectorAll<HTMLButtonElement>(".pl-del").forEach((b) => { b.onclick = () => { if (confirm(t("cm.confirmDelete"))) void planAction("DELETE", `/api/compliance-management/remediation/${b.dataset.id}`); }; });
   document.getElementById("pl-add")!.onclick = () => void addPlan();
 }
 
@@ -186,12 +185,12 @@ async function addPlan(): Promise<void> {
   const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   const name = v("pl-name").trim();
   const err = document.getElementById("pl-err")!;
-  if (!name) { err.textContent = "⚠️ Enter a plan name."; return; }
+  if (!name) { err.textContent = t("cm.errPlanName"); return; }
   try {
     const body = { name, type: v("pl-type"), priority: v("pl-prio") || undefined, status: v("pl-status"), ownerPersonId: v("pl-owner") || undefined, targetDate: v("pl-target") || undefined, description: v("pl-desc").trim() || undefined };
     const r = await fetch(`/api/compliance-management/finding/${CUR_FINDING}/remediation`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json(); if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-    toast("✅ Remediation plan added");
+    toast(t("cm.planAdded"));
     await renderPlans(); await load();
   } catch (e) { err.textContent = `⚠️ ${e}`; }
 }
@@ -219,9 +218,9 @@ async function createAudit(): Promise<void> {
   const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   const name = v("cm-f-name").trim();
   const err = $("cm-f-err");
-  if (!name) { err.textContent = "⚠️ Enter a name."; ($("cm-f-name") as HTMLInputElement).focus(); return; }
+  if (!name) { err.textContent = t("cm.errName"); ($("cm-f-name") as HTMLInputElement).focus(); return; }
   const btn = $("cm-create") as HTMLButtonElement;
-  btn.disabled = true; err.textContent = "Creating…";
+  btn.disabled = true; err.textContent = t("cm.creating");
   try {
     const body = {
       name, type: v("cm-f-type"), category: v("cm-f-category").trim() || undefined, status: v("cm-f-status"),
@@ -235,12 +234,13 @@ async function createAudit(): Promise<void> {
     closeAuditModal();
     await load();
     const link = `/?db=XCOMPLIANCE&table=AUDIT&editCol=AuditID&editVal=${d.id}`;
-    toast(`✅ Audit created — <a href="${link}" style="color:#7dd3fc">open it ↗</a>`);
+    toast(fmt("cm.auditCreated", { link }));
   } catch (e) { err.textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("cm-new").addEventListener("click", openAuditModal);
   $("cm-cancel").addEventListener("click", closeAuditModal);
   $("cm-create").addEventListener("click", () => void createAudit());

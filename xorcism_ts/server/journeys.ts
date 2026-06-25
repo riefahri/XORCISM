@@ -137,6 +137,47 @@ export const FRAMEWORKS: FrameworkT[] = [
     ],
   },
   {
+    key: "euaiact", name: "EU AI Act (Regulation (EU) 2024/1689)", provider: "European Union", kind: "Regulation", jurisdiction: "European Union",
+    summary: "The EU Artificial Intelligence Act — the world's first horizontal, risk-based AI regulation. Obligations scale with risk: prohibited practices (Art. 5), high-risk AI systems (Art. 6 + Annex III) carrying the heaviest duties, transparency-risk systems (Art. 50) and minimal-risk. This journey walks a provider or deployer from AI governance and an AI-system inventory through risk classification, the Art. 9 risk-management system, technical documentation and the ancillary obligations (conformity assessment, CE marking, EU-database registration, post-market monitoring and serious-incident reporting). Import the EU AI Act control catalogue to track the obligations as controls.",
+    effort: "9–18 months (phased: GPAI Aug 2025 · high-risk Aug 2026/2027)",
+    phases: [
+      { name: "Gouvernance & AI literacy", steps: [
+        st("Establish AI governance & roles", "Stand up an AI governance body, assign accountability and determine your role under the Act (provider / deployer / importer / distributor).", L.identity),
+        st("AI literacy (Art. 4)", "Ensure staff who operate or oversee AI systems have a sufficient level of AI literacy.", L.awareness),
+        st("Quality management system (Art. 17)", "For high-risk AI, put in place the QMS covering processes, change control and responsibilities.", L.policies),
+      ]},
+      { name: "Cartographie des systèmes d'IA", steps: [
+        st("Inventory AI systems & models", "Catalogue every AI system / model / agent in use or placed on the market, with purpose, data, owner and your role under the Act.", L.identity),
+        st("Identify GPAI & third-party AI", "Flag general-purpose AI models (Art. 53–55) and AI obtained from third parties; track third-party AI risk in TPRM.", L.tprm),
+      ]},
+      { name: "Classification du risque", steps: [
+        st("Screen for prohibited practices (Art. 5)", "Verify no AI system performs a prohibited practice (social scoring, manipulative techniques, untargeted facial-image scraping, etc.).", L.assess),
+        st("Classify high-risk systems (Art. 6 + Annex III)", "Determine which systems are high-risk (Annex III use-cases or safety components) — these carry the full obligation set.", L.assess),
+        st("Transparency-risk & minimal-risk (Art. 50)", "Identify limited-risk systems requiring transparency (chatbots, emotion recognition, deepfakes) and the minimal-risk remainder.", L.assess),
+      ]},
+      { name: "Gérer les risques", steps: [
+        st("Risk-management system (Art. 9)", "Run the continuous, iterative risk-management system across the AI lifecycle; record risks in the register.", L.riskReg),
+        st("Data & data governance (Art. 10)", "Govern training/validation/test data quality, representativeness and bias examination.", L.evidence),
+        st("Fundamental-rights impact assessment (Art. 27)", "Where required (deployers of certain high-risk systems), perform the FRIA on affected persons.", L.assess),
+        st("Map AI-specific threats", "Reference the Agentic AI Attack Matrix / SAIF and AI guardrails for AI-specific threats and mitigations.", "/a3m"),
+      ]},
+      { name: "Documenter (Art. 11–15)", steps: [
+        st("Technical documentation (Art. 11 + Annex IV)", "Compile the technical documentation demonstrating conformity before placing the system on the market.", L.evidence),
+        st("Record-keeping & logging (Art. 12)", "Ensure automatic logging of events over the system's lifetime for traceability.", L.monitoring),
+        st("Transparency & instructions for use (Art. 13)", "Provide deployers with clear instructions and the information needed for compliant operation.", L.policies),
+        st("Human oversight (Art. 14)", "Design and document effective human-oversight measures.", L.controls53),
+        st("Accuracy, robustness & cybersecurity (Art. 15)", "Demonstrate appropriate accuracy, robustness and cybersecurity; harden and test the system.", L.controls53),
+      ]},
+      { name: "Obligations annexes", steps: [
+        st("Conformity assessment (Art. 43)", "Carry out the applicable conformity-assessment procedure for high-risk systems.", L.assess),
+        st("EU declaration of conformity & CE marking (Art. 47–48)", "Draw up the EU declaration of conformity and affix the CE marking.", L.evidence),
+        st("Register in the EU database (Art. 49 / 71)", "Register the high-risk AI system (and yourself) in the EU database before placing it on the market.", L.regulator),
+        st("Post-market monitoring (Art. 72)", "Operate a post-market monitoring system to collect and analyse performance data.", L.monitoring),
+        st("Serious-incident reporting (Art. 73)", "Wire the reporting of serious incidents and malfunctioning to the market-surveillance authority.", L.regulator),
+      ]},
+    ],
+  },
+  {
     key: "aisecurity", name: "AI Security Management (AI-TRiSM)", provider: "XORCISM — AI Trust, Risk & Security Management", kind: "Framework", jurisdiction: "International",
     summary: "An end-to-end program to secure and govern AI: stand up AI governance and policy, inventory your AI systems and the non-human identities behind them, comply with the AI standards (ISO/IEC 42001 + the CSA AI Controls Matrix), assess third-party AI with the AICM AI-CAIQ questionnaire, and continuously monitor and guardrail AI at runtime via the XOR agent. Spans governance → identities → compliance → third-party → runtime assurance.",
     effort: "6–12 months",

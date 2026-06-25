@@ -4,8 +4,12 @@
  * SP 800-53A assessment (inline or in the detail modal, which also shows the full control text and the
  * ATT&CK crosswalk); manage POA&M items; watch coverage / assessment / POA&M posture + the gap worklist.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
+const blName = (x: string): string => x === "L" ? t("ctm.blLow") : x === "M" ? t("ctm.blModerate") : x === "H" ? t("ctm.blHigh") : t("ctm.blPrivacy");
 
 interface Ctrl {
   id: number; ref: string; title: string; family: string; familyCode: string; enhancement: boolean;
@@ -33,19 +37,19 @@ function statusClass(s: string): string {
     : s === "Not Applicable" ? "c-NA" : s === "Inherited" ? "c-Inherited" : "c-Unassigned";
 }
 function assessBadge(a: string): string {
-  if (a === "Satisfied") return `<span class="asmt a-Satisfied" title="Satisfied">SAT</span>`;
-  if (a === "Other Than Satisfied") return `<span class="asmt a-Other" title="Other than satisfied">OTH</span>`;
+  if (a === "Satisfied") return `<span class="asmt a-Satisfied" title="${t("ctm.satisfied")}">SAT</span>`;
+  if (a === "Other Than Satisfied") return `<span class="asmt a-Other" title="${t("ctm.otherThanSatisfied")}">OTH</span>`;
   if (a === "Not Assessed") return `<span class="asmt a-None">N/A</span>`;
   return `<span class="muted">—</span>`;
 }
-function blBadges(b: string[]): string { return b.map((x) => `<span class="bl bl-${x}" title="${x === "L" ? "Low" : x === "M" ? "Moderate" : x === "H" ? "High" : "Privacy"} baseline">${x}</span>`).join(""); }
+function blBadges(b: string[]): string { return b.map((x) => `<span class="bl bl-${x}" title="${fmt("ctm.blBaseline", { b: blName(x) })}">${x}</span>`).join(""); }
 function card(lbl: string, val: string, foot: string, color?: string): string {
   return `<div class="cm-card"><div class="lbl">${esc(lbl)}</div><div class="val"${color ? ` style="color:${color}"` : ""}>${val}</div><div class="foot">${esc(foot)}</div></div>`;
 }
 function techUrl(id: string): string { const p = id.split("."); return `https://attack.mitre.org/techniques/${p[0]}${p[1] ? "/" + p[1] : ""}/`; }
 
 function statusSelect(c: Ctrl): string {
-  const opts = [`<option value=""${c.status === "" ? " selected" : ""}>— Unassigned —</option>`]
+  const opts = [`<option value=""${c.status === "" ? " selected" : ""}>${t("ctm.optUnassignedDash")}</option>`]
     .concat(DATA!.statuses.map((s) => `<option${s === c.status ? " selected" : ""}>${esc(s)}</option>`)).join("");
   return `<select class="st" data-id="${c.id}">${opts}</select>`;
 }
@@ -64,8 +68,8 @@ function rowHtml(c: Ctrl): string {
     <td>${assessBadge(c.assessment)}</td>
     <td>${respSelect(c)}</td>
     <td>${c.owner ? esc(c.owner) : "<span class='muted'>—</span>"}</td>
-    <td>${c.attackCount ? `<span class="att" title="${c.attackCount} ATT&CK techniques mitigated">⚔ ${c.attackCount}</span>` : "<span class='muted'>—</span>"}</td>
-    <td><button class="edit-btn" data-detail="${c.id}" title="Open detail (text, ATT&CK, assessment, POA&M)">&#9998;</button></td>
+    <td>${c.attackCount ? `<span class="att" title="${fmt("ctm.attackMitigatedN", { n: c.attackCount })}">⚔ ${c.attackCount}</span>` : "<span class='muted'>—</span>"}</td>
+    <td><button class="edit-btn" data-detail="${c.id}" title="${t("ctm.openDetailTitle")}">&#9998;</button></td>
   </tr>`;
 }
 
@@ -84,21 +88,21 @@ function renderTable(): void {
   const host = $("cm-table-host");
   const shown = rows.slice(0, RENDER_CAP);
   host.innerHTML = rows.length
-    ? `<table class="cm"><thead><tr><th>Ref</th><th>Title</th><th>Fam</th><th>BL</th><th>Status</th><th>53A</th><th>Responsibility</th><th>Owner</th><th>ATT&CK</th><th></th></tr></thead><tbody>${shown.map(rowHtml).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:14px 0">No controls match the current filters.</div>`;
+    ? `<table class="cm"><thead><tr><th>${t("ctm.thRef")}</th><th>${t("ctm.thTitle")}</th><th>${t("ctm.thFam")}</th><th>${t("ctm.thBL")}</th><th>${t("ctm.thStatus")}</th><th>${t("ctm.th53A")}</th><th>${t("ctm.thResponsibility")}</th><th>${t("ctm.thOwner")}</th><th>${t("ctm.thAttack")}</th><th></th></tr></thead><tbody>${shown.map(rowHtml).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:14px 0">${t("ctm.noMatch")}</div>`;
   host.querySelectorAll<HTMLSelectElement>("select.st").forEach((s) => s.addEventListener("change", () => void saveImpl(Number(s.dataset.id), { status: s.value })));
   host.querySelectorAll<HTMLSelectElement>("select.rs").forEach((s) => s.addEventListener("change", () => void saveImpl(Number(s.dataset.id), { responsibility: s.value })));
   host.querySelectorAll<HTMLElement>("[data-detail]").forEach((b) => b.addEventListener("click", () => openDetail(Number(b.dataset.detail))));
   const cnt = $("cm-count");
-  if (cnt) cnt.textContent = rows.length > RENDER_CAP ? `(showing ${RENDER_CAP} of ${rows.length} — refine to see the rest)` : `(${rows.length} of ${DATA?.controls.length ?? 0})`;
+  if (cnt) cnt.textContent = rows.length > RENDER_CAP ? fmt("ctm.countShowing", { cap: RENDER_CAP, n: rows.length }) : fmt("ctm.countOf", { n: rows.length, total: DATA?.controls.length ?? 0 });
 }
 
 function famHtml(f: Fam): string {
-  const seg = (n: number, cls: string, t: string): string => n ? `<div class="${cls}" style="width:${(n / f.total) * 100}%" title="${t}: ${n}"></div>` : "";
+  const seg = (n: number, cls: string, ti: string): string => n ? `<div class="${cls}" style="width:${(n / f.total) * 100}%" title="${ti}: ${n}"></div>` : "";
   return `<div class="fam" data-code="${esc(f.code)}">
     <div class="top"><span class="code">${esc(f.code)}</span><span class="nm">${esc(f.name)}</span><span class="cnt">${f.total}</span></div>
-    <div class="barwrap">${seg(f.implemented, "seg-impl", "Implemented")}${seg(f.partial, "seg-part", "Partial")}${seg(f.planned, "seg-plan", "Planned")}${seg(f.notImpl, "seg-no", "Not implemented")}${seg(f.inherited, "seg-inh", "Inherited")}${seg(f.na, "seg-na", "Not applicable")}</div>
-    <div class="pct">${f.coveragePct}% covered · ${f.implemented} impl · ${f.unassigned} unassigned</div>
+    <div class="barwrap">${seg(f.implemented, "seg-impl", t("ctm.segImpl"))}${seg(f.partial, "seg-part", t("ctm.segPart"))}${seg(f.planned, "seg-plan", t("ctm.segPlan"))}${seg(f.notImpl, "seg-no", t("ctm.segNo"))}${seg(f.inherited, "seg-inh", t("ctm.segInh"))}${seg(f.na, "seg-na", t("ctm.segNa"))}</div>
+    <div class="pct">${fmt("ctm.famPct", { p: f.coveragePct, i: f.implemented, u: f.unassigned })}</div>
   </div>`;
 }
 
@@ -106,7 +110,7 @@ function poamRow(p: Poam): string {
   const opts = DATA!.poamStatuses.map((s) => `<option${s === p.status ? " selected" : ""}>${esc(s)}</option>`).join("");
   return `<tr>
     <td>${p.ref ? `<span class="cref" data-detail-ref="${esc(p.ref)}" style="cursor:pointer">${esc(p.ref)}</span>` : "<span class='muted'>—</span>"}</td>
-    <td><span class="ctitle">${esc(p.title)}</span>${p.overdue ? '<span class="ovd">overdue</span>' : ""}</td>
+    <td><span class="ctitle">${esc(p.title)}</span>${p.overdue ? `<span class="ovd">${t("ctm.overdue")}</span>` : ""}</td>
     <td>${p.severity ? `<span class="sev-${esc(p.severity)}">${esc(p.severity)}</span>` : "<span class='muted'>—</span>"}</td>
     <td><select class="ps" data-poam="${p.id}">${opts}</select></td>
     <td>${p.owner ? esc(p.owner) : "<span class='muted'>—</span>"}</td>
@@ -117,55 +121,53 @@ function poamRow(p: Poam): string {
 function buildBody(): void {
   const s = DATA!.summary;
   if (!s.loaded || !s.total) {
-    $("cm-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">⚠️ The NIST SP 800-53 catalogue isn't loaded yet.
-      Run <code>python xorcism_python/importers/import_nist800-53.py</code> to import the 1,196 Rev 5 controls.</div>`;
+    $("cm-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("ctm.notLoaded")}</div>`;
     return;
   }
   const bl = s.byBaseline || {}; const a = s.assessment || {}; const mp = s.mappings || {}; const pm = s.poam || {};
   const cw = (k: string): number => (mp.byFramework && mp.byFramework[k] && mp.byFramework[k].controls) || 0;
   const cards = [
-    card("Controls", String(s.total), `${s.base} base · ${s.enhancements} enh · ${s.familyCount} families`),
-    card("Coverage", `${s.coveragePct}%`, `${s.implemented} implemented · ${s.unassigned} unassigned`, s.coveragePct >= 80 ? "#34d399" : s.coveragePct >= 40 ? "#fbbf24" : "#f87171"),
-    card("Assessed (53A)", `${a.satisfied || 0}✓`, `${a.otherThanSatisfied || 0} other-than-satisfied`, (a.otherThanSatisfied || 0) ? "#fbbf24" : (a.satisfied || 0) ? "#34d399" : undefined),
-    card("Gaps", String(s.gapCount), "in a baseline, needs work", s.gapCount ? "#f87171" : "#34d399"),
-    card("POA&M", `${pm.open || 0}`, `${pm.overdue || 0} overdue · ${pm.total || 0} total`, (pm.overdue || 0) ? "#f87171" : (pm.open || 0) ? "#fbbf24" : "#34d399"),
-    card("Crosswalks", mp.loaded ? `${Object.keys(mp.byFramework || {}).length}` : "—", mp.loaded ? `frameworks · ${mp.attackTechniques} ATT&CK · ${cw("D3FEND")} D3FEND · ${cw("CSF")} CSF ctrl` : "run the crosswalk importers", mp.loaded ? "#c084fc" : undefined),
+    card(t("ctm.cControls"), String(s.total), fmt("ctm.cControls.foot", { base: s.base, enh: s.enhancements, fam: s.familyCount })),
+    card(t("ctm.cCoverage"), `${s.coveragePct}%`, fmt("ctm.cCoverage.foot", { impl: s.implemented, un: s.unassigned }), s.coveragePct >= 80 ? "#34d399" : s.coveragePct >= 40 ? "#fbbf24" : "#f87171"),
+    card(t("ctm.cAssessed"), `${a.satisfied || 0}✓`, fmt("ctm.cAssessed.foot", { n: a.otherThanSatisfied || 0 }), (a.otherThanSatisfied || 0) ? "#fbbf24" : (a.satisfied || 0) ? "#34d399" : undefined),
+    card(t("ctm.cGaps"), String(s.gapCount), t("ctm.cGaps.foot"), s.gapCount ? "#f87171" : "#34d399"),
+    card(t("ctm.cPoam"), `${pm.open || 0}`, fmt("ctm.cPoam.foot", { ovd: pm.overdue || 0, tot: pm.total || 0 }), (pm.overdue || 0) ? "#f87171" : (pm.open || 0) ? "#fbbf24" : "#34d399"),
+    card(t("ctm.cCrosswalks"), mp.loaded ? `${Object.keys(mp.byFramework || {}).length}` : "—", mp.loaded ? fmt("ctm.cCrosswalks.foot", { att: mp.attackTechniques, d: cw("D3FEND"), csf: cw("CSF") }) : t("ctm.cCrosswalks.footRun"), mp.loaded ? "#c084fc" : undefined),
   ];
 
   const order: [string, string][] = [["Implemented", "c-Implemented"], ["Partially Implemented", "c-Partial"], ["Planned", "c-Planned"], ["Not Implemented", "c-NotImpl"], ["Not Applicable", "c-NA"], ["Inherited", "c-Inherited"], ["Unassigned", "c-Unassigned"]];
   const byStatus = order.filter(([k]) => (s.byStatus?.[k] ?? 0) > 0).map(([k, cls]) =>
     `<span class="bd" data-status="${esc(k)}"><span class="dotc ${cls}"></span>${esc(k)} <b>${s.byStatus[k]}</b></span>`).join("");
 
-  const blRow = s.baselinesLoaded ? `<div class="cm-section">Baselines (NIST SP 800-53B)</div><div class="blrow">
-    ${(["low", "moderate", "high", "privacy"] as const).map((k) => `<div class="blcard"><div class="t">${k}</div><div class="v">${bl[k].implemented}<span class="muted" style="font-size:13px">/${bl[k].total}</span></div><div class="foot muted" style="font-size:11px">implemented</div></div>`).join("")}
+  const blRow = s.baselinesLoaded ? `<div class="cm-section">${t("ctm.secBaselines")}</div><div class="blrow">
+    ${(["low", "moderate", "high", "privacy"] as const).map((k) => `<div class="blcard"><div class="t">${esc(blName(k === "low" ? "L" : k === "moderate" ? "M" : k === "high" ? "H" : "P"))}</div><div class="v">${bl[k].implemented}<span class="muted" style="font-size:13px">/${bl[k].total}</span></div><div class="foot muted" style="font-size:11px">${t("ctm.blImplemented")}</div></div>`).join("")}
   </div>` : "";
 
   const gaps = DATA!.gaps.length
     ? `<ul class="worklist">${DATA!.gaps.slice(0, 25).map((g) => `<li><span class="pri">#${esc(String(g.score))}</span><span class="cref" data-detail-ref="${esc(g.ref)}" style="cursor:pointer">${esc(g.ref)}</span> <span class="ctitle">${esc(g.title)}</span> ${blBadges(g.baselines)} <span class="muted" style="margin-left:auto;font-size:12px">${esc(g.status)}</span></li>`).join("")}</ul>`
-    : `<div class="muted" style="padding:8px 0">✓ No open gaps in any baseline.</div>`;
+    : `<div class="muted" style="padding:8px 0">${t("ctm.noGaps")}</div>`;
 
   const poamTable = DATA!.poam.length
-    ? `<table class="cm"><thead><tr><th>Control</th><th>Title</th><th>Severity</th><th>Status</th><th>Owner</th><th>Scheduled</th></tr></thead><tbody>${DATA!.poam.map(poamRow).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:8px 0">No POA&M items yet. Open a control and click <b>+ POA&M</b>, or use <b>+ New POA&M</b>.</div>`;
+    ? `<table class="cm"><thead><tr><th>${t("ctm.thControl")}</th><th>${t("ctm.thTitle")}</th><th>${t("ctm.thSeverity")}</th><th>${t("ctm.thStatus")}</th><th>${t("ctm.thOwner")}</th><th>${t("ctm.thScheduled")}</th></tr></thead><tbody>${DATA!.poam.map(poamRow).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:8px 0">${t("ctm.noPoam")}</div>`;
 
   const filters = `<div class="filters">
-    <input id="cm-search" type="search" placeholder="Search ref / title / family…" style="flex:1;min-width:200px">
-    <select id="cm-family"><option value="">All families</option>${DATA!.families.map((f) => `<option value="${esc(f.code)}">${esc(f.code)} — ${esc(f.name)}</option>`).join("")}</select>
-    <select id="cm-baseline"><option value="">All baselines</option><option value="L">Low</option><option value="M">Moderate</option><option value="H">High</option><option value="P">Privacy</option></select>
-    <select id="cm-status"><option value="">All statuses</option>${DATA!.statuses.map((x) => `<option>${esc(x)}</option>`).join("")}<option>Unassigned</option></select>
-    <label class="chk"><input type="checkbox" id="cm-baseonly"> base only</label>
-    <label class="chk"><input type="checkbox" id="cm-gaponly"> gaps only</label>
+    <input id="cm-search" type="search" placeholder="${t("ctm.searchPh")}" style="flex:1;min-width:200px">
+    <select id="cm-family"><option value="">${t("ctm.allFamilies")}</option>${DATA!.families.map((f) => `<option value="${esc(f.code)}">${esc(f.code)} — ${esc(f.name)}</option>`).join("")}</select>
+    <select id="cm-baseline"><option value="">${t("ctm.allBaselines")}</option><option value="L">${esc(t("ctm.blLow"))}</option><option value="M">${esc(t("ctm.blModerate"))}</option><option value="H">${esc(t("ctm.blHigh"))}</option><option value="P">${esc(t("ctm.blPrivacy"))}</option></select>
+    <select id="cm-status"><option value="">${t("ctm.allStatuses")}</option>${DATA!.statuses.map((x) => `<option>${esc(x)}</option>`).join("")}<option value="Unassigned">${t("ctm.unassigned")}</option></select>
+    <label class="chk"><input type="checkbox" id="cm-baseonly"> ${t("ctm.baseOnly")}</label>
+    <label class="chk"><input type="checkbox" id="cm-gaponly"> ${t("ctm.gapsOnly")}</label>
     <span id="cm-count" class="muted" style="font-size:12px"></span></div>`;
 
   $("cm-body").innerHTML = `<div class="cm-cards">${cards.join("")}</div>
-    <div class="cm-section">By status</div><div class="breakdown">${byStatus}</div>
+    <div class="cm-section">${t("ctm.secByStatus")}</div><div class="breakdown">${byStatus}</div>
     ${blRow}
-    <div class="cm-section">Coverage by family</div><div class="fam-grid">${DATA!.families.map(famHtml).join("")}</div>
-    <div class="cm-section">Gap worklist (${DATA!.gaps.length}) — highest-priority baseline gaps first</div>${gaps}
-    <div class="cm-section">POA&M <span class="act"><button class="btn-2nd" id="cm-poam-new">+ New POA&M</button></span></div>${poamTable}
-    <div class="cm-section">Controls</div>${filters}<div id="cm-table-host"></div>
-    <div class="legend" style="font-size:11px;color:#64748b;margin-top:12px">↳ Set <b>status</b> / <b>responsibility</b> inline, or click a <b>ref</b> / ✎ to open the control (full text, ATT&CK crosswalk, 800-53A assessment, POA&M).
-      Catalogue <code>import_nist800-53.py</code>; text <code>import_nist80053_details.py</code>; baselines <code>import_nist80053_baselines.py</code>; ATT&CK <code>import_attack_80053_mappings.py</code>.</div>`;
+    <div class="cm-section">${t("ctm.secCoverageByFamily")}</div><div class="fam-grid">${DATA!.families.map(famHtml).join("")}</div>
+    <div class="cm-section">${fmt("ctm.secGapWorklist", { n: DATA!.gaps.length })}</div>${gaps}
+    <div class="cm-section">${t("ctm.secPoam")} <span class="act"><button class="btn-2nd" id="cm-poam-new">${t("ctm.newPoam")}</button></span></div>${poamTable}
+    <div class="cm-section">${t("ctm.secControls")}</div>${filters}<div id="cm-table-host"></div>
+    <div class="legend" style="font-size:11px;color:#64748b;margin-top:12px">${t("ctm.legend")}</div>`;
 
   ($("cm-search") as HTMLInputElement).value = FILTER.q;
   ($("cm-family") as HTMLSelectElement).value = FILTER.family;
@@ -204,7 +206,7 @@ async function saveImpl(controlId: number, patch: Record<string, unknown>): Prom
   try {
     const r = await fetch("/api/control-management/implementation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ controlId, ...patch }) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    await load(); toast("✅ Saved");
+    await load(); toast(t("ctm.toastSaved"));
   } catch (e) { toast(`⚠️ ${e}`); }
 }
 
@@ -214,7 +216,7 @@ function openDetailByRef(ref: string): void { const id = refToId(ref); if (id) o
 
 async function openDetail(id: number): Promise<void> {
   DETAIL_ID = id;
-  $("cm-d-ref").textContent = "…"; $("cm-d-meta").textContent = ""; $("cm-d-body").innerHTML = `<div class="muted">Loading…</div>`;
+  $("cm-d-ref").textContent = "…"; $("cm-d-meta").textContent = ""; $("cm-d-body").innerHTML = `<div class="muted">${t("ctm.dLoading")}</div>`;
   $("cm-d-err").textContent = ""; $("cm-modal").classList.add("open");
   let d: any;
   try { const r = await fetch(`/api/control-management/control/${id}`); if (!r.ok) throw new Error(`HTTP ${r.status}`); d = await r.json(); }
@@ -224,10 +226,10 @@ async function openDetail(id: number): Promise<void> {
   $("cm-d-meta").innerHTML = `${esc(d.title)} · ${esc(d.family)} ${blBadges(d.baselines || [])}`;
 
   const panels: string[] = [];
-  if (d.statement) panels.push(`<div class="panel"><h4>Control statement</h4><div class="prose">${esc(d.statement)}</div></div>`);
-  if (d.guidance) panels.push(`<div class="panel"><h4>Discussion / guidance</h4><div class="prose">${esc(d.guidance)}</div></div>`);
-  if (d.params) panels.push(`<div class="panel"><h4>Parameters (ODPs)</h4><div class="prose">${esc(d.params)}</div></div>`);
-  if (d.related && d.related.length) panels.push(`<div class="panel"><h4>Related controls</h4><div class="chips">${d.related.map((r: string) => `<span class="relchip" data-rel="${esc(r)}">${esc(r)}</span>`).join("")}</div></div>`);
+  if (d.statement) panels.push(`<div class="panel"><h4>${t("ctm.pnStatement")}</h4><div class="prose">${esc(d.statement)}</div></div>`);
+  if (d.guidance) panels.push(`<div class="panel"><h4>${t("ctm.pnGuidance")}</h4><div class="prose">${esc(d.guidance)}</div></div>`);
+  if (d.params) panels.push(`<div class="panel"><h4>${t("ctm.pnParams")}</h4><div class="prose">${esc(d.params)}</div></div>`);
+  if (d.related && d.related.length) panels.push(`<div class="panel"><h4>${t("ctm.pnRelated")}</h4><div class="chips">${d.related.map((r: string) => `<span class="relchip" data-rel="${esc(r)}">${esc(r)}</span>`).join("")}</div></div>`);
   const chipList = (items: any[], linked: boolean, cap: number): string => {
     const shown = items.slice(0, cap);
     const more = items.length - shown.length;
@@ -237,10 +239,10 @@ async function openDetail(id: number): Promise<void> {
         ? `<a class="techchip" href="${techUrl(t.id)}" target="_blank" rel="noopener" title="${esc(t.name)}">${esc(t.id)}${nm}</a>`
         : `<span class="techchip" title="${esc(t.name)}">${esc(t.id)}${nm}</span>`;
     }).join("");
-    return chips + (more > 0 ? `<span class="muted" style="font-size:11px;align-self:center">+${more} more</span>` : "");
+    return chips + (more > 0 ? `<span class="muted" style="font-size:11px;align-self:center">${fmt("ctm.moreN", { n: more })}</span>` : "");
   };
   const att = (d.mappings && d.mappings["ATT&CK"]) || [];
-  if (att.length) panels.push(`<div class="panel"><h4>ATT&CK techniques mitigated (${att.length})</h4><div class="chips">${chipList(att, true, 40)}</div></div>`);
+  if (att.length) panels.push(`<div class="panel"><h4>${fmt("ctm.pnAttackN", { n: att.length })}</h4><div class="chips">${chipList(att, true, 40)}</div></div>`);
   // direct crosswalks first, composed/bridged frameworks (rel "via …") last
   const isComposed = (fw: string): boolean => /^via /i.test(d.mappings[fw][0]?.rel || "");
   const others = Object.keys(d.mappings || {}).filter((k) => k !== "ATT&CK");
@@ -249,10 +251,10 @@ async function openDetail(id: number): Promise<void> {
     const items = d.mappings[fw];
     const rel = items[0]?.rel || "";
     const composed = /^via /i.test(rel);
-    panels.push(`<div class="panel"><h4>${esc(fw)} (${items.length})${composed ? ` <span class="muted" style="text-transform:none;font-weight:400">· indirect, ${esc(rel)}</span>` : ""}</h4><div class="chips">${chipList(items, false, 30)}</div></div>`);
+    panels.push(`<div class="panel"><h4>${esc(fw)} (${items.length})${composed ? ` <span class="muted" style="text-transform:none;font-weight:400">· ${fmt("ctm.indirect", { rel: esc(rel) })}</span>` : ""}</h4><div class="chips">${chipList(items, false, 30)}</div></div>`);
   }
-  if (d.poam && d.poam.length) panels.push(`<div class="panel"><h4>POA&M for this control (${d.poam.length})</h4><ul class="poam-mini">${d.poam.map((p: any) => `<li><span class="sev-${esc(p.severity)}">${esc(p.severity || "—")}</span> ${esc(p.title)} <span class="muted" style="margin-left:auto">${esc(p.status)}${p.scheduled ? " · " + esc(p.scheduled) : ""}</span></li>`).join("")}</ul></div>`);
-  if (!panels.length) panels.push(`<div class="muted" style="margin-bottom:10px">No control text imported. Run <code>import_nist80053_details.py</code>.</div>`);
+  if (d.poam && d.poam.length) panels.push(`<div class="panel"><h4>${fmt("ctm.pnPoamN", { n: d.poam.length })}</h4><ul class="poam-mini">${d.poam.map((p: any) => `<li><span class="sev-${esc(p.severity)}">${esc(p.severity || "—")}</span> ${esc(p.title)} <span class="muted" style="margin-left:auto">${esc(p.status)}${p.scheduled ? " · " + esc(p.scheduled) : ""}</span></li>`).join("")}</ul></div>`);
+  if (!panels.length) panels.push(`<div class="muted" style="margin-bottom:10px">${t("ctm.noText")}</div>`);
   $("cm-d-body").innerHTML = panels.join("");
   $("cm-d-body").querySelectorAll<HTMLElement>("[data-rel]").forEach((el) => el.addEventListener("click", () => openDetailByRef(el.dataset.rel || "")));
 
@@ -262,9 +264,9 @@ async function openDetail(id: number): Promise<void> {
     ($(id) as HTMLSelectElement).innerHTML = [`<option value="">${blank}</option>`].concat(opts.map((x) => `<option>${esc(x)}</option>`)).join("");
     ($(id) as HTMLSelectElement).value = val || "";
   };
-  fill("cm-d-status", DATA!.statuses, "— Unassigned —", im.status || "");
+  fill("cm-d-status", DATA!.statuses, t("ctm.optUnassignedDash"), im.status || "");
   fill("cm-d-resp", DATA!.responsibilities, "—", im.responsibility || "");
-  fill("cm-d-aresult", DATA!.assessmentResults, "— Not assessed —", im.assessmentResult || "");
+  fill("cm-d-aresult", DATA!.assessmentResults, t("ctm.optNotAssessed"), im.assessmentResult || "");
   const ownerOpts = [`<option value="">—</option>`].concat(DATA!.persons.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`)).join("");
   ($("cm-d-owner") as HTMLSelectElement).innerHTML = ownerOpts; ($("cm-d-owner") as HTMLSelectElement).value = im.ownerPersonId != null ? String(im.ownerPersonId) : "";
   ($("cm-d-assessor") as HTMLSelectElement).innerHTML = ownerOpts; ($("cm-d-assessor") as HTMLSelectElement).value = im.assessorPersonId != null ? String(im.assessorPersonId) : "";
@@ -276,7 +278,7 @@ async function openDetail(id: number): Promise<void> {
 function closeDetail(): void { $("cm-modal").classList.remove("open"); }
 async function saveDetail(): Promise<void> {
   if (!DETAIL_ID) return;
-  const btn = $("cm-d-save") as HTMLButtonElement; btn.disabled = true; $("cm-d-err").textContent = "Saving…";
+  const btn = $("cm-d-save") as HTMLButtonElement; btn.disabled = true; $("cm-d-err").textContent = t("ctm.saving");
   try {
     const body = {
       controlId: DETAIL_ID,
@@ -292,7 +294,7 @@ async function saveDetail(): Promise<void> {
     };
     const r = await fetch("/api/control-management/implementation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    closeDetail(); await load(); toast("✅ Control updated");
+    closeDetail(); await load(); toast(t("ctm.toastControlUpdated"));
   } catch (e) { $("cm-d-err").textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
@@ -314,8 +316,8 @@ function openPoamCreate(controlId: number | null): void {
 function closePoam(): void { $("cm-poam-modal").classList.remove("open"); }
 async function savePoam(): Promise<void> {
   const title = ($("cm-p-title") as HTMLInputElement).value.trim();
-  const err = $("cm-p-err"); if (!title) { err.textContent = "⚠️ Enter a title."; return; }
-  const btn = $("cm-p-save") as HTMLButtonElement; btn.disabled = true; err.textContent = "Creating…";
+  const err = $("cm-p-err"); if (!title) { err.textContent = t("ctm.enterTitle"); return; }
+  const btn = $("cm-p-save") as HTMLButtonElement; btn.disabled = true; err.textContent = t("ctm.creating");
   try {
     const body = {
       title, controlId: ($("cm-p-control") as HTMLSelectElement).value || null,
@@ -329,7 +331,7 @@ async function savePoam(): Promise<void> {
     };
     const r = await fetch("/api/control-management/poam", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    closePoam(); await load(); toast("✅ POA&M created");
+    closePoam(); await load(); toast(t("ctm.toastPoamCreated"));
   } catch (e) { err.textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
@@ -337,11 +339,12 @@ async function updatePoam(poamId: number, patch: Record<string, unknown>): Promi
   try {
     const r = await fetch("/api/control-management/poam/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poamId, ...patch }) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    await load(); toast("✅ POA&M updated");
+    await load(); toast(t("ctm.toastPoamUpdated"));
   } catch (e) { toast(`⚠️ ${e}`); }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("cm-d-cancel").addEventListener("click", closeDetail);
   $("cm-d-save").addEventListener("click", () => void saveDetail());
   $("cm-d-poam").addEventListener("click", () => { if (DETAIL_ID) { closeDetail(); openPoamCreate(DETAIL_ID); } });

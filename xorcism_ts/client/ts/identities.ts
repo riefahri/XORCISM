@@ -2,8 +2,12 @@
  * identities.ts — Identity & Access Management inventory (/identities).
  * Renders the human + non-human identity inventory with governance findings, from /api/identities.
  */
+import { initI18n, t } from "./i18n";
+
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.replace(`{${k}}`, String(v)), t(key));
 
 interface IdentityRow {
   id: number; name: string; type: string; klass: "Human" | "Non-Human"; status: string;
@@ -46,7 +50,7 @@ function rowHtml(r: IdentityRow): string {
   return `<tr>
     <td><div class="idname"><span class="type-icon">${icon(r.type)}</span>${esc(r.name)}</div>
       <div class="muted" style="font-size:11px">${esc(r.type)}${r.provider ? ` · ${esc(r.provider)}` : ""}${r.environment ? ` · ${esc(r.environment)}` : ""}</div></td>
-    <td><span class="badge ${cls}">${esc(r.klass)}</span></td>
+    <td><span class="badge ${cls}">${r.klass === "Human" ? t("idn.human") : t("idn.nonHuman")}</span></td>
     <td>${esc(r.owner || "—")}${r.persons ? ` <span class="muted">(${r.persons}👤)</span>` : ""}</td>
     <td>${esc(r.asset || "—")}</td>
     <td>${priv}</td>
@@ -57,9 +61,13 @@ function rowHtml(r: IdentityRow): string {
 }
 
 function findingHtml(f: IdentityFinding): string {
+  // Click-through opens the IDENTITY explorer view filtered to the finding's identity.
+  const href = f.identity
+    ? `/?db=XORCISM&table=IDENTITY&filterCol=IdentityName&filterVal=${encodeURIComponent(f.identity)}`
+    : "/?db=XORCISM&table=IDENTITY";
   return `<li><span class="sev-dot dot-${f.severity}"></span>
     <span class="sev-${f.severity}">${esc(f.severity)}</span> —
-    <a href="/?db=XORCISM&table=IDENTITY">${esc(f.label)}</a></li>`;
+    <a href="${esc(href)}">${esc(f.label)}</a></li>`;
 }
 
 async function load(): Promise<void> {
@@ -70,45 +78,43 @@ async function load(): Promise<void> {
 
   if (!d.rows.length) {
     $("iam-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">
-      No identities registered yet.
-      <a href="/?db=XORCISM&table=IDENTITY">Add your first identity</a> — a person's account, a service account,
-      an API key, a container workload, a certificate, an AI agent… then come back to see the governance worklist.</div>`;
+      ${t("idn.emptyA")}
+      <a href="/?db=XORCISM&table=IDENTITY">${t("idn.emptyLink")}</a> ${t("idn.emptyB")}</div>`;
     return;
   }
 
   const cards = [
-    card("Identities", String(s.total), `${s.human} human · ${s.nonHuman} non-human`),
-    card("Privileged", String(s.privileged), "admin / root / owner", s.privileged ? "#c084fc" : undefined),
-    card("Orphaned NHI", String(s.orphaned), "non-human · no owner", s.orphaned ? "#fb923c" : "#34d399"),
-    card("Expiring", String(s.expiring), "credential expired / soon", s.expiring ? "#fbbf24" : "#34d399"),
-    card("Stale", String(s.stale), `unused > 90 days`, s.stale ? "#fbbf24" : undefined),
-    card("Hardcoded", String(s.hardcoded), "embedded secrets", s.hardcoded ? "#f87171" : "#34d399"),
-    card("MFA gaps", String(s.mfaGaps), "privileged human, no MFA", s.mfaGaps ? "#f87171" : "#34d399"),
-    card("MFA coverage", `${s.mfaCoveragePct}%`, `${s.mfaEnabled}/${s.human} human${s.mfaUnknown ? ` · ${s.mfaUnknown} unknown` : ""}`, s.mfaCoveragePct >= 90 ? "#34d399" : s.mfaCoveragePct >= 60 ? "#fbbf24" : "#f87171"),
-    card("Rotation overdue", String(s.rotationOverdue), `of ${s.secretsTotal} secret(s)${s.neverRotated ? ` · ${s.neverRotated} never` : ""}`, s.rotationOverdue ? "#fbbf24" : "#34d399"),
-    card("Avg secret age", s.avgRotationDays != null ? `${s.avgRotationDays}d` : "—", "since last rotation", s.avgRotationDays != null && s.avgRotationDays > 90 ? "#fb923c" : undefined),
-    card("Compromised", String(s.compromised), "flagged status", s.compromised ? "#f87171" : "#34d399"),
+    card(t("idn.cIdentities"), String(s.total), fmt("idn.cIdentitiesFoot", { h: s.human, nh: s.nonHuman })),
+    card(t("idn.cPriv"), String(s.privileged), t("idn.cPrivFoot"), s.privileged ? "#c084fc" : undefined),
+    card(t("idn.cOrphan"), String(s.orphaned), t("idn.cOrphanFoot"), s.orphaned ? "#fb923c" : "#34d399"),
+    card(t("idn.cExpiring"), String(s.expiring), t("idn.cExpiringFoot"), s.expiring ? "#fbbf24" : "#34d399"),
+    card(t("idn.cStale"), String(s.stale), t("idn.cStaleFoot"), s.stale ? "#fbbf24" : undefined),
+    card(t("idn.cHardcoded"), String(s.hardcoded), t("idn.cHardcodedFoot"), s.hardcoded ? "#f87171" : "#34d399"),
+    card(t("idn.cMfaGaps"), String(s.mfaGaps), t("idn.cMfaGapsFoot"), s.mfaGaps ? "#f87171" : "#34d399"),
+    card(t("idn.cMfaCov"), `${s.mfaCoveragePct}%`, fmt("idn.cMfaCovFoot", { e: s.mfaEnabled, h: s.human }) + (s.mfaUnknown ? fmt("idn.cMfaCovUnknown", { u: s.mfaUnknown }) : ""), s.mfaCoveragePct >= 90 ? "#34d399" : s.mfaCoveragePct >= 60 ? "#fbbf24" : "#f87171"),
+    card(t("idn.cRotation"), String(s.rotationOverdue), fmt("idn.cRotationFoot", { n: s.secretsTotal }) + (s.neverRotated ? fmt("idn.cRotationNever", { nr: s.neverRotated }) : ""), s.rotationOverdue ? "#fbbf24" : "#34d399"),
+    card(t("idn.cAvgAge"), s.avgRotationDays != null ? `${s.avgRotationDays}d` : "—", t("idn.cAvgAgeFoot"), s.avgRotationDays != null && s.avgRotationDays > 90 ? "#fb923c" : undefined),
+    card(t("idn.cCompromised"), String(s.compromised), t("idn.cCompromisedFoot"), s.compromised ? "#f87171" : "#34d399"),
   ].join("");
 
   const byType = Object.entries(s.byType).sort((a, b) => b[1] - a[1])
-    .map(([t, n]) => `<span class="bd">${icon(t)} ${esc(t)} <b>${n}</b></span>`).join("");
+    .map(([ty, n]) => `<span class="bd">${icon(ty)} ${esc(ty)} <b>${n}</b></span>`).join("");
 
   const findings = d.findings.length
-    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">+${d.findings.length - 60} more…</div>` : ""}`
-    : `<div class="muted" style="padding:12px 0">✓ No governance findings — every identity has an owner, sane privilege, fresh credentials and recent use.</div>`;
+    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">${fmt("idn.more", { n: d.findings.length - 60 })}</div>` : ""}`
+    : `<div class="muted" style="padding:12px 0">${t("idn.workNone")}</div>`;
 
   const table = `<table class="iam"><thead><tr>
-      <th>Identity</th><th>Class</th><th>Owner</th><th>Bound asset</th><th>Privilege</th><th>Status</th><th>Findings</th><th title="Derived risk priority">Risk</th>
+      <th>${t("idn.thIdentity")}</th><th>${t("idn.thClass")}</th><th>${t("idn.thOwner")}</th><th>${t("idn.thAsset")}</th><th>${t("idn.thPrivilege")}</th><th>${t("idn.thStatus")}</th><th>${t("idn.thFindings")}</th><th title="${t("idn.thRiskTitle")}">${t("idn.thRisk")}</th>
     </tr></thead><tbody>${d.rows.map(rowHtml).join("")}</tbody></table>`;
 
   $("iam-body").innerHTML = `<div class="iam-cards">${cards}</div>
-    <div class="iam-section">Risk worklist (${d.findings.length})</div>${findings}
-    <div class="iam-section">Breakdown by type</div><div class="breakdown">${byType}</div>
-    <div class="iam-section">Inventory (${d.rows.length})</div>${table}
-    <div class="legend">↳ <b>Risk</b> is a derived priority (0–100): compromised +50, hardcoded +30, expired/orphaned +25,
-      privileged +20, missing MFA +20, never-rotated +15, stale +10. Edit identities under
-      <a href="/?db=XORCISM&table=IDENTITY">Manage identities</a>; map humans via
-      <a href="/?db=XORCISM&table=IDENTITYPERSON">Identity↔Person</a>.</div>`;
+    <div class="iam-section">${t("idn.secWorklist")} (${d.findings.length})</div>${findings}
+    <div class="iam-section">${t("idn.secByType")}</div><div class="breakdown">${byType}</div>
+    <div class="iam-section">${t("idn.secInventory")} (${d.rows.length})</div>${table}
+    <div class="legend">${t("idn.legend")}
+      <a href="/?db=XORCISM&table=IDENTITY">${t("idn.linkManage")}</a>${t("idn.legendMid")}
+      <a href="/?db=XORCISM&table=IDENTITYPERSON">${t("idn.linkMap")}</a>.</div>`;
 }
 
-document.addEventListener("DOMContentLoaded", () => void load());
+document.addEventListener("DOMContentLoaded", () => { initI18n(); void load(); });

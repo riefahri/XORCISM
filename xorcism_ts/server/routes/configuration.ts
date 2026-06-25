@@ -68,7 +68,13 @@ router.get("/configuration/scan-targets", (req: Request, res: Response) => {
 // (connector 'agent-oval'); the agent runs it at its next check-in and posts results.
 router.post("/configuration/schedule-scan", (req: Request, res: Response) => {
   if (!req.user) return void res.status(401).json({ error: "auth" });
-  if (!userCan(req.user, "create", "XOVAL", "OVALRESULTS")) return void res.status(403).json({ error: "forbidden" });
+  // Gate on cockpit access (read OVALDEFINITION), not create OVALRESULTS: OVALRESULTS is on the
+  // non-admin "hidden tables" denylist (isHiddenForNonAdmin), so userCan(create,XOVAL,OVALRESULTS)
+  // short-circuits to false for any non-Admin — even one holding a full database:XOVAL CRUD grant —
+  // which blocked legitimate cockpit users from scheduling scans. Scheduling only enqueues an
+  // XSCHEDULE job for the agent fleet (the one-off equivalent /api/agent-scan requires no grant at
+  // all), so the page's own read gate is the right, consistent guard.
+  if (!userCan(req.user, "read", "XOVAL", "OVALDEFINITION")) return void res.status(403).json({ error: "forbidden" });
   const b = (req.body || {}) as { agent?: unknown; ovalClass?: unknown; cron?: unknown; preset?: unknown };
   const agent = String(b.agent ?? "").trim();
   if (!agent) return void res.status(400).json({ error: "agent required" });
@@ -141,7 +147,9 @@ router.get("/configuration/fleet-compliance", (req: Request, res: Response) => {
 // deployment is also scheduled (continuous enforcement) for each target instead of a one-shot.
 router.post("/configuration/deploy-compliance", (req: Request, res: Response) => {
   if (!req.user) return void res.status(401).json({ error: "auth" });
-  if (!userCan(req.user, "create", "XOVAL", "OVALRESULTS")) return void res.status(403).json({ error: "forbidden" });
+  // Same gate as schedule-scan: read OVALDEFINITION (cockpit access). create OVALRESULTS is on the
+  // non-admin hidden-tables denylist and would 403 every non-Admin regardless of their XOVAL grant.
+  if (!userCan(req.user, "read", "XOVAL", "OVALDEFINITION")) return void res.status(403).json({ error: "forbidden" });
   const b = (req.body || {}) as { agents?: unknown; ovalClass?: unknown; preset?: unknown };
   const ovalClass = OVAL_CLASSES.has(String(b.ovalClass ?? "compliance")) ? String(b.ovalClass ?? "compliance") : "compliance";
   const all = listAgents();

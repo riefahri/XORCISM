@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Cyber-Risk Hunting</title><link rel="stylesheet" href="/css/style.css">
+<title data-i18n="crh.pageTitle">XORCISM — Cyber-Risk Hunting</title><link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
   .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1080px}
@@ -20,11 +20,11 @@
   .hyp{font-size:12px;color:#cbd5e1}.why{font-size:11px;color:#64748b}
   .lic{font-size:11px;color:#64748b;margin-top:20px;border-top:1px solid #1e2133;padding-top:10px}
 </style></head><body>
-<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/croc">&#8734; CROC</a><a href="/exposure">&#127919; Exposure</a><a href="/attack-path">&#128737;&#65039; Attack Path</a><a href="/identities">&#128100; Identities</a><span class="spacer"></span><span class="title">&#128269; Cyber-Risk Hunting</span></div>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/croc" data-i18n="crh.navCroc">&#8734; CROC</a><a href="/exposure" data-i18n="crh.navExposure">&#127919; Exposure</a><a href="/attack-path" data-i18n="crh.navAttackPath">&#128737;&#65039; Attack Path</a><a href="/identities" data-i18n="crh.navIdentities">&#128100; Identities</a><span class="spacer"></span><span class="title" data-i18n="crh.navTitle">&#128269; Cyber-Risk Hunting</span></div>
 <div class="mw">
-  <h1>Cyber-Risk Hunting — where could an adversary succeed?</h1>
-  <div class="sub">Hunting is not waiting for an alert. This worklist fuses the prioritized exposures (exploitability × blast radius) with the over-scoped non-human identities, each with a hunt hypothesis. Escalate a finding to push it <b>back into the CROC loop</b>, where the pre-authorization policies act on it at machine speed.</div>
-  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading the hunting worklist…</div></div>
-  <div class="lic">Exposure fusion: EPSS + KEV + exploit availability + CTI + blast radius. Over-scoped NHI: privileged non-human identities without MFA. Escalation re-enters the CROC Continuous Defense Loop.</div>
+  <h1 data-i18n="crh.title">Cyber-Risk Hunting — where could an adversary succeed?</h1>
+  <div class="sub" data-i18n="crh.sub">Hunting is not waiting for an alert. This worklist fuses the prioritized exposures (exploitability × blast radius) with the over-scoped non-human identities, each with a hunt hypothesis. Escalate a finding to push it <b>back into the CROC loop</b>, where the pre-authorization policies act on it at machine speed.</div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center" data-i18n="crh.loading">Loading the hunting worklist…</div></div>
+  <div class="lic" data-i18n="crh.license">Exposure fusion: EPSS + KEV + exploit availability + CTI + blast radius. Over-scoped NHI: privileged non-human identities without MFA. Escalation re-enters the CROC Continuous Defense Loop.</div>
 </div>
 <div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/cyber-risk-hunting.js"></script></body></html>

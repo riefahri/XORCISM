@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Asset Monitoring</title>
+<title data-i18n="am.pageTitle">XORCISM — Asset Monitoring</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .mn-wrap{max-width:1320px;margin:0 auto;padding:18px}
@@ -47,70 +47,65 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/asset-management">&#128187; Assets</a>
-  <a href="/incident-management">&#128680; Incidents</a>
-  <a href="/?db=XORCISM&amp;table=MONITORINGCHECK">&#128203; Monitors</a>
+  <a href="/asset-management" data-i18n="am.navAssets">&#128187; Assets</a>
+  <a href="/incident-management" data-i18n="am.navIncidents">&#128680; Incidents</a>
+  <a href="/?db=XORCISM&amp;table=MONITORINGCHECK" data-i18n="am.navMonitors">&#128203; Monitors</a>
   <span class="spacer"></span>
-  <span class="title">&#128225; Asset Monitoring</span>
+  <span class="title" data-i18n="am.navTitle">&#128225; Asset Monitoring</span>
 </div>
 
 <div class="mn-wrap">
   <div style="display:flex;align-items:flex-start;gap:12px">
-    <h1 style="flex:1">Asset Monitoring</h1>
-    <button class="btn btn-ghost btn-sm" id="mn-run" title="Probe all due monitors now (HTTP/TCP/DNS/SSL/ping)">↻ Check now</button>
-    <button class="btn btn-ghost btn-sm" id="mn-activate" title="Activate monitoring on an asset — auto-create HTTP/SSL/Ping/DNS monitors from its IP &amp; URL">⊕ Activate from asset</button>
-    <button class="btn-new" id="mn-new">+ Add monitor</button>
+    <h1 style="flex:1" data-i18n="am.title">Asset Monitoring</h1>
+    <button class="btn btn-ghost btn-sm" id="mn-run" data-i18n="am.runNow" data-i18n-title="am.runNowTitle" title="Probe all due monitors now (HTTP/TCP/DNS/SSL/ping)">↻ Check now</button>
+    <button class="btn btn-ghost btn-sm" id="mn-activate" data-i18n="am.activate" data-i18n-title="am.activateTitle" title="Activate monitoring on an asset — auto-create HTTP/SSL/Ping/DNS monitors from its IP &amp; URL">⊕ Activate from asset</button>
+    <button class="btn-new" id="mn-new" data-i18n="am.addMonitor">+ Add monitor</button>
   </div>
-  <div class="mn-sub">Real-time <b>uptime &amp; health</b> of your assets — <b>HTTP / Ping / TCP / DNS / SSL / Server</b>
-    monitors with status (<span class="stt st-up">up</span> / <span class="stt st-down">down</span> /
-    <span class="stt st-warning">warning</span> / <span class="stt st-paused">paused</span>), <b>uptime %</b>, response
-    time, <b>SSL expiry</b> and up/down <b>incidents</b>. Create monitors here, or import them from
-    <b>CheckCle</b> (the <code>checkcle</code> connector). Records land in MONITORINGCHECK / MONITORINGINCIDENT.</div>
-  <div id="mn-body"><div class="muted" style="padding:24px;text-align:center">Building the monitoring view…</div></div>
+  <div class="mn-sub" data-i18n="am.sub">Real-time uptime &amp; health of your assets — HTTP / Ping / TCP / DNS / SSL / Server monitors with status (up / down / warning / paused), uptime %, response time, SSL expiry and up/down incidents. Create monitors here, or import them from CheckCle (the checkcle connector). Records land in MONITORINGCHECK / MONITORINGINCIDENT.</div>
+  <div id="mn-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="am.loading">Building the monitoring view…</div></div>
 </div>
 
 <!-- Add-monitor modal -->
 <div class="mn-modal-bg" id="mn-modal">
   <div class="mn-modal">
-    <h3>Add monitor</h3>
-    <p class="lead">Define an uptime/health check on an asset. Status updates land via the connector,
-      the optional in-process checker, or a manual status change in the table.</p>
+    <h3 data-i18n="am.modalTitle">Add monitor</h3>
+    <p class="lead" data-i18n="am.modalLead">Define an uptime/health check on an asset. Status updates land via the connector, the optional in-process checker, or a manual status change in the table.</p>
     <div class="fld">
-      <label>Name <span class="req">*</span></label>
-      <input id="mn-f-name" type="text" placeholder="e.g. Customer portal — HTTPS" maxlength="300" autocomplete="off">
+      <label><span data-i18n="am.fName">Name</span> <span class="req">*</span></label>
+      <input id="mn-f-name" type="text" data-i18n-placeholder="am.fNamePh" placeholder="e.g. Customer portal — HTTPS" maxlength="300" autocomplete="off">
     </div>
-    <div class="fld"><label>Asset (optional)</label><select id="mn-f-asset"><option value="">—</option></select>
-      <div class="muted" style="font-size:11px;margin-top:3px">Pick an asset — for an HTTP(S) monitor, its URL pre-fills the target.</div></div>
+    <div class="fld"><label data-i18n="am.fAsset">Asset (optional)</label><select id="mn-f-asset"><option value="">—</option></select>
+      <div class="muted" style="font-size:11px;margin-top:3px" data-i18n="am.fAssetHint">Pick an asset — for an HTTP(S) monitor, its URL pre-fills the target.</div></div>
     <div class="row2">
-      <div class="fld"><label>Type</label>
-        <select id="mn-f-type"><option value="http">HTTP(S)</option><option value="ping">Ping</option><option value="tcp">TCP</option><option value="dns">DNS</option><option value="ssl">SSL / domain</option><option value="server">Server (agent)</option></select>
+      <div class="fld"><label data-i18n="am.fType">Type</label>
+        <select id="mn-f-type"><option value="http" data-i18n="am.typeHttp">HTTP(S)</option><option value="ping" data-i18n="am.typePing">Ping</option><option value="tcp" data-i18n="am.typeTcp">TCP</option><option value="dns" data-i18n="am.typeDns">DNS</option><option value="ssl" data-i18n="am.typeSsl">SSL / domain</option><option value="server" data-i18n="am.typeServer">Server (agent)</option></select>
       </div>
-      <div class="fld"><label>Check interval (s)</label><input id="mn-f-interval" type="number" min="30" step="30" value="300"></div>
+      <div class="fld"><label data-i18n="am.fInterval">Check interval (s)</label><input id="mn-f-interval" type="number" min="30" step="30" value="300"></div>
     </div>
-    <div class="fld"><label>Target (URL / host:port / domain)</label><input id="mn-f-target" type="text" placeholder="https://portal.example.com  ·  10.0.0.5:443  ·  example.com" maxlength="500" autocomplete="off"></div>
-    <div class="fld"><label>Cron schedule (optional — overrides interval)</label>
+    <div class="fld"><label data-i18n="am.fTarget">Target (URL / host:port / domain)</label><input id="mn-f-target" type="text" data-i18n-placeholder="am.fTargetPh" placeholder="https://portal.example.com  ·  10.0.0.5:443  ·  example.com" maxlength="500" autocomplete="off"></div>
+    <div class="fld"><label data-i18n="am.fCron">Cron schedule (optional — overrides interval)</label>
       <div id="mn-cron-builder" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
         <select id="mn-cron-mode" style="flex:0 0 auto">
-          <option value="">Use interval (no cron)</option>
-          <option value="min">Every N minutes</option>
-          <option value="hour">Every N hours</option>
-          <option value="daily">Daily at…</option>
-          <option value="weekly">Weekly on…</option>
-          <option value="monthly">Monthly on day…</option>
-          <option value="custom">Custom</option>
+          <option value="" data-i18n="am.cronNone">Use interval (no cron)</option>
+          <option value="min" data-i18n="am.cronMin">Every N minutes</option>
+          <option value="hour" data-i18n="am.cronHour">Every N hours</option>
+          <option value="daily" data-i18n="am.cronDaily">Daily at…</option>
+          <option value="weekly" data-i18n="am.cronWeekly">Weekly on…</option>
+          <option value="monthly" data-i18n="am.cronMonthly">Monthly on day…</option>
+          <option value="custom" data-i18n="am.cronCustom">Custom</option>
         </select>
         <input id="mn-cron-n" type="number" min="1" max="59" value="5" style="width:64px;display:none" title="N">
         <input id="mn-cron-time" type="time" value="09:00" style="display:none">
-        <select id="mn-cron-dow" style="display:none"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select>
-        <input id="mn-cron-dom" type="number" min="1" max="31" value="1" style="width:64px;display:none" title="Day of month">
+        <select id="mn-cron-dow" style="display:none"><option value="1" data-i18n="am.dowMon">Monday</option><option value="2" data-i18n="am.dowTue">Tuesday</option><option value="3" data-i18n="am.dowWed">Wednesday</option><option value="4" data-i18n="am.dowThu">Thursday</option><option value="5" data-i18n="am.dowFri">Friday</option><option value="6" data-i18n="am.dowSat">Saturday</option><option value="0" data-i18n="am.dowSun">Sunday</option></select>
+        <input id="mn-cron-dom" type="number" min="1" max="31" value="1" style="width:64px;display:none" data-i18n-title="am.cronDomTitle" title="Day of month">
       </div>
-      <input id="mn-f-cron" type="text" placeholder="e.g. */5 * * * *  ·  0 * * * *  (min hour dom mon dow)" maxlength="120" autocomplete="off"></div>
-    <div class="fld"><label>Owner (optional)</label><select id="mn-f-owner"><option value="">—</option></select></div>
-    <div class="fld" id="mn-ssl-wrap" style="display:none"><label>SSL expiry date (optional)</label><input id="mn-f-ssl" type="date"></div>
+      <input id="mn-f-cron" type="text" data-i18n-placeholder="am.fCronPh" placeholder="e.g. */5 * * * *  ·  0 * * * *  (min hour dom mon dow)" maxlength="120" autocomplete="off"></div>
+    <div class="fld"><label data-i18n="am.fOwner">Owner (optional)</label><select id="mn-f-owner"><option value="">—</option></select></div>
+    <div class="fld" id="mn-ssl-wrap" style="display:none"><label data-i18n="am.fSslExpiry">SSL expiry date (optional)</label><input id="mn-f-ssl" type="date"></div>
     <div class="mn-modal-foot">
       <span class="mn-err" id="mn-f-err" style="flex:1"></span>
-      <button class="btn btn-ghost btn-sm" id="mn-cancel">Cancel</button>
-      <button class="btn-new" id="mn-create">Add monitor</button>
+      <button class="btn btn-ghost btn-sm" id="mn-cancel" data-i18n="am.cancel">Cancel</button>
+      <button class="btn-new" id="mn-create" data-i18n="am.addMonitorBtn">Add monitor</button>
     </div>
   </div>
 </div>
@@ -118,15 +113,14 @@
 <!-- Activate-from-asset modal -->
 <div class="mn-modal-bg" id="mn-act-modal">
   <div class="mn-modal">
-    <h3>Activate monitoring on an asset</h3>
-    <p class="lead">Auto-create <b>HTTP / SSL / Ping / DNS</b> monitors from the asset's website URL and IP address.
-      Already-monitored targets are skipped. Set an interval, or a <b>cron</b> schedule for the periodicity.</p>
-    <div class="fld"><label>Asset <span class="req">*</span></label><select id="mn-act-asset"><option value="">—</option></select></div>
+    <h3 data-i18n="am.actTitle">Activate monitoring on an asset</h3>
+    <p class="lead" data-i18n="am.actLead">Auto-create HTTP / SSL / Ping / DNS monitors from the asset's website URL and IP address. Already-monitored targets are skipped. Set an interval, or a cron schedule for the periodicity.</p>
+    <div class="fld"><label><span data-i18n="am.actAsset">Asset</span> <span class="req">*</span></label><select id="mn-act-asset"><option value="">—</option></select></div>
     <div class="row2">
-      <div class="fld"><label>Check interval (s)</label><input id="mn-act-interval" type="number" min="30" step="30" value="300"></div>
-      <div class="fld"><label>Cron (optional)</label><input id="mn-act-cron" type="text" placeholder="*/5 * * * *" maxlength="120"></div>
+      <div class="fld"><label data-i18n="am.actInterval">Check interval (s)</label><input id="mn-act-interval" type="number" min="30" step="30" value="300"></div>
+      <div class="fld"><label data-i18n="am.actCron">Cron (optional)</label><input id="mn-act-cron" type="text" placeholder="*/5 * * * *" maxlength="120"></div>
     </div>
-    <div class="fld"><label>Monitor types</label>
+    <div class="fld"><label data-i18n="am.actTypes">Monitor types</label>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:#cbd5e1;padding-top:2px">
         <label><input type="checkbox" class="mn-act-type" value="http" checked> HTTP</label>
         <label><input type="checkbox" class="mn-act-type" value="ssl" checked> SSL</label>
@@ -134,11 +128,11 @@
         <label><input type="checkbox" class="mn-act-type" value="dns" checked> DNS</label>
       </div>
     </div>
-    <div class="fld"><label>Owner (optional)</label><select id="mn-act-owner"><option value="">—</option></select></div>
+    <div class="fld"><label data-i18n="am.fOwner">Owner (optional)</label><select id="mn-act-owner"><option value="">—</option></select></div>
     <div class="mn-modal-foot">
       <span class="mn-err" id="mn-act-err" style="flex:1"></span>
-      <button class="btn btn-ghost btn-sm" id="mn-act-cancel">Cancel</button>
-      <button class="btn-new" id="mn-act-go">Activate</button>
+      <button class="btn btn-ghost btn-sm" id="mn-act-cancel" data-i18n="am.cancel">Cancel</button>
+      <button class="btn-new" id="mn-act-go" data-i18n="am.actGo">Activate</button>
     </div>
   </div>
 </div>

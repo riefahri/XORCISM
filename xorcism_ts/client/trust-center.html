@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Trust Center</title>
+<title data-i18n="tc.pageTitle">XORCISM — Trust Center</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .tc-wrap{max-width:1100px;margin:0 auto;padding:18px}
@@ -33,18 +33,15 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/compliance-management">&#9989; Compliance</a>
-  <a href="/control-management">&#128737; Controls</a>
+  <a href="/compliance-management" data-i18n="tc.navCompliance">&#9989; Compliance</a>
+  <a href="/control-management" data-i18n="tc.navControls">&#128737; Controls</a>
   <span class="spacer"></span>
-  <span class="title">&#128737; Trust Center</span>
+  <span class="title" data-i18n="tc.navTitle">&#128737; Trust Center</span>
 </div>
 <div class="tc-wrap">
-  <h1>Trust Center</h1>
-  <div class="tc-sub">Publish a <b>Drata-style public security-posture page</b> driven by live XORCISM data —
-    NIST 800-53 control coverage, compliance frameworks, monitoring uptime and policies. Share the
-    read-only link with customers and prospects. Only <b>aggregate</b> posture is published — never asset,
-    control or finding detail.</div>
-  <div id="tc-body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
+  <h1 data-i18n="tc.title">Trust Center</h1>
+  <div class="tc-sub" data-i18n="tc.sub">Publish a Drata-style public security-posture page driven by live XORCISM data — NIST 800-53 control coverage, compliance frameworks, monitoring uptime and policies. Share the read-only link with customers and prospects. Only aggregate posture is published — never asset, control or finding detail.</div>
+  <div id="tc-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="tc.loading">Loading…</div></div>
 </div>
 <div id="toast"></div>
 <script src="/js/session-ui.js"></script>

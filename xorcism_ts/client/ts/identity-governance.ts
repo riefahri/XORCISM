@@ -3,9 +3,14 @@
  * over the IDENTITY inventory, lifecycle (JML) posture, certification coverage and a revocation queue.
  * Reads /api/identity-governance; reviews via /api/identity-governance/item/:id.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
 function toast(m: string): void { const e = $("toast"); e.textContent = m; e.className = "show"; setTimeout(() => { e.className = ""; }, 3000); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
+const stLabel = (s: string): string => /complet/i.test(s) ? t("ig.stCompleted") : /activ/i.test(s) ? t("ig.stActive") : s;
+const decLabel = (d: string): string => d === "certify" ? t("ig.decCertify") : d === "revoke" ? t("ig.decRevoke") : d === "delegate" ? t("ig.decDelegate") : d;
 
 interface Progress { total: number; certified: number; revoked: number; delegated: number; pending: number; pct: number }
 interface Campaign { CampaignID: number; Name: string; Scope: string; Status: string; DueDate: string | null; ItemCount: number; CreatedBy: string; CreatedDate: string; progress: Progress; overdue: boolean }
@@ -26,9 +31,9 @@ const card = (lbl: string, val: string | number, foot: string, color?: string): 
 function lifecycle(l: Dash["lifecycle"]): string {
   const cell = (n: number, k: string, color?: string) => `<div class="lifecell"><div class="n"${color ? ` style="color:${color}"` : ""}>${n}</div><div class="k">${esc(k)}</div></div>`;
   return `<div class="life">
-    ${cell(l.total, "Identities")}${cell(l.human, "Human")}${cell(l.nonHuman, "Non-human")}
-    ${cell(l.privileged, "Privileged", "#c084fc")}${cell(l.mfaGaps, "MFA gaps", l.mfaGaps ? "#f87171" : "#34d399")}
-    ${cell(l.orphaned, "Orphaned", l.orphaned ? "#fbbf24" : "#34d399")}${cell(l.stale, "Stale", l.stale ? "#fbbf24" : "#34d399")}
+    ${cell(l.total, t("ig.lcIdentities"))}${cell(l.human, t("ig.lcHuman"))}${cell(l.nonHuman, t("ig.lcNonHuman"))}
+    ${cell(l.privileged, t("ig.lcPrivileged"), "#c084fc")}${cell(l.mfaGaps, t("ig.lcMfaGaps"), l.mfaGaps ? "#f87171" : "#34d399")}
+    ${cell(l.orphaned, t("ig.lcOrphaned"), l.orphaned ? "#fbbf24" : "#34d399")}${cell(l.stale, t("ig.lcStale"), l.stale ? "#fbbf24" : "#34d399")}
   </div>`;
 }
 
@@ -38,12 +43,12 @@ function campaignRow(c: Campaign): string {
     <div class="cn">${esc(c.Name)}<span class="cscope">${esc(c.Scope)}</span></div>
     <div class="track">
       <div class="pbar"><i style="width:${Math.max(2, p.pct)}%"></i></div>
-      <div class="pmeta">${p.total - p.pending}/${p.total} reviewed · ${p.certified} certified · ${p.revoked} revoked${p.delegated ? ` · ${p.delegated} delegated` : ""}</div>
+      <div class="pmeta">${fmt("ig.reviewedMeta", { r: p.total - p.pending, t: p.total, c: p.certified, rv: p.revoked })}${p.delegated ? fmt("ig.delegatedMeta", { n: p.delegated }) : ""}</div>
     </div>
     <div style="text-align:right">
-      <span class="cstat cstat-${c.Status === "completed" ? "completed" : "active"}">${esc(c.Status)}</span>
-      ${c.overdue ? ' <span class="ovd">overdue</span>' : ""}
-      <div class="pmeta">${c.DueDate ? "due " + esc(c.DueDate) : ""}</div>
+      <span class="cstat cstat-${c.Status === "completed" ? "completed" : "active"}">${esc(stLabel(c.Status))}</span>
+      ${c.overdue ? ` <span class="ovd">${t("ig.overdue")}</span>` : ""}
+      <div class="pmeta">${c.DueDate ? fmt("ig.dueLabel", { d: esc(c.DueDate) }) : ""}</div>
     </div>
   </div>`;
 }
@@ -52,18 +57,18 @@ function itemRow(it: any): string {
   const s = it.snapshot || {};
   const tags: string[] = [];
   if (/admin|root|owner|privileg|super/i.test(String(s.privilege || ""))) tags.push(`<span class="tag tag-priv">${esc(s.privilege)}</span>`);
-  if (s.mfa && !/^(y|yes|true|enabled|on|1)$/i.test(String(s.mfa))) tags.push('<span class="tag tag-nomfa">no MFA</span>');
-  if (!s.owner) tags.push('<span class="tag tag-orph">no owner</span>');
-  if ((s.staleDays ?? 0) > 90) tags.push(`<span class="tag tag-stale">stale ${s.staleDays}d</span>`);
+  if (s.mfa && !/^(y|yes|true|enabled|on|1)$/i.test(String(s.mfa))) tags.push(`<span class="tag tag-nomfa">${t("ig.tagNoMfa")}</span>`);
+  if (!s.owner) tags.push(`<span class="tag tag-orph">${t("ig.tagNoOwner")}</span>`);
+  if ((s.staleDays ?? 0) > 90) tags.push(`<span class="tag tag-stale">${fmt("ig.tagStale", { n: s.staleDays })}</span>`);
   const decided = it.Decision && it.Decision !== "pending";
   const ctrl = decided
-    ? `<span class="dec dec-${esc(it.Decision)}">${esc(it.Decision)}</span>${it.Reviewer ? `<span class="pmeta" style="margin-left:8px;color:#64748b">${esc(it.Reviewer)}</span>` : ""} <button class="rbtn" data-reset="${it.ItemID}">undo</button>`
-    : `<button class="rbtn cert" data-dec="certify" data-item="${it.ItemID}">&#10003; Certify</button>
-       <button class="rbtn rev" data-dec="revoke" data-item="${it.ItemID}">&#10005; Revoke</button>
-       <button class="rbtn del" data-dec="delegate" data-item="${it.ItemID}">Delegate</button>`;
+    ? `<span class="dec dec-${esc(it.Decision)}">${esc(decLabel(it.Decision))}</span>${it.Reviewer ? `<span class="pmeta" style="margin-left:8px;color:#64748b">${esc(it.Reviewer)}</span>` : ""} <button class="rbtn" data-reset="${it.ItemID}">${t("ig.undo")}</button>`
+    : `<button class="rbtn cert" data-dec="certify" data-item="${it.ItemID}">${t("ig.btnCertify")}</button>
+       <button class="rbtn rev" data-dec="revoke" data-item="${it.ItemID}">${t("ig.btnRevoke")}</button>
+       <button class="rbtn del" data-dec="delegate" data-item="${it.ItemID}">${t("ig.btnDelegate")}</button>`;
   return `<div class="ri">
     <div class="who">${esc(it.IdentityName)}</div>
-    <div class="attr">${tags.join("")}${s.owner ? `owner: ${esc(s.owner)} · ` : ""}${s.class || s.type ? esc(s.class || s.type) + " · " : ""}${s.status || ""}</div>
+    <div class="attr">${tags.join("")}${s.owner ? `${fmt("ig.ownerLabel", { o: esc(s.owner) })} · ` : ""}${s.class || s.type ? esc(s.class || s.type) + " · " : ""}${s.status || ""}</div>
     <div style="text-align:right;min-width:200px">${ctrl}</div>
   </div>`;
 }
@@ -71,11 +76,11 @@ function itemRow(it: any): string {
 async function loadCampaign(id: number): Promise<void> {
   const host = document.getElementById(`camp-detail-${id}`);
   if (!host) return;
-  host.innerHTML = `<div class="muted" style="padding:10px">Loading review items…</div>`;
+  host.innerHTML = `<div class="muted" style="padding:10px">${t("ig.loadingItems")}</div>`;
   const r = await fetch(`/api/identity-governance/campaign/${id}`);
-  if (!r.ok) { host.innerHTML = `<div class="muted" style="padding:10px">Failed to load.</div>`; return; }
+  if (!r.ok) { host.innerHTML = `<div class="muted" style="padding:10px">${t("ig.loadFailed")}</div>`; return; }
   const c = await r.json();
-  host.innerHTML = `<div class="panel"><div class="ph">&#128221; ${esc(c.Name)} — ${c.items.length} identities · ${c.progress.pct}% reviewed</div>
+  host.innerHTML = `<div class="panel"><div class="ph">&#128221; ${fmt("ig.campHeader", { name: esc(c.Name), n: c.items.length, pct: c.progress.pct })}</div>
     ${c.items.map(itemRow).join("")}</div>`;
   wireItems();
 }
@@ -85,25 +90,25 @@ function render(d: Dash): void {
   const s = d.summary;
   const html = `
     <div class="ig-cards">
-      ${card("Active campaigns", s.activeCampaigns, `${s.campaigns} all-time`, s.activeCampaigns ? "#a78bfa" : "#4ade80")}
-      ${card("Pending reviews", s.pendingReviews, "awaiting a decision", s.pendingReviews ? "#fbbf24" : "#4ade80")}
-      ${card("Cert. coverage", s.coveragePct != null ? `${s.coveragePct}%` : "—", `${s.privilegedReviewed}/${s.privilegedTotal} privileged · 90d`, pctColor(s.coveragePct))}
-      ${card("Open revocations", s.openRevocations, "to de-provision", s.openRevocations ? "#f87171" : "#4ade80")}
-      ${card("Overdue campaigns", s.overdueCampaigns, "past due date", s.overdueCampaigns ? "#f87171" : "#4ade80")}
+      ${card(t("ig.cActive"), s.activeCampaigns, fmt("ig.cActive.foot", { n: s.campaigns }), s.activeCampaigns ? "#a78bfa" : "#4ade80")}
+      ${card(t("ig.cPending"), s.pendingReviews, t("ig.cPending.foot"), s.pendingReviews ? "#fbbf24" : "#4ade80")}
+      ${card(t("ig.cCoverage"), s.coveragePct != null ? `${s.coveragePct}%` : "—", fmt("ig.cCoverage.foot", { r: s.privilegedReviewed, t: s.privilegedTotal }), pctColor(s.coveragePct))}
+      ${card(t("ig.cRevocations"), s.openRevocations, t("ig.cRevocations.foot"), s.openRevocations ? "#f87171" : "#4ade80")}
+      ${card(t("ig.cOverdue"), s.overdueCampaigns, t("ig.cOverdue.foot"), s.overdueCampaigns ? "#f87171" : "#4ade80")}
     </div>
-    <div class="ig-section">Identity lifecycle posture (JML)</div>
+    <div class="ig-section">${t("ig.secLifecycle")}</div>
     ${lifecycle(d.lifecycle)}
-    <div class="ig-section">Access-certification campaigns<span class="spacer"></span>
-      <button class="barbtn go" id="new-camp">+ New campaign</button></div>
+    <div class="ig-section">${t("ig.secCampaigns")}<span class="spacer"></span>
+      <button class="barbtn go" id="new-camp">${t("ig.newCampaign")}</button></div>
     ${d.campaigns.length ? d.campaigns.map((c) => `${campaignRow(c)}<div id="camp-detail-${c.CampaignID}"></div>`).join("")
-      : `<div class="muted" style="padding:10px">No campaigns yet. Launch a recertification campaign to attest who still needs privileged access.</div>`}
-    <div class="ig-section">Revocation queue (${d.revocations.length})</div>
+      : `<div class="muted" style="padding:10px">${t("ig.noCampaigns")}</div>`}
+    <div class="ig-section">${fmt("ig.secRevQueue", { n: d.revocations.length })}</div>
     ${d.revocations.length ? `<div class="panel">${d.revocations.map((rv) => `<div class="ri">
         <div class="who">${esc(rv.IdentityName)}</div>
-        <div class="attr">revoked in <b>${esc(rv.campaign)}</b>${rv.Comment ? " · " + esc(rv.Comment) : ""}${rv.Reviewer ? " · " + esc(rv.Reviewer) : ""}</div>
-        <div style="text-align:right"><button class="rbtn" data-actioned="${rv.ItemID}">&#10003; Mark de-provisioned</button></div>
+        <div class="attr">${fmt("ig.revokedIn", { c: `<b>${esc(rv.campaign)}</b>` })}${rv.Comment ? " · " + esc(rv.Comment) : ""}${rv.Reviewer ? " · " + esc(rv.Reviewer) : ""}</div>
+        <div style="text-align:right"><button class="rbtn" data-actioned="${rv.ItemID}">${t("ig.markDeprov")}</button></div>
       </div>`).join("")}</div>`
-      : `<div class="muted" style="padding:10px">No open revocations — the de-provisioning queue is clear.</div>`}`;
+      : `<div class="muted" style="padding:10px">${t("ig.noRevocations")}</div>`}`;
   $("ig-body").innerHTML = html;
   wire();
   if (openCampaign != null && document.getElementById(`camp-detail-${openCampaign}`)) void loadCampaign(openCampaign);
@@ -122,8 +127,8 @@ function wire(): void {
     b.onclick = async () => {
       const id = b.getAttribute("data-actioned");
       const r = await fetch(`/api/identity-governance/item/${id}/actioned`, { method: "POST" });
-      if (!r.ok) { toast("Failed"); return; }
-      toast("Marked de-provisioned"); void load();
+      if (!r.ok) { toast(t("ig.toastFailed")); return; }
+      toast(t("ig.toastDeprov")); void load();
     };
   });
 }
@@ -131,12 +136,12 @@ function wire(): void {
 function wireItems(): void {
   const review = async (id: string, decision: string) => {
     let comment: string | undefined;
-    if (decision === "revoke") { const c = prompt("Reason for revoking access (optional):"); comment = c ?? undefined; }
+    if (decision === "revoke") { const c = prompt(t("ig.revokeReasonPrompt")); comment = c ?? undefined; }
     const r = await fetch(`/api/identity-governance/item/${id}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision, comment }),
     });
-    if (!r.ok) { const j = await r.json().catch(() => ({})); toast(j.error || "Failed"); return; }
-    toast(`Decision: ${decision}`); void load();
+    if (!r.ok) { const j = await r.json().catch(() => ({})); toast(j.error || t("ig.toastFailed")); return; }
+    toast(fmt("ig.decisionToast", { d: decLabel(decision) })); void load();
   };
   document.querySelectorAll<HTMLButtonElement>("button[data-item]").forEach((b) => {
     b.onclick = () => review(b.getAttribute("data-item")!, b.getAttribute("data-dec")!);
@@ -157,6 +162,7 @@ function openModal(): void {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("ig-cancel").onclick = () => $("ig-modal").classList.remove("show");
   $("ig-modal").onclick = (e) => { if (e.target === $("ig-modal")) $("ig-modal").classList.remove("show"); };
   $("ig-create").onclick = async () => {
@@ -169,9 +175,9 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const r = await fetch("/api/identity-governance/campaign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) { toast(j.error || "Failed to create"); return; }
+      if (!r.ok) { toast(j.error || t("ig.toastCreateFailed")); return; }
       $("ig-modal").classList.remove("show");
-      toast(`Campaign launched · ${j.items} identities to review`);
+      toast(fmt("ig.toastLaunched", { n: j.items }));
       openCampaign = j.id; void load();
     } finally { btn.disabled = false; }
   };
@@ -181,10 +187,10 @@ document.addEventListener("DOMContentLoaded", () => {
 async function load(): Promise<void> {
   try {
     const r = await fetch("/api/identity-governance");
-    if (r.status === 403) { $("ig-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">You don't have access to identity data.</div>`; return; }
+    if (r.status === 403) { $("ig-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("ig.noAccess")}</div>`; return; }
     if (!r.ok) throw new Error(String(r.status));
     render(await r.json() as Dash);
   } catch (e) {
-    $("ig-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">Failed to load (${esc((e as Error).message)}).</div>`;
+    $("ig-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${fmt("ig.loadError", { e: esc((e as Error).message) })}</div>`;
   }
 }

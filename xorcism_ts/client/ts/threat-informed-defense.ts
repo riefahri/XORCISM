@@ -3,10 +3,12 @@
  * ATT&CK technique coverage (adversary use vs detect/mitigate/test) from
  * /api/threat-informed-defense. Read-only.
  */
-import { initI18n } from "./i18n";
+import { initI18n, t } from "./i18n";
 
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface Row { id: string; name: string; tactic: string; threat: number; local: number; procedures: number; detect: number; mitigate: number; test: number; validated: number; emuDetected: boolean; detectionFailed: boolean; detectionRegressed: boolean; pillars: number; priority: number; gapScore: number; status: string; gaps: string[]; }
 interface Finding { id: string; name: string; tactic: string; severity: "High" | "Medium" | "Low"; reason: string; label: string; }
@@ -46,7 +48,7 @@ function rowHtml(r: Row): string {
       <div class="muted" style="font-size:11px">${esc(r.tactic)}</div></td>
     <td>${r.threat}${r.local ? ` <span class="tid" title="local CTI/hunt references">+${r.local}★</span>` : ""}</td>
     <td>${detectPill(r)} ${pill(r.mitigate, "Mitigate")} ${testPill(r)}</td>
-    <td><span class="st st-${r.status}">${esc(r.status)}</span></td>
+    <td><span class="st st-${r.status}">${esc(t("tid.st." + r.status))}</span></td>
     <td class="gap ${gapClass(r.gapScore)}">${r.gapScore || ""}</td>
   </tr>`;
 }
@@ -54,22 +56,22 @@ function rowHtml(r: Row): string {
 function findingHtml(f: Finding): string {
   const detectionGap = f.reason === "no-detection" || f.reason === "exposed" || f.reason === "detection-failed" || f.reason === "detection-regressed";
   const href = detectionGap ? "/purple-team" : f.reason === "not-tested" ? "/?db=XTHREAT&table=ATOMICTEST" : "/d3fend";
-  const draft = detectionGap ? ` <button class="ti-gen" data-tech="${esc(f.id)}" title="Draft a Sigma detection rule for ${esc(f.id)} (local AI, skeleton fallback) and add it to the library">✨ draft Sigma</button>` : "";
+  const draft = detectionGap ? ` <button class="ti-gen" data-tech="${esc(f.id)}" title="${fmt("tid.draftTitle", { id: esc(f.id) })}">${t("tid.draftSigma")}</button>` : "";
   return `<li><span class="dot" style="background:${f.severity === "High" ? "#f87171" : f.severity === "Medium" ? "#fbbf24" : "#64748b"}"></span>
     <span class="sev-${f.severity}">${esc(f.severity)}</span> · <span class="muted">${esc(f.tactic)}</span> —
-    ${esc(f.label)} <a href="${href}">▸ fix</a>${draft}</li>`;
+    ${esc(f.label)} <a href="${href}">${t("tid.fix")}</a>${draft}</li>`;
 }
 
 async function genDetection(btn: HTMLButtonElement): Promise<void> {
   const tech = btn.dataset.tech;
   if (!tech) return;
   const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = "drafting…";
+  btn.disabled = true; btn.textContent = t("tid.drafting");
   try {
     const r = await fetch("/api/threat-informed-defense/generate-detection", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ techId: tech }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    btn.outerHTML = `<span class="ti-gen-done">✅ drafted Sigma <a href="/?db=XTHREAT&table=SIGMARULE">#${esc(d.sigmaRuleId)}</a> (${esc(d.offline ? "skeleton" : d.model)}${d.tuned ? ", tuned to the emulated procedure" : ""}, <i>experimental</i>) — re-run the validation plan to prove it fires</span>`;
+    btn.outerHTML = `<span class="ti-gen-done">${fmt("tid.draftedSigma", { id: esc(d.sigmaRuleId), model: esc(d.offline ? t("tid.skeleton") : d.model), tuned: d.tuned ? t("tid.tuned") : "" })}</span>`;
   } catch (e) {
     btn.disabled = false; btn.textContent = orig;
     const s = document.createElement("span"); s.className = "ti-gen-done"; s.style.color = "#f87171"; s.textContent = ` ⚠️ ${e}`; btn.after(s);
@@ -94,53 +96,49 @@ function tacticBar(t: Tactic): string {
 async function load(): Promise<void> {
   let d: Inventory;
   try { const r = await fetch("/api/threat-informed-defense"); if (!r.ok) throw new Error(`HTTP ${r.status}`); d = await r.json(); }
-  catch (e) { $("ti-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">⚠️ ${esc(e)}</div>`; return; }
+  catch (e) { $("ti-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${fmt("tid.loadFailed", { e: esc(e) })}</div>`; return; }
   const s = d.summary;
 
   if (!s.threatRelevant) {
-    $("ti-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">
-      No ATT&CK threat data yet. Import MITRE ATT&CK (groups, techniques, relationships) and detections (Sigma),
-      then the Threat-Informed Defense scorecard appears here.</div>`;
+    $("ti-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("tid.empty")}</div>`;
     return;
   }
 
   const cards = [
-    card("TID program score", `${s.tidScore}`, "threat-weighted detect+mitigate+test", rateColor(s.tidScore), "ti-card ti-score"),
-    card("Threat-relevant", String(s.threatRelevant), `of ${s.techniques} techniques · ${s.adversaryGroups} groups`),
-    card("Detection", `${s.detectRate}%`,
-      s.detectionRegressed ? `${s.detected} w/ Sigma · ⚠ ${s.detectionRegressed} drifted (regressed)`
-        : s.detectionFailed ? `${s.detected} w/ Sigma · ${s.detectionFailed} didn't fire`
-        : `${s.detected} w/ Sigma · ${s.sigmaRules} rules`,
+    card(t("tid.cScore"), `${s.tidScore}`, t("tid.cScore.foot"), rateColor(s.tidScore), "ti-card ti-score"),
+    card(t("tid.cThreatRel"), String(s.threatRelevant), fmt("tid.cThreatRel.foot", { n: s.techniques, g: s.adversaryGroups })),
+    card(t("tid.cDetection"), `${s.detectRate}%`,
+      s.detectionRegressed ? fmt("tid.cDetection.drift", { n: s.detected, d: s.detectionRegressed })
+        : s.detectionFailed ? fmt("tid.cDetection.fail", { n: s.detected, d: s.detectionFailed })
+        : fmt("tid.cDetection.ok", { n: s.detected, r: s.sigmaRules }),
       (s.detectionRegressed || s.detectionFailed) ? "#f87171" : rateColor(s.detectRate)),
-    card("Mitigation", `${s.mitigateRate}%`, `${s.mitigated} mapped · ${s.d3fendCountermeasures} D3FEND`, rateColor(s.mitigateRate)),
-    card("Validation", `${s.testRate}%`, `${s.tested} defined · ${s.validatedRate}% executed`, rateColor(s.validatedRate || s.testRate)),
-    card("Exposed", String(s.exposed), "high-threat · 0 defence", s.exposed ? "#f87171" : "#34d399"),
+    card(t("tid.cMitigation"), `${s.mitigateRate}%`, fmt("tid.cMitigation.foot", { n: s.mitigated, d: s.d3fendCountermeasures }), rateColor(s.mitigateRate)),
+    card(t("tid.cValidation"), `${s.testRate}%`, fmt("tid.cValidation.foot", { n: s.tested, r: s.validatedRate }), rateColor(s.validatedRate || s.testRate)),
+    card(t("tid.cExposed"), String(s.exposed), t("tid.cExposed.foot"), s.exposed ? "#f87171" : "#34d399"),
   ].join("");
 
   const findings = d.findings.length
-    ? `<ul class="findings">${d.findings.slice(0, 50).map(findingHtml).join("")}</ul>${d.findings.length > 50 ? `<div class="muted" style="font-size:11px;margin-top:6px">+${d.findings.length - 50} more…</div>` : ""}`
-    : `<div class="muted" style="padding:12px 0">✓ Every threat-relevant technique is detected, mitigated and tested.</div>`;
+    ? `<ul class="findings">${d.findings.slice(0, 50).map(findingHtml).join("")}</ul>${d.findings.length > 50 ? `<div class="muted" style="font-size:11px;margin-top:6px">${fmt("tid.more", { n: d.findings.length - 50 })}</div>` : ""}`
+    : `<div class="muted" style="padding:12px 0">${t("tid.noFindings")}</div>`;
 
   const tactics = `<div class="bars">${s.byTactic.map(tacticBar).join("")}</div>
-    <div class="leg"><span style="color:#38bdf8">■</span> <b>Detect</b> (Sigma) &nbsp; <span style="color:#a78bfa">■</span> <b>Mitigate</b> (D3FEND/ATT&CK) &nbsp; <span style="color:#34d399">■</span> <b>Test</b> (Atomic) — share of threat-relevant techniques per tactic</div>`;
+    <div class="leg"><span style="color:#38bdf8">■</span> <b>${t("tid.legDetect")}</b> (Sigma) &nbsp; <span style="color:#a78bfa">■</span> <b>${t("tid.legMitigate")}</b> (D3FEND/ATT&CK) &nbsp; <span style="color:#34d399">■</span> <b>${t("tid.legTest")}</b> (Atomic) — ${t("tid.legShare")}</div>`;
 
   const table = `<table class="ti"><thead><tr>
-      <th>Technique</th><th title="adversary groups using it (+ local CTI ★)">Threat</th><th>Defence (Detect · Mitigate · Test)</th><th>Status</th><th title="priority × missing pillars">Gap</th>
+      <th>${t("tid.thTechnique")}</th><th title="${t("tid.thThreat.title")}">${t("tid.thThreat")}</th><th>${t("tid.thDefence")}</th><th>${t("tid.thStatus")}</th><th title="${t("tid.thGap.title")}">${t("tid.thGap")}</th>
     </tr></thead><tbody>${d.rows.map(rowHtml).join("")}</tbody></table>`;
 
   $("ti-body").innerHTML = `<div class="ti-cards">${cards}</div>
-    <div class="ti-section" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Prioritised gap worklist (${d.findings.length})
-      <button id="ti-plan-btn" class="ti-plan" title="Schedule the top untested high-threat techniques as a BAS emulation scenario">⚡ Build validation plan</button>
+    <div class="ti-section" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">${fmt("tid.secWorklist", { n: d.findings.length })}
+      <button id="ti-plan-btn" class="ti-plan" title="${t("tid.planTitle")}">${t("tid.planBtn")}</button>
       <span id="ti-plan-stat" style="font-size:12px;font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8"></span>
     </div>${findings}
-    <div class="ti-section" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">Coverage by ATT&CK tactic (kill chain)
+    <div class="ti-section" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">${t("tid.secTactic")}
       <a class="ti-nav-dl" href="/api/threat-informed-defense/navigator-layer?download=1" download="xorcism-tid-navigator-layer.json"
-        title="Download a MITRE ATT&CK Navigator layer (v4.5) of this program — score = adversary prevalence, colour = defence status. Open it in the official ATT&CK Navigator.">⬇ ATT&CK Navigator layer</a>
+        title="${t("tid.navLayerTitle")}">${t("tid.navLayerBtn")}</a>
     </div>${tactics}
-    <div class="ti-section">Top techniques by gap (${d.rows.length})</div>${table}
-    <div class="legend">↳ <b>Threat</b> = distinct adversary groups using the technique (★ = local CTI/hunt references, weighted ×3).
-      <b>Gap</b> = priority × missing pillars. <b>TID score</b> = threat-weighted mean of detect+mitigate+test coverage.
-      As you import your own CTI (connectors → INTELEXCHANGE→ATT&CK) the priority sharpens to <i>your</i> threat model.</div>`;
+    <div class="ti-section">${fmt("tid.secTop", { n: d.rows.length })}</div>${table}
+    <div class="legend">${t("tid.legend")}</div>`;
 
   const btn = document.getElementById("ti-plan-btn");
   if (btn) btn.addEventListener("click", () => void planValidation());
@@ -156,16 +154,16 @@ async function planValidation(): Promise<void> {
   const btn = document.getElementById("ti-plan-btn") as HTMLButtonElement | null;
   const stat = document.getElementById("ti-plan-stat");
   if (!btn || !stat) return;
-  btn.disabled = true; stat.textContent = "Building validation plan…";
+  btn.disabled = true; stat.textContent = t("tid.planning");
   try {
     const r = await fetch("/api/threat-informed-defense/plan-validation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 20 }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    if (!d.scenarioId) { stat.textContent = "✓ Nothing untested to schedule — every threat-relevant technique already has a test."; return; }
-    stat.innerHTML = `✅ Created BAS scenario <a href="/?db=XTHREAT&table=EMULATIONSCENARIO" style="color:#e879f9">#${esc(d.scenarioId)}</a> — ${esc(d.created)} new validation inject(s) + ${esc(d.reused)} reused for the top ${esc(d.techniques.length)} untested techniques.
-      <button id="ti-run-btn" class="ti-plan" style="background:#7c3aed" data-scenario="${esc(d.scenarioId)}">▶ Run on agent</button>
-      <button id="ti-sched-btn" class="ti-plan" style="background:#0e7490" data-scenario="${esc(d.scenarioId)}">🔁 Schedule weekly</button>
-      <a href="/threat-informed-defense" style="color:#e879f9">↻ Refresh</a>`;
+    if (!d.scenarioId) { stat.textContent = t("tid.planNothing"); return; }
+    stat.innerHTML = `${fmt("tid.planCreated", { id: esc(d.scenarioId), created: esc(d.created), reused: esc(d.reused), n: esc(d.techniques.length) })}
+      <button id="ti-run-btn" class="ti-plan" style="background:#7c3aed" data-scenario="${esc(d.scenarioId)}">${t("tid.runBtn")}</button>
+      <button id="ti-sched-btn" class="ti-plan" style="background:#0e7490" data-scenario="${esc(d.scenarioId)}">${t("tid.schedBtn")}</button>
+      <a href="/threat-informed-defense" style="color:#e879f9">${t("tid.refresh")}</a>`;
     const rb = document.getElementById("ti-run-btn");
     if (rb) rb.addEventListener("click", () => void runOnAgent(Number(d.scenarioId)));
     const sb = document.getElementById("ti-sched-btn");
@@ -192,11 +190,11 @@ async function runOnAgent(scenarioId: number): Promise<void> {
   rb.disabled = true;
   try {
     const target = await pickAgent();
-    if (!target) { stat.innerHTML += ` — ⚠️ no enrolled agent to run on.`; return; }
+    if (!target) { stat.innerHTML += t("tid.noAgentRun"); return; }
     const r = await fetch("/api/agent-scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agent: target.name, kind: "emulate", scenarioId }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    stat.innerHTML += ` <br>▶ Queued emulation of scenario #${esc(scenarioId)} on <b>${esc(target.name)}</b> (job #${esc(d.jobId)}). The agent runs the injects at its next check-in (execution is opt-in: <code>XOR_ALLOW_EMULATION=1</code>) and posts outcomes — re-run the cockpit to see <b>validated</b> tests.`;
+    stat.innerHTML += fmt("tid.queuedEmu", { id: esc(scenarioId), agent: esc(target.name), job: esc(d.jobId) });
   } catch (e) { stat.innerHTML += ` — ⚠️ ${esc(e)}`; }
   finally { rb.disabled = false; }
 }
@@ -209,11 +207,11 @@ async function scheduleRevalidation(scenarioId: number): Promise<void> {
   sb.disabled = true;
   try {
     const target = await pickAgent();
-    if (!target) { stat.innerHTML += ` — ⚠️ no enrolled agent to schedule on.`; return; }
+    if (!target) { stat.innerHTML += t("tid.noAgentSched"); return; }
     const r = await fetch("/api/threat-informed-defense/schedule-revalidation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scenarioId, agent: target.name }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    stat.innerHTML += ` <br>🔁 Scheduled re-validation (schedule <a href="/?db=XJOB&table=XSCHEDULE" style="color:#22d3ee">#${esc(d.scheduleId)}</a>, cron <code>${esc(d.cron)}</code>) of scenario #${esc(scenarioId)} on <b>${esc(target.name)}</b> — the agent re-runs it on cadence and the cockpit's <b>validated / false-coverage</b> signals refresh automatically.`;
+    stat.innerHTML += fmt("tid.scheduledReval", { id: esc(d.scheduleId), cron: esc(d.cron), scenario: esc(scenarioId), agent: esc(target.name) });
     sb.outerHTML = "";
   } catch (e) { sb.disabled = false; stat.innerHTML += ` — ⚠️ ${esc(e)}`; }
 }

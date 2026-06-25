@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Risk Register</title>
+<title data-i18n="rr.pageTitle">XORCISM — Risk Register</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .rr-wrap{max-width:1280px;margin:0 auto;padding:18px}
@@ -58,107 +58,182 @@
   .rr-err{color:#f87171;font-size:12px;min-height:16px}
   .btn-newrisk{background:#7c83fd;color:#0b0d18;border:none;border-radius:8px;font-size:13px;font-weight:700;padding:8px 14px;cursor:pointer}
   .btn-newrisk:hover{background:#9aa0ff}
+  /* strategy & measures */
+  .rr-section .rr-mini{margin-left:10px;text-transform:none;letter-spacing:0}
+  .rr-mini{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;font-weight:600;padding:3px 9px;cursor:pointer}
+  .rr-mini:hover{border-color:#7c83fd;color:#e2e8f0}
+  .strat-stmt{font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:6px;max-width:920px}
+  .strat-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .appetite-flag{font-size:10px;font-weight:700;border-radius:5px;padding:1px 6px;background:#7f1d1d;color:#fecaca;margin-left:4px}
+  .mchip{background:#0f1117;border:1px solid #2d3250;color:#a5b4fc;border-radius:6px;font-size:11px;padding:1px 7px;cursor:pointer;margin-left:4px}
+  .mchip:hover{border-color:#7c83fd;color:#c7d2fe}
+  select.mstatus,select.el-status{background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;padding:3px 6px;font-size:12px}
 </style>
 </head>
 <body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XCOMPLIANCE&amp;table=RISKREGISTERENTRY">&#128221; Risk entries</a>
-  <a href="/fair-mam">&#129518; FAIR-MAM</a>
-  <a href="/compliance-management">&#9878;&#65039; Compliance</a>
-  <a href="/exposure">&#127919; Exposure</a>
+  <a href="/?db=XCOMPLIANCE&amp;table=RISKREGISTERENTRY" data-i18n="rr.navEntries">&#128221; Risk entries</a>
+  <a href="/fair-mam" data-i18n="rr.navFairmam">&#129518; FAIR-MAM</a>
+  <a href="/compliance-management" data-i18n="rr.navCompliance">&#9878;&#65039; Compliance</a>
+  <a href="/exposure" data-i18n="rr.navExposure">&#127919; Exposure</a>
   <span class="spacer"></span>
-  <span class="title">&#128202; Risk Register</span>
+  <span class="title" data-i18n="rr.navTitle">&#128202; Risk Register</span>
 </div>
 
 <div class="rr-wrap">
   <div style="display:flex;align-items:flex-start;gap:12px">
-    <h1 style="flex:1">Risk Register</h1>
-    <button class="btn-newrisk" id="rr-new">+ New risk</button>
+    <h1 style="flex:1" data-i18n="rr.title">Risk Register</h1>
+    <button class="btn-newrisk" id="rr-new" data-i18n="rr.newRisk">+ New risk</button>
   </div>
   <div>
-    <div class="rr-sub">One governance view over the risk register — every risk's
-      <b>inherent &rarr; current &rarr; residual</b> level, its <b>treatment</b> (strategy, plan, owner,
-      review) and its <b>CRQ/FAIR</b> quantification (<i>Annualized Loss Expectancy</i>). Each risk carries
-      a 0-100 priority score; the worklist surfaces the gaps that matter: <b>high/critical residual risks
-      left untreated</b>, risks <b>accepted without justification</b>, <b>overdue reviews</b>, treatments
-      <b>past their target date</b>, and <b>unowned</b> risks. Manage entries under
-      <a href="/?db=XCOMPLIANCE&amp;table=RISKREGISTERENTRY">Risk entries</a>; decompose a loss with
-      <a href="/fair-mam">FAIR-MAM</a>.</div>
+    <div class="rr-sub" data-i18n="rr.sub">One governance view over the risk register — every risk's inherent → current → residual level, its treatment (strategy, plan, owner, review) and its CRQ/FAIR quantification (Annualized Loss Expectancy). Each risk carries a 0-100 priority score; the worklist surfaces the gaps that matter: high/critical residual risks left untreated, risks accepted without justification, overdue reviews, treatments past their target date, and unowned risks. Manage entries under Risk entries; decompose a loss with FAIR-MAM.</div>
   </div>
-  <div id="rr-body"><div class="muted" style="padding:24px;text-align:center">Building the risk posture…</div></div>
+  <div id="rr-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="rr.loading">Building the risk posture…</div></div>
 </div>
 
 <!-- Guided "new risk" modal -->
 <div class="rr-modal-bg" id="rr-modal">
   <div class="rr-modal">
-    <h3>New risk</h3>
-    <p class="lead">Register a risk with a guided form — its inherent likelihood × impact set the initial level (residual is refined later as you treat it).</p>
+    <h3 data-i18n="rr.modalTitle">New risk</h3>
+    <p class="lead" data-i18n="rr.modalLead">Register a risk with a guided form — its inherent likelihood × impact set the initial level (residual is refined later as you treat it).</p>
     <div class="fld">
-      <label>Title <span class="req">*</span></label>
-      <input id="rr-f-title" type="text" placeholder="e.g. Ransomware encrypts production file servers" maxlength="300" autocomplete="off">
+      <label data-i18n="rr.fTitle">Title <span class="req">*</span></label>
+      <input id="rr-f-title" type="text" data-i18n-placeholder="rr.fTitlePh" placeholder="e.g. Ransomware encrypts production file servers" maxlength="300" autocomplete="off">
     </div>
     <div class="row2">
       <div class="fld">
-        <label>Category</label>
+        <label data-i18n="rr.fCategory">Category</label>
         <select id="rr-f-category">
-          <option value="">— select —</option>
-          <option>Cyber / Information security</option>
-          <option>Operational</option>
-          <option>Strategic</option>
-          <option>Compliance / Legal</option>
-          <option>Financial</option>
-          <option>Third-party / Supply chain</option>
-          <option>Privacy</option>
-          <option>Technology</option>
+          <option value="" data-i18n="rr.optSelect">— select —</option>
+          <option value="Cyber / Information security" data-i18n="rr.cat.cyber">Cyber / Information security</option>
+          <option value="Operational" data-i18n="rr.cat.operational">Operational</option>
+          <option value="Strategic" data-i18n="rr.cat.strategic">Strategic</option>
+          <option value="Compliance / Legal" data-i18n="rr.cat.compliance">Compliance / Legal</option>
+          <option value="Financial" data-i18n="rr.cat.financial">Financial</option>
+          <option value="Third-party / Supply chain" data-i18n="rr.cat.thirdparty">Third-party / Supply chain</option>
+          <option value="Privacy" data-i18n="rr.cat.privacy">Privacy</option>
+          <option value="Technology" data-i18n="rr.cat.technology">Technology</option>
         </select>
       </div>
       <div class="fld">
-        <label>Risk owner (optional)</label>
-        <select id="rr-f-owner"><option value="">— none —</option></select>
+        <label data-i18n="rr.fOwner">Risk owner (optional)</label>
+        <select id="rr-f-owner"><option value="" data-i18n="rr.optNone">— none —</option></select>
       </div>
     </div>
     <div class="row3">
       <div class="fld">
-        <label>Likelihood (1–5)</label>
-        <select id="rr-f-prob"><option value="">—</option><option value="1">1 · Rare</option><option value="2">2 · Unlikely</option><option value="3">3 · Possible</option><option value="4">4 · Likely</option><option value="5">5 · Almost certain</option></select>
+        <label data-i18n="rr.fLikelihood">Likelihood (1–5)</label>
+        <select id="rr-f-prob"><option value="">—</option><option value="1" data-i18n="rr.lk.1">1 · Rare</option><option value="2" data-i18n="rr.lk.2">2 · Unlikely</option><option value="3" data-i18n="rr.lk.3">3 · Possible</option><option value="4" data-i18n="rr.lk.4">4 · Likely</option><option value="5" data-i18n="rr.lk.5">5 · Almost certain</option></select>
       </div>
       <div class="fld">
-        <label>Impact (1–5)</label>
-        <select id="rr-f-impact"><option value="">—</option><option value="1">1 · Insignificant</option><option value="2">2 · Minor</option><option value="3">3 · Moderate</option><option value="4">4 · Major</option><option value="5">5 · Severe</option></select>
+        <label data-i18n="rr.fImpact">Impact (1–5)</label>
+        <select id="rr-f-impact"><option value="">—</option><option value="1" data-i18n="rr.im.1">1 · Insignificant</option><option value="2" data-i18n="rr.im.2">2 · Minor</option><option value="3" data-i18n="rr.im.3">3 · Moderate</option><option value="4" data-i18n="rr.im.4">4 · Major</option><option value="5" data-i18n="rr.im.5">5 · Severe</option></select>
       </div>
       <div class="fld">
-        <label>Inherent level</label>
-        <div class="rr-risk-preview" id="rr-f-preview">Set likelihood × impact</div>
+        <label data-i18n="rr.fInherent">Inherent level</label>
+        <div class="rr-risk-preview" id="rr-f-preview" data-i18n="rr.setLikelihood">Set likelihood × impact</div>
       </div>
     </div>
     <div class="row3">
       <div class="fld">
-        <label>Treatment</label>
-        <select id="rr-f-treatment"><option value="">— select —</option><option>Mitigate</option><option>Accept</option><option>Transfer</option><option>Avoid</option></select>
+        <label data-i18n="rr.fTreatment">Treatment</label>
+        <select id="rr-f-treatment"><option value="" data-i18n="rr.optSelect">— select —</option><option value="Mitigate" data-i18n="rr.tr.mitigate">Mitigate</option><option value="Accept" data-i18n="rr.tr.accept">Accept</option><option value="Transfer" data-i18n="rr.tr.transfer">Transfer</option><option value="Avoid" data-i18n="rr.tr.avoid">Avoid</option></select>
       </div>
       <div class="fld">
-        <label>Status</label>
-        <select id="rr-f-status"><option>Open</option><option>Assessed</option><option>Treatment in progress</option><option>Mitigated</option><option>Accepted</option><option>Closed</option></select>
+        <label data-i18n="rr.fStatus">Status</label>
+        <select id="rr-f-status"><option value="Open" data-i18n="rr.stt.open">Open</option><option value="Assessed" data-i18n="rr.stt.assessed">Assessed</option><option value="Treatment in progress" data-i18n="rr.stt.inprogress">Treatment in progress</option><option value="Mitigated" data-i18n="rr.stt.mitigated">Mitigated</option><option value="Accepted" data-i18n="rr.stt.accepted">Accepted</option><option value="Closed" data-i18n="rr.stt.closed">Closed</option></select>
       </div>
       <div class="fld">
-        <label>Asset (optional)</label>
-        <select id="rr-f-asset"><option value="">— none —</option></select>
+        <label data-i18n="rr.fAsset">Asset (optional)</label>
+        <select id="rr-f-asset"><option value="" data-i18n="rr.optNone">— none —</option></select>
       </div>
     </div>
     <div class="row2">
-      <div class="fld"><label>Review date (optional)</label><input id="rr-f-review" type="date"></div>
-      <div class="fld"><label>Target date (optional)</label><input id="rr-f-target" type="date"></div>
+      <div class="fld"><label data-i18n="rr.fReview">Review date (optional)</label><input id="rr-f-review" type="date"></div>
+      <div class="fld"><label data-i18n="rr.fTarget">Target date (optional)</label><input id="rr-f-target" type="date"></div>
     </div>
     <div class="fld">
-      <label>Description (optional)</label>
-      <textarea id="rr-f-desc" placeholder="Cause, consequence, context…" maxlength="4000"></textarea>
+      <label data-i18n="rr.fDesc">Description (optional)</label>
+      <textarea id="rr-f-desc" data-i18n-placeholder="rr.fDescPh" placeholder="Cause, consequence, context…" maxlength="4000"></textarea>
     </div>
     <div class="rr-modal-foot">
       <span class="rr-err" id="rr-f-err" style="flex:1"></span>
-      <button class="btn btn-ghost btn-sm" id="rr-cancel">Cancel</button>
-      <button class="btn-newrisk" id="rr-create">Create risk</button>
+      <button class="btn btn-ghost btn-sm" id="rr-cancel" data-i18n="rr.cancel">Cancel</button>
+      <button class="btn-newrisk" id="rr-create" data-i18n="rr.create">Create risk</button>
+    </div>
+  </div>
+</div>
+
+<!-- Risk-management strategy & appetite modal -->
+<div class="rr-modal-bg" id="rr-strategy-modal">
+  <div class="rr-modal" style="width:680px">
+    <h3 data-i18n="rr.strategyModalTitle">Risk-management strategy</h3>
+    <p class="lead" data-i18n="rr.strategyModalLead">Define the organisation's risk-management strategy and its risk appetite per category. Register entries whose residual risk exceeds the category's tolerance are flagged "over appetite".</p>
+    <div class="fld"><label data-i18n="rr.sStatement">Strategy statement</label><textarea id="rr-s-statement" data-i18n-placeholder="rr.sStatementPh" placeholder="How the organisation identifies, assesses, treats and monitors risk…" maxlength="4000"></textarea></div>
+    <div class="fld"><label data-i18n="rr.sObjectives">Objectives</label><textarea id="rr-s-objectives" maxlength="4000"></textarea></div>
+    <div class="row3">
+      <div class="fld"><label data-i18n="rr.sMethodology">Methodology</label><input id="rr-s-methodology" type="text" data-i18n-placeholder="rr.sMethodologyPh" placeholder="ISO 31000 / EBIOS RM / NIST 800-30"></div>
+      <div class="fld"><label data-i18n="rr.sScale">Risk scale</label><input id="rr-s-scale" type="text" placeholder="5×5"></div>
+      <div class="fld"><label data-i18n="rr.sReviewMonths">Review cadence (months)</label><input id="rr-s-cadence" type="number" min="1" max="120"></div>
+    </div>
+    <div class="row3">
+      <div class="fld"><label data-i18n="rr.sOwner">Owner</label><input id="rr-s-owner" type="text" data-i18n-placeholder="rr.sOwnerPh" placeholder="CRO / Risk committee"></div>
+      <div class="fld"><label data-i18n="rr.sApprovedBy">Approved by</label><input id="rr-s-approvedby" type="text"></div>
+      <div class="fld"><label data-i18n="rr.sApprovedDate">Approved date</label><input id="rr-s-approveddate" type="date"></div>
+    </div>
+    <div class="fld">
+      <label data-i18n="rr.sAppetite">Risk appetite by category</label>
+      <div id="rr-s-appetite"></div>
+      <button class="rr-mini" type="button" id="rr-s-add-appetite" data-i18n="rr.addAppetite">+ Add category</button>
+    </div>
+    <div class="rr-modal-foot">
+      <span class="rr-err" id="rr-s-err" style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" id="rr-s-cancel" data-i18n="rr.cancel">Cancel</button>
+      <button class="btn-newrisk" id="rr-s-save" data-i18n="rr.saveStrategy">Save strategy</button>
+    </div>
+  </div>
+</div>
+
+<!-- New measure modal -->
+<div class="rr-modal-bg" id="rr-measure-modal">
+  <div class="rr-modal">
+    <h3 data-i18n="rr.measureModalTitle">New measure</h3>
+    <p class="lead" data-i18n="rr.measureModalLead">Add a reusable risk measure (control / treatment) to the library — link it to any number of register entries.</p>
+    <div class="fld"><label><span data-i18n="rr.mName">Name</span> <span class="req">*</span></label><input id="rr-m-name" type="text" data-i18n-placeholder="rr.mNamePh" placeholder="e.g. Immutable offline backups" maxlength="300"></div>
+    <div class="row3">
+      <div class="fld"><label data-i18n="rr.mRef">Ref</label><input id="rr-m-ref" type="text" maxlength="60"></div>
+      <div class="fld"><label data-i18n="rr.mType">Type</label><select id="rr-m-type"></select></div>
+      <div class="fld"><label data-i18n="rr.mStatus">Status</label><select id="rr-m-status"></select></div>
+    </div>
+    <div class="row3">
+      <div class="fld"><label data-i18n="rr.mEffectiveness">Effectiveness</label><select id="rr-m-eff"><option value="">—</option><option data-i18n="rr.lvl.low">Low</option><option data-i18n="rr.lvl.medium">Medium</option><option data-i18n="rr.lvl.high">High</option></select></div>
+      <div class="fld"><label data-i18n="rr.mControlRef">Control ref</label><input id="rr-m-control" type="text" data-i18n-placeholder="rr.mControlRefPh" placeholder="e.g. ISO 27001 A.8.13" maxlength="120"></div>
+      <div class="fld"><label data-i18n="rr.mCost">Cost</label><input id="rr-m-cost" type="text" maxlength="60"></div>
+    </div>
+    <div class="fld"><label data-i18n="rr.mDesc">Description</label><textarea id="rr-m-desc" maxlength="4000"></textarea></div>
+    <div class="rr-modal-foot">
+      <span class="rr-err" id="rr-m-err" style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" id="rr-m-cancel" data-i18n="rr.cancel">Cancel</button>
+      <button class="btn-newrisk" id="rr-m-save" data-i18n="rr.addMeasureBtn">Add measure</button>
+    </div>
+  </div>
+</div>
+
+<!-- Entry ↔ measures modal -->
+<div class="rr-modal-bg" id="rr-entry-modal">
+  <div class="rr-modal" style="width:560px">
+    <h3 id="rr-e-title">Measures</h3>
+    <p class="lead" data-i18n="rr.entryMeasuresLead">Attach measures from the library to this risk as its treatment, and track each measure's implementation status.</p>
+    <div id="rr-e-list"></div>
+    <div class="fld" style="display:flex;gap:8px;align-items:flex-end;margin-top:12px">
+      <div style="flex:1"><label data-i18n="rr.attachMeasure">Attach a measure</label><select id="rr-e-picker"></select></div>
+      <button class="rr-mini" id="rr-e-add" data-i18n="rr.attach">+ Attach</button>
+    </div>
+    <div class="rr-modal-foot">
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" id="rr-e-close" data-i18n="rr.close">Close</button>
     </div>
   </div>
 </div>

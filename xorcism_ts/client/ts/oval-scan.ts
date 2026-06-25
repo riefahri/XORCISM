@@ -2,8 +2,11 @@
  * oval-scan.ts — OVAL scan results (/oval-scan). Per-asset verdicts + compliance/vuln
  * worklist from the XOR agent's OpenSCAP evaluations, via /api/oval-results.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface Row { asset: string; assetId: number | null; lastScan: string | null; vuln: number; compliancePass: number; complianceFail: number; inventory: number; total: number; }
 interface Finding { asset: string; assetId: number | null; cls: string; title: string; severity: string; result: string; }
@@ -33,8 +36,8 @@ function rowHtml(r: Row): string {
 function findingHtml(f: Finding): string {
   const vuln = f.cls === "vulnerability";
   return `<li><span class="dot ${vuln ? "d-vuln" : "d-fail"}"></span>
-    <span class="cls-${f.cls}">${vuln ? "VULN" : "FAIL"}</span> ·
-    <a href="/asset-management">${esc(f.asset)}</a> — ${esc(f.title || (vuln ? "CVE detected" : "compliance check"))}${f.severity ? ` <span class="muted">(${esc(f.severity)})</span>` : ""}</li>`;
+    <span class="cls-${f.cls}">${vuln ? t("ov.vuln") : t("ov.fail")}</span> ·
+    <a href="/asset-management">${esc(f.asset)}</a> — ${esc(f.title || (vuln ? t("ov.cveDetected") : t("ov.complianceCheck")))}${f.severity ? ` <span class="muted">(${esc(f.severity)})</span>` : ""}</li>`;
 }
 
 async function load(): Promise<void> {
@@ -44,35 +47,30 @@ async function load(): Promise<void> {
   const s = d.summary;
 
   if (!d.rows.length) {
-    $("ov-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">
-      No OVAL scans yet. Deploy the XOR agent on a host (with <code>oscap</code>), then launch an
-      <b>OVAL</b> scan from the agent or the ASSET window — results land here and in
-      <a href="/?db=XOVAL&table=OVALRESULTS"><code>OVALRESULTS</code></a>.</div>`;
+    $("ov-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("ov.empty")}</div>`;
     return;
   }
 
   const cards = [
-    card("Assets scanned", String(s.assets), `${s.verdicts} verdicts`),
-    card("Compliance pass", s.passRate != null ? `${s.passRate}%` : "—", `${s.compliancePass} pass · ${s.complianceFail} fail`, s.passRate != null ? (s.passRate >= 80 ? "#34d399" : s.passRate >= 50 ? "#fbbf24" : "#f87171") : undefined),
-    card("Compliance failures", String(s.complianceFail), "config checks failed", s.complianceFail ? "#fb923c" : "#34d399"),
-    card("OVAL-detected CVEs", String(s.cves), "vulnerability verdicts", s.cves ? "#f87171" : "#34d399"),
-    card("Last scan", s.lastScan ? esc(s.lastScan.slice(0, 10)) : "—", s.lastScan ? esc(s.lastScan.slice(11, 19)) : "never"),
+    card(t("ov.cAssets"), String(s.assets), fmt("ov.cAssets.foot", { n: s.verdicts })),
+    card(t("ov.cPass"), s.passRate != null ? `${s.passRate}%` : "—", fmt("ov.cPass.foot", { p: s.compliancePass, f: s.complianceFail }), s.passRate != null ? (s.passRate >= 80 ? "#34d399" : s.passRate >= 50 ? "#fbbf24" : "#f87171") : undefined),
+    card(t("ov.cFailures"), String(s.complianceFail), t("ov.cFailures.foot"), s.complianceFail ? "#fb923c" : "#34d399"),
+    card(t("ov.cCves"), String(s.cves), t("ov.cCves.foot"), s.cves ? "#f87171" : "#34d399"),
+    card(t("ov.cLastScan"), s.lastScan ? esc(s.lastScan.slice(0, 10)) : "—", s.lastScan ? esc(s.lastScan.slice(11, 19)) : t("ov.never")),
   ].join("");
 
   const findings = d.findings.length
-    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">+${d.findings.length - 60} more…</div>` : ""}`
-    : `<div class="muted" style="padding:12px 0">✓ No vulnerability detections or compliance failures.</div>`;
+    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">${fmt("ov.more", { n: d.findings.length - 60 })}</div>` : ""}`
+    : `<div class="muted" style="padding:12px 0">${t("ov.noFindings")}</div>`;
 
   const table = `<table class="ov"><thead><tr>
-      <th>Asset</th><th>Last scan</th><th>Vulns</th><th>Compliance (fail/pass)</th><th>Inventory</th><th>Verdicts</th>
+      <th>${t("ov.thAsset")}</th><th>${t("ov.thLastScan")}</th><th>${t("ov.thVulns")}</th><th>${t("ov.thCompliance")}</th><th>${t("ov.thInventory")}</th><th>${t("ov.thVerdicts")}</th>
     </tr></thead><tbody>${d.rows.map(rowHtml).join("")}</tbody></table>`;
 
   $("ov-body").innerHTML = `<div class="ov-cards">${cards}</div>
-    <div class="ov-section">Worklist (${d.findings.length})</div>${findings}
-    <div class="ov-section">By asset (${d.rows.length})</div>${table}
-    <div class="legend">↳ Verdicts come from the agent's <code>oscap oval eval</code> against distro/SSG content.
-      Vulnerability hits also create <code>ASSETVULNERABILITY</code> links; inventory hits create
-      <code>CPEFORASSET</code>. Launch a scan with kind <b>oval</b> from the agent / ASSET window.</div>`;
+    <div class="ov-section">${fmt("ov.secWorklist", { n: d.findings.length })}</div>${findings}
+    <div class="ov-section">${fmt("ov.secByAsset", { n: d.rows.length })}</div>${table}
+    <div class="legend">${t("ov.legend")}</div>`;
 }
 
-document.addEventListener("DOMContentLoaded", () => void load());
+document.addEventListener("DOMContentLoaded", () => { initI18n(); void load(); });

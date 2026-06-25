@@ -1,0 +1,17 @@
+{
+  "id": "cpe-editor",
+  "name": "GCVE CPE Editor - curated CPE dictionary",
+  "type": "import",
+  "category": "SCA",
+  "description": "Pulls curated CPE (Common Platform Enumeration) records from a GCVE-EU CPE Editor instance (https://github.com/gcve-eu/cpe-editor, v1.1.0+) via its read-only OpenAPI (vendors / products / cpes / changes) and normalizes each to a CPE dictionary entry -> XORCISM.CPE (the platform/software identifiers used for CVE<->asset matching, SCA and OVAL/vulnerable-configuration tests). CPE Editor makes curated CPE data easier to explore, review, publish and run in production, with alias/duplicate detection and NVD CPE-Match / PURL mappings. Modes: live (base_url -> GET /api/v1/cpes), file (an exported JSON or NDJSON dataset from the editor), or demo. Read-only. Config: CPE_EDITOR_URL (or pass base_url), optional CPE_EDITOR_TOKEN bearer.",
+  "intrusive": false,
+  "permission": "connector:cpe-editor",
+  "run": "run.py",
+  "mapping": "cpe-editor",
+  "parameters": [
+    { "name": "base_url", "type": "string", "default": "", "help": "CPE Editor instance base URL (overrides CPE_EDITOR_URL), e.g. https://cpe.example.org . The connector calls <base_url>/api/v1/cpes." },
+    { "name": "search", "type": "string", "default": "", "help": "Optional vendor/product/CPE substring filter passed to the API (live)." },
+    { "name": "limit", "type": "int", "default": 200, "help": "Max CPE records to pull (live)." },
+    { "name": "file", "type": "string", "default": "", "help": "Path to an exported CPE dataset (JSON array, {\"cpes\":[...]} object, or NDJSON one record per line). A small demo sample is used if omitted and no base_url is set." }
+  ]
+}

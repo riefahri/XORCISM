@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Org Chart</title>
+<title data-i18n="oc.pageTitle">XORCISM — Org Chart</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .oc-wrap{max-width:1340px;margin:0 auto;padding:18px}
@@ -40,18 +40,15 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XORCISM&amp;table=PERSON">&#128100; People</a>
-  <a href="/identities">&#128273; Identities</a>
+  <a href="/?db=XORCISM&amp;table=PERSON" data-i18n="oc.navPeople">&#128100; People</a>
+  <a href="/identities" data-i18n="oc.navIdentities">&#128273; Identities</a>
   <span class="spacer"></span>
-  <span class="title">&#127970; Org Chart</span>
+  <span class="title" data-i18n="oc.navTitle">&#127970; Org Chart</span>
 </div>
 <div class="oc-wrap">
-  <h1>Organisation Chart</h1>
-  <div class="oc-sub">The management hierarchy built from <b>PERSON.ManagerPersonID</b>, with directory attributes
-    (job title, department, UPN, account status) aligned to <b>Microsoft Entra ID / Active Directory</b> — so an
-    imported directory drives the chart directly. Each node shows reports count, department and an
-    <span class="entra">ENTRA</span> badge when synced from Entra ID.</div>
-  <div id="oc-body"><div class="muted" style="padding:24px;text-align:center">Loading org chart…</div></div>
+  <h1 data-i18n="oc.title">Organisation Chart</h1>
+  <div class="oc-sub" data-i18n="oc.sub">The management hierarchy built from PERSON.ManagerPersonID, with directory attributes (job title, department, UPN, account status) aligned to Microsoft Entra ID / Active Directory — so an imported directory drives the chart directly. Each node shows reports count, department and an ENTRA badge when synced from Entra ID.</div>
+  <div id="oc-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="oc.loading">Loading org chart…</div></div>
 </div>
 <script src="/js/session-ui.js"></script>
 <script src="/js/org-chart.js"></script>

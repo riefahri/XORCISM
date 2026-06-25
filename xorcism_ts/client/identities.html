@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Identities & Access Management</title>
+<title data-i18n="idn.pageTitle">XORCISM — Identities & Access Management</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .iam-wrap{max-width:1240px;margin:0 auto;padding:18px}
@@ -42,24 +42,24 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XORCISM&amp;table=IDENTITY">&#9881;&#65039; Manage identities</a>
-  <a href="/?db=XORCISM&amp;table=IDENTITYPERSON">&#128101; Identity&#8596;Person</a>
-  <a href="/?db=XORCISM&amp;table=PERSON">&#128100; People</a>
+  <a href="/?db=XORCISM&amp;table=IDENTITY" data-i18n="idn.navManage">&#9881;&#65039; Manage identities</a>
+  <a href="/?db=XORCISM&amp;table=IDENTITYPERSON" data-i18n="idn.navMap">&#128101; Identity&#8596;Person</a>
+  <a href="/?db=XORCISM&amp;table=PERSON" data-i18n="idn.navPeople">&#128100; People</a>
   <span class="spacer"></span>
-  <span class="title">&#128273; Identities &amp; Access Management</span>
+  <span class="title" data-i18n="idn.navTitle">&#128273; Identities &amp; Access Management</span>
 </div>
 
 <div class="iam-wrap">
   <div>
-    <h1>Identities &amp; Access Management</h1>
-    <div class="iam-sub">One inventory for every identity in your environment — <b>humans</b> (linked to people)
+    <h1 data-i18n="idn.title">Identities &amp; Access Management</h1>
+    <div class="iam-sub" data-i18n="idn.sub">One inventory for every identity in your environment — <b>humans</b> (linked to people)
       and <b>non-human identities</b> (AI agents, APIs, containers, service accounts, hardcoded credentials,
       certificates, devices…). Each is checked for the governance issues that matter: orphaned non-human
       identities, excessive privilege, stale/unused accounts, expiring or never-rotated secrets, and
       privileged humans without MFA. Manage entries under
       <a href="/?db=XORCISM&amp;table=IDENTITY">Manage identities</a>.</div>
   </div>
-  <div id="iam-body"><div class="muted" style="padding:24px;text-align:center">Building the inventory…</div></div>
+  <div id="iam-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="idn.loading">Building the inventory…</div></div>
 </div>
 
 <script src="/js/session-ui.js"></script>

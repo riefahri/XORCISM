@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Patch Management</title>
+<title data-i18n="pm.pageTitle">XORCISM — Patch Management</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .pm-wrap{max-width:1320px;margin:0 auto;padding:18px}
@@ -54,61 +54,57 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/asset-management">&#128187; Assets</a>
-  <a href="/exposure">&#127919; Exposure</a>
-  <a href="/?db=XVULNERABILITY&amp;table=VULNERABILITY">&#128737;&#65039; Vulnerabilities</a>
+  <a href="/asset-management" data-i18n="pm.navAssets">&#128187; Assets</a>
+  <a href="/exposure" data-i18n="pm.navExposure">&#127919; Exposure</a>
+  <a href="/?db=XVULNERABILITY&amp;table=VULNERABILITY" data-i18n="pm.navVulns">&#128737;&#65039; Vulnerabilities</a>
   <span class="spacer"></span>
-  <span class="title">&#129520; Patch Management</span>
+  <span class="title" data-i18n="pm.navTitle">&#129520; Patch Management</span>
 </div>
 
 <div class="pm-wrap">
-  <h1>Patch Management</h1>
-  <div class="pm-sub">Drive the <b>patch lifecycle</b> of every asset&#8596;vulnerability: prioritized by
-    <b>KEV</b>, <b>CVSS</b> and <b>EPSS</b>, governed by <b>risk-based patch SLAs</b>, and tracked from
-    <i>Unpatched</i> → <i>Patched</i> with <b>remediation plans</b>. Each row is a CVE on a specific asset;
-    mark its patch status inline, attach a remediation plan, and watch <b>coverage</b>, <b>MTTR</b> and
-    <b>overdue SLAs</b> move. Patch status lives on ASSETVULNERABILITY; plans on ASSETVULNERABILITYREMEDIATION.</div>
-  <div id="pm-body"><div class="muted" style="padding:24px;text-align:center">Building the patch posture…</div></div>
+  <h1 data-i18n="pm.title">Patch Management</h1>
+  <div class="pm-sub" data-i18n="pm.sub">Drive the patch lifecycle of every asset↔vulnerability: prioritized by KEV, CVSS and EPSS, governed by risk-based patch SLAs, and tracked from Unpatched → Patched with remediation plans. Each row is a CVE on a specific asset; mark its patch status inline, attach a remediation plan, and watch coverage, MTTR and overdue SLAs move. Patch status lives on ASSETVULNERABILITY; plans on ASSETVULNERABILITYREMEDIATION.</div>
+  <div id="pm-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="pm.loading">Building the patch posture…</div></div>
 </div>
 
 <!-- Remediation-plan modal -->
 <div class="pm-modal-bg" id="pm-modal">
   <div class="pm-modal">
-    <h3>New remediation plan</h3>
-    <p class="lead" id="pm-modal-ctx">Plan the remediation for this finding.</p>
+    <h3 data-i18n="pm.modalTitle">New remediation plan</h3>
+    <p class="lead" id="pm-modal-ctx" data-i18n="pm.modalLead">Plan the remediation for this finding.</p>
     <div class="fld">
-      <label>Plan name <span class="req">*</span></label>
-      <input id="pm-f-name" type="text" placeholder="e.g. Patch Log4j on prod-web (Q3 window)" maxlength="300" autocomplete="off">
+      <label><span data-i18n="pm.fPlanName">Plan name</span> <span class="req">*</span></label>
+      <input id="pm-f-name" type="text" data-i18n-placeholder="pm.fPlanNamePh" placeholder="e.g. Patch Log4j on prod-web (Q3 window)" maxlength="300" autocomplete="off">
     </div>
     <div class="row2">
       <div class="fld">
-        <label>Type</label>
+        <label data-i18n="pm.fType">Type</label>
         <select id="pm-f-type">
-          <option>Patch</option><option>Mitigation</option><option>Configuration change</option>
-          <option>Compensating control</option><option>Upgrade / replace</option><option>Accept risk</option>
+          <option value="Patch" data-i18n="pm.typePatch">Patch</option><option value="Mitigation" data-i18n="pm.typeMitigation">Mitigation</option><option value="Configuration change" data-i18n="pm.typeConfig">Configuration change</option>
+          <option value="Compensating control" data-i18n="pm.typeCompensating">Compensating control</option><option value="Upgrade / replace" data-i18n="pm.typeUpgrade">Upgrade / replace</option><option value="Accept risk" data-i18n="pm.typeAccept">Accept risk</option>
         </select>
       </div>
       <div class="fld">
-        <label>Status</label>
+        <label data-i18n="pm.fStatus">Status</label>
         <select id="pm-f-status">
-          <option>Planned</option><option>In progress</option><option>Awaiting change window</option>
-          <option>Testing</option><option>Completed</option>
+          <option value="Planned" data-i18n="pm.stPlanned">Planned</option><option value="In progress" data-i18n="pm.stInProgress">In progress</option><option value="Awaiting change window" data-i18n="pm.stAwaiting">Awaiting change window</option>
+          <option value="Testing" data-i18n="pm.stTesting">Testing</option><option value="Completed" data-i18n="pm.stCompleted">Completed</option>
         </select>
       </div>
     </div>
     <div class="row2">
-      <div class="fld"><label>Target date</label><input id="pm-f-target" type="date"></div>
+      <div class="fld"><label data-i18n="pm.fTargetDate">Target date</label><input id="pm-f-target" type="date"></div>
       <div class="fld">
-        <label>Priority</label>
-        <select id="pm-f-priority"><option value="">—</option><option>Very Low</option><option>Low</option><option>Moderate</option><option>High</option><option>Very High</option><option>Critical</option></select>
+        <label data-i18n="pm.fPriority">Priority</label>
+        <select id="pm-f-priority"><option value="">—</option><option value="Very Low" data-i18n="pm.prVeryLow">Very Low</option><option value="Low" data-i18n="pm.prLow">Low</option><option value="Moderate" data-i18n="pm.prModerate">Moderate</option><option value="High" data-i18n="pm.prHigh">High</option><option value="Very High" data-i18n="pm.prVeryHigh">Very High</option><option value="Critical" data-i18n="pm.prCritical">Critical</option></select>
       </div>
     </div>
-    <div class="fld"><label>Owner (optional)</label><select id="pm-f-owner"><option value="">—</option></select></div>
-    <div class="fld"><label>Notes (optional)</label><textarea id="pm-f-desc" maxlength="2000"></textarea></div>
+    <div class="fld"><label data-i18n="pm.fOwner">Owner (optional)</label><select id="pm-f-owner"><option value="">—</option></select></div>
+    <div class="fld"><label data-i18n="pm.fNotes">Notes (optional)</label><textarea id="pm-f-desc" maxlength="2000"></textarea></div>
     <div class="pm-modal-foot">
       <span class="pm-err" id="pm-f-err" style="flex:1"></span>
-      <button class="btn btn-ghost btn-sm" id="pm-cancel">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="pm-create">Create plan</button>
+      <button class="btn btn-ghost btn-sm" id="pm-cancel" data-i18n="pm.cancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="pm-create" data-i18n="pm.create">Create plan</button>
     </div>
   </div>
 </div>

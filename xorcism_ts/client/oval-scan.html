@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — OVAL scan results</title>
+<title data-i18n="ov.pageTitle">XORCISM — OVAL scan results</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .ov-wrap{max-width:1240px;margin:0 auto;padding:18px}
@@ -33,23 +33,19 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XOVAL&amp;table=OVALRESULTS">&#9881;&#65039; OVAL results table</a>
-  <a href="/?db=XOVAL&amp;table=OVALDEFINITION">&#128218; OVAL definitions</a>
-  <a href="/asset-management">&#128187; Assets</a>
+  <a href="/?db=XOVAL&amp;table=OVALRESULTS" data-i18n="ov.navResults">&#9881;&#65039; OVAL results table</a>
+  <a href="/?db=XOVAL&amp;table=OVALDEFINITION" data-i18n="ov.navDefs">&#128218; OVAL definitions</a>
+  <a href="/asset-management" data-i18n="ov.navAssets">&#128187; Assets</a>
   <span class="spacer"></span>
-  <span class="title">&#129516; OVAL scan results</span>
+  <span class="title" data-i18n="ov.navTitle">&#129516; OVAL scan results</span>
 </div>
 
 <div class="ov-wrap">
   <div>
-    <h1>OVAL scan results</h1>
-    <div class="ov-sub">Verdicts from the XOR agent's OpenSCAP (<code>oscap oval eval</code>) evaluations against
-      each host's distro / SSG content — <b>vulnerability</b> (CVE detected), <b>compliance</b> (configuration
-      pass/fail) and <b>inventory</b> (installed software). Vulnerability hits flow to
-      <a href="/asset-management">Asset Management</a> as <code>ASSETVULNERABILITY</code>; the raw verdicts live in
-      <a href="/?db=XOVAL&amp;table=OVALRESULTS"><code>XOVAL.OVALRESULTS</code></a>.</div>
+    <h1 data-i18n="ov.title">OVAL scan results</h1>
+    <div class="ov-sub" data-i18n="ov.sub">Verdicts from the XOR agent's OpenSCAP (oscap oval eval) evaluations against each host's distro / SSG content — vulnerability (CVE detected), compliance (configuration pass/fail) and inventory (installed software). Vulnerability hits flow to Asset Management as ASSETVULNERABILITY; the raw verdicts live in XOVAL.OVALRESULTS.</div>
   </div>
-  <div id="ov-body"><div class="muted" style="padding:24px;text-align:center">Loading OVAL results…</div></div>
+  <div id="ov-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="ov.loading">Loading OVAL results…</div></div>
 </div>
 
 <script src="/js/session-ui.js"></script>

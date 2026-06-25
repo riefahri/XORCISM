@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Identity Threat Detection &amp; Response</title>
+<title data-i18n="itdr.pageTitle">XORCISM — Identity Threat Detection &amp; Response</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .it-wrap{max-width:1340px;margin:0 auto;padding:18px}
@@ -53,20 +53,20 @@
 <body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/identities">&#128273; Identities</a>
-  <a href="/zero-trust">&#128737;&#65039; Zero Trust</a>
-  <a href="/soc">&#128225; SOC</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/identities" data-i18n="itdr.navIdentities">&#128273; Identities</a>
+  <a href="/zero-trust" data-i18n="itdr.navZeroTrust">&#128737;&#65039; Zero Trust</a>
+  <a href="/soc" data-i18n="itdr.navSoc">&#128225; SOC</a>
   <span class="spacer"></span>
-  <span class="title">&#128373;&#65039; Identity Threat Detection &amp; Response</span>
+  <span class="title" data-i18n="itdr.navTitle">&#128373;&#65039; Identity Threat Detection &amp; Response</span>
 </div>
 <div class="it-wrap">
-  <h1>Identity Threat Detection &amp; Response (ITDR)</h1>
-  <div class="it-sub">Detects identity-based attacks from your sign-in telemetry (<b>IDENTITYSIGNIN</b>) and identity
+  <h1 data-i18n="itdr.title">Identity Threat Detection &amp; Response (ITDR)</h1>
+  <div class="it-sub" data-i18n="itdr.sub">Detects identity-based attacks from your sign-in telemetry (<b>IDENTITYSIGNIN</b>) and identity
     posture (<b>IDENTITY</b>) — brute force, password spraying, impossible travel, MFA fatigue, IdP-flagged risk,
     credential compromise, dormant-account reactivation, and privileged exposure. Each detection is mapped to a
     <b>MITRE ATT&amp;CK</b> technique with a recommended response; triage detections and raise an incident when needed.</div>
-  <div id="it-body"><div class="muted" style="padding:24px;text-align:center">Running identity threat detectors…</div></div>
+  <div id="it-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="itdr.loading">Running identity threat detectors…</div></div>
 </div>
 <div id="toast"></div>
 <script src="/js/session-ui.js"></script>

@@ -5,10 +5,19 @@
  */
 import { Router, Request, Response } from "express";
 import { userCan, clientIp } from "../auth";
-import { riskRegisterInventory, createRiskRegisterEntry } from "../riskregister";
+import {
+  riskRegisterInventory, createRiskRegisterEntry,
+  getRiskGovernance, saveRiskStrategy, createMeasure, updateMeasure,
+  entryMeasures, linkMeasure, unlinkMeasure, setLinkStatus,
+} from "../riskregister";
 import * as xid from "../xid";
 
 const router = Router();
+
+// helpers shared by the governance endpoints
+function tenantOf(req: Request): number | null { return req.user!.isSuperAdmin ? null : (req.user!.tenantId ?? null); }
+function canRead(req: Request): boolean { return userCan(req.user!, "read", "XCOMPLIANCE", "RISKREGISTERENTRY"); }
+function canWrite(req: Request): boolean { return userCan(req.user!, "update", "XCOMPLIANCE", "RISKREGISTERENTRY") || userCan(req.user!, "create", "XCOMPLIANCE", "RISKREGISTERENTRY"); }
 
 // GET /api/risk-register — risk register inventory + treatment/governance worklist
 router.get("/risk-register", (req: Request, res: Response) => {
@@ -46,6 +55,93 @@ router.post("/risk-register/entry", (req: Request, res: Response) => {
       resourceKey: String(out.id), detail: `title="${title}"`, ip: clientIp(req) });
     res.json({ ok: true, ...out });
   } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// ── Risk-management strategy / appetite / measures library ────────────────────────
+// GET /api/risk-register/governance — strategy + appetite + measures library
+router.get("/risk-register/governance", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  res.json(getRiskGovernance(tenantOf(req)));
+});
+
+// POST /api/risk-register/strategy — upsert the strategy + replace appetite rows
+router.post("/risk-register/strategy", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  try {
+    saveRiskStrategy(tenantOf(req), (req.body || {}) as Record<string, never>);
+    xid.addAudit({ userId: req.user.UserID ?? null, action: "risk_strategy_save", resourceType: "RISKSTRATEGY", resourceKey: "1", detail: "", ip: clientIp(req) });
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// POST /api/risk-register/measure — create a measure in the library
+router.post("/risk-register/measure", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as Record<string, unknown>;
+  const name = String(b.name ?? "").trim();
+  if (!name) return void res.status(400).json({ error: "name required" });
+  try {
+    const out = createMeasure(tenantOf(req), {
+      name, ref: b.ref ? String(b.ref) : undefined, description: b.description ? String(b.description) : undefined,
+      measureType: b.measureType ? String(b.measureType) : undefined, category: b.category ? String(b.category) : undefined,
+      controlRef: b.controlRef ? String(b.controlRef) : undefined, effectiveness: b.effectiveness ? String(b.effectiveness) : undefined,
+      cost: b.cost ? String(b.cost) : undefined, status: b.status ? String(b.status) : undefined,
+    });
+    res.json({ ok: true, ...out });
+  } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// POST /api/risk-register/measure/update — patch a measure (status / fields)
+router.post("/risk-register/measure/update", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as Record<string, unknown>;
+  const id = Number(b.id);
+  if (!id) return void res.status(400).json({ error: "id required" });
+  try { updateMeasure(tenantOf(req), id, b); res.json({ ok: true }); }
+  catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// GET /api/risk-register/entry/:id/measures — measures linked to a register entry
+router.get("/risk-register/entry/:id/measures", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  res.json({ measures: entryMeasures(tenantOf(req), Number(req.params.id)) });
+});
+
+// POST /api/risk-register/entry/:id/measure — link a measure to an entry
+router.post("/risk-register/entry/:id/measure", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as Record<string, unknown>;
+  const measureId = Number(b.measureId);
+  if (!measureId) return void res.status(400).json({ error: "measureId required" });
+  try { res.json({ ok: true, ...linkMeasure(tenantOf(req), Number(req.params.id), measureId, b.status ? String(b.status) : undefined) }); }
+  catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// POST /api/risk-register/link/update — set an entry↔measure link's implementation status
+router.post("/risk-register/link/update", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as Record<string, unknown>;
+  const linkId = Number(b.linkId);
+  if (!linkId) return void res.status(400).json({ error: "linkId required" });
+  try { setLinkStatus(tenantOf(req), linkId, String(b.status ?? "Planned")); res.json({ ok: true }); }
+  catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// POST /api/risk-register/link/delete — unlink a measure from an entry
+router.post("/risk-register/link/delete", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canWrite(req)) return void res.status(403).json({ error: "forbidden" });
+  const linkId = Number((req.body || {}).linkId);
+  if (!linkId) return void res.status(400).json({ error: "linkId required" });
+  try { unlinkMeasure(tenantOf(req), linkId); res.json({ ok: true }); }
+  catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
 });
 
 export default router;

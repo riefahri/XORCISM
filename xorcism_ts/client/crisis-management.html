@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Crisis Management</title>
+<title data-i18n="cris.pageTitle">XORCISM — Crisis Management</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .cr-wrap{max-width:1280px;margin:0 auto;padding:18px}
@@ -53,29 +53,20 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XCOMPLIANCE&amp;table=AUDIT">&#127913; Exercises</a>
-  <a href="/?db=XCOMPLIANCE&amp;table=CRISISSCENARIO">&#128220; Scenarios</a>
-  <a href="/compliance-management">&#9878;&#65039; Compliance</a>
-  <a href="/incident-management">&#128680; Incidents</a>
+  <a href="/?db=XCOMPLIANCE&amp;table=AUDIT" data-i18n="cris.navExercises">&#127913; Exercises</a>
+  <a href="/?db=XCOMPLIANCE&amp;table=CRISISSCENARIO" data-i18n="cris.navScenarios">&#128220; Scenarios</a>
+  <a href="/compliance-management" data-i18n="cris.navCompliance">&#9878;&#65039; Compliance</a>
+  <a href="/incident-management" data-i18n="cris.navIncidents">&#128680; Incidents</a>
   <span class="spacer"></span>
-  <span class="title">&#127982; Crisis Management</span>
+  <span class="title" data-i18n="cris.navTitle">&#127982; Crisis Management</span>
 </div>
 
 <div class="cr-wrap">
   <div>
-    <h1>Crisis Management &amp; Tabletop Exercises</h1>
-    <div class="cr-sub">Run and track <b>tabletop exercises (TTX)</b> against a library of <b>crisis scenarios</b>
-      (ransomware, data breach, DDoS, insider, supply-chain&hellip;). Each exercise is an audit of type
-      <i>Tabletop Exercise</i> — so its observations become <b>improvement actions</b> (findings) and its
-      <b>after-action report</b> a linked document. The worklist surfaces what matters: <b>overdue improvement
-      actions</b>, <b>scenarios never exercised</b>, and exercises <b>with no after-action report</b>. A single
-      <b>crisis-readiness score</b> blends exercise completion with scenario coverage. Launch an exercise from any
-      scenario below; manage entries under
-      <a href="/?db=XCOMPLIANCE&amp;table=AUDIT">Exercises</a> /
-      <a href="/?db=XCOMPLIANCE&amp;table=EXERCISEINJECT">Injects</a> /
-      <a href="/?db=XCOMPLIANCE&amp;table=AUDITFINDING">Improvement actions</a>.</div>
+    <h1 data-i18n="cris.title">Crisis Management &amp; Tabletop Exercises</h1>
+    <div class="cr-sub" data-i18n="cris.sub">Run and track tabletop exercises (TTX) against a library of crisis scenarios (ransomware, data breach, DDoS, insider, supply-chain…). Each exercise is an audit of type Tabletop Exercise — so its observations become improvement actions (findings) and its after-action report a linked document. The worklist surfaces what matters: overdue improvement actions, scenarios never exercised, and exercises with no after-action report. A single crisis-readiness score blends exercise completion with scenario coverage. Launch an exercise from any scenario below; manage entries under Exercises / Injects / Improvement actions.</div>
   </div>
-  <div id="cr-body"><div class="muted" style="padding:24px;text-align:center">Building the crisis-readiness picture…</div></div>
+  <div id="cr-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="cris.loading">Building the crisis-readiness picture…</div></div>
 </div>
 
 <script src="/js/session-ui.js"></script>

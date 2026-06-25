@@ -3,8 +3,11 @@
  * over assets with status, uptime %, response time, SSL expiry and incidents, from /api/asset-monitoring.
  * Create monitors (guided modal) and change a monitor's status inline.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface Check { id: number; assetId: number | null; asset: string; name: string; type: string; target: string; enabled: boolean; status: string; uptime: number | null; responseTime: number | null; lastChecked: string | null; sslExpiry: string | null; sslDays: number | null; source: string; }
 interface Incident { id: number; monitor: string; asset: string; title: string; status: string; severity: string; startedAt: string | null; resolvedAt: string | null; open: boolean; }
@@ -22,13 +25,13 @@ function card(lbl: string, val: string, foot: string, color?: string): string {
 function sslCell(c: Check): string {
   if (c.sslExpiry == null) return `<span class="muted">—</span>`;
   const cls = c.sslDays == null ? "ssl-ok" : c.sslDays < 0 ? "ssl-over" : c.sslDays <= 30 ? "ssl-soon" : "ssl-ok";
-  const txt = c.sslDays != null ? (c.sslDays < 0 ? `expired ${-c.sslDays}d` : `${c.sslDays}d left`) : c.sslExpiry;
+  const txt = c.sslDays != null ? (c.sslDays < 0 ? fmt("am.sslExpired", { n: -c.sslDays }) : fmt("am.sslDaysLeft", { n: c.sslDays })) : c.sslExpiry;
   return `<span class="${cls}" title="${esc(c.sslExpiry)}">${esc(txt)}</span>`;
 }
 function rowHtml(c: Check): string {
   const opts = STATUSES.map((s) => `<option${s === c.status ? " selected" : ""}>${esc(s)}</option>`).join("");
   return `<tr data-id="${c.id}">
-    <td><span class="dot d-${c.status}"></span><span class="aname">${esc(c.name)}</span>${!c.enabled ? ' <span class="muted" style="font-size:10px">(disabled)</span>' : ""}<div class="mono muted" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.target)}</div></td>
+    <td><span class="dot d-${c.status}"></span><span class="aname">${esc(c.name)}</span>${!c.enabled ? ` <span class="muted" style="font-size:10px">${t("am.disabled")}</span>` : ""}<div class="mono muted" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.target)}</div></td>
     <td>${c.asset ? `<a href="/?db=XORCISM&table=ASSET&editCol=AssetID&editVal=${c.assetId}">${esc(c.asset)}</a>` : "<span class='muted'>—</span>"}</td>
     <td><span class="ty">${esc(c.type)}</span></td>
     <td>${c.uptime != null ? `${c.uptime}%` : "<span class='muted'>—</span>"}</td>
@@ -48,8 +51,8 @@ function renderTable(): void {
   const rows = applyFilters();
   const host = $("mn-table-host");
   host.innerHTML = rows.length
-    ? `<table class="mn"><thead><tr><th>Monitor</th><th>Asset</th><th>Type</th><th>Uptime</th><th>Response</th><th>SSL</th><th>Status</th></tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:14px 0">No matching monitors.</div>`;
+    ? `<table class="mn"><thead><tr><th>${t("am.thMonitor")}</th><th>${t("am.thAsset")}</th><th>${t("am.thType")}</th><th>${t("am.thUptime")}</th><th>${t("am.thResponse")}</th><th>${t("am.thSsl")}</th><th>${t("am.thStatus")}</th></tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:14px 0">${t("am.noMatch")}</div>`;
   host.querySelectorAll<HTMLSelectElement>("select.pst").forEach((sel) => sel.addEventListener("change", () => void setStatus(Number(sel.dataset.id), sel.value)));
   const cnt = $("mn-count"); if (cnt) cnt.textContent = `(${rows.length}/${DATA?.checks.length ?? 0})`;
 }
@@ -60,43 +63,40 @@ async function load(): Promise<void> {
   STATUSES = DATA!.statuses || [];
   const s = DATA!.summary;
   if (!DATA!.checks.length) {
-    $("mn-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">No monitors yet. Click <b>+ Add monitor</b> to create one,
-      or import from <b>CheckCle</b> via the <a href="/connectors">checkcle connector</a>.</div>`;
+    $("mn-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("am.emptyState")}</div>`;
     return;
   }
   const cards = [
-    card("Monitors", String(s.total), `${s.up} up · ${s.down} down`),
-    card("Up / Down", `${s.up} / ${s.down}`, "current status", s.down ? "#f87171" : "#34d399"),
-    card("Avg uptime", s.avgUptime != null ? `${s.avgUptime}%` : "—", "across monitors", s.avgUptime != null ? (s.avgUptime >= 99.9 ? "#34d399" : s.avgUptime >= 99 ? "#fbbf24" : "#f87171") : undefined),
-    card("SSL expiring", String(s.sslExpiringSoon), "≤ 30 days", s.sslExpiringSoon ? "#fbbf24" : "#34d399"),
-    card("Open incidents", String(s.openIncidents), "unresolved", s.openIncidents ? "#f87171" : "#34d399"),
-    card("Warning / paused", `${s.warning} / ${s.paused}`, "degraded / disabled"),
+    card(t("am.cMonitors"), String(s.total), fmt("am.cMonitors.foot", { up: s.up, down: s.down })),
+    card(t("am.cUpDown"), `${s.up} / ${s.down}`, t("am.cUpDown.foot"), s.down ? "#f87171" : "#34d399"),
+    card(t("am.cAvgUptime"), s.avgUptime != null ? `${s.avgUptime}%` : "—", t("am.cAvgUptime.foot"), s.avgUptime != null ? (s.avgUptime >= 99.9 ? "#34d399" : s.avgUptime >= 99 ? "#fbbf24" : "#f87171") : undefined),
+    card(t("am.cSslExpiring"), String(s.sslExpiringSoon), t("am.cSslExpiring.foot"), s.sslExpiringSoon ? "#fbbf24" : "#34d399"),
+    card(t("am.cOpenIncidents"), String(s.openIncidents), t("am.cOpenIncidents.foot"), s.openIncidents ? "#f87171" : "#34d399"),
+    card(t("am.cWarnPaused"), `${s.warning} / ${s.paused}`, t("am.cWarnPaused.foot")),
   ].join("");
   const byStatus = Object.entries(s.byStatus).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd"><span class="dot d-${esc(k)}"></span>${esc(k)} <b>${n}</b></span>`).join("");
   const byType = Object.entries(s.byType).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd"><span class="ty">${esc(k)}</span> <b>${n}</b></span>`).join("");
 
   const work = DATA!.worklist.length
     ? `<ul style="list-style:none;margin:0;padding:0">${DATA!.worklist.slice(0, 40).map((w) => `<li style="padding:5px 0;border-bottom:1px solid #1e2133;font-size:13px"><span class="stt st-${w.kind === "down" ? "down" : w.kind === "ssl" ? "warning" : "warning"}">${esc(w.kind)}</span> ${esc(w.label)}</li>`).join("")}</ul>`
-    : `<div class="muted" style="padding:8px 0">✓ All monitors healthy — no down monitors, SSL expiries or low uptime.</div>`;
+    : `<div class="muted" style="padding:8px 0">${t("am.allHealthy")}</div>`;
   const inc = DATA!.incidents.length
-    ? `<ul style="list-style:none;margin:0;padding:0">${DATA!.incidents.slice(0, 30).map((i) => `<li style="padding:5px 0;border-bottom:1px solid #1e2133;font-size:13px"><span class="stt st-${i.open ? "down" : "up"}">${i.open ? "open" : "resolved"}</span> ${esc(i.title)}${i.asset ? ` <span class="muted">· ${esc(i.asset)}</span>` : ""}${i.startedAt ? ` <span class="muted" style="font-size:11px">${esc(String(i.startedAt).slice(0, 16))}</span>` : ""}</li>`).join("")}</ul>`
-    : `<div class="muted" style="padding:8px 0">No incidents recorded.</div>`;
+    ? `<ul style="list-style:none;margin:0;padding:0">${DATA!.incidents.slice(0, 30).map((i) => `<li style="padding:5px 0;border-bottom:1px solid #1e2133;font-size:13px"><span class="stt st-${i.open ? "down" : "up"}">${i.open ? t("am.open") : t("am.resolved")}</span> ${esc(i.title)}${i.asset ? ` <span class="muted">· ${esc(i.asset)}</span>` : ""}${i.startedAt ? ` <span class="muted" style="font-size:11px">${esc(String(i.startedAt).slice(0, 16))}</span>` : ""}</li>`).join("")}</ul>`
+    : `<div class="muted" style="padding:8px 0">${t("am.noIncidents")}</div>`;
 
   const filters = `<div class="filters">
-    <input id="mn-search" type="search" placeholder="Search monitor / asset / target…" style="flex:1;min-width:200px">
-    <select id="mn-type"><option value="">All types</option>${(DATA!.checkTypes || []).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
-    <select id="mn-status"><option value="">All statuses</option>${STATUSES.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+    <input id="mn-search" type="search" placeholder="${t("am.searchPh")}" style="flex:1;min-width:200px">
+    <select id="mn-type"><option value="">${t("am.allTypes")}</option>${(DATA!.checkTypes || []).map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+    <select id="mn-status"><option value="">${t("am.allStatuses")}</option>${STATUSES.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
     <span id="mn-count" class="muted" style="font-size:12px"></span></div>`;
 
   $("mn-body").innerHTML = `<div class="mn-cards">${cards}</div>
-    <div class="mn-section">By status</div><div class="breakdown">${byStatus}</div>
-    <div class="mn-section">By type</div><div class="breakdown">${byType}</div>
-    <div class="mn-section">Attention worklist (${DATA!.worklist.length})</div>${work}
-    <div class="mn-section">Monitors</div>${filters}<div id="mn-table-host"></div>
-    <div class="mn-section">Incidents (${DATA!.incidents.length})</div>${inc}
-    <div class="legend">↳ Change a monitor's <b>status</b> in the table (opens/resolves an incident on up↔down).
-      Import live data with the <a href="/connectors">checkcle</a> connector. Raw rows:
-      <a href="/?db=XORCISM&table=MONITORINGCHECK">MONITORINGCHECK</a> / <a href="/?db=XORCISM&table=MONITORINGINCIDENT">MONITORINGINCIDENT</a>.</div>`;
+    <div class="mn-section">${t("am.secByStatus")}</div><div class="breakdown">${byStatus}</div>
+    <div class="mn-section">${t("am.secByType")}</div><div class="breakdown">${byType}</div>
+    <div class="mn-section">${fmt("am.secWorklist", { n: DATA!.worklist.length })}</div>${work}
+    <div class="mn-section">${t("am.secMonitors")}</div>${filters}<div id="mn-table-host"></div>
+    <div class="mn-section">${fmt("am.secIncidents", { n: DATA!.incidents.length })}</div>${inc}
+    <div class="legend">${t("am.legend")}</div>`;
   for (const id of ["mn-search", "mn-type", "mn-status"]) $(id).addEventListener("input", renderTable);
   renderTable();
 }
@@ -111,7 +111,7 @@ async function setStatus(id: number, status: string): Promise<void> {
   try {
     const r = await fetch("/api/asset-monitoring/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkId: id, status }) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    toast(`✅ Status → <b>${esc(status)}</b>`); await load();
+    toast(fmt("am.toastStatus", { s: esc(status) })); await load();
   } catch (e) { toast(`⚠️ ${e}`); }
 }
 
@@ -207,17 +207,17 @@ async function runActivate(): Promise<void> {
   const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement).value;
   const assetId = v("mn-act-asset");
   const err = $("mn-act-err");
-  if (!assetId) { err.textContent = "⚠️ Pick an asset."; return; }
+  if (!assetId) { err.textContent = t("am.pickAsset"); return; }
   const types = Array.from(document.querySelectorAll<HTMLInputElement>(".mn-act-type:checked")).map((c) => c.value);
-  const btn = $("mn-act-go") as HTMLButtonElement; btn.disabled = true; err.textContent = "Activating…";
+  const btn = $("mn-act-go") as HTMLButtonElement; btn.disabled = true; err.textContent = t("am.activating");
   try {
     const body = { assetId, intervalSeconds: v("mn-act-interval") || undefined,
       cronExpression: v("mn-act-cron").trim() || undefined, ownerPersonId: v("mn-act-owner") || undefined, types };
     const r = await fetch("/api/asset-monitoring/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     closeActivate(); await load();
-    toast(d.created ? `✅ Activated ${d.created} monitor(s)${d.skipped ? ` · ${d.skipped} already existed` : ""}`
-      : `✓ No new monitors — ${d.skipped} already existed, or the asset has no IP/URL`);
+    toast(d.created ? `${fmt("am.toastActivated", { n: d.created })}${d.skipped ? ` · ${fmt("am.toastActivatedSkip", { n: d.skipped })}` : ""}`
+      : fmt("am.toastNoNew", { n: d.skipped }));
   } catch (e) { err.textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
@@ -227,8 +227,8 @@ async function createMonitor(): Promise<void> {
   const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement).value;
   const name = v("mn-f-name").trim();
   const err = $("mn-f-err");
-  if (!name) { err.textContent = "⚠️ Enter a name."; return; }
-  const btn = $("mn-create") as HTMLButtonElement; btn.disabled = true; err.textContent = "Adding…";
+  if (!name) { err.textContent = t("am.enterName"); return; }
+  const btn = $("mn-create") as HTMLButtonElement; btn.disabled = true; err.textContent = t("am.adding");
   try {
     const body = {
       name, type: v("mn-f-type"), target: v("mn-f-target").trim() || undefined,
@@ -238,23 +238,24 @@ async function createMonitor(): Promise<void> {
     };
     const r = await fetch("/api/asset-monitoring/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    closeModal(); await load(); toast(`✅ Monitor added`);
+    closeModal(); await load(); toast(t("am.toastMonitorAdded"));
   } catch (e) { err.textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
 
 async function runChecks(): Promise<void> {
-  const btn = $("mn-run") as HTMLButtonElement; btn.disabled = true; const label = btn.textContent; btn.textContent = "Checking…";
+  const btn = $("mn-run") as HTMLButtonElement; btn.disabled = true; const label = btn.textContent; btn.textContent = t("am.checking");
   try {
     const r = await fetch("/api/asset-monitoring/run-checks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     await load();
-    toast(d.checked ? `✅ Probed ${d.checked} due monitor(s)` : `✓ No monitors due for a check right now`);
+    toast(d.checked ? fmt("am.toastProbed", { n: d.checked }) : t("am.toastNoneDue"));
   } catch (e) { toast(`⚠️ ${e}`); }
   finally { btn.disabled = false; btn.textContent = label; }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("mn-run").addEventListener("click", () => void runChecks());
   $("mn-new").addEventListener("click", openModal);
   $("mn-cancel").addEventListener("click", closeModal);

@@ -1,12 +1,15 @@
 /** fair-tef.ts — FAIR Threat/Loss Event Frequency estimator (/fair-tef). Reads /api/fair-tef. */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLInputElement { return document.getElementById(id) as HTMLInputElement; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const tfmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, val]) => s.split(`{${k}}`).join(String(val)), t(key));
 function v(id: string): number { const n = parseFloat($(id).value); return Number.isFinite(n) ? n : 0; }
 const triple = (p: string): [number, number, number] => [v(p + "0"), v(p + "1"), v(p + "2")];
 function toast(m: string): void { const e = document.getElementById("toast")!; e.textContent = m; e.className = "show"; setTimeout(() => { e.className = ""; }, 2400); }
 let CCY = "EUR";
 function money(n: number | null | undefined): string { if (n == null) return "—"; const a = Math.abs(n); const s = a >= 1e9 ? (n / 1e9).toFixed(2) + "B" : a >= 1e6 ? (n / 1e6).toFixed(2) + "M" : a >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(Math.round(n)); return s + " " + CCY; }
-function freq(n: number): string { if (!n) return "0 /yr"; return n >= 1 ? n.toFixed(2) + " /yr" : `${n.toFixed(3)} /yr (~1 in ${Math.round(1 / n)} yr)`; }
+function freq(n: number): string { const u = t("ftef.perYr"); if (!n) return "0 " + u; return n >= 1 ? n.toFixed(2) + " " + u : `${n.toFixed(3)} ${u} ${tfmt("ftef.oneIn", { n: Math.round(1 / n) })}`; }
 
 function payload(): any {
   const fm = $("fairmam").value;
@@ -40,22 +43,22 @@ const card = (lbl: string, val: string, foot: string, color?: string): string =>
 function renderResult(d: any): void {
   const hasAle = !!d.ale;
   const cards = [
-    card("TEF", freq(d.tef.mean), `threat events / yr`, "#60a5fa"),
-    card("Vulnerability", (d.vulnerability * 100).toFixed(0) + "%", "P(TCap > RS)", d.vulnerability >= 0.5 ? "#f87171" : "#fbbf24"),
-    card("LEF", freq(d.lef.mean), "loss events / yr", "#a78bfa"),
-    hasAle ? card("ALE (mean)", money(d.ale.mean), "annualized loss", "#f97316") : card("LEF p90", freq(d.lef.p90), "90th percentile", "#a78bfa"),
+    card("TEF", freq(d.tef.mean), t("ftef.cTefFoot"), "#60a5fa"),
+    card(t("ftef.cVuln"), (d.vulnerability * 100).toFixed(0) + "%", "P(TCap > RS)", d.vulnerability >= 0.5 ? "#f87171" : "#fbbf24"),
+    card("LEF", freq(d.lef.mean), t("ftef.cLefFoot"), "#a78bfa"),
+    hasAle ? card(t("ftef.cAle"), money(d.ale.mean), t("ftef.cAleFoot"), "#f97316") : card("LEF p90", freq(d.lef.p90), t("ftef.cP90Foot"), "#a78bfa"),
   ].join("");
   const tree = `<div class="tree">
-    <b>TEF ${freq(d.tef.mean)}</b> <span class="muted">(Contact Freq × Prob. of Action)</span><br>
-    × Vulnerability <b>${(d.vulnerability * 100).toFixed(0)}%</b> = <b>LEF ${freq(d.lef.mean)}</b>${hasAle ? `<br>× Loss Magnitude <b>${money(d.lossMagnitude)}</b> = <b>ALE ${money(d.ale.mean)}</b>` : ""}</div>`;
-  const ranges = `<table class="t"><thead><tr><th>Metric</th><th class="r">min</th><th class="r">p10</th><th class="r">p50</th><th class="r">mean</th><th class="r">p90</th><th class="r">max</th></tr></thead><tbody>
-    <tr><td>TEF /yr</td><td class="r">${d.tef.min}</td><td class="r">${d.tef.p10}</td><td class="r">${d.tef.p50}</td><td class="r">${d.tef.mean}</td><td class="r">${d.tef.p90}</td><td class="r">${d.tef.max}</td></tr>
-    <tr><td>LEF /yr</td><td class="r">${d.lef.min}</td><td class="r">${d.lef.p10}</td><td class="r">${d.lef.p50}</td><td class="r">${d.lef.mean}</td><td class="r">${d.lef.p90}</td><td class="r">${d.lef.max}</td></tr>
+    <b>TEF ${freq(d.tef.mean)}</b> <span class="muted">${t("ftef.treeTef")}</span><br>
+    × ${t("ftef.cVuln")} <b>${(d.vulnerability * 100).toFixed(0)}%</b> = <b>LEF ${freq(d.lef.mean)}</b>${hasAle ? `<br>× ${t("ftef.lossMag")} <b>${money(d.lossMagnitude)}</b> = <b>ALE ${money(d.ale.mean)}</b>` : ""}</div>`;
+  const ranges = `<table class="t"><thead><tr><th>${t("ftef.thMetric")}</th><th class="r">min</th><th class="r">p10</th><th class="r">p50</th><th class="r">${t("ftef.thMean")}</th><th class="r">p90</th><th class="r">max</th></tr></thead><tbody>
+    <tr><td>TEF ${t("ftef.perYr")}</td><td class="r">${d.tef.min}</td><td class="r">${d.tef.p10}</td><td class="r">${d.tef.p50}</td><td class="r">${d.tef.mean}</td><td class="r">${d.tef.p90}</td><td class="r">${d.tef.max}</td></tr>
+    <tr><td>LEF ${t("ftef.perYr")}</td><td class="r">${d.lef.min}</td><td class="r">${d.lef.p10}</td><td class="r">${d.lef.p50}</td><td class="r">${d.lef.mean}</td><td class="r">${d.lef.p90}</td><td class="r">${d.lef.max}</td></tr>
     ${hasAle ? `<tr><td>ALE ${esc(CCY)}</td><td class="r">${money(d.ale.min)}</td><td class="r">${money(d.ale.p10)}</td><td class="r">${money(d.ale.p50)}</td><td class="r">${money(d.ale.mean)}</td><td class="r">${money(d.ale.p90)}</td><td class="r">${money(d.ale.max)}</td></tr>` : ""}
   </tbody></table>`;
   document.getElementById("result")!.innerHTML = `<div class="cards">${cards}</div>${tree}
     ${lecChart(d.lec, hasAle)}
-    <div class="sec2" style="margin:12px 0 6px">Distribution (${d.iterations.toLocaleString()} runs)</div>${ranges}`;
+    <div class="sec2" style="margin:12px 0 6px">${tfmt("ftef.distribution", { n: d.iterations.toLocaleString() })}</div>${ranges}`;
 }
 
 function renderInventory(d: any): void {
@@ -64,31 +67,32 @@ function renderInventory(d: any): void {
   const rk = $("risk"); rk.innerHTML = `<option value="">— none —</option>` + d.risks.map((r: any) => `<option value="${r.id}">${esc(r.ref)} — ${esc(r.title)}</option>`).join("");
   const s = d.summary;
   const cards = [
-    card("Estimates", String(s.assessments), "saved"),
-    card("Total ALE", money(s.totalAle), "across estimates", "#f97316"),
-    card("Largest ALE", money(s.largestAle), "single scenario", "#f87171"),
-    card("Avg LEF", freq(s.avgLef), "loss events / yr", "#a78bfa"),
+    card(t("ftef.cEstimates"), String(s.assessments), t("ftef.cEstimatesFoot")),
+    card(t("ftef.cTotalAle"), money(s.totalAle), t("ftef.cTotalAleFoot"), "#f97316"),
+    card(t("ftef.cLargestAle"), money(s.largestAle), t("ftef.cLargestAleFoot"), "#f87171"),
+    card(t("ftef.cAvgLef"), freq(s.avgLef), t("ftef.cLefFoot"), "#a78bfa"),
   ].join("");
   const rows = d.assessments.length
-    ? `<table class="t"><thead><tr><th>Name</th><th class="r">TEF</th><th class="r">Vuln</th><th class="r">LEF</th><th class="r">Loss mag.</th><th class="r">ALE</th><th class="r">ALE p90</th><th>Date</th></tr></thead><tbody>${d.assessments.map((a: any) => `<tr>
+    ? `<table class="t"><thead><tr><th>${t("ftef.thName")}</th><th class="r">TEF</th><th class="r">${t("ftef.thVuln")}</th><th class="r">LEF</th><th class="r">${t("ftef.thLossMag")}</th><th class="r">ALE</th><th class="r">ALE p90</th><th>${t("ftef.thDate")}</th></tr></thead><tbody>${d.assessments.map((a: any) => `<tr>
       <td>${esc(a.name)}${a.threatCommunity ? `<div class="muted" style="font-size:10px">${esc(a.threatCommunity)}</div>` : ""}</td>
       <td class="r">${a.tef.toFixed(3)}</td><td class="r">${(a.vuln * 100).toFixed(0)}%</td><td class="r">${a.lef.toFixed(3)}</td>
       <td class="r">${a.lossMagnitude ? money(a.lossMagnitude) : "—"}</td><td class="r">${a.ale != null ? money(a.ale) : "—"}</td><td class="r">${a.aleP90 != null ? money(a.aleP90) : "—"}</td>
       <td class="muted" style="font-size:11px">${esc(a.createdDate || "")}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:8px 0">No saved estimates yet.</div>`;
+    : `<div class="muted" style="padding:8px 0">${t("ftef.noEstimates")}</div>`;
   document.getElementById("inventory")!.innerHTML = `<div class="cards">${cards}</div>${rows}`;
 }
 
 function load(): void {
-  fetch("/api/fair-tef").then((r) => r.json()).then((d) => { CCY = (d.summary && d.summary.currency) || "EUR"; renderInventory(d); }).catch(() => { document.getElementById("inventory")!.innerHTML = `<div class="muted">⚠️ failed to load</div>`; });
+  fetch("/api/fair-tef").then((r) => r.json()).then((d) => { CCY = (d.summary && d.summary.currency) || "EUR"; renderInventory(d); }).catch(() => { document.getElementById("inventory")!.innerHTML = `<div class="muted">${t("ftef.loadFailed")}</div>`; });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   load();
   $("ccy").addEventListener("change", () => { CCY = $("ccy").value.trim() || "EUR"; });
   document.getElementById("btn-estimate")!.addEventListener("click", () => {
     CCY = $("ccy").value.trim() || "EUR";
-    document.getElementById("result")!.innerHTML = `<div class="muted" style="padding:24px;text-align:center">Simulating…</div>`;
+    document.getElementById("result")!.innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("ftef.simulating")}</div>`;
     fetch("/api/fair-tef/compute", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload()) })
       .then((r) => r.json()).then((d) => { if (d.error) throw new Error(d.error); renderResult(d); }).catch((e) => { document.getElementById("result")!.innerHTML = `<div class="muted" style="padding:20px;text-align:center">⚠️ ${esc(e.message || e)}</div>`; });
   });
@@ -97,8 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((r) => r.json()).then((d) => {
         if (d.error) throw new Error(d.error);
         if (d.result) renderResult(d.result);
-        toast(d.riskWriteback ? `Saved · wrote LEF ${d.riskWriteback.lef}/yr${d.riskWriteback.ale != null ? ` + ALE ${money(d.riskWriteback.ale)}` : ""} to ${d.riskWriteback.ref}` : "Estimate saved");
+        toast(d.riskWriteback ? tfmt("ftef.savedWriteback", { lef: d.riskWriteback.lef, ale: d.riskWriteback.ale != null ? ` + ALE ${money(d.riskWriteback.ale)}` : "", ref: d.riskWriteback.ref }) : t("ftef.savedEstimate"));
         load();
-      }).catch((e) => toast("Save failed: " + (e.message || e)));
+      }).catch((e) => toast(tfmt("ftef.saveFailed", { e: e.message || e })));
   });
 });

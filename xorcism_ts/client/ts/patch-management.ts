@@ -3,8 +3,11 @@
  * lifecycle: KPIs (coverage, MTTR, KEV-unpatched, overdue SLA), a prioritized worklist with inline
  * patch-status changes and a remediation-plan modal, from /api/patch-management.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface Row {
   id: number; assetId: number; asset: string; criticality: string; cve: string; vulnerabilityId: number; name: string;
@@ -34,7 +37,7 @@ function dueCell(r: Row): string {
   if (r.resolved) return `<span class="muted">—</span>`;
   if (r.due == null) return `<span class="muted">—</span>`;
   const cls = r.overdue ? "due-over" : (r.dueIn != null && r.dueIn <= 14 ? "due-soon" : "due-ok");
-  const txt = r.dueIn != null ? (r.dueIn < 0 ? `${-r.dueIn}d overdue` : `${r.dueIn}d`) : r.due;
+  const txt = r.dueIn != null ? (r.dueIn < 0 ? fmt("pm.overdueD", { n: -r.dueIn }) : fmt("pm.dD", { n: r.dueIn })) : r.due;
   return `<span class="${cls}" title="${esc(r.due)}">${esc(txt)}</span>`;
 }
 
@@ -53,10 +56,10 @@ function rowHtml(r: Row): string {
     <td><a href="/?db=XORCISM&table=ASSET&editCol=AssetID&editVal=${r.assetId}">${esc(r.asset)}</a>${r.criticality ? `<div class="muted" style="font-size:11px">${esc(r.criticality)}${r.publicFacing ? " · internet" : ""}</div>` : (r.publicFacing ? `<div class="muted" style="font-size:11px">internet</div>` : "")}</td>
     <td><span class="sev ${sevClass(r.severity)}">${esc(r.severity)}</span>${r.cvss != null ? `<div class="muted" style="font-size:11px">CVSS ${esc(r.cvss)}</div>` : ""}</td>
     <td>${r.epss != null ? (r.epss * 100).toFixed(0) + "%" : "<span class='muted'>—</span>"}</td>
-    <td><span class="pa ${r.patchAvailable ? "pa-y" : "pa-n"}">${r.patchAvailable ? "available" : "none"}</span></td>
+    <td><span class="pa ${r.patchAvailable ? "pa-y" : "pa-n"}">${r.patchAvailable ? t("pm.available") : t("pm.none")}</span></td>
     <td>${dueCell(r)}</td>
     <td><select class="pst" data-id="${r.id}">${opts}</select></td>
-    <td>${r.hasPlan ? `<span class="plan" title="${esc(r.planStatus)}">✓ ${esc(r.planType || "plan")}</span>` : `<button class="btn btn-ghost btn-sm pm-plan" data-id="${r.id}" style="padding:2px 8px;font-size:11px">+ plan</button>`}</td>
+    <td>${r.hasPlan ? `<span class="plan" title="${esc(r.planStatus)}">✓ ${esc(r.planType || t("pm.plan"))}</span>` : `<button class="btn btn-ghost btn-sm pm-plan" data-id="${r.id}" style="padding:2px 8px;font-size:11px">${t("pm.addPlan")}</button>`}</td>
   </tr>`;
 }
 
@@ -77,9 +80,9 @@ function renderTable(): void {
   const rows = applyFilters();
   const host = $("pm-table-host");
   host.innerHTML = rows.length
-    ? `<table class="pm"><thead><tr><th>CVE</th><th title="Prioritization score 0-100 (threat × severity × asset × urgency) and recommended priority">Risk</th><th>Asset</th><th>Severity</th><th>EPSS</th><th>Patch</th><th title="Patch SLA due">Due</th><th>Patch status</th><th>Plan</th></tr></thead>
-        <tbody>${rows.slice(0, 400).map(rowHtml).join("")}</tbody></table>${rows.length > 400 ? `<div class="muted" style="font-size:11px;margin-top:6px">Showing first 400 of ${rows.length}.</div>` : ""}`
-    : `<div class="muted" style="padding:14px 0">No matching asset-vulnerabilities.</div>`;
+    ? `<table class="pm"><thead><tr><th>${t("pm.thCve")}</th><th title="${t("pm.thRisk.title")}">${t("pm.thRisk")}</th><th>${t("pm.thAsset")}</th><th>${t("pm.thSeverity")}</th><th>${t("pm.thEpss")}</th><th>${t("pm.thPatch")}</th><th title="${t("pm.thDue.title")}">${t("pm.thDue")}</th><th>${t("pm.thPatchStatus")}</th><th>${t("pm.thPlan")}</th></tr></thead>
+        <tbody>${rows.slice(0, 400).map(rowHtml).join("")}</tbody></table>${rows.length > 400 ? `<div class="muted" style="font-size:11px;margin-top:6px">${fmt("pm.showingFirst", { n: rows.length })}</div>` : ""}`
+    : `<div class="muted" style="padding:14px 0">${t("pm.noMatch")}</div>`;
   host.querySelectorAll<HTMLSelectElement>("select.pst").forEach((sel) => sel.addEventListener("change", () => void setStatus(Number(sel.dataset.id), sel.value)));
   host.querySelectorAll<HTMLButtonElement>("button.pm-plan").forEach((b) => b.addEventListener("click", () => openPlan(Number(b.dataset.id))));
   const cnt = $("pm-count"); if (cnt) cnt.textContent = `(${rows.length}/${DATA?.rows.length ?? 0})`;
@@ -91,49 +94,46 @@ async function load(): Promise<void> {
   STATUSES = DATA!.statuses || [];
   const s = DATA!.summary;
   if (!DATA!.rows.length) {
-    $("pm-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">No asset-vulnerability links yet. Import scan findings or run the
-      <a href="/asset-management">CVE→asset matcher</a>, then patch status &amp; remediation plans appear here.</div>`;
+    $("pm-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("pm.emptyState")}</div>`;
     return;
   }
   const cards = [
-    card("Asset-vulns", String(s.instances), `${s.unpatched} unpatched · ${s.patched} patched`),
-    card("Patch coverage", s.coverage != null ? `${s.coverage}%` : "—", "of remediable instances", s.coverage != null ? (s.coverage >= 80 ? "#34d399" : s.coverage >= 50 ? "#fbbf24" : "#f87171") : undefined),
-    card("KEV unpatched", String(s.kevUnpatched), "actively exploited", s.kevUnpatched ? "#f87171" : "#34d399"),
-    card("Overdue SLA", String(s.overdue), "past patch deadline", s.overdue ? "#f87171" : "#34d399"),
-    card("MTTR", s.mttr != null ? `${s.mttr}d` : "—", "mean time to remediate"),
-    card("Patch packages", String(s.packages), `${s.withPlan} planned instances`, s.packages ? "#60a5fa" : undefined),
+    card(t("pm.cAssetVulns"), String(s.instances), fmt("pm.cAssetVulns.foot", { u: s.unpatched, p: s.patched })),
+    card(t("pm.cCoverage"), s.coverage != null ? `${s.coverage}%` : "—", t("pm.cCoverage.foot"), s.coverage != null ? (s.coverage >= 80 ? "#34d399" : s.coverage >= 50 ? "#fbbf24" : "#f87171") : undefined),
+    card(t("pm.cKevUnpatched"), String(s.kevUnpatched), t("pm.cKevUnpatched.foot"), s.kevUnpatched ? "#f87171" : "#34d399"),
+    card(t("pm.cOverdue"), String(s.overdue), t("pm.cOverdue.foot"), s.overdue ? "#f87171" : "#34d399"),
+    card(t("pm.cMttr"), s.mttr != null ? fmt("pm.dD", { n: s.mttr }) : "—", t("pm.cMttr.foot")),
+    card(t("pm.cPackages"), String(s.packages), fmt("pm.cPackages.foot", { n: s.withPlan }), s.packages ? "#60a5fa" : undefined),
   ].join("");
   const covBar = s.coverage != null ? `<div class="bar"><span style="width:${Math.max(2, s.coverage)}%"></span></div>` : "";
   const bySev = Object.entries(s.bySeverity).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd"><span class="sev ${sevClass(k)}">${esc(k)}</span> <b>${n}</b></span>`).join("");
   const byStatus = Object.entries(s.byStatus).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd">${esc(k)} <b>${n}</b></span>`).join("");
 
   const filters = `<div class="filters">
-    <input id="pm-search" type="search" placeholder="Search CVE / asset…" style="flex:1;min-width:200px">
-    <select id="pm-sev"><option value="">All severities</option>${["Critical", "High", "Medium", "Low", "Info"].map((x) => `<option>${x}</option>`).join("")}</select>
-    <select id="pm-status"><option value="">All statuses</option>${STATUSES.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
-    <label class="ck"><input type="checkbox" id="pm-kev"> KEV only</label>
-    <label class="ck"><input type="checkbox" id="pm-over"> Overdue only</label>
+    <input id="pm-search" type="search" placeholder="${t("pm.searchPh")}" style="flex:1;min-width:200px">
+    <select id="pm-sev"><option value="">${t("pm.allSeverities")}</option>${["Critical", "High", "Medium", "Low", "Info"].map((x) => `<option>${x}</option>`).join("")}</select>
+    <select id="pm-status"><option value="">${t("pm.allStatuses")}</option>${STATUSES.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
+    <label class="ck"><input type="checkbox" id="pm-kev"> ${t("pm.kevOnly")}</label>
+    <label class="ck"><input type="checkbox" id="pm-over"> ${t("pm.overdueOnly")}</label>
     <span id="pm-count" class="muted" style="font-size:12px"></span></div>`;
 
   const pkgs = (DATA!.packages || []);
   const pkgTable = pkgs.length
     ? `<table class="pm-pkg" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:#94a3b8;font-size:11px;text-transform:uppercase">
-        <th style="text-align:left;padding:5px 9px">Patch package</th><th style="padding:5px 9px">CVEs fixed</th><th style="padding:5px 9px">Assets</th><th style="padding:5px 9px">Open</th><th style="text-align:left;padding:5px 9px">Status</th></tr></thead><tbody>${pkgs.map((p) => `<tr style="border-bottom:1px solid #1e2133">
-        <td style="padding:5px 9px"><span class="nm" style="font-weight:600;color:#e2e8f0">${esc(p.name)}</span>${p.type ? ` <span class="muted" style="font-size:11px">${esc(p.type)}</span>` : ""}${p.kev ? ` <span class="tag" style="background:#7f1d1d;color:#fecaca;font-size:9px;border-radius:5px;padding:1px 6px">${p.kev} KEV</span>` : ""}</td>
+        <th style="text-align:left;padding:5px 9px">${t("pm.thPackage")}</th><th style="padding:5px 9px">${t("pm.thCvesFixed")}</th><th style="padding:5px 9px">${t("pm.thAssets")}</th><th style="padding:5px 9px">${t("pm.thOpen")}</th><th style="text-align:left;padding:5px 9px">${t("pm.thStatus")}</th></tr></thead><tbody>${pkgs.map((p) => `<tr style="border-bottom:1px solid #1e2133">
+        <td style="padding:5px 9px"><span class="nm" style="font-weight:600;color:#e2e8f0">${esc(p.name)}</span>${p.type ? ` <span class="muted" style="font-size:11px">${esc(p.type)}</span>` : ""}${p.kev ? ` <span class="tag" style="background:#7f1d1d;color:#fecaca;font-size:9px;border-radius:5px;padding:1px 6px">${fmt("pm.nKev", { n: p.kev })}</span>` : ""}</td>
         <td style="text-align:center;padding:5px 9px"><b style="color:#a855f7">${p.cves}</b></td>
         <td style="text-align:center;padding:5px 9px">${p.assets}</td>
         <td style="text-align:center;padding:5px 9px">${p.open ? `<span style="color:#fbbf24">${p.open}</span>` : "—"}</td>
         <td style="padding:5px 9px"><span class="sev ${p.status === "Complete" ? "s-low" : p.status === "In progress" ? "s-medium" : "s-info"}">${esc(p.status)}</span></td></tr>`).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:8px 0">No patch packages yet — a package is a named remediation (e.g. a vendor update / KB) covering one or more CVEs. Create a remediation plan from the worklist below and reuse its name across the CVEs it fixes.</div>`;
+    : `<div class="muted" style="padding:8px 0">${t("pm.noPackages")}</div>`;
 
   $("pm-body").innerHTML = `<div class="pm-cards">${cards}</div>${covBar}
-    <div class="pm-section">Open by severity</div><div class="breakdown">${bySev || '<span class="muted">none</span>'}</div>
-    <div class="pm-section">By patch status</div><div class="breakdown">${byStatus}</div>
-    <div class="pm-section">Patch packages (${pkgs.length}) <span class="muted" style="font-weight:400;text-transform:none;font-size:11px">— CVEs each named remediation fixes</span></div>${pkgTable}
-    <div class="pm-section">Patch worklist</div>${filters}<div id="pm-table-host"></div>
-    <div class="legend">↳ Patch SLA (days from discovery): <b>KEV 14</b> (or CISA due) · Critical 15 · High 30 · Medium 90 · Low 180.
-      Mark a row <i>Patched</i> to stamp the date &amp; lift coverage; <b>+ plan</b> attaches a remediation plan
-      (ASSETVULNERABILITYREMEDIATION). Manage raw rows in the <a href="/?db=XORCISM&table=ASSETVULNERABILITY">explorer</a>.</div>`;
+    <div class="pm-section">${t("pm.secOpenBySeverity")}</div><div class="breakdown">${bySev || `<span class="muted">${t("pm.none")}</span>`}</div>
+    <div class="pm-section">${t("pm.secByPatchStatus")}</div><div class="breakdown">${byStatus}</div>
+    <div class="pm-section">${fmt("pm.secPackages", { n: pkgs.length })} <span class="muted" style="font-weight:400;text-transform:none;font-size:11px">${t("pm.secPackages.note")}</span></div>${pkgTable}
+    <div class="pm-section">${t("pm.secWorklist")}</div>${filters}<div id="pm-table-host"></div>
+    <div class="legend">${t("pm.legend")}</div>`;
 
   for (const id of ["pm-search", "pm-sev", "pm-status", "pm-kev", "pm-over"]) $(id).addEventListener("input", renderTable);
   renderTable();
@@ -150,7 +150,7 @@ async function setStatus(id: number, status: string): Promise<void> {
     const r = await fetch("/api/patch-management/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assetVulnId: id, status }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    toast(`✅ Patch status → <b>${esc(status)}</b>`);
+    toast(fmt("pm.toastStatus", { s: esc(status) }));
     await load();
   } catch (e) { toast(`⚠️ ${e}`); }
 }
@@ -169,7 +169,7 @@ async function loadOwners(): Promise<void> {
 function openPlan(id: number): void {
   modalRow = DATA?.rows.find((r) => r.id === id) ?? null;
   if (!modalRow) return;
-  ($("pm-f-name") as HTMLInputElement).value = `Patch ${modalRow.cve} on ${modalRow.asset}`;
+  ($("pm-f-name") as HTMLInputElement).value = fmt("pm.planNameDefault", { cve: modalRow.cve, asset: modalRow.asset });
   ($("pm-f-desc") as HTMLTextAreaElement).value = "";
   ($("pm-f-type") as HTMLSelectElement).value = "Patch";
   ($("pm-f-status") as HTMLSelectElement).value = "Planned";
@@ -177,7 +177,7 @@ function openPlan(id: number): void {
   ($("pm-f-priority") as HTMLSelectElement).value = modalRow.recommendedPriority || (modalRow.severity === "Critical" ? "Critical" : modalRow.severity === "High" ? "High" : "");
   ($("pm-f-owner") as HTMLSelectElement).value = "";
   ($("pm-f-target") as HTMLInputElement).value = modalRow.due || "";
-  $("pm-modal-ctx").innerHTML = `Remediation for <b>${esc(modalRow.cve)}</b> on <b>${esc(modalRow.asset)}</b> · <span class="sev ${sevClass(modalRow.severity)}">${esc(modalRow.severity)}</span>${modalRow.kev ? ' <span class="kev">KEV</span>' : ""}`;
+  $("pm-modal-ctx").innerHTML = `${fmt("pm.remediationFor", { cve: `<b>${esc(modalRow.cve)}</b>`, asset: `<b>${esc(modalRow.asset)}</b>` })} · <span class="sev ${sevClass(modalRow.severity)}">${esc(modalRow.severity)}</span>${modalRow.kev ? ' <span class="kev">KEV</span>' : ""}`;
   $("pm-f-err").textContent = "";
   $("pm-modal").classList.add("open");
   ($("pm-f-name") as HTMLInputElement).focus();
@@ -189,8 +189,8 @@ async function createPlan(): Promise<void> {
   const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   const name = v("pm-f-name").trim();
   const err = $("pm-f-err");
-  if (!name) { err.textContent = "⚠️ Enter a plan name."; return; }
-  const btn = $("pm-create") as HTMLButtonElement; btn.disabled = true; err.textContent = "Creating…";
+  if (!name) { err.textContent = t("pm.enterPlanName"); return; }
+  const btn = $("pm-create") as HTMLButtonElement; btn.disabled = true; err.textContent = t("pm.creating");
   try {
     const body = {
       assetVulnId: modalRow.id, name, type: v("pm-f-type"), status: v("pm-f-status"),
@@ -202,12 +202,13 @@ async function createPlan(): Promise<void> {
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     closePlan();
     await load();
-    toast(`✅ Remediation plan created${d.ticketId ? ` · ticket REM-${d.ticketId}` : ""}${d.notified ? " · notified" : ""}`);
+    toast(`${t("pm.toastPlanCreated")}${d.ticketId ? ` · ${fmt("pm.ticketRem", { id: d.ticketId })}` : ""}${d.notified ? ` · ${t("pm.notified")}` : ""}`);
   } catch (e) { err.textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("pm-cancel").addEventListener("click", closePlan);
   $("pm-create").addEventListener("click", () => void createPlan());
   $("pm-modal").addEventListener("click", (e) => { if (e.target === $("pm-modal")) closePlan(); });

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Identity Governance (IGA)</title>
+<title data-i18n="ig.pageTitle">XORCISM — Identity Governance (IGA)</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .ig-wrap{max-width:1340px;margin:0 auto;padding:18px}
@@ -62,35 +62,32 @@
 <body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/identities">&#128273; Identities</a>
-  <a href="/itdr">&#128373;&#65039; ITDR</a>
-  <a href="/zero-trust">&#128737;&#65039; Zero Trust</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/identities" data-i18n="ig.navIdentities">&#128273; Identities</a>
+  <a href="/itdr" data-i18n="ig.navItdr">&#128373;&#65039; ITDR</a>
+  <a href="/zero-trust" data-i18n="ig.navZeroTrust">&#128737;&#65039; Zero Trust</a>
   <span class="spacer"></span>
-  <span class="title">&#9989; Identity Governance (IGA)</span>
+  <span class="title" data-i18n="ig.navTitle">&#9989; Identity Governance (IGA)</span>
 </div>
 <div class="ig-wrap">
-  <h1>Identity Governance &amp; Administration (IGA)</h1>
-  <div class="ig-sub">The access-review layer over your identity inventory: launch <b>access-certification campaigns</b>
-    (reviewers attest that each in-scope identity still needs its access — certify, revoke or delegate), track
-    <b>certification coverage</b> of privileged access, govern the identity <b>lifecycle</b> (joiner/mover/leaver), and
-    work the <b>revocation queue</b>. Complements the inventory (/identities) and detection (/itdr).</div>
-  <div id="ig-body"><div class="muted" style="padding:24px;text-align:center">Loading identity governance…</div></div>
+  <h1 data-i18n="ig.title">Identity Governance &amp; Administration (IGA)</h1>
+  <div class="ig-sub" data-i18n="ig.sub">The access-review layer over your identity inventory: launch access-certification campaigns (reviewers attest that each in-scope identity still needs its access — certify, revoke or delegate), track certification coverage of privileged access, govern the identity lifecycle (joiner/mover/leaver), and work the revocation queue. Complements the inventory (/identities) and detection (/itdr).</div>
+  <div id="ig-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="ig.loading">Loading identity governance…</div></div>
 </div>
 
 <div class="ig-modal" id="ig-modal">
   <div class="ig-dlg">
-    <h3>New access-certification campaign</h3>
-    <label>Campaign name</label>
-    <input type="text" id="f-name" placeholder="(optional — derived from scope)" autocomplete="off">
-    <label>Scope</label>
+    <h3 data-i18n="ig.modalTitle">New access-certification campaign</h3>
+    <label data-i18n="ig.fName">Campaign name</label>
+    <input type="text" id="f-name" data-i18n-placeholder="ig.fNamePh" placeholder="(optional — derived from scope)" autocomplete="off">
+    <label data-i18n="ig.fScope">Scope</label>
     <select id="f-scope"></select>
     <div class="hint" id="f-scope-hint"></div>
-    <label>Due date</label>
+    <label data-i18n="ig.fDue">Due date</label>
     <input type="date" id="f-due">
     <div class="acts">
-      <button class="btn-cancel" id="ig-cancel">Cancel</button>
-      <button class="btn-go" id="ig-create">Launch campaign</button>
+      <button class="btn-cancel" id="ig-cancel" data-i18n="ig.cancel">Cancel</button>
+      <button class="btn-go" id="ig-create" data-i18n="ig.launch">Launch campaign</button>
     </div>
   </div>
 </div>

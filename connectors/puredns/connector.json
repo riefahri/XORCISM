@@ -1,0 +1,18 @@
+{
+  "id": "puredns",
+  "name": "puredns",
+  "type": "import",
+  "category": "Recon",
+  "description": "Fast domain resolver and subdomain brute-forcing tool (https://github.com/d3mondev/puredns). Wraps massdns to brute-force a domain against a wordlist (or resolve a list of candidate domains), filters DNS wildcards and validates answers against trusted resolvers — yielding the set of live, resolvable subdomains. Each resolved subdomain becomes an ASSET (host) on the target domain, expanding the known attack surface for the recon → web-scan attack chain. Offline mode: parse a puredns results file (one resolved domain per line, or a massdns `-o S` text export with `name. A ip`). Live mode: if `target` is set and the `puredns` binary is on the worker PATH, brute-force/resolve and parse. Active DNS enumeration (intrusive). No DB access in run.py (worker-safe).",
+  "intrusive": true,
+  "permission": "connector:puredns",
+  "run": "run.py",
+  "mapping": "puredns",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "Offline mode: path on the worker to a puredns results file to parse (resolved subdomains, one per line, or a massdns `-o S` export). Use this when the binary/wordlist aren't on the worker." },
+    { "name": "target", "type": "target", "required": false, "help": "Live mode: the apex domain to enumerate (e.g. example.com). Must be inside the engagement scope. The runner enforces scope on type 'target'." },
+    { "name": "mode", "type": "string", "required": false, "default": "bruteforce", "pattern": "^(bruteforce|resolve)$", "help": "Live mode: 'bruteforce' brute-forces <wordlist> against <target>; 'resolve' resolves the candidate domains in <wordlist> (treated as a domains file)." },
+    { "name": "wordlist", "type": "string", "required": false, "help": "Live mode: path on the worker to the subdomain wordlist (bruteforce) or candidate-domains file (resolve). Required for live mode." },
+    { "name": "resolvers", "type": "string", "required": false, "help": "Live mode: path on the worker to a trusted-resolvers file passed to puredns via -r (recommended; reduces false positives)." }
+  ]
+}

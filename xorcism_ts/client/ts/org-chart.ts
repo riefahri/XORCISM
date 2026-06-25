@@ -1,7 +1,10 @@
 /** org-chart.ts — organisation chart (/org-chart). Renders the PERSON management hierarchy
  * (forest from ManagerPersonID, Entra/AD-aligned) as a collapsible tree + headcount KPIs. */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface Person { id: number; name: string; title: string; department: string; email: string; upn: string; managerId: number | null; enabled: boolean; reports: number; entra: boolean; }
 interface Data { people: Person[]; roots: number[]; summary: any; }
@@ -20,9 +23,9 @@ function nodeHtml(p: Person, childrenOf: Map<number, Person[]>): string {
     <span class="avatar">${esc(initials(p.name))}</span>
     <span><span class="nm">${esc(p.name)}</span>${p.title ? `<div class="ti">${esc(p.title)}</div>` : ""}</span>
     ${p.department ? `<span class="dept">${esc(p.department)}</span>` : ""}
-    ${p.reports ? `<span class="rc">${p.reports} report${p.reports > 1 ? "s" : ""}</span>` : ""}
+    ${p.reports ? `<span class="rc">${fmt(p.reports > 1 ? "oc.reports" : "oc.report", { n: p.reports })}</span>` : ""}
     ${p.entra ? `<span class="entra">ENTRA</span>` : ""}
-    ${!p.enabled ? `<span class="muted" style="font-size:10px">disabled</span>` : ""}
+    ${!p.enabled ? `<span class="muted" style="font-size:10px">${t("oc.disabled")}</span>` : ""}
   </span>`;
   if (!kids.length) return `<li>${node}</li>`;
   return `<li><span class="toggle" data-toggle="1">▾</span>${node}<ul>${kids.map((k) => nodeHtml(k, childrenOf)).join("")}</ul></li>`;
@@ -31,16 +34,16 @@ function nodeHtml(p: Person, childrenOf: Map<number, Person[]>): string {
 function render(): void {
   const d = DATA!; const s = d.summary;
   if (!d.people.length) {
-    $("oc-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">No people yet. Add records under <a href="/?db=XORCISM&table=PERSON">PERSON</a> (set Manager, Job title, Department), or import your directory from Microsoft Entra ID.</div>`;
+    $("oc-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("oc.empty")}</div>`;
     return;
   }
   const cards = [
-    card("People", String(s.total), `${s.withManager} with a manager`),
-    card("Managers", String(s.managers), "have direct reports"),
-    card("Departments", String(s.departments), "distinct"),
-    card("Org depth", String(s.maxDepth), "levels deep"),
-    card("From Entra ID", String(s.fromEntra), "synced", s.fromEntra ? "#60a5fa" : undefined),
-    card("Disabled", String(s.disabled), "accounts", s.disabled ? "#f87171" : "#34d399"),
+    card(t("oc.cPeople"), String(s.total), fmt("oc.cPeople.foot", { n: s.withManager })),
+    card(t("oc.cManagers"), String(s.managers), t("oc.cManagers.foot")),
+    card(t("oc.cDepartments"), String(s.departments), t("oc.cDepartments.foot")),
+    card(t("oc.cDepth"), String(s.maxDepth), t("oc.cDepth.foot")),
+    card(t("oc.cEntra"), String(s.fromEntra), t("oc.cEntra.foot"), s.fromEntra ? "#60a5fa" : undefined),
+    card(t("oc.cDisabled"), String(s.disabled), t("oc.cDisabled.foot"), s.disabled ? "#f87171" : "#34d399"),
   ].join("");
   const byDept = Object.entries(s.byDepartment || {}).filter(([k]) => k !== "—").sort((a: any, b: any) => b[1] - a[1])
     .map(([k, n]) => `<span class="bd">${esc(k)} <b>${n}</b></span>`).join("");
@@ -62,9 +65,9 @@ function render(): void {
     .sort((a, b) => b.reports - a.reports || a.name.localeCompare(b.name));
 
   $("oc-body").innerHTML = `<div class="oc-cards">${cards}</div>
-    <div class="oc-section">By department</div><div class="breakdown">${byDept || "<span class='muted'>—</span>"}</div>
-    <div class="oc-section">Hierarchy (${people.length})</div>
-    <div class="filters"><input id="oc-search" placeholder="Filter by name, title, department, UPN…" value="${esc(FILTER)}" style="min-width:300px"></div>
+    <div class="oc-section">${t("oc.secByDept")}</div><div class="breakdown">${byDept || "<span class='muted'>—</span>"}</div>
+    <div class="oc-section">${fmt("oc.secHierarchy", { n: people.length })}</div>
+    <div class="filters"><input id="oc-search" placeholder="${t("oc.filterPh")}" value="${esc(FILTER)}" style="min-width:300px"></div>
     <ul class="tree">${roots.map((r) => nodeHtml(r, childrenOf)).join("")}</ul>`;
 
   const si = document.getElementById("oc-search") as HTMLInputElement | null;
@@ -79,4 +82,4 @@ function load(): void {
     .then((d: Data) => { DATA = d; render(); })
     .catch((e) => { $("oc-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">⚠️ ${esc(e)}</div>`; });
 }
-document.addEventListener("DOMContentLoaded", load);
+document.addEventListener("DOMContentLoaded", () => { initI18n(); load(); });

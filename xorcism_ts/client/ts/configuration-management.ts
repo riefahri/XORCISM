@@ -3,10 +3,12 @@
  * (/configuration-management). Secure-configuration content library (OVAL hardening
  * baselines) + verification worklist, from /api/configuration-management. Read-only.
  */
-import { initI18n } from "./i18n";
+import { initI18n, t } from "./i18n";
 
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface ConfigRow { id: number; pattern: string; title: string; version: string; status: string; deprecated: boolean; hasCce: boolean; platforms: number; score: number; issues: string[]; }
 interface Finding { id: number; name: string; kind: "definition" | "library" | "coverage"; severity: "High" | "Medium" | "Low"; reason: string; label: string; }
@@ -31,7 +33,7 @@ function card(lbl: string, val: string, foot: string, color?: string): string {
 function rowHtml(r: ConfigRow): string {
   const issues = r.issues.length
     ? r.issues.map((i) => `<span class="tag${/no cce|status/.test(i.toLowerCase()) ? " tag-w" : ""}">${esc(i)}</span>`).join("")
-    : `<span class="ok">✓ ok</span>`;
+    : `<span class="ok">${t("config.rowOk")}</span>`;
   return `<tr>
     <td><div class="cname">${esc(r.title)}</div>${r.pattern ? `<div class="muted" style="font-size:11px"><span class="ref">${esc(r.pattern)}</span></div>` : ""}</td>
     <td><span class="st ${stClass(r.status)}">${esc(r.status)}</span></td>
@@ -47,7 +49,7 @@ function findingHtml(f: Finding): string {
   const href = f.kind === "coverage" ? "/oval-scan" : "/?db=XOVAL&table=OVALDEFINITION";
   return `<li><span class="dot" style="background:${dotColor(f.kind)}"></span>
     <span class="sev-${f.severity}">${esc(f.severity)}</span> ·
-    <a href="${href}">${esc(f.kind)}</a> — ${esc(f.label)}</li>`;
+    <a href="${href}">${esc(t("config.kind." + f.kind))}</a> — ${esc(f.label)}</li>`;
 }
 
 async function load(): Promise<void> {
@@ -57,46 +59,40 @@ async function load(): Promise<void> {
   const s = d.summary;
 
   if (!s.definitions) {
-    $("cf-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">
-      No OVAL/SCAP configuration content imported yet. Import OVAL definitions, then the
-      configuration baselines and verification worklist appear here.</div>`;
+    $("cf-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("config.empty")}</div>`;
     return;
   }
 
   const cards = [
-    card("Hardening baselines", String(s.compliance), "compliance-class checks", s.compliance ? undefined : "#64748b"),
-    card("Verified", s.verdicts ? `${s.scannedAssets}` : "0", s.verdicts ? `${s.scannedAssets} asset(s) scanned` : "no scans yet", s.verdicts ? "#34d399" : "#fbbf24"),
-    card("Compliance pass", s.passRate != null ? `${s.passRate}%` : "—", s.verdicts ? `${s.complianceFail} failing` : "run an OVAL scan", s.passRate != null ? (s.passRate >= 80 ? "#34d399" : s.passRate >= 50 ? "#fbbf24" : "#f87171") : undefined),
-    card("Deprecated", String(s.deprecated), "in content library", s.deprecated ? "#fb923c" : "#34d399"),
-    card("CCE-mapped", String(s.withCce), `of ${s.definitions} definitions`, s.withCce ? "#34d399" : undefined),
-    card("Library", String(s.definitions), "OVAL definitions total"),
-    card("Patch / Vuln", `${s.patch} / ${s.vulnerability}`, "patch · vulnerability checks"),
-    card("Inventory", String(s.inventory), "platform/product checks"),
+    card(t("config.card.baselines"), String(s.compliance), t("config.card.baselines.foot"), s.compliance ? undefined : "#64748b"),
+    card(t("config.card.verified"), s.verdicts ? `${s.scannedAssets}` : "0", s.verdicts ? fmt("config.card.verified.foot", { n: s.scannedAssets }) : t("config.card.verified.none"), s.verdicts ? "#34d399" : "#fbbf24"),
+    card(t("config.card.pass"), s.passRate != null ? `${s.passRate}%` : "—", s.verdicts ? fmt("config.card.pass.foot", { n: s.complianceFail }) : t("config.card.pass.none"), s.passRate != null ? (s.passRate >= 80 ? "#34d399" : s.passRate >= 50 ? "#fbbf24" : "#f87171") : undefined),
+    card(t("config.card.deprecated"), String(s.deprecated), t("config.card.deprecated.foot"), s.deprecated ? "#fb923c" : "#34d399"),
+    card(t("config.card.cce"), String(s.withCce), fmt("config.card.cce.foot", { n: s.definitions }), s.withCce ? "#34d399" : undefined),
+    card(t("config.card.library"), String(s.definitions), t("config.card.library.foot")),
+    card(t("config.card.patchvuln"), `${s.patch} / ${s.vulnerability}`, t("config.card.patchvuln.foot")),
+    card(t("config.card.inventory"), String(s.inventory), t("config.card.inventory.foot")),
   ].join("");
 
   const byClass = Object.entries(s.byClass).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd">${esc(k)} <b>${n}</b></span>`).join("");
   const byStatus = Object.entries(s.byStatus).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="bd"><span class="st ${stClass(k)}">${esc(k)}</span> <b>${n}</b></span>`).join("");
 
   const findings = d.findings.length
-    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">+${d.findings.length - 60} more…</div>` : ""}`
-    : `<div class="muted" style="padding:12px 0">✓ No deprecated, unverified or unmapped configuration baselines — clean posture.</div>`;
+    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">${fmt("config.more", { n: d.findings.length - 60 })}</div>` : ""}`
+    : `<div class="muted" style="padding:12px 0">${t("config.noFindings")}</div>`;
 
-  const table = d.rows.length ? `<div class="cf-section">Hardening baselines (${d.rows.length})</div>
+  const table = d.rows.length ? `<div class="cf-section">${fmt("config.sec.baselines", { n: d.rows.length })}</div>
     <table class="cf"><thead><tr>
-      <th>Configuration baseline</th><th>Status</th><th>Ver.</th><th>CCE</th><th>Platforms</th><th>Gaps</th><th title="Health score">Score</th>
+      <th>${t("config.th.baseline")}</th><th>${t("config.th.status")}</th><th>${t("config.th.ver")}</th><th>${t("config.th.cce")}</th><th>${t("config.th.platforms")}</th><th>${t("config.th.gaps")}</th><th title="${t("config.th.score.title")}">${t("config.th.score")}</th>
     </tr></thead><tbody>${d.rows.map(rowHtml).join("")}</tbody></table>` : "";
 
   $("cf-body").innerHTML = `<div class="cf-cards">${cards}</div>
-    <div class="cf-section">Governance worklist (${d.findings.length})</div>${findings}
-    <div class="cf-section">By class</div><div class="breakdown">${byClass}</div>
-    <div class="cf-section">By status</div><div class="breakdown">${byStatus}</div>
+    <div class="cf-section">${fmt("config.sec.worklist", { n: d.findings.length })}</div>${findings}
+    <div class="cf-section">${t("config.sec.byClass")}</div><div class="breakdown">${byClass}</div>
+    <div class="cf-section">${t("config.sec.byStatus")}</div><div class="breakdown">${byStatus}</div>
     ${table}
-    <div class="cf-section">CIS Benchmarks</div><div id="cf-cis"><div class="muted">Loading CIS benchmarks…</div></div>
-    <div class="legend">↳ <b>Score</b> is a baseline's health gap (higher = worse): deprecated +40, non-accepted status +15, no CCE reference +5.
-      Configuration items are the compliance-class OVAL definitions; verification comes from
-      <a href="/oval-scan">OVAL scans</a> (OVALRESULTS). Manage content under
-      <a href="/?db=XOVAL&table=OVALDEFINITION">OVAL definitions</a>.
-      CIS Benchmark posture comes from <code>import_cis_benchmarks.py</code> (catalogue) + CIS-CAT scan imports.</div>`;
+    <div class="cf-section">${t("config.sec.cis")}</div><div id="cf-cis"><div class="muted">${t("config.cis.loading")}</div></div>
+    <div class="legend">${t("config.legend")}</div>`;
   void loadCis();
 }
 
@@ -106,17 +102,17 @@ async function loadCis(): Promise<void> {
   let d: { benchmarks: Record<string, any>[]; summary: Record<string, any> };
   try { const r = await fetch("/api/configuration/cis-benchmarks"); if (!r.ok) throw new Error(`HTTP ${r.status}`); d = await r.json(); }
   catch (e) { host.innerHTML = `<div class="muted">⚠️ ${esc(e)}</div>`; return; }
-  if (!d.benchmarks.length) { host.innerHTML = `<div class="muted">No CIS benchmarks yet — run <code>python xorcism_python/importers/import_cis_benchmarks.py</code>.</div>`; return; }
+  if (!d.benchmarks.length) { host.innerHTML = `<div class="muted">${t("config.cis.none")}</div>`; return; }
   const s = d.summary;
   const cats = Object.entries(s.byCategory || {}).map(([k, n]) => `<span class="bd">${esc(k)} <b>${n}</b></span>`).join("");
   const rows = d.benchmarks.map((b) => {
-    const pr = b.passRate == null ? "<span class='muted'>not scanned</span>" : `<b style="color:${b.passRate >= 80 ? "#34d399" : b.passRate >= 50 ? "#fbbf24" : "#f87171"}">${b.passRate}%</b> (${b.pass}/${b.scored})`;
+    const pr = b.passRate == null ? `<span class='muted'>${t("config.cis.notScanned")}</span>` : `<b style="color:${b.passRate >= 80 ? "#34d399" : b.passRate >= 50 ? "#fbbf24" : "#f87171"}">${b.passRate}%</b> (${b.pass}/${b.scored})`;
     return `<tr><td>${esc(b.name)}</td><td>${esc(b.version)}</td><td><span class="muted">${esc(b.platform)}</span></td><td>${esc(b.category)}</td><td>${b.recs ?? 0}</td><td>${pr}</td></tr>`;
   }).join("");
   host.innerHTML = `<div class="breakdown" style="margin-bottom:8px">
-      <span class="bd">${s.total} benchmarks</span><span class="bd">${s.recommendations} recommendations</span>
-      <span class="bd">${s.scanned} scanned</span>${s.passRate != null ? `<span class="bd">pass rate <b>${s.passRate}%</b></span>` : ""}${cats}</div>
-    <table class="cf"><thead><tr><th>Benchmark</th><th>Version</th><th>Platform</th><th>Category</th><th>Recs</th><th>CIS-CAT pass</th></tr></thead><tbody>${rows}</tbody></table>`;
+      <span class="bd">${fmt("config.cis.benchmarks", { n: s.total })}</span><span class="bd">${fmt("config.cis.recommendations", { n: s.recommendations })}</span>
+      <span class="bd">${fmt("config.cis.scanned", { n: s.scanned })}</span>${s.passRate != null ? `<span class="bd">${fmt("config.cis.passrate", { n: s.passRate })}</span>` : ""}${cats}</div>
+    <table class="cf"><thead><tr><th>${t("config.cis.th.benchmark")}</th><th>${t("config.cis.th.version")}</th><th>${t("config.cis.th.platform")}</th><th>${t("config.cis.th.category")}</th><th>${t("config.cis.th.recs")}</th><th>${t("config.cis.th.pass")}</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── Launch an OVAL scan on an enrolled agent (localhost or remote) ───────────────
@@ -139,21 +135,21 @@ async function initLaunch(): Promise<void> {
   const renderSchedules = (list: Sched[]) => {
     if (!schedList) return;
     schedList.innerHTML = list.length
-      ? `🔁 <b>Recurring scans:</b> ${list.map((s) => `${esc(s.agent)} · ${esc(s.ovalClass)} · <code>${esc(s.cron)}</code>${s.lastRun ? ` (last ${esc(String(s.lastRun).slice(0, 16))})` : ""} <a href="/?db=XJOB&table=XSCHEDULE&filterCol=ScheduleID&filterVal=${esc(s.id)}" title="manage">#${esc(s.id)}</a>`).join(" &nbsp;·&nbsp; ")}`
+      ? `${t("config.launch.recurringLabel")} ${list.map((s) => `${esc(s.agent)} · ${esc(s.ovalClass)} · <code>${esc(s.cron)}</code>${s.lastRun ? ` ${fmt("config.launch.lastRun", { t: esc(String(s.lastRun).slice(0, 16)) })}` : ""} <a href="/?db=XJOB&table=XSCHEDULE&filterCol=ScheduleID&filterVal=${esc(s.id)}" title="${t("config.launch.manage")}">#${esc(s.id)}</a>`).join(" &nbsp;·&nbsp; ")}`
       : "";
   };
   renderSchedules(data.scheduled || []);
 
   if (!data.agents.length) {
-    sel.innerHTML = `<option value="">no enrolled agent</option>`;
+    sel.innerHTML = `<option value="">${t("config.launch.noAgentOpt")}</option>`;
     btn.disabled = true;
-    stat.innerHTML = `No XOR agent enrolled yet. Deploy the agent (<code>agent/xor_agent.py</code>) on a host — <b>localhost or remote</b> — enroll it, then launch OVAL scans here. See <a href="/oval-scan">OVAL scan results</a>.`;
+    stat.innerHTML = t("config.launch.noAgents");
     return;
   }
 
   sel.innerHTML = data.agents.map((a) => {
     const tag = a.isLocal ? " — localhost" : "";
-    const status = a.online ? "🟢 online" : "⚪ offline";
+    const status = a.online ? t("config.launch.online") : t("config.launch.offline");
     return `<option value="${esc(a.name)}">${esc(a.name)}${tag} · ${esc(a.os || "?")} · ${status}</option>`;
   }).join("");
   const local = data.agents.find((a) => a.isLocal);
@@ -167,7 +163,7 @@ async function initLaunch(): Promise<void> {
   syncClass();
 
   // button label tracks the recurrence (Launch now vs Schedule)
-  const syncBtn = () => { btn.textContent = recurSel && recurSel.value !== "once" ? "Schedule scan" : "Launch scan"; };
+  const syncBtn = () => { btn.textContent = recurSel && recurSel.value !== "once" ? t("config.launch.schedule") : t("config.launch.go"); };
   if (recurSel) { recurSel.onchange = syncBtn; syncBtn(); }
 
   btn.onclick = async () => {
@@ -179,22 +175,22 @@ async function initLaunch(): Promise<void> {
     try {
       if (recur !== "once") {
         // recurring → schedule it (XSCHEDULE). OVAL class only meaningful for OVAL scans.
-        stat.textContent = "Scheduling…";
+        stat.textContent = t("config.launch.scheduling");
         const r = await fetch("/api/configuration/schedule-scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agent, ovalClass, preset: recur }) });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
         const isLocal = data.agents.find((a) => a.name === agent)?.isLocal;
-        stat.innerHTML = `✅ Scheduled <b>${esc(recur)}</b> OVAL <b>${esc(ovalClass)}</b> scan on <b>${esc(agent)}${isLocal ? " (localhost)" : ""}</b> (schedule <a href="/?db=XJOB&table=XSCHEDULE&filterCol=ScheduleID&filterVal=${esc(d.scheduleId)}">#${esc(d.scheduleId)}</a>, cron <code>${esc(d.cron)}</code>). The scheduler queues an agent job each cycle — the XOR agent runs it at check-in.`;
+        stat.innerHTML = fmt("config.launch.scheduledMsg", { recur: esc(recur), cls: esc(ovalClass), agent: esc(agent) + (isLocal ? " (localhost)" : ""), id: esc(d.scheduleId), cron: esc(d.cron) });
         renderSchedules([...(data.scheduled || []), { id: d.scheduleId, agent, ovalClass, cron: d.cron, lastRun: null }]);
         return;
       }
-      stat.textContent = "Launching…";
+      stat.textContent = t("config.launch.launching");
       const r = await fetch("/api/agent-scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agent, kind, ovalClass }) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       const isLocal = data.agents.find((a) => a.name === agent)?.isLocal;
       const clsTxt = d.ovalClass ? ` (${esc(d.ovalClass)})` : "";
-      stat.innerHTML = `✅ Queued <b>${esc(kind)}</b>${clsTxt} scan on <b>${esc(agent)}${isLocal ? " (localhost)" : ""}</b> (job #${esc(d.jobId)}). The XOR agent runs it at its next check-in — results then appear in the verification cards. <a href="/configuration-management">↻ Refresh</a>`;
+      stat.innerHTML = fmt("config.launch.queuedMsg", { kind: esc(kind), cls: clsTxt, agent: esc(agent) + (isLocal ? " (localhost)" : ""), job: esc(d.jobId) });
     } catch (e) { stat.innerHTML = `⚠️ ${esc(e)}`; }
     finally { btn.disabled = false; }
   };
@@ -218,7 +214,7 @@ async function initDeploy(): Promise<void> {
 
   if (!fleet.total) {
     btn.disabled = true;
-    stat.innerHTML = `No XOR agent enrolled. Deploy <code>agent/xor_agent.py</code> on your hosts and enroll them, then deploy compliance policies fleet-wide.`;
+    stat.innerHTML = t("config.deploy.noAgents");
     return;
   }
   // checkbox list of agents for the "Selected agents" scope
@@ -227,12 +223,12 @@ async function initDeploy(): Promise<void> {
   scopeSel.onchange = () => { pickFld.style.display = scopeSel.value === "select" ? "" : "none"; };
 
   const baselineNote = fleet.baselines.length
-    ? `${fleet.baselines.length} OVAL/SCAP baseline${fleet.baselines.length > 1 ? "s" : ""} in the content library`
-    : `⚠️ no OVAL content in the library yet — drop CIS/SCAP content where the agent can fetch it (see <a href="/oval-scan">OVAL scan</a>)`;
+    ? fmt("config.deploy.baselineNote", { n: fleet.baselines.length })
+    : t("config.deploy.noBaseline");
   const resNote = fleet.results && (fleet.results.pass + fleet.results.fail)
-    ? ` · last posture: <b>${fleet.results.passRate ?? "?"}%</b> pass (${fleet.results.pass} pass / ${fleet.results.fail} fail across ${fleet.results.assets} host${fleet.results.assets > 1 ? "s" : ""})`
+    ? fmt("config.deploy.lastPosture", { r: fleet.results.passRate ?? "?", p: fleet.results.pass, f: fleet.results.fail, a: fleet.results.assets })
     : "";
-  stat.innerHTML = `Fleet: <b>${fleet.online}</b> online / ${fleet.total} enrolled · ${baselineNote}${resNote}`;
+  stat.innerHTML = `${fmt("config.deploy.fleetLine", { on: fleet.online, tot: fleet.total })}${baselineNote}${resNote}`;
 
   btn.onclick = async () => {
     const ovalClass = classSel.value;
@@ -240,9 +236,9 @@ async function initDeploy(): Promise<void> {
     let agents: string[] | undefined;
     if (scopeSel.value === "select") {
       agents = [...pick.querySelectorAll<HTMLInputElement>("input:checked")].map((c) => c.value);
-      if (!agents.length) { stat.innerHTML = `⚠️ select at least one agent.`; return; }
+      if (!agents.length) { stat.innerHTML = t("config.deploy.selectOne"); return; }
     }
-    btn.disabled = true; stat.textContent = "Deploying…";
+    btn.disabled = true; stat.textContent = t("config.deploy.deploying");
     try {
       const body: Record<string, unknown> = { ovalClass };
       if (agents) body.agents = agents;
@@ -250,8 +246,8 @@ async function initDeploy(): Promise<void> {
       const r = await fetch("/api/configuration/deploy-compliance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-      const enforceTxt = d.preset ? ` and scheduled <b>${esc(d.preset)}</b> continuous re-evaluation (${esc(String(d.scheduleIds?.length || 0))} schedule${d.scheduleIds?.length === 1 ? "" : "s"})` : "";
-      stat.innerHTML = `✅ Deployed <b>${esc(ovalClass)}</b> compliance policy to <b>${esc(String(d.deployed))}</b> agent${d.deployed === 1 ? "" : "s"} (${esc(String(d.jobIds.length))} eval job${d.jobIds.length === 1 ? "" : "s"} queued)${enforceTxt}. Agents evaluate at their next check-in — verdicts appear below and in <a href="/oval-scan">OVAL results</a>. <a href="/configuration-management">↻ Refresh</a>`;
+      const enforceTxt = d.preset ? fmt("config.deploy.scheduledSuffix", { p: esc(d.preset), n: esc(String(d.scheduleIds?.length || 0)) }) : "";
+      stat.innerHTML = fmt("config.deploy.deployedMsg", { cls: esc(ovalClass), n: esc(String(d.deployed)), jobs: esc(String(d.jobIds.length)) }) + enforceTxt + t("config.deploy.deployedTail");
     } catch (e) { stat.innerHTML = `⚠️ ${esc(e)}`; }
     finally { btn.disabled = false; }
   };

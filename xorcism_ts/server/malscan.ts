@@ -6,6 +6,9 @@
  *   - VirusTotal v3        (live, key: VT_API_KEY | VIRUSTOTAL_API_KEY)
  *   - Kaspersky OpenTIP    (live, key: OPENTIP_API_KEY | KASPERSKY_OPENTIP_API_KEY)
  *   - ANY.RUN TI Lookup    (live, key: ANYRUN_API_KEY)
+ *   - Sucuri SiteCheck     (live, keyless — website malware / blocklist scan; url/domain only)
+ *   - Mozilla HTTP Observatory (live, keyless — HTTP security-header grade A+..F; url/domain only)
+ *   - Quttera ThreatSign   (pivot link to the live website scan; optional QUTTERA_API_URL/QUTTERA_API_KEY slot)
  *   - Avira                (pivot link — no public hash API; optional AVIRA_API_URL/AVIRA_API_KEY)
  *   - FortiGuard Labs      (pivot link to the threat encyclopedia / web-filter lookup)
  *   - Jotti's malware scan (pivot link — file-upload multi-scanner, no hash API)
@@ -195,6 +198,97 @@ function jottiResult(): EngineResult {
   return pivot("Jotti", "https://virusscan.jotti.org/");
 }
 
+// ── website scanners (url/domain) ────────────────────────────────────────────────
+/** Bare host from a url/domain target — Observatory & Sucuri want a hostname, not a full URL. */
+function hostOf(target: string, type: TargetType): string {
+  if (type === "url") {
+    try { return new URL(/^https?:\/\//i.test(target) ? target : "https://" + target).hostname; }
+    catch { /* fall through */ }
+  }
+  return target.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").replace(/:\d+$/, "").trim();
+}
+
+/**
+ * Sucuri SiteCheck — free remote website scanner (malware, blocklist/blacklist, defacement, anomalies).
+ * Keyless public JSON endpoint (rate-limited). Browser-visible content only (no server-side backdoors).
+ */
+async function sucuriScan(target: string, type: TargetType): Promise<EngineResult> {
+  const host = hostOf(target, type);
+  const gui = `https://sitecheck.sucuri.net/results/${encodeURIComponent(host)}`;
+  const out: EngineResult = { engine: "Sucuri SiteCheck", verdict: "unknown", live: true, link: gui, category: "Website malware/blocklist" };
+  try {
+    const r = await fetch(`https://sitecheck.sucuri.net/api/v3/?scan=${encodeURIComponent(host)}`, {
+      headers: { accept: "application/json", "user-agent": "Mozilla/5.0 (compatible; XORCISM/1.0)" }, signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) { out.verdict = "error"; out.detection = `HTTP ${r.status}`; return out; }
+    const j: any = await r.json().catch(() => ({}));
+    const countArr = (v: unknown): number => Array.isArray(v) ? v.length : (v && typeof v === "object" ? Object.values(v as object).reduce((s: number, x) => s + (Array.isArray(x) ? x.length : 0), 0) : 0);
+    // blocklist/blacklist hits across the listed authorities
+    const blHits = countArr(j?.blacklists) || countArr(j?.blacklist) || (Array.isArray(j?.ratings?.blacklist) ? j.ratings.blacklist.length : 0);
+    // malware / security warnings (browser-visible)
+    const malWarn = countArr(j?.warnings?.security) || countArr(j?.malware?.warnings) || countArr(j?.malware);
+    const infected = j?.malware?.infected === true || j?.ratings?.total?.toLowerCase?.() === "warning" && malWarn > 0;
+    if (infected || malWarn > 0) {
+      out.verdict = infected ? "malicious" : "suspicious";
+      out.positives = malWarn + blHits; out.score = infected ? 85 : 55;
+      out.detection = [malWarn ? `${malWarn} security/malware warning(s)` : "", blHits ? `${blHits} blocklist hit(s)` : ""].filter(Boolean).join(" · ") || "issues found";
+    } else if (blHits > 0) {
+      out.verdict = "suspicious"; out.positives = blHits; out.score = 50; out.detection = `${blHits} blocklist hit(s)`;
+    } else {
+      out.verdict = "clean"; out.detection = "no malware or blocklist hits";
+    }
+    out.raw = { blacklists: blHits, warnings: malWarn };
+  } catch (e) { out.verdict = "error"; out.detection = String((e as Error).message || e).slice(0, 120); }
+  return out;
+}
+
+/**
+ * Mozilla HTTP Observatory (MDN) — grades a site's HTTP security headers / config (A+ … F).
+ * This is configuration hygiene, NOT a malware verdict: only a failing grade (F) nudges the
+ * aggregate to "suspicious" (capped low); the grade is always surfaced. Keyless v2 API.
+ */
+async function observatoryScan(target: string, type: TargetType): Promise<EngineResult> {
+  const host = hostOf(target, type);
+  const gui = `https://developer.mozilla.org/en-US/observatory/analyze?host=${encodeURIComponent(host)}`;
+  const out: EngineResult = { engine: "Mozilla Observatory", verdict: "unknown", live: true, link: gui, category: "HTTP security headers" };
+  try {
+    const r = await fetch(`https://observatory-api.mdn.mozilla.net/api/v2/scan?host=${encodeURIComponent(host)}`, {
+      method: "POST", headers: { accept: "application/json" }, signal: AbortSignal.timeout(25000),
+    });
+    if (!r.ok) { out.verdict = "error"; out.detection = `HTTP ${r.status}`; return out; }
+    const j: any = await r.json().catch(() => ({}));
+    if (j?.error) { out.verdict = "error"; out.detection = String(j.error).slice(0, 100); return out; }
+    const grade = j?.grade ? String(j.grade) : null;
+    const score = typeof j?.score === "number" ? j.score : null;
+    const failed = typeof j?.tests_failed === "number" ? j.tests_failed
+      : (typeof j?.tests_quantity === "number" && typeof j?.tests_passed === "number" ? j.tests_quantity - j.tests_passed : null);
+    if (!grade) { out.verdict = "unknown"; out.detection = "no grade returned"; return out; }
+    const letter = grade[0].toUpperCase();
+    out.verdict = letter === "F" ? "suspicious" : "clean"; // headers hygiene → never "malicious"
+    out.score = letter === "F" ? 35 : (letter === "D" ? 18 : 0); // posture-risk, intentionally capped
+    out.detection = `grade ${grade}${score != null ? ` (${score}/100)` : ""}${failed != null ? ` · ${failed} test(s) failed` : ""}`;
+    out.raw = { grade, score: j?.score };
+  } catch (e) { out.verdict = "error"; out.detection = String((e as Error).message || e).slice(0, 120); }
+  return out;
+}
+
+/**
+ * Quttera ThreatSign — website malware detection + blocklist intelligence across 40+ authorities.
+ * The live API is account-specific (ThreatSign), so this is a pivot to the public live scan by
+ * default; a generic live slot activates when QUTTERA_API_URL + QUTTERA_API_KEY are set (env-only).
+ */
+function qutteraResult(target: string, type: TargetType): EngineResult {
+  const host = hostOf(target, type);
+  const link = `https://quttera.com/sitescan/${encodeURIComponent(host)}`;
+  const apiUrl = env("QUTTERA_API_URL"); const key = env("QUTTERA_API_KEY");
+  if (!apiUrl || !key) {
+    return { engine: "Quttera ThreatSign", verdict: "unconfigured", live: false, link,
+      detection: "set QUTTERA_API_URL + QUTTERA_API_KEY for live website malware scans", category: "Website malware/blocklist" };
+  }
+  // configurable adapter slot (ThreatSign endpoints/response are account-specific) — left as a pivot.
+  return { engine: "Quttera ThreatSign", verdict: "unknown", live: false, link, category: "Website malware/blocklist" };
+}
+
 const VERDICT_RANK: Record<string, number> = { malicious: 4, suspicious: 3, clean: 1, unknown: 0, unconfigured: 0, error: 0 };
 
 /** Query all engines for a target and aggregate. Does not persist. */
@@ -233,6 +327,13 @@ export async function runScan(target: string, typeHint?: TargetType): Promise<Sc
 
   const anyrunKey = env("ANYRUN_API_KEY");
   jobs.push(anyrunKey ? anyrunScan(t, type, anyrunKey) : Promise.resolve<EngineResult>({ engine: "ANY.RUN", verdict: "unconfigured", live: false, link: type === "hash" ? `https://any.run/report/${t}` : "https://intelligence.any.run/" }));
+
+  // Website scanners — only meaningful for a url/domain (they fetch the live site).
+  if (type === "url" || type === "domain") {
+    jobs.push(sucuriScan(t, type));
+    jobs.push(observatoryScan(t, type));
+    jobs.push(Promise.resolve(qutteraResult(t, type)));
+  }
 
   jobs.push(Promise.resolve(aviraResult(t, type)));
   jobs.push(Promise.resolve(fortiResult(t, type)));
@@ -386,6 +487,9 @@ export function configuredEngines(): string[] {
   if (env("VT_API_KEY", "VIRUSTOTAL_API_KEY")) out.push("VirusTotal");
   if (env("OPENTIP_API_KEY", "KASPERSKY_OPENTIP_API_KEY")) out.push("Kaspersky OpenTIP");
   if (env("ANYRUN_API_KEY")) out.push("ANY.RUN");
+  // keyless website scanners (live for url/domain targets)
+  out.push("Sucuri SiteCheck", "Mozilla Observatory");
+  if (env("QUTTERA_API_URL") && env("QUTTERA_API_KEY")) out.push("Quttera ThreatSign");
   if (env("AVIRA_API_URL") && env("AVIRA_API_KEY")) out.push("Avira");
   return out;
 }

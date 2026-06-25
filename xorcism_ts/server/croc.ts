@@ -677,7 +677,7 @@ export function riskHunting(tenant: number | null): any {
     const g = attackPathGraph(tenant);
     nodeById = new Map((g.nodes || []).map((n: any) => [n.id, n]));
     attackPaths = (g.paths || []).slice(0, 10).map((p: any) => ({ entry: p.entryLabel, jewel: p.jewelLabel, hops: Math.max(0, (p.nodes || []).length - 1), cost: Math.round(p.cost || 0) }));
-    chokepoints = (g.chokepoints || []).slice(0, 8).map((c: any) => ({ id: c.id, label: c.label, paths: c.paths, hypothesis: `${c.label} is a choke point on ${c.paths} attack path(s) — constraining or hardening it breaks the most routes to your crown jewels.` }));
+    chokepoints = (g.chokepoints || []).slice(0, 8).map((c: any) => ({ id: c.id, label: c.label, paths: c.paths }));
     reachableJewels = new Set((g.paths || []).map((p: any) => p.jewel)).size;
   } catch { /* sparse schema — no graph */ }
 
@@ -696,19 +696,11 @@ export function riskHunting(tenant: number | null): any {
 
   const exposures = exp.results.map((e: any) => {
     const hot = !!(e.kev || e.itw || (e.exploits || 0) > 0);
-    let hypothesis = hot
-      ? `Actively-attacked exposure on ${e.assets || 0} asset(s) — assume an adversary is already probing ${e.ref}.`
-      : `Reachable exposure ${e.ref} on ${e.assets || 0} asset(s) — could an adversary chain it to a crown jewel?`;
     const reach = reachOf(e.assetIds || []);
-    if (reach) {
-      if (reach.kind === "entry") hypothesis += ` Its asset ${reach.label} is an internet entry point — a front-door exposure.`;
-      else if (reach.kind === "jewel") hypothesis += ` Its asset ${reach.label} is a crown jewel — exploitation hits a high-value target directly.`;
-      else if (reach.kind === "choke") hypothesis += ` Its asset ${reach.label} is a choke point on ${reach.choke} attack path(s).`;
-      else hypothesis += ` Its asset ${reach.label} sits on a path to a crown jewel.`;
-    }
-    return { ref: e.ref, priority: e.priority, cvss: e.cvss, kev: !!e.kev, itw: !!e.itw, exploits: e.exploits || 0, assets: e.assets || 0, maxValue: e.maxValue || 0, factors: (e.factors || []).slice(0, 4), hot, reach: reach ? reach.kind : null, hypothesis };
+    // Hypothesis sentences are built client-side (i18n) from these raw bits.
+    return { ref: e.ref, vid: e.VulnerabilityID || null, priority: e.priority, cvss: e.cvss, kev: !!e.kev, itw: !!e.itw, exploits: e.exploits || 0, assets: e.assets || 0, maxValue: e.maxValue || 0, factors: (e.factors || []).slice(0, 4), hot, reach: reach ? reach.kind : null, reachLabel: reach ? reach.label : null, reachChoke: reach ? reach.choke : null };
   });
-  const agentic = agenticExposures(tenant).map((a: any) => ({ ...a, hypothesis: `Over-scoped ${a.type || "non-human identity"} ${a.name} — could it be abused for lateral movement / privilege escalation? Constrain it before it is.` }));
+  const agentic = agenticExposures(tenant);
   return {
     summary: {
       scanned: exp.scanned, ranked: exposures.length,

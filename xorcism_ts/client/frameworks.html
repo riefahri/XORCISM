@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Frameworks</title>
+<title data-i18n="frm.pageTitle">XORCISM — Frameworks</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .fw-wrap{max-width:1240px;margin:0 auto;padding:18px}
@@ -44,38 +44,34 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/control-management">&#9989; Controls</a>
-  <a href="/compliance-management">&#128203; Compliance</a>
-  <a href="/?db=XORCISM&amp;table=VOCABULARY">&#128218; Vocabularies</a>
+  <a href="/control-management" data-i18n="frm.navControls">&#9989; Controls</a>
+  <a href="/compliance-management" data-i18n="frm.navCompliance">&#128203; Compliance</a>
+  <a href="/?db=XORCISM&amp;table=VOCABULARY" data-i18n="frm.navVocab">&#128218; Vocabularies</a>
   <span class="spacer"></span>
-  <span class="title">&#128209; Frameworks</span>
+  <span class="title" data-i18n="frm.navTitle">&#128209; Frameworks</span>
 </div>
 
 <div class="fw-wrap">
-  <h1>Frameworks management</h1>
-  <div class="fw-sub">The catalogue of compliance &amp; security <b>frameworks</b> (ISO 27001, NIST 800-53, PCI DSS, …).
-    <b>Map each framework to a VOCABULARY</b> — the controlled vocabulary that holds its controls catalogue
-    (VOCABULARY&nbsp;⋈&nbsp;CONTROL) — so the rest of the platform (control management, compliance journeys,
-    audits) can resolve "this framework's controls" from one place. The control count updates as soon as a
-    mapping is set.</div>
+  <h1 data-i18n="frm.title">Frameworks management</h1>
+  <div class="fw-sub" data-i18n="frm.sub">The catalogue of compliance & security frameworks (ISO 27001, NIST 800-53, PCI DSS, …). Map each framework to a VOCABULARY — the controlled vocabulary that holds its controls catalogue (VOCABULARY ⋈ CONTROL) — so the rest of the platform (control management, compliance journeys, audits) can resolve "this framework's controls" from one place. The control count updates as soon as a mapping is set.</div>
   <div class="fw-bar">
-    <button id="fw-new">+ New framework</button>
+    <button id="fw-new" data-i18n="frm.newFramework">+ New framework</button>
     <span class="fw-stat" id="fw-bar-stat"></span>
   </div>
-  <div id="fw-body"><div class="muted" style="padding:24px;text-align:center">Loading frameworks…</div></div>
+  <div id="fw-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="frm.loading">Loading frameworks…</div></div>
 </div>
 
 <div class="fw-modal-bg" id="fw-modal">
   <div class="fw-modal">
-    <h3>New framework</h3>
-    <div class="fld"><label>Name <span class="req">*</span></label><input id="fw-f-name" type="text" maxlength="200" placeholder="e.g. ISO/IEC 27017:2015" autocomplete="off"></div>
-    <div class="fld"><label>Version</label><input id="fw-f-version" type="text" maxlength="60" placeholder="e.g. 2015"></div>
-    <div class="fld"><label>Map to vocabulary</label><select id="fw-f-vocab" class="vsel" style="width:100%"></select></div>
-    <div class="fld"><label>Description</label><textarea id="fw-f-desc" maxlength="1000"></textarea></div>
+    <h3 data-i18n="frm.modalTitle">New framework</h3>
+    <div class="fld"><label data-i18n="frm.fName">Name <span class="req">*</span></label><input id="fw-f-name" type="text" maxlength="200" data-i18n-placeholder="frm.fNamePh" placeholder="e.g. ISO/IEC 27017:2015" autocomplete="off"></div>
+    <div class="fld"><label data-i18n="frm.fVersion">Version</label><input id="fw-f-version" type="text" maxlength="60" data-i18n-placeholder="frm.fVersionPh" placeholder="e.g. 2015"></div>
+    <div class="fld"><label data-i18n="frm.fVocab">Map to vocabulary</label><select id="fw-f-vocab" class="vsel" style="width:100%"></select></div>
+    <div class="fld"><label data-i18n="frm.fDesc">Description</label><textarea id="fw-f-desc" maxlength="1000"></textarea></div>
     <div class="fw-modal-foot">
       <span class="fw-err" id="fw-f-err"></span>
-      <button class="btn btn-ghost btn-sm" id="fw-cancel">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="fw-create">Create</button>
+      <button class="btn btn-ghost btn-sm" id="fw-cancel" data-i18n="frm.cancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="fw-create" data-i18n="frm.create">Create</button>
     </div>
   </div>
 </div>

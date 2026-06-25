@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Zero Trust Maturity</title>
+<title data-i18n="zt.pageTitle">XORCISM — Zero Trust Maturity</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .zt-wrap{max-width:1340px;margin:0 auto;padding:18px}
@@ -72,39 +72,35 @@
 <body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/identities">&#128273; Identities</a>
-  <a href="/asset-management">&#128421;&#65039; Assets</a>
-  <a href="/control-management">&#9989; Controls</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/identities" data-i18n="zt.navIdentities">&#128273; Identities</a>
+  <a href="/asset-management" data-i18n="zt.navAssets">&#128421;&#65039; Assets</a>
+  <a href="/control-management" data-i18n="zt.navControls">&#9989; Controls</a>
   <span class="spacer"></span>
-  <span class="title">&#128737;&#65039; Zero Trust Maturity</span>
+  <span class="title" data-i18n="zt.navTitle">&#128737;&#65039; Zero Trust Maturity</span>
 </div>
 <div class="zt-wrap">
-  <h1>Zero Trust Maturity</h1>
-  <div class="zt-sub">Your Zero Trust program, measured against the <b>CISA Zero Trust Maturity Model v2.0</b> — 5 pillars
-    (Identity, Devices, Networks, Applications &amp; Workloads, Data) and 3 cross-cutting capabilities (Visibility &amp; Analytics,
-    Automation &amp; Orchestration, Governance) across 4 stages (Traditional &rarr; Initial &rarr; Advanced &rarr; Optimal).
-    Per-pillar maturity is derived from <b>live XORCISM signals</b>, and a fused <b>trust score</b> (NIST SP 800-207 trust algorithm)
-    ranks your least-trusted identities and assets. Run a formal assessment to override the live estimate and set targets.</div>
-  <div id="zt-body"><div class="muted" style="padding:24px;text-align:center">Loading Zero Trust posture…</div></div>
+  <h1 data-i18n="zt.title">Zero Trust Maturity</h1>
+  <div class="zt-sub" data-i18n="zt.sub">Your Zero Trust program, measured against the CISA Zero Trust Maturity Model v2.0 — 5 pillars (Identity, Devices, Networks, Applications &amp; Workloads, Data) and 3 cross-cutting capabilities (Visibility &amp; Analytics, Automation &amp; Orchestration, Governance) across 4 stages (Traditional → Initial → Advanced → Optimal). Per-pillar maturity is derived from live XORCISM signals, and a fused trust score (NIST SP 800-207 trust algorithm) ranks your least-trusted identities and assets. Run a formal assessment to override the live estimate and set targets.</div>
+  <div id="zt-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="zt.loading">Loading Zero Trust posture…</div></div>
 </div>
 
 <div class="zt-modal" id="zt-modal">
   <div class="zt-dlg">
-    <h3>New Zero Trust maturity assessment</h3>
-    <label>Assessment name</label>
+    <h3 data-i18n="zt.modalTitle">New Zero Trust maturity assessment</h3>
+    <label data-i18n="zt.fName">Assessment name</label>
     <input type="text" id="f-name" autocomplete="off">
-    <label>Scope</label>
-    <input type="text" id="f-scope" placeholder="e.g. enterprise IT estate" autocomplete="off">
-    <label>Owner</label>
-    <input type="text" id="f-owner" placeholder="e.g. CISO / Zero Trust PMO" autocomplete="off">
-    <label>Target stage</label>
-    <select id="f-target"><option value="1">Initial</option><option value="2">Advanced</option><option value="3" selected>Optimal</option></select>
-    <label>Target date</label>
+    <label data-i18n="zt.fScope">Scope</label>
+    <input type="text" id="f-scope" data-i18n-placeholder="zt.fScopePh" placeholder="e.g. enterprise IT estate" autocomplete="off">
+    <label data-i18n="zt.fOwner">Owner</label>
+    <input type="text" id="f-owner" data-i18n-placeholder="zt.fOwnerPh" placeholder="e.g. CISO / Zero Trust PMO" autocomplete="off">
+    <label data-i18n="zt.fTarget">Target stage</label>
+    <select id="f-target"><option value="1" data-i18n="zt.stage1">Initial</option><option value="2" data-i18n="zt.stage2">Advanced</option><option value="3" selected data-i18n="zt.stage3">Optimal</option></select>
+    <label data-i18n="zt.fDate">Target date</label>
     <input type="date" id="f-date">
     <div class="acts2">
-      <button class="btn-cancel" id="zt-cancel">Cancel</button>
-      <button class="btn-go" id="zt-create">Create &amp; seed from live signals</button>
+      <button class="btn-cancel" id="zt-cancel" data-i18n="zt.cancel">Cancel</button>
+      <button class="btn-go" id="zt-create" data-i18n="zt.createSeed">Create &amp; seed from live signals</button>
     </div>
   </div>
 </div>

@@ -1,8 +1,11 @@
 /** privacy.ts — GDPR / DPO cockpit (/privacy). RoPA + DSAR + DPIA + breach register + worklist.
  *  Reads /api/privacy; create paths POST processing / dsar / breach. */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
-function toast(m: string): void { const t = $("toast"); t.textContent = m; t.className = "show"; setTimeout(() => { t.className = ""; }, 2800); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
+function toast(m: string): void { const el = $("toast"); el.textContent = m; el.className = "show"; setTimeout(() => { el.className = ""; }, 2800); }
 
 interface Data {
   summary: { processing: number; processingNoBasis: number; dsarTotal: number; dsarOpen: number; dsarOverdue: number; dpiaTotal: number; dpiaApproved: number; dpiaGaps: number; breaches: number; breachesUnnotified: number; breach72: number; score: number; grade: string };
@@ -18,49 +21,49 @@ const pill = (txt: string, cls: string): string => `<span class="pill ${cls}">${
 function render(): void {
   const d = DATA!; const s = d.summary;
   const cards = [
-    card("DPO posture", `<span class="grade g-${s.grade}">${s.score}</span><span style="font-size:13px;color:#64748b">/100</span>`, `grade ${s.grade}`),
-    card("Processing (RoPA)", String(s.processing), `${s.processingNoBasis} without legal basis`, s.processingNoBasis ? "#fb923c" : "#34d399"),
-    card("Data-subject requests", String(s.dsarOpen), `${s.dsarOverdue} overdue · ${s.dsarTotal} total`, s.dsarOverdue ? "#f87171" : "#34d399"),
-    card("DPIAs", `${s.dpiaApproved}/${s.dpiaTotal}`, `${s.dpiaGaps} high-risk gap(s)`, s.dpiaGaps ? "#fb923c" : "#34d399"),
-    card("Breaches", String(s.breaches), `${s.breach72} past 72h unnotified`, s.breach72 ? "#f87171" : s.breachesUnnotified ? "#fbbf24" : "#34d399"),
+    card(t("priv.cPosture"), `<span class="grade g-${s.grade}">${s.score}</span><span style="font-size:13px;color:#64748b">/100</span>`, fmt("priv.cPosture.foot", { g: s.grade })),
+    card(t("priv.cProcessing"), String(s.processing), fmt("priv.cProcessing.foot", { n: s.processingNoBasis }), s.processingNoBasis ? "#fb923c" : "#34d399"),
+    card(t("priv.cDsar"), String(s.dsarOpen), fmt("priv.cDsar.foot", { o: s.dsarOverdue, t: s.dsarTotal }), s.dsarOverdue ? "#f87171" : "#34d399"),
+    card(t("priv.cDpia"), `${s.dpiaApproved}/${s.dpiaTotal}`, fmt("priv.cDpia.foot", { n: s.dpiaGaps }), s.dpiaGaps ? "#fb923c" : "#34d399"),
+    card(t("priv.cBreaches"), String(s.breaches), fmt("priv.cBreaches.foot", { n: s.breach72 }), s.breach72 ? "#f87171" : s.breachesUnnotified ? "#fbbf24" : "#34d399"),
   ].join("");
 
   const work = d.worklist.length
     ? `<ul class="worklist">${d.worklist.map((w) => `<li><span class="sev sv-${["Critical", "High", "Medium", "Low"].includes(w.severity) ? w.severity : "Low"}">${esc(w.severity)}</span> <span>${esc(w.label)}</span><span class="muted" style="margin-left:auto;font-size:11px">${esc(w.ref)}</span></li>`).join("")}</ul>`
-    : `<div class="muted" style="padding:8px 0">✓ No outstanding DPO actions.</div>`;
+    : `<div class="muted" style="padding:8px 0">${t("priv.noWork")}</div>`;
 
   const proc = d.processing.length
-    ? `<table class="pt"><thead><tr><th>Processing activity</th><th>Purpose</th><th>Legal basis</th><th>Data</th><th>DPIA</th></tr></thead><tbody>${d.processing.map((p) => `<tr>
-        <td><span class="nm">${esc(p.name)}</span>${p.crossBorder ? " " + pill("transfer", "p-info") : ""}</td>
+    ? `<table class="pt"><thead><tr><th>${t("priv.thActivity")}</th><th>${t("priv.thPurpose")}</th><th>${t("priv.thBasis")}</th><th>${t("priv.thData")}</th><th>DPIA</th></tr></thead><tbody>${d.processing.map((p) => `<tr>
+        <td><span class="nm">${esc(p.name)}</span>${p.crossBorder ? " " + pill(t("priv.pTransfer"), "p-info") : ""}</td>
         <td class="muted">${esc(p.purpose || "—")}</td>
-        <td>${p.legalBasis ? esc(p.legalBasis) : pill("missing", "p-bad")}</td>
-        <td>${p.special ? pill("special cat.", "p-warn") + " " : ""}<span class="pill ${/high/i.test(p.riskLevel) ? "p-bad" : "p-info"}">${esc(p.riskLevel || "—")}</span></td>
-        <td>${p.dpiaApproved ? pill("approved", "p-ok") : p.hasDpia ? pill("draft", "p-warn") : (/high/i.test(p.riskLevel) || p.special ? pill("required", "p-bad") : "<span class='muted'>n/a</span>")}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:8px 0">No processing activities recorded — add your first RoPA entry.</div>`;
+        <td>${p.legalBasis ? esc(p.legalBasis) : pill(t("priv.pMissing"), "p-bad")}</td>
+        <td>${p.special ? pill(t("priv.pSpecial"), "p-warn") + " " : ""}<span class="pill ${/high/i.test(p.riskLevel) ? "p-bad" : "p-info"}">${esc(p.riskLevel || "—")}</span></td>
+        <td>${p.dpiaApproved ? pill(t("priv.pApproved"), "p-ok") : p.hasDpia ? pill(t("priv.pDraft"), "p-warn") : (/high/i.test(p.riskLevel) || p.special ? pill(t("priv.pRequired"), "p-bad") : "<span class='muted'>n/a</span>")}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:8px 0">${t("priv.noProcessing")}</div>`;
 
   const dsarRows = d.dsars.length
-    ? `<table class="pt"><thead><tr><th>Subject</th><th>Type</th><th>Received</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>${d.dsars.map((r) => `<tr>
+    ? `<table class="pt"><thead><tr><th>${t("priv.thSubject")}</th><th>${t("priv.thType")}</th><th>${t("priv.thReceived")}</th><th>${t("priv.thDue")}</th><th>${t("priv.thStatus")}</th><th></th></tr></thead><tbody>${d.dsars.map((r) => `<tr>
         <td class="nm">${esc(r.subject)}</td><td>${esc(r.type)}</td><td class="muted">${esc(r.received)}</td>
-        <td>${r.overdue ? pill("overdue " + esc(r.due), "p-bad") : esc(r.due) + (r.daysLeft != null && !r.closed ? ` <span class="muted">(${r.daysLeft}d)</span>` : "")}</td>
-        <td>${r.closed ? pill(esc(r.status || "done"), "p-ok") : pill(esc(r.status || "new"), r.overdue ? "p-bad" : "p-warn")}</td>
-        <td>${r.closed ? "" : `<button class="btn-sm2" data-dsar-done="${r.id}">Complete</button>`}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:8px 0">No data-subject requests logged.</div>`;
+        <td>${r.overdue ? pill(fmt("priv.pOverdue", { d: esc(r.due) }), "p-bad") : esc(r.due) + (r.daysLeft != null && !r.closed ? ` <span class="muted">(${fmt("priv.daysLeft", { n: r.daysLeft })})</span>` : "")}</td>
+        <td>${r.closed ? pill(esc(r.status || t("priv.done")), "p-ok") : pill(esc(r.status || t("priv.new")), r.overdue ? "p-bad" : "p-warn")}</td>
+        <td>${r.closed ? "" : `<button class="btn-sm2" data-dsar-done="${r.id}">${t("priv.complete")}</button>`}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:8px 0">${t("priv.noDsar")}</div>`;
 
   const breachRows = d.breaches.length
-    ? `<table class="pt"><thead><tr><th>Breach</th><th>Detected</th><th>Affected</th><th>Severity</th><th>72h / Art 33</th></tr></thead><tbody>${d.breaches.map((b) => `<tr>
+    ? `<table class="pt"><thead><tr><th>${t("priv.thBreach")}</th><th>${t("priv.thDetected")}</th><th>${t("priv.thAffected")}</th><th>${t("priv.thSeverity")}</th><th>${t("priv.th72h")}</th></tr></thead><tbody>${d.breaches.map((b) => `<tr>
         <td class="nm">${esc(b.title)}</td><td class="muted">${esc(String(b.detected))}</td><td>${b.affected || "—"}</td>
         <td><span class="pill ${/high|crit/i.test(b.severity) ? "p-bad" : "p-info"}">${esc(b.severity || "—")}</span></td>
-        <td>${b.notifiedAuthority ? pill("notified", "p-ok") : b.breached72 ? pill("breached " + (b.hoursSinceDetected ?? "?") + "h", "p-bad") : pill((b.hoursSinceDetected ?? 0) + "h elapsed", "p-warn")}</td></tr>`).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:8px 0">No personal-data breaches recorded.</div>`;
+        <td>${b.notifiedAuthority ? pill(t("priv.pNotified"), "p-ok") : b.breached72 ? pill(fmt("priv.pBreached", { h: b.hoursSinceDetected ?? "?" }), "p-bad") : pill(fmt("priv.pElapsed", { h: b.hoursSinceDetected ?? 0 }), "p-warn")}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:8px 0">${t("priv.noBreaches")}</div>`;
 
   $("body").innerHTML = `<div class="cards">${cards}</div>
-    <div class="sec">⚖️ DPO worklist (${d.worklist.length})</div><div class="panel">${work}</div>
-    <div class="sec">📒 Records of Processing Activities — RoPA (${d.processing.length})</div><div class="panel">${proc}</div>
-    <div class="sec">📨 Data-subject requests — DSAR (${d.dsars.length})</div><div class="panel">${dsarRows}</div>
-    <div class="sec">🚨 Personal-data breach register (${d.breaches.length})</div><div class="panel">${breachRows}</div>`;
+    <div class="sec">⚖️ ${fmt("priv.secWorklist", { n: d.worklist.length })}</div><div class="panel">${work}</div>
+    <div class="sec">📒 ${fmt("priv.secRopa", { n: d.processing.length })}</div><div class="panel">${proc}</div>
+    <div class="sec">📨 ${fmt("priv.secDsar", { n: d.dsars.length })}</div><div class="panel">${dsarRows}</div>
+    <div class="sec">🚨 ${fmt("priv.secBreach", { n: d.breaches.length })}</div><div class="panel">${breachRows}</div>`;
 
   Array.prototype.forEach.call(document.querySelectorAll("[data-dsar-done]"), (b: HTMLElement) => {
-    b.onclick = () => act(`/api/privacy/dsar/${b.getAttribute("data-dsar-done")}/status`, { status: "Completed" }, "Request completed");
+    b.onclick = () => act(`/api/privacy/dsar/${b.getAttribute("data-dsar-done")}/status`, { status: "Completed" }, t("priv.requestCompleted"));
   });
 }
 
@@ -74,67 +77,67 @@ function openModal(html: string): void { $("dlg").innerHTML = html; $("modal").c
 
 function procDialog(): void {
   const d = DATA!;
-  openModal(`<div style="display:flex;align-items:center;margin-bottom:6px"><b style="font-size:15px;color:#e7ebf3">New processing activity (RoPA)</b><span style="flex:1"></span><button class="btn-sm2" id="dlg-close">Close</button></div>
-    <label>Name<input id="f-name" placeholder="e.g. Customer CRM"></label>
-    <label>Purpose<input id="f-purpose" placeholder="why the data is processed"></label>
-    <div class="row"><label>Legal basis (Art 6)<select id="f-basis"><option value="">— select —</option>${d.legalBases.map((b) => `<option>${esc(b)}</option>`).join("")}</select></label>
-      <label>Risk level<select id="f-risk"><option>Low</option><option selected>Medium</option><option>High</option></select></label></div>
-    <label>Data categories<input id="f-cats" placeholder="e.g. name, email, payment data"></label>
-    <label>Data subjects<input id="f-subj" placeholder="e.g. customers, employees"></label>
-    <label>Retention period<input id="f-ret" placeholder="e.g. account life + 3 years"></label>
-    <div class="chk"><input type="checkbox" id="f-special"> Special-category data (Art 9)</div>
-    <div class="chk"><input type="checkbox" id="f-cross"> Cross-border transfer (outside EEA)</div>
-    <label>Transfer safeguard (if any)<input id="f-safeguard" placeholder="e.g. SCCs, adequacy decision"></label>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-sm2" id="f-save" style="border-color:#fb923c;color:#fdba74">Add to RoPA</button></div>`);
+  openModal(`<div style="display:flex;align-items:center;margin-bottom:6px"><b style="font-size:15px;color:#e7ebf3">${t("priv.dProcTitle")}</b><span style="flex:1"></span><button class="btn-sm2" id="dlg-close">${t("priv.close")}</button></div>
+    <label>${t("priv.fName")}<input id="f-name" placeholder="${t("priv.fNamePh")}"></label>
+    <label>${t("priv.fPurpose")}<input id="f-purpose" placeholder="${t("priv.fPurposePh")}"></label>
+    <div class="row"><label>${t("priv.fBasis")}<select id="f-basis"><option value="">${t("priv.optSelect")}</option>${d.legalBases.map((b) => `<option>${esc(b)}</option>`).join("")}</select></label>
+      <label>${t("priv.fRisk")}<select id="f-risk"><option value="Low">${t("priv.lvLow")}</option><option value="Medium" selected>${t("priv.lvMedium")}</option><option value="High">${t("priv.lvHigh")}</option></select></label></div>
+    <label>${t("priv.fCats")}<input id="f-cats" placeholder="${t("priv.fCatsPh")}"></label>
+    <label>${t("priv.fSubjects")}<input id="f-subj" placeholder="${t("priv.fSubjectsPh")}"></label>
+    <label>${t("priv.fRetention")}<input id="f-ret" placeholder="${t("priv.fRetentionPh")}"></label>
+    <div class="chk"><input type="checkbox" id="f-special"> ${t("priv.fSpecial")}</div>
+    <div class="chk"><input type="checkbox" id="f-cross"> ${t("priv.fCross")}</div>
+    <label>${t("priv.fSafeguard")}<input id="f-safeguard" placeholder="${t("priv.fSafeguardPh")}"></label>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-sm2" id="f-save" style="border-color:#fb923c;color:#fdba74">${t("priv.addRopa")}</button></div>`);
   ($("f-save") as HTMLButtonElement).onclick = () => {
     const name = ($("f-name") as HTMLInputElement).value.trim();
-    if (!name) { toast("Name required"); return; }
+    if (!name) { toast(t("priv.nameRequired")); return; }
     fetch("/api/privacy/processing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       name, purpose: ($("f-purpose") as HTMLInputElement).value, legalBasis: ($("f-basis") as HTMLSelectElement).value, riskLevel: ($("f-risk") as HTMLSelectElement).value,
       dataCategories: ($("f-cats") as HTMLInputElement).value, dataSubjects: ($("f-subj") as HTMLInputElement).value, retention: ($("f-ret") as HTMLInputElement).value,
       specialCategories: ($("f-special") as HTMLInputElement).checked, crossBorder: ($("f-cross") as HTMLInputElement).checked, transferSafeguard: ($("f-safeguard") as HTMLInputElement).value }) })
       .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; }))
-      .then(() => { toast("Added to RoPA"); closeModal(); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
+      .then(() => { toast(t("priv.addedRopa")); closeModal(); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
   };
 }
 
 function dsarDialog(): void {
   const d = DATA!;
-  openModal(`<div style="display:flex;align-items:center;margin-bottom:6px"><b style="font-size:15px;color:#e7ebf3">New data-subject request</b><span style="flex:1"></span><button class="btn-sm2" id="dlg-close">Close</button></div>
-    <label>Data subject<input id="f-subject" placeholder="name"></label>
-    <label>Email<input id="f-email" placeholder="optional"></label>
-    <div class="row"><label>Type<select id="f-type">${d.dsarTypes.map((tt) => `<option>${esc(tt)}</option>`).join("")}</select></label>
-      <label>Received date<input id="f-recv" type="date"></label></div>
-    <div class="muted" style="font-size:11px;margin-top:6px">The 1-month statutory due date (GDPR Art 12) is set automatically.</div>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-sm2" id="f-save" style="border-color:#fb923c;color:#fdba74">Log request</button></div>`);
+  openModal(`<div style="display:flex;align-items:center;margin-bottom:6px"><b style="font-size:15px;color:#e7ebf3">${t("priv.dDsarTitle")}</b><span style="flex:1"></span><button class="btn-sm2" id="dlg-close">${t("priv.close")}</button></div>
+    <label>${t("priv.fSubject")}<input id="f-subject" placeholder="${t("priv.fSubjectPh")}"></label>
+    <label>${t("priv.fEmail")}<input id="f-email" placeholder="${t("priv.fEmailPh")}"></label>
+    <div class="row"><label>${t("priv.fType")}<select id="f-type">${d.dsarTypes.map((tt) => `<option>${esc(tt)}</option>`).join("")}</select></label>
+      <label>${t("priv.fReceived")}<input id="f-recv" type="date"></label></div>
+    <div class="muted" style="font-size:11px;margin-top:6px">${t("priv.dsarDueNote")}</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-sm2" id="f-save" style="border-color:#fb923c;color:#fdba74">${t("priv.logRequest")}</button></div>`);
   ($("f-save") as HTMLButtonElement).onclick = () => {
     const subjectName = ($("f-subject") as HTMLInputElement).value.trim();
-    if (!subjectName) { toast("Subject required"); return; }
+    if (!subjectName) { toast(t("priv.subjectRequired")); return; }
     fetch("/api/privacy/dsar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       subjectName, subjectEmail: ($("f-email") as HTMLInputElement).value, requestType: ($("f-type") as HTMLSelectElement).value, receivedDate: ($("f-recv") as HTMLInputElement).value || undefined }) })
       .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; }))
-      .then((j) => { toast("Logged · due " + (j.dueDate || "")); closeModal(); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
+      .then((j) => { toast(fmt("priv.logged", { d: j.dueDate || "" })); closeModal(); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
   };
 }
 
 function breachDialog(): void {
-  openModal(`<div style="display:flex;align-items:center;margin-bottom:6px"><b style="font-size:15px;color:#e7ebf3">Record personal-data breach</b><span style="flex:1"></span><button class="btn-sm2" id="dlg-close">Close</button></div>
-    <label>Title<input id="f-title" placeholder="short description"></label>
-    <label>Description<textarea id="f-desc" rows="3"></textarea></label>
-    <div class="row"><label>Affected subjects<input id="f-aff" type="number" placeholder="count"></label>
-      <label>Severity<select id="f-sev"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></label>
-      <label>Risk to subjects<select id="f-risk"><option>Low</option><option selected>Medium</option><option>High</option></select></label></div>
-    <label>Data categories<input id="f-cats" placeholder="e.g. name, email"></label>
-    <div class="muted" style="font-size:11px;margin-top:6px">The 72-hour authority-notification clock (Art 33) starts at detection (now).</div>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-sm2" id="f-save" style="border-color:#f87171;color:#fca5a5">Record breach</button></div>`);
+  openModal(`<div style="display:flex;align-items:center;margin-bottom:6px"><b style="font-size:15px;color:#e7ebf3">${t("priv.dBreachTitle")}</b><span style="flex:1"></span><button class="btn-sm2" id="dlg-close">${t("priv.close")}</button></div>
+    <label>${t("priv.fTitle")}<input id="f-title" placeholder="${t("priv.fTitlePh")}"></label>
+    <label>${t("priv.fDescription")}<textarea id="f-desc" rows="3"></textarea></label>
+    <div class="row"><label>${t("priv.fAffected")}<input id="f-aff" type="number" placeholder="${t("priv.fAffectedPh")}"></label>
+      <label>${t("priv.fSeverity")}<select id="f-sev"><option value="Low">${t("priv.lvLow")}</option><option value="Medium" selected>${t("priv.lvMedium")}</option><option value="High">${t("priv.lvHigh")}</option><option value="Critical">${t("priv.lvCritical")}</option></select></label>
+      <label>${t("priv.fRiskSubjects")}<select id="f-risk"><option value="Low">${t("priv.lvLow")}</option><option value="Medium" selected>${t("priv.lvMedium")}</option><option value="High">${t("priv.lvHigh")}</option></select></label></div>
+    <label>${t("priv.fCats")}<input id="f-cats" placeholder="${t("priv.fCatsBreachPh")}"></label>
+    <div class="muted" style="font-size:11px;margin-top:6px">${t("priv.breach72Note")}</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn-sm2" id="f-save" style="border-color:#f87171;color:#fca5a5">${t("priv.recordBreach")}</button></div>`);
   ($("f-save") as HTMLButtonElement).onclick = () => {
     const title = ($("f-title") as HTMLInputElement).value.trim();
-    if (!title) { toast("Title required"); return; }
+    if (!title) { toast(t("priv.titleRequired")); return; }
     fetch("/api/privacy/breach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       title, description: ($("f-desc") as HTMLTextAreaElement).value, affectedSubjects: Number(($("f-aff") as HTMLInputElement).value) || 0,
       severity: ($("f-sev") as HTMLSelectElement).value, riskToSubjects: ($("f-risk") as HTMLSelectElement).value, dataCategories: ($("f-cats") as HTMLInputElement).value }) })
       .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; }))
-      .then(() => { toast("Breach recorded"); closeModal(); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
+      .then(() => { toast(t("priv.breachRecorded")); closeModal(); reload().then(render); }).catch((e) => toast("⚠️ " + (e.message || e)));
   };
 }
 
@@ -143,6 +146,7 @@ function reload(): Promise<void> {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("modal").addEventListener("click", (e) => { if (e.target === $("modal")) closeModal(); });
   ($("btn-proc") as HTMLButtonElement).onclick = procDialog;
   ($("btn-dsar") as HTMLButtonElement).onclick = dsarDialog;

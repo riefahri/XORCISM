@@ -2,10 +2,15 @@
  * fair-mam.ts — FAIR-MAM materiality assessment (/fair-mam). An interactive loss-decomposition
  * calculator over the FAIR-MAM taxonomy + a list of saved assessments, from /api/fair-mam.
  */
-import { initI18n } from "./i18n";
+import { initI18n, t } from "./i18n";
 
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const tfmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
+const partyLabel = (p: string): string => t(p === "third-party" ? "fm.thirdParty" : "fm.firstParty");
+const lossLabel = (l: string): string => t(l === "secondary" ? "fm.secondary" : "fm.primary");
+const detLabel = (d: string): string => { const k: Record<string, string> = { "Material": "fm.det.material", "Approaching": "fm.det.approaching", "Not material": "fm.det.not", "Unassessed": "fm.det.unassessed" }; return k[d] ? t(k[d]) : d; };
 
 interface Cat { id: number; code: string; name: string; parent: string | null; lossType: "primary" | "secondary"; party: "first-party" | "third-party"; description: string; sortOrder: number; }
 interface Assessment { id: number; name: string; scenarioRef: string | null; currency: string; total: number; primary: number; secondary: number; firstParty: number; thirdParty: number; threshold: number | null; ratio: number | null; determination: string; lineCount: number; createdDate: string | null; }
@@ -45,7 +50,7 @@ function calcTable(): string {
   const tops = CATS.filter((c) => !c.parent);
   const rowsFor = (loss: "primary" | "secondary"): string => tops.filter((t) => t.lossType === loss).map((t) => {
     const leaves = isLeaf(t) ? [t] : CATS.filter((c) => c.parent === t.code);
-    const head = `<tr class="fm-grp"><td colspan="5">${esc(t.name)}<span class="pp pp-${t.lossType}">${t.lossType}</span> <span class="muted" style="font-weight:400;text-transform:none">· ${esc(t.party)}</span></td></tr>`;
+    const head = `<tr class="fm-grp"><td colspan="5">${esc(t.name)}<span class="pp pp-${t.lossType}">${lossLabel(t.lossType)}</span> <span class="muted" style="font-weight:400;text-transform:none">· ${esc(partyLabel(t.party))}</span></td></tr>`;
     const body = leaves.map((c) => `<tr data-row="${c.id}">
       <td><div class="cat-name">${esc(c.code === t.code ? c.name : c.name)}</div>${c.description ? `<div class="cat-d">${esc(c.description)}</div>` : ""}</td>
       <td class="num"><input class="fm-in" type="number" min="0" step="1000" data-cat="${c.id}" data-k="min" placeholder="0"></td>
@@ -57,11 +62,11 @@ function calcTable(): string {
   }).join("");
   void childrenOf;
   return `<table class="fm"><thead><tr>
-      <th>Cost category</th><th class="num">Min</th><th class="num">Most likely</th><th class="num">Max</th><th class="num">Expected</th>
+      <th>${t("fm.thCategory")}</th><th class="num">${t("fm.thMin")}</th><th class="num">${t("fm.thMl")}</th><th class="num">${t("fm.thMax")}</th><th class="num">${t("fm.thExpected")}</th>
     </tr></thead><tbody>
-      <tr class="fm-grp"><td colspan="5" style="background:#0b1f17;color:#6ee7b7">— Primary loss (first-party, direct) —</td></tr>
+      <tr class="fm-grp"><td colspan="5" style="background:#0b1f17;color:#6ee7b7">${t("fm.bannerPrimary")}</td></tr>
       ${rowsFor("primary")}
-      <tr class="fm-grp"><td colspan="5" style="background:#241a0b;color:#fcd34d">— Secondary loss (stakeholder reactions) —</td></tr>
+      <tr class="fm-grp"><td colspan="5" style="background:#241a0b;color:#fcd34d">${t("fm.bannerSecondary")}</td></tr>
       ${rowsFor("secondary")}
     </tbody></table>`;
 }
@@ -88,8 +93,8 @@ function recompute(): void {
   const threshold = Number.isFinite(thr) && thr > 0 ? thr : null;
   const det = !threshold ? "Unassessed" : total >= threshold ? "Material" : total >= 0.5 * threshold ? "Approaching" : "Not material";
   $("fm-total").textContent = fmt(total);
-  $("fm-split").innerHTML = `Primary <b>${fmt(primary)}</b> · Secondary <b>${fmt(secondary)}</b> &nbsp;|&nbsp; First-party <b>${fmt(firstP)}</b> · Third-party <b>${fmt(thirdP)}</b>${threshold ? ` &nbsp;|&nbsp; ${Math.round((total / threshold) * 100)}% of threshold` : ""}`;
-  const v = $("fm-verdict"); v.textContent = det; v.className = `fm-verdict ${verdictClass(det)}`;
+  $("fm-split").innerHTML = `${t("fm.primary")} <b>${fmt(primary)}</b> · ${t("fm.secondary")} <b>${fmt(secondary)}</b> &nbsp;|&nbsp; ${t("fm.firstParty")} <b>${fmt(firstP)}</b> · ${t("fm.thirdParty")} <b>${fmt(thirdP)}</b>${threshold ? ` &nbsp;|&nbsp; ${tfmt("fm.pctThreshold", { n: Math.round((total / threshold) * 100) })}` : ""}`;
+  const v = $("fm-verdict"); v.textContent = detLabel(det); v.className = `fm-verdict ${verdictClass(det)}`;
 }
 
 async function save(): Promise<void> {
@@ -100,37 +105,37 @@ async function save(): Promise<void> {
     const min = num("min"), ml = num("ml"), mx = num("max");
     if (min != null || ml != null || mx != null) lines.push({ categoryId: id, min, mostLikely: ml, max: mx });
   }
-  if (!lines.length) { stat.innerHTML = "⚠️ Enter at least one loss estimate first."; return; }
+  if (!lines.length) { stat.innerHTML = t("fm.errNoLines"); return; }
   const name = (document.getElementById("fm-name") as HTMLInputElement).value.trim() || undefined;
   const thr = parseFloat((document.getElementById("fm-threshold") as HTMLInputElement).value || "");
   const threshold = Number.isFinite(thr) && thr > 0 ? thr : undefined;
   const riskSel = document.getElementById("fm-risk") as HTMLSelectElement | null;
   const riskRegisterEntryId = riskSel && riskSel.value ? Number(riskSel.value) : undefined;
-  btn.disabled = true; stat.textContent = "Saving…";
+  btn.disabled = true; stat.textContent = t("fm.saving");
   try {
     const r = await fetch("/api/fair-mam/assess", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, currency: CUR, threshold, lines, riskRegisterEntryId }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     const wb = d.riskWriteback
-      ? ` &nbsp;↪ wrote <b>SLE ${esc(fmt(d.riskWriteback.sle))}</b>${d.riskWriteback.ale != null ? ` · ALE ${esc(fmt(d.riskWriteback.ale))}` : ""} back to risk <a href="/?db=XCOMPLIANCE&table=RISKREGISTERENTRY&filterCol=RiskRegisterEntryID&filterVal=${esc(d.riskWriteback.id)}">${esc(d.riskWriteback.ref)}</a>`
+      ? tfmt("fm.writeback", { sle: esc(fmt(d.riskWriteback.sle)), ale: d.riskWriteback.ale != null ? ` · ALE ${esc(fmt(d.riskWriteback.ale))}` : "", id: esc(d.riskWriteback.id), ref: esc(d.riskWriteback.ref) })
       : "";
-    stat.innerHTML = `✅ Saved assessment #${esc(d.assessmentId)} — total ${esc(fmt(d.total))}, <b>${esc(d.determination)}</b>.${wb} <a href="/fair-mam">↻ refresh</a>`;
+    stat.innerHTML = `${tfmt("fm.saved", { id: esc(d.assessmentId), total: esc(fmt(d.total)), det: esc(detLabel(d.determination)) })}${wb} <a href="/fair-mam">${t("fm.refresh")}</a>`;
   } catch (e) { stat.innerHTML = `⚠️ ${esc(e)}`; }
   finally { btn.disabled = false; }
 }
 
 function savedTable(rows: Assessment[]): string {
-  if (!rows.length) return `<div class="muted" style="padding:12px 0">No saved assessments yet — build one above and click <b>Save</b>.</div>`;
+  if (!rows.length) return `<div class="muted" style="padding:12px 0">${t("fm.noAssessments")}</div>`;
   return `<table class="fa"><thead><tr>
-      <th>Assessment</th><th class="num">Single-loss</th><th class="num">Primary</th><th class="num">Secondary</th><th class="num">Threshold</th><th class="num">% thr.</th><th>Determination</th>
+      <th>${t("fm.thAssessment")}</th><th class="num">${t("fm.thSingleLoss")}</th><th class="num">${t("fm.primary")}</th><th class="num">${t("fm.secondary")}</th><th class="num">${t("fm.thThreshold")}</th><th class="num">${t("fm.thPctThr")}</th><th>${t("fm.thDetermination")}</th>
     </tr></thead><tbody>${rows.map((a) => `<tr>
-      <td>${esc(a.name)}${a.scenarioRef ? `<div class="muted" style="font-size:11px">${esc(a.scenarioRef)}</div>` : ""}<div class="muted" style="font-size:11px">${a.lineCount} line(s)${a.createdDate ? ` · ${esc(a.createdDate)}` : ""}</div></td>
+      <td>${esc(a.name)}${a.scenarioRef ? `<div class="muted" style="font-size:11px">${esc(a.scenarioRef)}</div>` : ""}<div class="muted" style="font-size:11px">${tfmt("fm.lines", { n: a.lineCount })}${a.createdDate ? ` · ${esc(a.createdDate)}` : ""}</div></td>
       <td class="num"><b>${esc(fmt(a.total))}</b></td>
       <td class="num">${esc(fmt(a.primary))}</td>
       <td class="num">${esc(fmt(a.secondary))}</td>
       <td class="num">${a.threshold != null ? esc(fmt(a.threshold)) : "<span class=\"muted\">—</span>"}</td>
       <td class="num">${a.ratio != null ? a.ratio + "%" : "<span class=\"muted\">—</span>"}</td>
-      <td><span class="det det-${esc(a.determination.replace(/\s/g, ""))}">${esc(a.determination)}</span></td>
+      <td><span class="det det-${esc(a.determination.replace(/\s/g, ""))}">${esc(detLabel(a.determination))}</span></td>
     </tr>`).join("")}</tbody></table>`;
 }
 
@@ -139,40 +144,36 @@ async function load(): Promise<void> {
   try { const r = await fetch("/api/fair-mam"); if (!r.ok) throw new Error(`HTTP ${r.status}`); d = await r.json(); }
   catch (e) { $("fm-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">⚠️ ${esc(e)}</div>`; return; }
   CATS = d.categories; RISKS = d.risks || []; CUR = d.summary.currency || "EUR";
-  if (!CATS.length) { $("fm-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">FAIR-MAM taxonomy not seeded. Restart the server to seed FAIRMAMCATEGORY.</div>`; return; }
+  if (!CATS.length) { $("fm-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("fm.notSeeded")}</div>`; return; }
   const s = d.summary;
 
   const cards = [
-    card("Assessments", String(s.assessments), `${s.material} material · ${s.approaching} approaching`),
-    card("Material events", String(s.material), "≥ threshold", s.material ? "#f87171" : "#34d399"),
-    card("Largest single-loss", fmt(s.largestExposure), "biggest assessed event"),
-    card("Total assessed", fmt(s.totalExposure), `${s.assessments} assessment(s)`),
-    card("Avg primary share", s.avgPrimaryShare != null ? `${s.avgPrimaryShare}%` : "—", "first-party / direct"),
+    card(t("fm.cAssessments"), String(s.assessments), tfmt("fm.cAssessments.foot", { m: s.material, a: s.approaching })),
+    card(t("fm.cMaterial"), String(s.material), t("fm.cMaterial.foot"), s.material ? "#f87171" : "#34d399"),
+    card(t("fm.cLargest"), fmt(s.largestExposure), t("fm.cLargest.foot")),
+    card(t("fm.cTotal"), fmt(s.totalExposure), tfmt("fm.cTotal.foot", { n: s.assessments })),
+    card(t("fm.cAvgPrimary"), s.avgPrimaryShare != null ? `${s.avgPrimaryShare}%` : "—", t("fm.cAvgPrimary.foot")),
   ].join("");
 
   $("fm-body").innerHTML = `<div class="fm-cards">${cards}</div>
-    <div class="fm-section">Materiality calculator — decompose a single loss event</div>
+    <div class="fm-section">${t("fm.secCalc")}</div>
     <div class="fm-calc">
       <div class="fm-meta">
-        <div class="fm-fld"><label>Assessment name</label><input id="fm-name" type="text" placeholder="e.g. Ransomware on ERP — Q3" style="min-width:280px"></div>
-        <div class="fm-fld"><label>Materiality threshold</label><input id="fm-threshold" type="number" min="0" step="100000" placeholder="e.g. 5000000"></div>
-        <div class="fm-fld"><label>Currency</label><select id="fm-currency"><option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option></select></div>
-        ${RISKS.length ? `<div class="fm-fld"><label>Link to risk (writes back SLE)</label><select id="fm-risk" style="min-width:240px"><option value="">— none —</option>${RISKS.map((r) => `<option value="${r.id}">${esc(r.ref)} — ${esc(r.title)}</option>`).join("")}</select></div>` : ""}
+        <div class="fm-fld"><label>${t("fm.mName")}</label><input id="fm-name" type="text" placeholder="${t("fm.mNamePh")}" style="min-width:280px"></div>
+        <div class="fm-fld"><label>${t("fm.mThreshold")}</label><input id="fm-threshold" type="number" min="0" step="100000" placeholder="${t("fm.mThresholdPh")}"></div>
+        <div class="fm-fld"><label>${t("fm.mCurrency")}</label><select id="fm-currency"><option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option></select></div>
+        ${RISKS.length ? `<div class="fm-fld"><label>${t("fm.mLinkRisk")}</label><select id="fm-risk" style="min-width:240px"><option value="">${t("fm.optNone")}</option>${RISKS.map((r) => `<option value="${r.id}">${esc(r.ref)} — ${esc(r.title)}</option>`).join("")}</select></div>` : ""}
       </div>
       ${calcTable()}
       <div class="fm-tot">
-        <div><div class="lbl" style="font-size:11px;color:#94a3b8;text-transform:uppercase">Expected single-loss</div><div class="big fm-exp" id="fm-total">${fmt(0)}</div></div>
-        <div><span id="fm-verdict" class="fm-verdict v-unassessed">Unassessed</span><div class="fm-split" id="fm-split" style="margin-top:6px"></div></div>
-        <button id="fm-save" class="fm-save">💾 Save assessment</button>
+        <div><div class="lbl" style="font-size:11px;color:#94a3b8;text-transform:uppercase">${t("fm.expectedSingleLoss")}</div><div class="big fm-exp" id="fm-total">${fmt(0)}</div></div>
+        <div><span id="fm-verdict" class="fm-verdict v-unassessed">${t("fm.det.unassessed")}</span><div class="fm-split" id="fm-split" style="margin-top:6px"></div></div>
+        <button id="fm-save" class="fm-save">${t("fm.saveBtn")}</button>
         <div class="fm-stat" id="fm-stat"></div>
       </div>
     </div>
-    <div class="fm-section">Saved assessments (${d.assessments.length})</div>${savedTable(d.assessments)}
-    <div class="legend">↳ Each line is a <b>PERT</b> estimate: <b>Expected = (min + 4·most-likely + max) / 6</b>.
-      <b>Primary</b> loss = first-party costs you incur directly (response, extortion, business interruption,
-      restoration); <b>Secondary</b> loss = stakeholder reactions (liability, regulatory, PCI, reputation).
-      <b>Material</b> when the expected single-loss ≥ your threshold (e.g. an SEC materiality figure).
-      Based on the FAIR Institute's open <i>FAIR-MAM</i> model.</div>`;
+    <div class="fm-section">${tfmt("fm.secSaved", { n: d.assessments.length })}</div>${savedTable(d.assessments)}
+    <div class="legend">${t("fm.legend")}</div>`;
 
   const curSel = document.getElementById("fm-currency") as HTMLSelectElement;
   if (curSel) { curSel.value = CUR; curSel.onchange = () => { CUR = curSel.value; recompute(); }; }

@@ -228,9 +228,16 @@ function seedBuiltinPlaybooks(db: ReturnType<typeof getDb>): void {
     { name: "Full external pentest", description: "Port/service discovery (nmap) → web fingerprint & scanners on HTTP(S) (Nikto, Nuclei, Artemis) → WPScan on WordPress → TLS audit → OpenVAS/Greenbone host vulnerability scan → CyberSentinel AI deep analysis when a vulnerability is found. Findings roll up to the engagement.", def: DEFAULT_PLAYBOOK },
     { name: "Web app assessment", description: "Fingerprint (WhatWeb) → Nikto + Nuclei + Artemis (CERT-PL) → WPScan + WPProbe when WordPress is detected → GraphQL Cop when a GraphQL endpoint is detected → CyberSentinel AI deep analysis on any web vulnerability. Seed a URL.", def: { seed: ["whatweb", "nikto", "nuclei", "artemis"], maxDepth: 3, maxSteps: 40, rules: [{ id: "wordpress", when: { tech: "wordpress" }, run: "wpscan", targetFrom: "url", label: "WordPress detected → WPScan" }, { id: "wordpress-wpprobe", when: { tech: "wordpress" }, run: "wpprobe", targetFrom: "url", label: "WordPress detected → WPProbe (plugin/theme CVEs)" }, { id: "graphql", when: { tech: "graphql" }, run: "graphql-cop", targetFrom: "url", label: "GraphQL endpoint detected → GraphQL Cop (introspection / DoS / CSRF / info-leak)" }, { id: "ai-web", when: { hasVuln: true }, run: "cybersentinel-ai", targetFrom: "url", label: "Web vulnerability → CyberSentinel AI deep analysis (AI triage + MITRE ATT&CK mapping)" }] } },
     { name: "GraphQL API assessment", description: "Audit a GraphQL endpoint with GraphQL Cop (introspection, GraphiQL/Playground exposure, alias/field/directive/circular-query & batch DoS, GET/POST CSRF, tracing info-leak) → CyberSentinel AI deep analysis on any finding. Seed the GraphQL endpoint URL (e.g. https://app/graphql).", def: { seed: ["graphql-cop"], maxDepth: 2, maxSteps: 8, rules: [{ id: "ai-graphql", when: { hasVuln: true }, run: "cybersentinel-ai", targetFrom: "url", label: "GraphQL issue found → CyberSentinel AI deep analysis (AI triage + MITRE ATT&CK mapping)" }] } },
-    { name: "Web recon (subdomains)", description: "Subdomain enumeration (subfinder) → probe each host with httpx → fingerprint & scan the live web hosts (WhatWeb, Nikto) → WPScan on WordPress. Seed a domain.", def: {
-      seed: ["subfinder"], maxDepth: 5, maxSteps: 60, rules: [
+    { name: "Web recon (subdomains)", description: "Subdomain discovery — passive (subfinder) + active brute-force/resolve (puredns) → probe each host with httpx → fingerprint & scan the live web hosts (WhatWeb, Nikto) → WPScan on WordPress. Seed a domain.", def: {
+      seed: ["subfinder", "puredns"], maxDepth: 5, maxSteps: 60, rules: [
         { id: "probe", when: { hasHosts: true }, run: "httpx", targetFrom: "host-each", label: "Subdomains found → probe with httpx" },
+        { id: "web-fingerprint", when: { service: "https?|http-proxy|ssl/http", ports: [80, 443, 8080, 8443] }, run: "whatweb", targetFrom: "url", label: "Live web host → fingerprint (WhatWeb)" },
+        { id: "web-nikto", when: { service: "https?|http-proxy|ssl/http", ports: [80, 443, 8080, 8443] }, run: "nikto", targetFrom: "url", label: "Live web host → Nikto scan" },
+        { id: "wordpress", when: { tech: "wordpress" }, run: "wpscan", targetFrom: "url", label: "WordPress detected → WPScan" },
+      ] } },
+    { name: "DNS brute-force recon (puredns)", description: "Active subdomain brute-force with puredns (massdns + wildcard filtering + trusted-resolver validation) → probe each resolved host with httpx → fingerprint & scan the live web hosts (WhatWeb, Nikto) → WPScan on WordPress. Seed a domain; provide a wordlist on the worker for live runs.", def: {
+      seed: ["puredns"], maxDepth: 5, maxSteps: 60, rules: [
+        { id: "probe", when: { hasHosts: true }, run: "httpx", targetFrom: "host-each", label: "Resolved subdomains → probe with httpx" },
         { id: "web-fingerprint", when: { service: "https?|http-proxy|ssl/http", ports: [80, 443, 8080, 8443] }, run: "whatweb", targetFrom: "url", label: "Live web host → fingerprint (WhatWeb)" },
         { id: "web-nikto", when: { service: "https?|http-proxy|ssl/http", ports: [80, 443, 8080, 8443] }, run: "nikto", targetFrom: "url", label: "Live web host → Nikto scan" },
         { id: "wordpress", when: { tech: "wordpress" }, run: "wpscan", targetFrom: "url", label: "WordPress detected → WPScan" },
@@ -676,10 +683,11 @@ export function simulateResult(connector: string, target: string): any {
     const cpes = services.filter((s) => s.product).map((s) => `cpe:/a:${String(s.product).split(" ")[0].toLowerCase()}:${String(s.product).split(" ").pop()!.toLowerCase()}:${s.version}`);
     return { assets: [{ ip: host, hostname: host, os: pick(["Linux 5.x", "Windows Server 2019", "Ubuntu 20.04"], seed) }], services, cpes: [...new Set(cpes)], vulns: [] };
   }
-  if (["subfinder", "amass", "sublist3r"].includes(connector)) {
-    const labels = ["www", "api", "dev", "staging", "mail", "vpn", "shop", "blog", "admin"];
+  if (["subfinder", "amass", "sublist3r", "puredns"].includes(connector)) {
+    // puredns brute-forces a large wordlist (active) → simulate a wider set than passive enum
+    const labels = ["www", "api", "dev", "staging", "mail", "vpn", "shop", "blog", "admin", "test", "git", "jenkins", "portal", "internal"];
     const apex = host.replace(/^www\./, "");
-    const n = 3 + (seed % 3); // 3–5 subdomains
+    const n = connector === "puredns" ? 5 + (seed % 4) : 3 + (seed % 3); // puredns 5–8, others 3–5
     const hosts = new Set<string>();
     for (let i = 0; i < n; i++) hosts.add(`${labels[(seed >> i) % labels.length]}.${apex}`);
     const list = [...hosts];

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — OT Security</title>
+<title data-i18n="ot.pageTitle">XORCISM — OT Security</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .ot-wrap{max-width:1280px;margin:0 auto;padding:18px}
@@ -55,76 +55,70 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/asset-management">&#128187; Assets</a>
-  <a href="/compliance-management">&#9878;&#65039; Compliance</a>
-  <a href="/?db=XCOMPLIANCE&amp;table=REFERENCECONTROL">&#128209; Requirements</a>
+  <a href="/asset-management" data-i18n="ot.navAssets">&#128187; Assets</a>
+  <a href="/compliance-management" data-i18n="ot.navCompliance">&#9878;&#65039; Compliance</a>
+  <a href="/?db=XCOMPLIANCE&amp;table=REFERENCECONTROL" data-i18n="ot.navRequirements">&#128209; Requirements</a>
   <span class="spacer"></span>
-  <span class="title">&#127981; OT / ICS Security</span>
+  <span class="title" data-i18n="ot.navTitle">&#127981; OT / ICS Security</span>
 </div>
 
 <div class="ot-wrap">
   <div style="display:flex;align-items:flex-start;gap:12px">
-    <h1 style="flex:1">OT / ICS / SCADA / IoT Security</h1>
-    <button class="btn-new" id="ot-new">+ New OT assessment</button>
+    <h1 style="flex:1" data-i18n="ot.title">OT / ICS / SCADA / IoT Security</h1>
+    <button class="btn-new" id="ot-new" data-i18n="ot.newAssessment">+ New OT assessment</button>
   </div>
-  <div class="ot-sub">Govern the security of your <b>operational technology</b> — ICS / SCADA / DCS / PLC / IoT — against
-    <b>IEC 62443</b> and <b>NIST SP 800-82</b>. Each assessment is recorded as an AUDIT (type <i>OT Security</i>),
-    so its findings, remediation and report reuse the audit workflow. OT assets are the ones tagged
-    <span class="tag">ot</span><span class="tag">ics</span><span class="tag">scada</span><span class="tag">iot</span>… ;
-    IEC 62443 <b>zones &amp; conduits</b> carry target/achieved <b>Security Levels (SL 1-4)</b>, and the seeded
-    requirement catalogues (62443-3-3 FR1-7 / NIST 800-82) back the assessments.</div>
-  <div id="ot-body"><div class="muted" style="padding:24px;text-align:center">Building the OT security posture…</div></div>
+  <div class="ot-sub" data-i18n="ot.sub">Govern the security of your operational technology — ICS / SCADA / DCS / PLC / IoT — against IEC 62443 and NIST SP 800-82. Each assessment is recorded as an AUDIT (type OT Security), so its findings, remediation and report reuse the audit workflow. OT assets are the ones tagged ot / ics / scada / iot…; IEC 62443 zones & conduits carry target/achieved Security Levels (SL 1-4), and the seeded requirement catalogues (62443-3-3 FR1-7 / NIST 800-82) back the assessments.</div>
+  <div id="ot-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="ot.loading">Building the OT security posture…</div></div>
 </div>
 
 <!-- Guided "new OT assessment" modal -->
 <div class="ot-modal-bg" id="ot-modal">
   <div class="ot-modal">
-    <h3>New OT security assessment</h3>
-    <p class="lead">Create an OT/ICS security assessment against a standard. It is recorded as an AUDIT
-      (type <b>OT Security</b>); add findings, zones &amp; conduits afterward.</p>
+    <h3 data-i18n="ot.modalTitle">New OT security assessment</h3>
+    <p class="lead" data-i18n="ot.modalLead">Create an OT/ICS security assessment against a standard. It is recorded as an AUDIT (type OT Security); add findings, zones & conduits afterward.</p>
     <div class="fld">
-      <label>Name <span class="req">*</span></label>
-      <input id="ot-f-name" type="text" placeholder="e.g. 2026 Plant-A ICS 62443-3-3 assessment" maxlength="300" autocomplete="off">
+      <label data-i18n="ot.fName">Name <span class="req">*</span></label>
+      <input id="ot-f-name" type="text" data-i18n-placeholder="ot.fNamePh" placeholder="e.g. 2026 Plant-A ICS 62443-3-3 assessment" maxlength="300" autocomplete="off">
     </div>
     <div class="row2">
       <div class="fld">
-        <label>Standard</label>
+        <label data-i18n="ot.fStandard">Standard</label>
         <select id="ot-f-standard">
-          <option value="IEC 62443-3-3">IEC 62443-3-3 (system requirements)</option>
-          <option value="IEC 62443-4-2">IEC 62443-4-2 (component requirements)</option>
-          <option value="IEC 62443-2-1">IEC 62443-2-1 (CSMS / program)</option>
-          <option value="NIST SP 800-82 Rev 3">NIST SP 800-82 Rev 3 (OT guide)</option>
-          <option value="NIST CSF (OT profile)">NIST CSF (OT profile)</option>
+          <option value="IEC 62443-3-3" data-i18n="ot.std.3303">IEC 62443-3-3 (system requirements)</option>
+          <option value="IEC 62443-4-2" data-i18n="ot.std.4402">IEC 62443-4-2 (component requirements)</option>
+          <option value="IEC 62443-2-1" data-i18n="ot.std.2201">IEC 62443-2-1 (CSMS / program)</option>
+          <option value="NIST SP 800-82 Rev 3" data-i18n="ot.std.80082">NIST SP 800-82 Rev 3 (OT guide)</option>
+          <option value="NIST CSF (OT profile)" data-i18n="ot.std.csf">NIST CSF (OT profile)</option>
         </select>
       </div>
       <div class="fld">
-        <label>Status</label>
+        <label data-i18n="ot.fStatus">Status</label>
         <select id="ot-f-status">
-          <option value="Planned">Planned</option>
-          <option value="Scoping">Scoping</option>
-          <option value="In progress">In progress</option>
-          <option value="Fieldwork">Fieldwork</option>
-          <option value="In review">In review</option>
-          <option value="Completed">Completed</option>
+          <option value="Planned" data-i18n="ot.stt.planned">Planned</option>
+          <option value="Scoping" data-i18n="ot.stt.scoping">Scoping</option>
+          <option value="In progress" data-i18n="ot.stt.inprogress">In progress</option>
+          <option value="Fieldwork" data-i18n="ot.stt.fieldwork">Fieldwork</option>
+          <option value="In review" data-i18n="ot.stt.inreview">In review</option>
+          <option value="Completed" data-i18n="ot.stt.completed">Completed</option>
         </select>
       </div>
     </div>
     <div class="row2">
-      <div class="fld"><label>Assessor (optional)</label><input id="ot-f-auditor" type="text" placeholder="Firm or person" maxlength="200" autocomplete="off"></div>
-      <div class="fld"><label>Date</label><input id="ot-f-date" type="date"></div>
+      <div class="fld"><label data-i18n="ot.fAssessor">Assessor (optional)</label><input id="ot-f-auditor" type="text" data-i18n-placeholder="ot.fAssessorPh" placeholder="Firm or person" maxlength="200" autocomplete="off"></div>
+      <div class="fld"><label data-i18n="ot.fDate">Date</label><input id="ot-f-date" type="date"></div>
     </div>
     <div class="fld">
-      <label>Scope (optional)</label>
-      <textarea id="ot-f-scope" placeholder="Sites / zones / control systems / Purdue levels in scope…" maxlength="2000"></textarea>
+      <label data-i18n="ot.fScope">Scope (optional)</label>
+      <textarea id="ot-f-scope" data-i18n-placeholder="ot.fScopePh" placeholder="Sites / zones / control systems / Purdue levels in scope…" maxlength="2000"></textarea>
     </div>
     <div class="fld">
-      <label>Description (optional)</label>
+      <label data-i18n="ot.fDesc">Description (optional)</label>
       <textarea id="ot-f-desc" maxlength="4000"></textarea>
     </div>
     <div class="ot-modal-foot">
       <span class="ot-err" id="ot-f-err" style="flex:1"></span>
-      <button class="btn btn-ghost btn-sm" id="ot-cancel">Cancel</button>
-      <button class="btn-new" id="ot-create">Create assessment</button>
+      <button class="btn btn-ghost btn-sm" id="ot-cancel" data-i18n="ot.cancel">Cancel</button>
+      <button class="btn-new" id="ot-create" data-i18n="ot.create">Create assessment</button>
     </div>
   </div>
 </div>

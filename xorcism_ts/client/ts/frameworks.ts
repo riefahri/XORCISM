@@ -3,9 +3,12 @@
  * Lists the FRAMEWORK catalogue with an inline vocabulary-mapping dropdown per row (sets
  * FRAMEWORK.VocabularyID → the controls catalogue), plus a "New framework" modal. From /api/frameworks.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
-function toast(m: string): void { const t = $("toast"); if (!t) return; t.textContent = m; t.className = "show"; setTimeout(() => { t.className = ""; }, 2600); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
+function toast(m: string): void { const el = $("toast"); if (!el) return; el.textContent = m; el.className = "show"; setTimeout(() => { el.className = ""; }, 2600); }
 
 interface Vocab { id: number; name: string; version: string | null; reference: string | null; controls: number }
 interface Row { id: number; name: string; version: string | null; description: string | null; vocabularyId: number | null; vocabularyName: string | null; controls: number; mapped: boolean }
@@ -20,15 +23,15 @@ function card(lbl: string, val: string, foot: string, color?: string): string {
 function vocabOptions(selected: number | null): string {
   const vs = DATA?.vocabularies || [];
   const opts = vs.map((v) => `<option value="${v.id}"${v.id === selected ? " selected" : ""}>${esc(v.name)}${v.controls ? ` (${v.controls})` : ""}</option>`).join("");
-  return `<option value=""${selected == null ? " selected" : ""}>— not mapped —</option>${opts}`;
+  return `<option value=""${selected == null ? " selected" : ""}>${t("frm.notMapped")}</option>${opts}`;
 }
 
 function rowHtml(r: Row): string {
   return `<tr data-id="${r.id}">
     <td><span class="fname">${esc(r.name)}</span>${r.version ? ` <span class="muted">${esc(r.version)}</span>` : ""}${r.description ? `<div class="muted" style="font-size:11px;max-width:420px">${esc(r.description)}</div>` : ""}</td>
     <td><select class="vsel" data-map="${r.id}">${vocabOptions(r.vocabularyId)}</select></td>
-    <td>${r.mapped ? `<span class="ctrl" id="fw-ctrl-${r.id}">${r.controls} controls</span>` : `<span class="muted" id="fw-ctrl-${r.id}">—</span>`}</td>
-    <td>${r.mapped ? `<span class="badge b-mapped">mapped</span>` : `<span class="badge b-unmapped">unmapped</span>`}</td>
+    <td>${r.mapped ? `<span class="ctrl" id="fw-ctrl-${r.id}">${fmt("frm.nControls", { n: r.controls })}</span>` : `<span class="muted" id="fw-ctrl-${r.id}">—</span>`}</td>
+    <td>${r.mapped ? `<span class="badge b-mapped">${t("frm.mapped")}</span>` : `<span class="badge b-unmapped">${t("frm.unmapped")}</span>`}</td>
   </tr>`;
 }
 
@@ -36,23 +39,23 @@ function render(): void {
   if (!DATA) return;
   const s = DATA.summary;
   const cards = [
-    card("Frameworks", String(s.total), "in the catalogue", "#22c55e"),
-    card("Mapped", String(s.mapped), "to a vocabulary", s.mapped ? "#34d399" : undefined),
-    card("Unmapped", String(s.unmapped), "no controls catalogue", s.unmapped ? "#fbbf24" : "#34d399"),
-    card("Controls covered", String(s.controlsCovered), `across ${s.vocabularies} vocabularies`, "#60a5fa"),
+    card(t("frm.cFrameworks"), String(s.total), t("frm.cFrameworks.foot"), "#22c55e"),
+    card(t("frm.cMapped"), String(s.mapped), t("frm.cMapped.foot"), s.mapped ? "#34d399" : undefined),
+    card(t("frm.cUnmapped"), String(s.unmapped), t("frm.cUnmapped.foot"), s.unmapped ? "#fbbf24" : "#34d399"),
+    card(t("frm.cControls"), String(s.controlsCovered), fmt("frm.cControls.foot", { n: s.vocabularies }), "#60a5fa"),
   ].join("");
   const table = DATA.rows.length
-    ? `<table class="fw"><thead><tr><th>Framework</th><th>Mapped vocabulary</th><th>Controls</th><th>Status</th></tr></thead>
+    ? `<table class="fw"><thead><tr><th>${t("frm.thFramework")}</th><th>${t("frm.thVocab")}</th><th>${t("frm.thControls")}</th><th>${t("frm.thStatus")}</th></tr></thead>
        <tbody>${DATA.rows.map(rowHtml).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:24px;text-align:center">No frameworks yet — add one with “New framework”.</div>`;
+    : `<div class="muted" style="padding:24px;text-align:center">${t("frm.noFrameworks")}</div>`;
   $("fw-body").innerHTML = `<div class="fw-cards">${cards}</div>
-    <div class="fw-section">Framework catalogue (${DATA.rows.length})</div>${table}
-    <div class="muted" style="font-size:11px;margin-top:12px">A <b>vocabulary</b> is the controlled controls catalogue in the DB (VOCABULARY ⋈ CONTROL). Mapping wires a framework to its controls — change it from the dropdown and it saves immediately.</div>`;
+    <div class="fw-section">${fmt("frm.secCatalogue", { n: DATA.rows.length })}</div>${table}
+    <div class="muted" style="font-size:11px;margin-top:12px">${t("frm.legend")}</div>`;
   // wire inline mapping dropdowns
   $("fw-body").querySelectorAll<HTMLSelectElement>("select[data-map]").forEach((sel) => {
     sel.addEventListener("change", () => void mapFramework(Number(sel.dataset.map), sel.value ? Number(sel.value) : null, sel));
   });
-  $("fw-bar-stat").textContent = `${s.mapped}/${s.total} mapped`;
+  $("fw-bar-stat").textContent = fmt("frm.barStat", { m: s.mapped, n: s.total });
 }
 
 async function mapFramework(id: number, vocabularyId: number | null, sel: HTMLSelectElement): Promise<void> {
@@ -65,12 +68,12 @@ async function mapFramework(id: number, vocabularyId: number | null, sel: HTMLSe
     const row = DATA?.rows.find((x) => x.id === id);
     if (row) { row.vocabularyId = vocabularyId; row.mapped = vocabularyId != null; row.controls = vocabularyId != null ? Number(d.controls || 0) : 0; row.vocabularyName = vocabularyId != null ? (DATA?.vocabularies.find((v) => v.id === vocabularyId)?.name ?? null) : null; }
     const ctrl = document.getElementById(`fw-ctrl-${id}`);
-    if (ctrl) { ctrl.className = vocabularyId != null ? "ctrl" : "muted"; ctrl.textContent = vocabularyId != null ? `${d.controls || 0} controls` : "—"; }
+    if (ctrl) { ctrl.className = vocabularyId != null ? "ctrl" : "muted"; ctrl.textContent = vocabularyId != null ? fmt("frm.nControls", { n: d.controls || 0 }) : "—"; }
     const tr = sel.closest("tr"); const badge = tr?.querySelector(".badge");
-    if (badge) { badge.className = `badge ${vocabularyId != null ? "b-mapped" : "b-unmapped"}`; badge.textContent = vocabularyId != null ? "mapped" : "unmapped"; }
+    if (badge) { badge.className = `badge ${vocabularyId != null ? "b-mapped" : "b-unmapped"}`; badge.textContent = vocabularyId != null ? t("frm.mapped") : t("frm.unmapped"); }
     if (DATA) { DATA.summary.mapped = DATA.rows.filter((x) => x.mapped).length; DATA.summary.unmapped = DATA.summary.total - DATA.summary.mapped; DATA.summary.controlsCovered = DATA.rows.reduce((a, x) => a + x.controls, 0); }
-    $("fw-bar-stat").textContent = DATA ? `${DATA.summary.mapped}/${DATA.summary.total} mapped` : "";
-    toast(vocabularyId != null ? `Mapped → ${d.controls || 0} controls` : "Mapping cleared");
+    $("fw-bar-stat").textContent = DATA ? fmt("frm.barStat", { m: DATA.summary.mapped, n: DATA.summary.total }) : "";
+    toast(vocabularyId != null ? fmt("frm.mappedTo", { n: d.controls || 0 }) : t("frm.mappingCleared"));
   } catch (e) { toast(`⚠️ ${(e as Error).message}`); }
   finally { sel.disabled = false; }
 }
@@ -95,7 +98,7 @@ function closeModal(): void { $("fw-modal").classList.remove("open"); }
 
 async function createFramework(): Promise<void> {
   const name = (document.getElementById("fw-f-name") as HTMLInputElement).value.trim();
-  if (!name) { $("fw-f-err").textContent = "Name is required."; return; }
+  if (!name) { $("fw-f-err").textContent = t("frm.errName"); return; }
   const body = {
     name,
     version: (document.getElementById("fw-f-version") as HTMLInputElement).value.trim(),
@@ -108,13 +111,14 @@ async function createFramework(): Promise<void> {
     const r = await fetch("/api/frameworks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    closeModal(); toast(`Framework “${name}” created`);
+    closeModal(); toast(fmt("frm.created", { name: esc(name) }));
     void load();
   } catch (e) { $("fw-f-err").textContent = (e as Error).message; }
   finally { btn.disabled = false; }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   void load();
   document.getElementById("fw-new")?.addEventListener("click", openModal);
   document.getElementById("fw-cancel")?.addEventListener("click", closeModal);

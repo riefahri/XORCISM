@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Cloud Security</title>
+<title data-i18n="cs.pageTitle">XORCISM — Cloud Security</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .cs-wrap{max-width:1340px;margin:0 auto;padding:18px}
@@ -33,18 +33,18 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/asset-management">&#128451; Assets</a>
-  <a href="/connectors?connector=wiz">&#9729; Cloud connectors</a>
+  <a href="/asset-management" data-i18n="cs.navAssets">&#128451; Assets</a>
+  <a href="/connectors?connector=wiz" data-i18n="cs.navConnectors">&#9729; Cloud connectors</a>
   <span class="spacer"></span>
-  <span class="title">&#9729; Cloud Security</span>
+  <span class="title" data-i18n="cs.navTitle">&#9729; Cloud Security</span>
 </div>
 <div class="cs-wrap">
-  <h1>Cloud Security Management</h1>
-  <div class="cs-sub">CSPM-style governance over your <b>cloud estate</b> — assets identified as cloud (cloud flag,
+  <h1 data-i18n="cs.title">Cloud Security Management</h1>
+  <div class="cs-sub" data-i18n="cs.sub">CSPM-style governance over your <b>cloud estate</b> — assets identified as cloud (cloud flag,
     third-party hosted, a cloud tag or a cloud hostname) enriched with their KEV/critical vulnerabilities, public
     exposure and encryption posture, against a <b>CSA Cloud Controls Matrix</b> reference. Fed by the cloud
     connectors (Entra ID, Wiz, Lacework, Upwind, Chainguard…). The worklist is what to fix first.</div>
-  <div id="cs-body"><div class="muted" style="padding:24px;text-align:center">Loading cloud estate…</div></div>
+  <div id="cs-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="cs.loading">Loading cloud estate…</div></div>
 </div>
 <script src="/js/session-ui.js"></script>
 <script src="/js/cloud-security.js"></script>

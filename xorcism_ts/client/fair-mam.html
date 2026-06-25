@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — FAIR-MAM Materiality</title>
+<title data-i18n="fm.pageTitle">XORCISM — FAIR-MAM Materiality</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .fm-wrap{max-width:1280px;margin:0 auto;padding:18px}
@@ -59,25 +59,19 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XCOMPLIANCE&amp;table=RISKREGISTERENTRY">&#128202; Risk register</a>
-  <a href="/ransomware">&#128176; Ransomware $</a>
-  <a href="/compliance-management">&#9878;&#65039; Compliance</a>
+  <a href="/?db=XCOMPLIANCE&amp;table=RISKREGISTERENTRY" data-i18n="fm.navRisk">&#128202; Risk register</a>
+  <a href="/ransomware" data-i18n="fm.navRansomware">&#128176; Ransomware $</a>
+  <a href="/compliance-management" data-i18n="fm.navCompliance">&#9878;&#65039; Compliance</a>
   <span class="spacer"></span>
-  <span class="title">&#129518; FAIR-MAM Materiality</span>
+  <span class="title" data-i18n="fm.navTitle">&#129518; FAIR-MAM Materiality</span>
 </div>
 
 <div class="fm-wrap">
   <div>
-    <h1>FAIR-MAM &mdash; Materiality Assessment</h1>
-    <div class="fm-sub">Decompose a cyber loss event's magnitude using the FAIR Institute's
-      <b>Materiality Assessment Model</b>: estimate each of the 10 standardized cost categories as a
-      <b>PERT</b> range (minimum / most-likely / maximum), and XORCISM computes the expected single-loss
-      magnitude, the <b>primary vs secondary</b> (and first- vs third-party) split, and a
-      <b>materiality verdict</b> against your threshold. Complements the CRQ/FAIR figures on the
-      <a href="/?db=XCOMPLIANCE&amp;table=RISKREGISTERENTRY">risk register</a> (this is the detailed
-      breakdown of <i>Single Loss Expectancy</i>).</div>
+    <h1 data-i18n="fm.title">FAIR-MAM &mdash; Materiality Assessment</h1>
+    <div class="fm-sub" data-i18n="fm.sub">Decompose a cyber loss event's magnitude using the FAIR Institute's Materiality Assessment Model: estimate each of the 10 standardized cost categories as a PERT range (minimum / most-likely / maximum), and XORCISM computes the expected single-loss magnitude, the primary vs secondary (and first- vs third-party) split, and a materiality verdict against your threshold. Complements the CRQ/FAIR figures on the risk register (this is the detailed breakdown of Single Loss Expectancy).</div>
   </div>
-  <div id="fm-body"><div class="muted" style="padding:24px;text-align:center">Loading the FAIR-MAM model…</div></div>
+  <div id="fm-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="fm.loading">Loading the FAIR-MAM model…</div></div>
 </div>
 
 <script src="/js/session-ui.js"></script>

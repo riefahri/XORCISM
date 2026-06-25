@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Configuration Management</title>
+<title data-i18n="config.pageTitle">XORCISM — Configuration Management</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .cf-wrap{max-width:1280px;margin:0 auto;padding:18px}
@@ -58,11 +58,11 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XOVAL&amp;table=OVALDEFINITION">&#128203; OVAL definitions</a>
-  <a href="/oval-scan">&#9889; Scan results</a>
-  <a href="/asset-management">&#128187; Assets</a>
+  <a href="/?db=XOVAL&amp;table=OVALDEFINITION" data-i18n="config.nav.oval">&#128203; OVAL definitions</a>
+  <a href="/oval-scan" data-i18n="config.nav.scan">&#9889; Scan results</a>
+  <a href="/asset-management" data-i18n="config.nav.assets">&#128187; Assets</a>
   <span class="spacer"></span>
-  <span class="title">&#9881;&#65039; Configuration Management</span>
+  <span class="title" data-i18n="config.nav.title">&#9881;&#65039; Configuration Management</span>
 </div>
 
 <div class="cf-wrap">
@@ -116,39 +116,39 @@
     <div class="lstat" id="cf-sched-list"></div>
   </div>
   <div class="cf-launch" id="cf-deploy">
-    <h3>🛡️ Deploy compliance policies to the fleet</h3>
-    <div class="cf-deploy-sub muted">Push a <b>system compliance policy</b> — CIS Benchmark / OVAL hardening baseline — to your enrolled XOR agents in one shot. Each agent evaluates the compliance content at its next check-in (CCE/CCSS checks); pass/fail verdicts land in the verification cards below and in <a href="/oval-scan">OVAL scan results</a>. Add a <b>recurrence</b> to keep re-evaluating it and catch configuration drift continuously (enforcement = continuous assurance).</div>
+    <h3 data-i18n="config.deploy.title">🛡️ Deploy compliance policies to the fleet</h3>
+    <div class="cf-deploy-sub muted" data-i18n="config.deploy.sub">Push a <b>system compliance policy</b> — CIS Benchmark / OVAL hardening baseline — to your enrolled XOR agents in one shot. Each agent evaluates the compliance content at its next check-in (CCE/CCSS checks); pass/fail verdicts land in the verification cards below and in <a href="/oval-scan">OVAL scan results</a>. Add a <b>recurrence</b> to keep re-evaluating it and catch configuration drift continuously (enforcement = continuous assurance).</div>
     <div class="fld">
-      <label>Baseline class</label>
+      <label data-i18n="config.deploy.class">Baseline class</label>
       <select id="cf-dep-class">
-        <option value="compliance">Compliance (CIS / hardening)</option>
-        <option value="all">All classes</option>
+        <option value="compliance" data-i18n="config.deploy.class.comp">Compliance (CIS / hardening)</option>
+        <option value="all" data-i18n="config.deploy.class.all">All classes</option>
       </select>
     </div>
     <div class="fld">
-      <label>Target agents</label>
+      <label data-i18n="config.deploy.scope">Target agents</label>
       <select id="cf-dep-scope">
-        <option value="online">All online agents</option>
-        <option value="select">Selected agents…</option>
+        <option value="online" data-i18n="config.deploy.scope.online">All online agents</option>
+        <option value="select" data-i18n="config.deploy.scope.select">Selected agents…</option>
       </select>
     </div>
     <div class="fld" id="cf-dep-pick-fld" style="display:none">
-      <label>Agents</label>
+      <label data-i18n="config.deploy.agents">Agents</label>
       <div id="cf-dep-pick" class="cf-dep-pick"></div>
     </div>
     <div class="fld">
-      <label>Enforcement</label>
+      <label data-i18n="config.deploy.enforce">Enforcement</label>
       <select id="cf-dep-recur">
-        <option value="once">Evaluate once (now)</option>
-        <option value="daily">Daily (02:00) — continuous</option>
-        <option value="weekly">Weekly (Mon 03:00) — continuous</option>
-        <option value="monthly">Monthly (1st 04:00) — continuous</option>
+        <option value="once" data-i18n="config.deploy.enforce.once">Evaluate once (now)</option>
+        <option value="daily" data-i18n="config.deploy.enforce.daily">Daily (02:00) — continuous</option>
+        <option value="weekly" data-i18n="config.deploy.enforce.weekly">Weekly (Mon 03:00) — continuous</option>
+        <option value="monthly" data-i18n="config.deploy.enforce.monthly">Monthly (1st 04:00) — continuous</option>
       </select>
     </div>
-    <button id="cf-dep-btn">Deploy policy</button>
-    <div class="lstat" id="cf-dep-stat">Loading fleet…</div>
+    <button id="cf-dep-btn" data-i18n="config.deploy.go">Deploy policy</button>
+    <div class="lstat" id="cf-dep-stat" data-i18n="config.deploy.loadingFleet">Loading fleet…</div>
   </div>
-  <div id="cf-body"><div class="muted" style="padding:24px;text-align:center">Building the configuration posture…</div></div>
+  <div id="cf-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="config.building">Building the configuration posture…</div></div>
 </div>
 
 <script src="/js/session-ui.js"></script>

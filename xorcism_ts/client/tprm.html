@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Third-Party Risk Management</title>
+<title data-i18n="tp.pageTitle">XORCISM — Third-Party Risk Management</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .tp-wrap{max-width:1340px;margin:0 auto;padding:18px}
@@ -65,47 +65,44 @@
 <body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/questionnaire-journeys">&#128221; Questionnaires</a>
-  <a href="/compliance-management">&#9989; Compliance</a>
-  <a href="/risk-register">&#128202; Risk Register</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/questionnaire-journeys" data-i18n="tp.navQuestionnaires">&#128221; Questionnaires</a>
+  <a href="/compliance-management" data-i18n="tp.navCompliance">&#9989; Compliance</a>
+  <a href="/risk-register" data-i18n="tp.navRisk">&#128202; Risk Register</a>
   <span class="spacer"></span>
-  <span class="title">&#129309; Third-Party Risk (TPRM)</span>
+  <span class="title" data-i18n="tp.navTitle">&#129309; Third-Party Risk (TPRM)</span>
 </div>
 <div class="tp-wrap">
-  <h1>Third-Party Risk Management</h1>
-  <div class="tp-sub">Vendor risk the way Panorays &amp; Vendict do it — an inherent-risk tier from data sensitivity &amp; business criticality,
-    an <b>outside-in posture grade</b> from a safe external scan of the vendor's domain (TLS &amp; security headers), the
-    <b>security-questionnaire conformance</b> (CSA AI-CAIQ / OCIL), a combined <b>residual risk</b> with a review cadence, and
-    <b>local-AI copilots</b> (vendor risk brief, questionnaire review, auto-draft answers). 100% on your infrastructure.</div>
-  <div id="tp-body"><div class="muted" style="padding:24px;text-align:center">Loading vendors…</div></div>
+  <h1 data-i18n="tp.title">Third-Party Risk Management</h1>
+  <div class="tp-sub" data-i18n="tp.sub">Vendor risk the way Panorays & Vendict do it — an inherent-risk tier from data sensitivity & business criticality, an outside-in posture grade from a safe external scan of the vendor's domain (TLS & security headers), the security-questionnaire conformance (CSA AI-CAIQ / OCIL), a combined residual risk with a review cadence, and local-AI copilots (vendor risk brief, questionnaire review, auto-draft answers). 100% on your infrastructure.</div>
+  <div id="tp-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="tp.loading">Loading vendors…</div></div>
 </div>
 
 <div class="tp-modal" id="tp-modal">
   <div class="tp-dlg">
-    <h3 id="tp-dlg-title">New vendor</h3>
-    <label>Vendor name *</label>
+    <h3 id="tp-dlg-title" data-i18n="tp.modalTitle">New vendor</h3>
+    <label data-i18n="tp.fName">Vendor name *</label>
     <input type="text" id="f-name" autocomplete="off">
     <div class="row">
-      <div><label>Domain</label><input type="text" id="f-domain" placeholder="vendor.com" autocomplete="off"></div>
-      <div><label>Category</label><input type="text" id="f-category" placeholder="AI / Payments / SaaS…" autocomplete="off"></div>
+      <div><label data-i18n="tp.fDomain">Domain</label><input type="text" id="f-domain" placeholder="vendor.com" autocomplete="off"></div>
+      <div><label data-i18n="tp.fCategory">Category</label><input type="text" id="f-category" data-i18n-placeholder="tp.fCategoryPh" placeholder="AI / Payments / SaaS…" autocomplete="off"></div>
     </div>
-    <label>Services provided</label>
+    <label data-i18n="tp.fServices">Services provided</label>
     <input type="text" id="f-services" autocomplete="off">
     <div class="row">
-      <div><label>Data sensitivity</label><select id="f-data"><option>None</option><option>Internal</option><option selected>Confidential</option><option value="PII">PII / personal data</option><option value="PHI">PHI / health</option><option value="Regulated">Regulated / Restricted</option></select></div>
-      <div><label>Business criticality</label><select id="f-crit"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></div>
+      <div><label data-i18n="tp.fData">Data sensitivity</label><select id="f-data"><option value="None" data-i18n="tp.data.none">None</option><option value="Internal" data-i18n="tp.data.internal">Internal</option><option value="Confidential" selected data-i18n="tp.data.confidential">Confidential</option><option value="PII" data-i18n="tp.data.pii">PII / personal data</option><option value="PHI" data-i18n="tp.data.phi">PHI / health</option><option value="Regulated" data-i18n="tp.data.regulated">Regulated / Restricted</option></select></div>
+      <div><label data-i18n="tp.fCrit">Business criticality</label><select id="f-crit"><option value="Low" data-i18n="tp.crit.low">Low</option><option value="Medium" selected data-i18n="tp.crit.medium">Medium</option><option value="High" data-i18n="tp.crit.high">High</option><option value="Critical" data-i18n="tp.crit.critical">Critical</option></select></div>
     </div>
     <div class="row">
-      <div><label>Owner</label><input type="text" id="f-owner" placeholder="TPRM / GRC Lead" autocomplete="off"></div>
-      <div><label>Contact email</label><input type="text" id="f-contact" autocomplete="off"></div>
+      <div><label data-i18n="tp.fOwner">Owner</label><input type="text" id="f-owner" data-i18n-placeholder="tp.fOwnerPh" placeholder="TPRM / GRC Lead" autocomplete="off"></div>
+      <div><label data-i18n="tp.fContact">Contact email</label><input type="text" id="f-contact" autocomplete="off"></div>
     </div>
-    <div class="chk"><input type="checkbox" id="f-ai"> <span>This vendor processes our data with AI (in scope for AI-TRiSM)</span></div>
-    <label>AI use description</label>
-    <input type="text" id="f-aiuse" placeholder="e.g. hosted LLM for support; retains prompts 30 days" autocomplete="off">
+    <div class="chk"><input type="checkbox" id="f-ai"> <span data-i18n="tp.fAi">This vendor processes our data with AI (in scope for AI-TRiSM)</span></div>
+    <label data-i18n="tp.fAiUse">AI use description</label>
+    <input type="text" id="f-aiuse" data-i18n-placeholder="tp.fAiUsePh" placeholder="e.g. hosted LLM for support; retains prompts 30 days" autocomplete="off">
     <div class="acts2">
-      <button class="btn-cancel" id="tp-cancel">Cancel</button>
-      <button class="btn-go" id="tp-create">Create vendor</button>
+      <button class="btn-cancel" id="tp-cancel" data-i18n="tp.cancel">Cancel</button>
+      <button class="btn-go" id="tp-create" data-i18n="tp.create">Create vendor</button>
     </div>
   </div>
 </div>

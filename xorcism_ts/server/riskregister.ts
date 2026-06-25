@@ -32,11 +32,13 @@ export interface RiskRow {
   reviewInDays: number | null;
   reviewOverdue: boolean;
   score: number;              // 0-100 priority (higher = worse)
+  overAppetite: boolean;      // residual exceeds the category's risk appetite/tolerance
+  measures: number;           // count of linked measures from the library
 }
 export interface RiskFinding {
   id: number; ref: string; title: string;
   severity: "Critical" | "High" | "Medium" | "Low" | "Info";
-  reason: string; kind: "untreated" | "accepted" | "review" | "target" | "owner";
+  reason: string; kind: "untreated" | "accepted" | "review" | "target" | "owner" | "appetite";
   label: string;
 }
 export interface RiskInventory {
@@ -45,6 +47,7 @@ export interface RiskInventory {
   summary: {
     risks: number; open: number; closed: number; treatedRate: number | null;
     highCritical: number; untreated: number; accepted: number; overdueReview: number; noOwner: number;
+    overAppetite: number;
     quantified: number; totalALE: number; currency: string;
     byLevel: Record<string, number>; byStatus: Record<string, number>; byTreatment: Record<string, number>; byCategory: Record<string, number>;
     riskScore: number;        // headline: threat-weighted residual posture (0-100, higher = worse)
@@ -53,7 +56,7 @@ export interface RiskInventory {
 
 const EMPTY: RiskInventory = {
   rows: [], findings: [],
-  summary: { risks: 0, open: 0, closed: 0, treatedRate: null, highCritical: 0, untreated: 0, accepted: 0, overdueReview: 0, noOwner: 0, quantified: 0, totalALE: 0, currency: "EUR", byLevel: {}, byStatus: {}, byTreatment: {}, byCategory: {}, riskScore: 0 },
+  summary: { risks: 0, open: 0, closed: 0, treatedRate: null, highCritical: 0, untreated: 0, accepted: 0, overdueReview: 0, noOwner: 0, overAppetite: 0, quantified: 0, totalALE: 0, currency: "EUR", byLevel: {}, byStatus: {}, byTreatment: {}, byCategory: {}, riskScore: 0 },
 };
 
 const CLOSED = /closed|clos[eé]|retir|done|accepted-closed|mitigated|termin[eé]|ferm[eé]/i;
@@ -108,6 +111,20 @@ export function riskRegisterInventory(tenant: number | null): RiskInventory {
     if (aids.length) for (const r of xo.prepare(`SELECT AssetID, AssetName FROM ASSET WHERE AssetID IN (${aids.map(() => "?").join(",")})`).all(...aids) as { AssetID: number; AssetName: string }[]) assetName.set(Number(r.AssetID), r.AssetName);
   } catch { /* PERSON/ASSET absent */ }
 
+  // risk appetite per category (toleranceRank = worst residual rank still acceptable; 0 critical … 4 very-low)
+  // and the count of library measures linked to each entry — both best-effort (tables may be absent).
+  const appetite = new Map<string, number>();
+  const measuresByEntry = new Map<number, number>();
+  try {
+    ensureRiskGovTables();
+    const aw = tenant != null ? `WHERE TenantID = ${tenant}` : "";
+    for (const a of cc.prepare(`SELECT Category, ToleranceRank FROM RISKAPPETITE ${aw}`).all() as { Category: string; ToleranceRank: number }[])
+      if (a.Category != null && a.ToleranceRank != null) appetite.set(String(a.Category).toLowerCase().trim(), Number(a.ToleranceRank));
+    const lw = tenant != null ? `WHERE TenantID = ${tenant}` : "";
+    for (const m of cc.prepare(`SELECT RiskRegisterEntryID AS id, COUNT(*) AS n FROM RISKMEASURELINK ${lw} GROUP BY RiskRegisterEntryID`).all() as { id: number; n: number }[])
+      measuresByEntry.set(Number(m.id), Number(m.n));
+  } catch { /* governance tables not ready */ }
+
   const today = new Date().toISOString().slice(0, 10);
   const rows: RiskRow[] = [];
   const findings: RiskFinding[] = [];
@@ -137,6 +154,10 @@ export function riskRegisterInventory(tenant: number | null): RiskInventory {
     if (reviewOverdue) score += 10;
     if (open && res.rank <= 1 && !hasPlan && !ACCEPT.test(treatment)) score += 15;
     if (open && !owner) score += 5;
+    // over appetite: residual is MORE severe (lower rank) than the category's tolerance allows
+    const tol = appetite.get(String(e.Category ?? "").toLowerCase().trim());
+    const overAppetite = open && tol != null && res.rank <= 4 && res.rank < tol;
+    if (overAppetite) score += 12;
     if (!open) score = Math.round(score * 0.3);                        // closed risks de-prioritised
     score = Math.max(0, Math.min(100, Math.round(score)));
 
@@ -146,7 +167,11 @@ export function riskRegisterInventory(tenant: number | null): RiskInventory {
       inherent: inh.label, current: cur.label, residual: res.label, residualRank: res.rank,
       treatment, hasPlan, ale, sle, currency: String(e.Currency ?? "EUR"),
       reviewInDays, reviewOverdue, score,
+      overAppetite, measures: measuresByEntry.get(id) ?? 0,
     });
+
+    if (overAppetite)
+      findings.push({ id, ref: String(e.Ref ?? `R-${id}`), title: String(e.Title ?? ""), severity: res.rank === 0 ? "Critical" : "High", reason: "over-appetite", kind: "appetite", label: `Residual ${res.label} exceeds the risk appetite for "${String(e.Category ?? "—")}"` });
 
     // worklist
     if (open && res.rank <= 1 && !hasPlan && !ACCEPT.test(treatment))
@@ -187,6 +212,7 @@ export function riskRegisterInventory(tenant: number | null): RiskInventory {
       accepted: findings.filter((f) => f.kind === "accepted").length,
       overdueReview: findings.filter((f) => f.kind === "review").length,
       noOwner: findings.filter((f) => f.kind === "owner").length,
+      overAppetite: rows.filter((r) => r.overAppetite).length,
       quantified: rows.filter((r) => r.ale != null).length,
       totalALE: Math.round(openRows.reduce((s, r) => s + (r.ale ?? 0), 0)),
       currency: rows[0]?.currency ?? "EUR",
@@ -240,4 +266,160 @@ export function createRiskRegisterEntry(
   const sql = `INSERT INTO RISKREGISTERENTRY (${keys.map((k) => `"${k}"`).join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`;
   const r = cc.prepare(sql).run(...keys.map((k) => candidate[k]));
   return { id: Number(r.lastInsertRowid) };
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+//  Risk-management strategy & appetite (RISKSTRATEGY / RISKAPPETITE) + a reusable
+//  library of risk measures (RISKMEASURE) linkable to register entries (RISKMEASURELINK).
+// ════════════════════════════════════════════════════════════════════════════════
+export const APPETITE_LEVELS = ["Averse", "Minimal", "Cautious", "Open", "Flexible"] as const;
+export const MEASURE_TYPES = ["Preventive", "Detective", "Corrective", "Directive", "Compensating"] as const;
+export const MEASURE_STATUSES = ["Proposed", "Approved", "Implemented", "Verified", "Retired"] as const;
+export const LINK_STATUSES = ["Planned", "In progress", "Implemented", "Verified"] as const;
+/** Tolerance ranks the worklist compares against (0 critical … 4 very-low). */
+export const TOLERANCE_RANKS = [
+  { rank: 0, label: "Critical" }, { rank: 1, label: "High" }, { rank: 2, label: "Medium" }, { rank: 3, label: "Low" }, { rank: 4, label: "Very Low" },
+];
+
+export function ensureRiskGovTables(): void {
+  getDb("XCOMPLIANCE").exec(`
+    CREATE TABLE IF NOT EXISTS RISKSTRATEGY(
+      RiskStrategyID INTEGER PRIMARY KEY AUTOINCREMENT,
+      TenantID INTEGER,
+      Statement TEXT, Objectives TEXT, Methodology TEXT, RiskScale TEXT,
+      ReviewCadenceMonths INTEGER, Owner TEXT, ApprovedBy TEXT, ApprovedDate TEXT, UpdatedDate TEXT);
+    CREATE TABLE IF NOT EXISTS RISKAPPETITE(
+      RiskAppetiteID INTEGER PRIMARY KEY AUTOINCREMENT,
+      TenantID INTEGER, Category TEXT, AppetiteLevel TEXT, ToleranceRank INTEGER, Rationale TEXT);
+    CREATE TABLE IF NOT EXISTS RISKMEASURE(
+      RiskMeasureID INTEGER PRIMARY KEY AUTOINCREMENT,
+      TenantID INTEGER, Ref TEXT, Name TEXT NOT NULL, Description TEXT,
+      MeasureType TEXT, Category TEXT, ControlRef TEXT, Effectiveness TEXT, Cost TEXT,
+      Status TEXT, CreatedDate TEXT);
+    CREATE TABLE IF NOT EXISTS RISKMEASURELINK(
+      LinkID INTEGER PRIMARY KEY AUTOINCREMENT,
+      TenantID INTEGER, RiskRegisterEntryID INTEGER, RiskMeasureID INTEGER,
+      ImplementationStatus TEXT, CreatedDate TEXT);
+    CREATE INDEX IF NOT EXISTS ix_riskappetite_tn ON RISKAPPETITE(TenantID, Category);
+    CREATE INDEX IF NOT EXISTS ix_riskmeasure_tn ON RISKMEASURE(TenantID, RiskMeasureID);
+    CREATE INDEX IF NOT EXISTS ix_riskmeasurelink_entry ON RISKMEASURELINK(RiskRegisterEntryID);
+  `);
+}
+
+const tw = (tenant: number | null): string => (tenant != null ? `WHERE TenantID = ${tenant}` : "");
+
+/** The strategy + appetite + measures-library payload for the /risk-register page. */
+export function getRiskGovernance(tenant: number | null): {
+  strategy: Record<string, unknown> | null;
+  appetite: Record<string, unknown>[];
+  measures: Record<string, unknown>[];
+  options: { appetiteLevels: readonly string[]; measureTypes: readonly string[]; measureStatuses: readonly string[]; linkStatuses: readonly string[]; toleranceRanks: { rank: number; label: string }[] };
+} {
+  ensureRiskGovTables();
+  const cc = getDb("XCOMPLIANCE");
+  const strategy = (cc.prepare(`SELECT * FROM RISKSTRATEGY ${tw(tenant)} ORDER BY RiskStrategyID DESC LIMIT 1`).get() as Record<string, unknown>) ?? null;
+  const appetite = cc.prepare(`SELECT * FROM RISKAPPETITE ${tw(tenant)} ORDER BY Category`).all() as Record<string, unknown>[];
+  // measures with a usage count (how many register entries reference each)
+  const measures = cc.prepare(`
+    SELECT m.*, (SELECT COUNT(*) FROM RISKMEASURELINK l WHERE l.RiskMeasureID = m.RiskMeasureID) AS usage
+    FROM RISKMEASURE m ${tw(tenant)} ORDER BY m.Status, m.Name`).all() as Record<string, unknown>[];
+  return { strategy, appetite, measures, options: {
+    appetiteLevels: APPETITE_LEVELS, measureTypes: MEASURE_TYPES, measureStatuses: MEASURE_STATUSES, linkStatuses: LINK_STATUSES, toleranceRanks: TOLERANCE_RANKS,
+  } };
+}
+
+/** Upsert the (single) risk-management strategy for the tenant and replace its appetite rows. */
+export function saveRiskStrategy(
+  tenant: number | null,
+  p: { statement?: string; objectives?: string; methodology?: string; riskScale?: string; reviewCadenceMonths?: number | null;
+       owner?: string; approvedBy?: string; approvedDate?: string;
+       appetite?: { category: string; appetiteLevel?: string; toleranceRank?: number | null; rationale?: string }[] },
+): { ok: true } {
+  ensureRiskGovTables();
+  const cc = getDb("XCOMPLIANCE");
+  const now = new Date().toISOString();
+  const s = (v: unknown, n = 4000): string | null => (v != null && String(v).trim() !== "" ? String(v).slice(0, n) : null);
+  const existing = cc.prepare(`SELECT RiskStrategyID FROM RISKSTRATEGY ${tw(tenant)} ORDER BY RiskStrategyID DESC LIMIT 1`).get() as { RiskStrategyID: number } | undefined;
+  const fields = {
+    Statement: s(p.statement), Objectives: s(p.objectives), Methodology: s(p.methodology, 200), RiskScale: s(p.riskScale, 60),
+    ReviewCadenceMonths: p.reviewCadenceMonths != null && String(p.reviewCadenceMonths) !== "" ? Math.max(1, Math.min(120, Math.round(Number(p.reviewCadenceMonths)))) : null,
+    Owner: s(p.owner, 200), ApprovedBy: s(p.approvedBy, 200), ApprovedDate: s(p.approvedDate, 30), UpdatedDate: now,
+  };
+  if (existing) {
+    cc.prepare(`UPDATE RISKSTRATEGY SET Statement=@Statement, Objectives=@Objectives, Methodology=@Methodology, RiskScale=@RiskScale,
+      ReviewCadenceMonths=@ReviewCadenceMonths, Owner=@Owner, ApprovedBy=@ApprovedBy, ApprovedDate=@ApprovedDate, UpdatedDate=@UpdatedDate
+      WHERE RiskStrategyID=@id`).run({ ...fields, id: existing.RiskStrategyID });
+  } else {
+    cc.prepare(`INSERT INTO RISKSTRATEGY (TenantID, Statement, Objectives, Methodology, RiskScale, ReviewCadenceMonths, Owner, ApprovedBy, ApprovedDate, UpdatedDate)
+      VALUES (@TenantID,@Statement,@Objectives,@Methodology,@RiskScale,@ReviewCadenceMonths,@Owner,@ApprovedBy,@ApprovedDate,@UpdatedDate)`).run({ ...fields, TenantID: tenant });
+  }
+  if (Array.isArray(p.appetite)) {
+    cc.prepare(`DELETE FROM RISKAPPETITE ${tw(tenant)}`).run();
+    const ins = cc.prepare(`INSERT INTO RISKAPPETITE (TenantID, Category, AppetiteLevel, ToleranceRank, Rationale) VALUES (?, ?, ?, ?, ?)`);
+    for (const a of p.appetite) {
+      const cat = s(a.category, 120); if (!cat) continue;
+      const rank = a.toleranceRank != null && String(a.toleranceRank) !== "" ? Math.max(0, Math.min(4, Math.round(Number(a.toleranceRank)))) : null;
+      ins.run(tenant, cat, s(a.appetiteLevel, 40), rank, s(a.rationale, 1000));
+    }
+  }
+  return { ok: true };
+}
+
+/** Create a measure in the library. */
+export function createMeasure(
+  tenant: number | null,
+  p: { name: string; ref?: string; description?: string; measureType?: string; category?: string; controlRef?: string; effectiveness?: string; cost?: string; status?: string },
+): { id: number } {
+  ensureRiskGovTables();
+  const cc = getDb("XCOMPLIANCE");
+  const s = (v: unknown, n = 4000): string | null => (v != null && String(v).trim() !== "" ? String(v).slice(0, n) : null);
+  const r = cc.prepare(`INSERT INTO RISKMEASURE (TenantID, Ref, Name, Description, MeasureType, Category, ControlRef, Effectiveness, Cost, Status, CreatedDate)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    tenant, s(p.ref, 60), (p.name || "Untitled measure").slice(0, 300), s(p.description), s(p.measureType, 40), s(p.category, 120),
+    s(p.controlRef, 120), s(p.effectiveness, 40), s(p.cost, 60), s(p.status, 40) || "Proposed", new Date().toISOString());
+  return { id: Number(r.lastInsertRowid) };
+}
+
+/** Patch a measure (status / fields). */
+export function updateMeasure(tenant: number | null, id: number, patch: Record<string, unknown>): { ok: true } {
+  ensureRiskGovTables();
+  const cc = getDb("XCOMPLIANCE");
+  const map: Record<string, string> = { status: "Status", name: "Name", description: "Description", measureType: "MeasureType", category: "Category", controlRef: "ControlRef", effectiveness: "Effectiveness", cost: "Cost", ref: "Ref" };
+  const sets: string[] = []; const vals: unknown[] = [];
+  for (const [k, col] of Object.entries(map)) if (k in patch) { sets.push(`"${col}" = ?`); vals.push(patch[k] != null ? String(patch[k]).slice(0, 4000) : null); }
+  if (!sets.length) return { ok: true };
+  const guard = tenant != null ? ` AND TenantID = ${tenant}` : "";
+  cc.prepare(`UPDATE RISKMEASURE SET ${sets.join(", ")} WHERE RiskMeasureID = ?${guard}`).run(...vals, id);
+  return { ok: true };
+}
+
+/** Measures linked to a register entry (the entry's treatment as concrete measures). */
+export function entryMeasures(tenant: number | null, entryId: number): Record<string, unknown>[] {
+  ensureRiskGovTables();
+  return getDb("XCOMPLIANCE").prepare(`
+    SELECT l.LinkID, l.ImplementationStatus, m.RiskMeasureID, m.Ref, m.Name, m.MeasureType, m.Effectiveness, m.Status
+    FROM RISKMEASURELINK l JOIN RISKMEASURE m ON m.RiskMeasureID = l.RiskMeasureID
+    WHERE l.RiskRegisterEntryID = ?${tenant != null ? ` AND l.TenantID = ${tenant}` : ""} ORDER BY m.Name`).all(entryId) as Record<string, unknown>[];
+}
+
+export function linkMeasure(tenant: number | null, entryId: number, measureId: number, status?: string): { id: number } {
+  ensureRiskGovTables();
+  const cc = getDb("XCOMPLIANCE");
+  const dup = cc.prepare(`SELECT LinkID FROM RISKMEASURELINK WHERE RiskRegisterEntryID = ? AND RiskMeasureID = ?`).get(entryId, measureId) as { LinkID: number } | undefined;
+  if (dup) return { id: dup.LinkID };
+  const r = cc.prepare(`INSERT INTO RISKMEASURELINK (TenantID, RiskRegisterEntryID, RiskMeasureID, ImplementationStatus, CreatedDate) VALUES (?, ?, ?, ?, ?)`)
+    .run(tenant, entryId, measureId, (status && String(status).slice(0, 40)) || "Planned", new Date().toISOString());
+  return { id: Number(r.lastInsertRowid) };
+}
+
+export function unlinkMeasure(tenant: number | null, linkId: number): { ok: true } {
+  ensureRiskGovTables();
+  getDb("XCOMPLIANCE").prepare(`DELETE FROM RISKMEASURELINK WHERE LinkID = ?${tenant != null ? ` AND TenantID = ${tenant}` : ""}`).run(linkId);
+  return { ok: true };
+}
+
+export function setLinkStatus(tenant: number | null, linkId: number, status: string): { ok: true } {
+  ensureRiskGovTables();
+  getDb("XCOMPLIANCE").prepare(`UPDATE RISKMEASURELINK SET ImplementationStatus = ? WHERE LinkID = ?${tenant != null ? ` AND TenantID = ${tenant}` : ""}`).run(String(status).slice(0, 40), linkId);
+  return { ok: true };
 }

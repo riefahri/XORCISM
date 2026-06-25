@@ -3,8 +3,13 @@
  * assessments (threat sources / events / vulnerabilities / risks + risk distribution) and a
  * guided "New assessment" modal, from /api/nist-800-30. The 800-30 counterpart of /ebios.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
+const levelName = (l: number): string => (l >= 1 && l <= 5 ? t("n3.lvl" + l) : "");
+const ab = (i: number): string => (i >= 1 && i <= 5 ? t("n3.ab" + i) : "");
 
 interface Assessment {
   id: number; name: string; description: string | null; status: string; date: string | null;
@@ -16,8 +21,6 @@ interface Dashboard {
   stats: { total: number; threatSources: number; threatEvents: number; vulnerabilities: number; risks: number; highRisks: number };
 }
 
-// 800-30 semi-quantitative scale 1..5.
-const LVL = ["", "Very Low", "Low", "Moderate", "High", "Very High"];
 const stClass = (s: string): string => (/complet|done|clos/i.test(s) ? "st-done" : /progress|review|scoping/i.test(s) ? "st-prog" : "st-draft");
 
 function card(lbl: string, val: string, foot: string, color?: string): string {
@@ -27,7 +30,7 @@ function card(lbl: string, val: string, foot: string, color?: string): string {
 }
 
 function riskBadge(level: number): string {
-  return level ? `<span class="rl rl${level}">${esc(LVL[level])}</span>` : `<span class="muted">—</span>`;
+  return level ? `<span class="rl rl${level}">${esc(levelName(level))}</span>` : `<span class="muted">—</span>`;
 }
 
 function rowHtml(a: Assessment): string {
@@ -35,11 +38,11 @@ function rowHtml(a: Assessment): string {
   return `<tr>
     <td><div class="aname">${esc(a.name)}</div><div class="muted" style="font-size:11px">${a.date ? esc(a.date) : ""}</div></td>
     <td><span class="st ${stClass(a.status)}">${esc(a.status || "Draft")}</span></td>
-    <td><span class="chip">${c.threatSources} sources</span><span class="chip">${c.threatEvents} events</span><span class="chip">${c.vulnerabilities} vulns</span></td>
+    <td><span class="chip">${fmt("n3.nSources", { n: c.threatSources })}</span><span class="chip">${fmt("n3.nEvents", { n: c.threatEvents })}</span><span class="chip">${fmt("n3.nVulns", { n: c.vulnerabilities })}</span></td>
     <td>${c.risks}</td>
     <td>${riskBadge(a.maxRisk)}</td>
-    <td><a class="chip" href="/?db=XCOMPLIANCE&table=NIST80030RISK&filterCol=RiskAssessmentID&filterVal=${a.id}">risks ↗</a>
-        <a class="chip" href="/?db=XCOMPLIANCE&table=RISKASSESSMENT&editCol=RiskAssessmentID&editVal=${a.id}">edit ↗</a></td>
+    <td><a class="chip" href="/?db=XCOMPLIANCE&table=NIST80030RISK&filterCol=RiskAssessmentID&filterVal=${a.id}">${t("n3.risksLink")}</a>
+        <a class="chip" href="/?db=XCOMPLIANCE&table=RISKASSESSMENT&editCol=RiskAssessmentID&editVal=${a.id}">${t("n3.editLink")}</a></td>
   </tr>`;
 }
 
@@ -48,29 +51,28 @@ const MATRIX: Record<number, number[]> = {
   5: [1, 2, 3, 4, 5], 4: [1, 2, 3, 4, 5], 3: [1, 2, 3, 3, 4], 2: [1, 2, 2, 2, 3], 1: [1, 1, 1, 2, 2],
 };
 function matrixHtml(): string {
-  const ab = ["", "VL", "L", "M", "H", "VH"];
   let rows = "";
   for (let l = 5; l >= 1; l--) {
-    let tds = `<th>${ab[l]}</th>`;
-    for (let i = 1; i <= 5; i++) { const r = MATRIX[l][i - 1]; tds += `<td class="rl rl${r}" style="border-radius:0">${ab[r]}</td>`; }
+    let tds = `<th>${ab(l)}</th>`;
+    for (let i = 1; i <= 5; i++) { const r = MATRIX[l][i - 1]; tds += `<td class="rl rl${r}" style="border-radius:0">${ab(r)}</td>`; }
     rows += `<tr>${tds}</tr>`;
   }
-  return `<table class="mx"><caption>Level of risk = overall likelihood (rows) × level of impact (columns) — Table&nbsp;I-2</caption>
-    <tr><th>L \\ I</th><th>VL</th><th>L</th><th>M</th><th>H</th><th>VH</th></tr>${rows}</table>`;
+  return `<table class="mx"><caption>${t("n3.matrixCaption")}</caption>
+    <tr><th>${t("n3.matrixLI")}</th><th>${ab(1)}</th><th>${ab(2)}</th><th>${ab(3)}</th><th>${ab(4)}</th><th>${ab(5)}</th></tr>${rows}</table>`;
 }
 
 function referenceHtml(): string {
   return `<div class="ref">
-    <div class="col"><h4>Process (800-30 §3)</h4><ul>
-      <li><b>1. Prepare</b> — purpose, scope, assumptions, threat sources of concern.</li>
-      <li><b>2. Conduct</b> — identify threat sources &amp; events, vulnerabilities/predisposing conditions, determine likelihood &amp; impact, determine risk.</li>
-      <li><b>3. Communicate</b> — share results &amp; the risk register.</li>
-      <li><b>4. Maintain</b> — monitor risk factors over time.</li></ul></div>
-    <div class="col"><h4>Threat sources (App.&nbsp;D)</h4><ul>
-      <li><b>Adversarial</b> — individual / group / organization / nation-state, rated by <b>capability</b>, <b>intent</b>, <b>targeting</b>.</li>
-      <li><b>Non-adversarial</b> — accidental, structural, environmental, rated by <b>range of effects</b>.</li></ul></div>
-    <div class="col"><h4>Scales (App.&nbsp;I) &amp; risk matrix</h4>
-      <ul><li>All factors use <b>Very Low → Very High</b> (1–5): likelihood of <i>initiation</i> &amp; of <i>impact</i> → <b>overall likelihood</b>; <b>impact</b> magnitude.</li></ul>
+    <div class="col"><h4>${t("n3.procTitle")}</h4><ul>
+      <li><b>${t("n3.proc1")}</b> — ${t("n3.proc1d")}</li>
+      <li><b>${t("n3.proc2")}</b> — ${t("n3.proc2d")}</li>
+      <li><b>${t("n3.proc3")}</b> — ${t("n3.proc3d")}</li>
+      <li><b>${t("n3.proc4")}</b> — ${t("n3.proc4d")}</li></ul></div>
+    <div class="col"><h4>${t("n3.srcTitle")}</h4><ul>
+      <li><b>${t("n3.srcAdv")}</b> — ${t("n3.srcAdvD")}</li>
+      <li><b>${t("n3.srcNon")}</b> — ${t("n3.srcNonD")}</li></ul></div>
+    <div class="col"><h4>${t("n3.scaleTitle")}</h4>
+      <ul><li>${t("n3.scaleD")}</li></ul>
       ${matrixHtml()}</div>
   </div>`;
 }
@@ -82,29 +84,25 @@ async function load(): Promise<void> {
   const s = d.stats;
 
   const cards = [
-    card("Assessments", String(s.total), "NIST SP 800-30"),
-    card("Threat sources", String(s.threatSources), "adversarial + non-adversarial"),
-    card("Threat events", String(s.threatEvents), "initiated by sources"),
-    card("Vulnerabilities", String(s.vulnerabilities), "+ predisposing conditions"),
-    card("Risks", String(s.risks), "likelihood × impact"),
-    card("High / Very High", String(s.highRisks), "risks at level ≥ High", s.highRisks ? "#f87171" : "#34d399"),
+    card(t("n3.cAssessments"), String(s.total), "NIST SP 800-30"),
+    card(t("n3.cSources"), String(s.threatSources), t("n3.cSources.foot")),
+    card(t("n3.cEvents"), String(s.threatEvents), t("n3.cEvents.foot")),
+    card(t("n3.cVulns"), String(s.vulnerabilities), t("n3.cVulns.foot")),
+    card(t("n3.cRisks"), String(s.risks), t("n3.cRisks.foot")),
+    card(t("n3.cHigh"), String(s.highRisks), t("n3.cHigh.foot"), s.highRisks ? "#f87171" : "#34d399"),
   ].join("");
 
   const table = d.assessments.length
-    ? `<table class="n3"><thead><tr><th>Assessment</th><th>Status</th><th>Inventory</th><th>Risks</th><th>Max risk</th><th></th></tr></thead>
+    ? `<table class="n3"><thead><tr><th>${t("n3.thAssessment")}</th><th>${t("n3.thStatus")}</th><th>${t("n3.thInventory")}</th><th>${t("n3.thRisks")}</th><th>${t("n3.thMaxRisk")}</th><th></th></tr></thead>
         <tbody>${d.assessments.map(rowHtml).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:18px 0">No 800-30 assessment yet. Click <b>+ New assessment</b> to create one, then add its
-        <a href="/?db=XCOMPLIANCE&table=NIST80030THREATSOURCE">threat sources</a>,
-        <a href="/?db=XCOMPLIANCE&table=NIST80030THREATEVENT">threat events</a>,
-        <a href="/?db=XCOMPLIANCE&table=NIST80030VULNERABILITY">vulnerabilities</a> and
-        <a href="/?db=XCOMPLIANCE&table=NIST80030RISK">risks</a>.</div>`;
+    : `<div class="muted" style="padding:18px 0">${t("n3.noAssessments")}</div>`;
 
   $("n3-body").innerHTML = `<div class="n3-cards">${cards}</div>
-    <div class="n3-section">Assessments (${d.assessments.length})</div>${table}
-    <div class="n3-section">NIST SP 800-30 reference</div>${referenceHtml()}
-    <div class="legend">↳ Risk levels: <span class="rl rl1">Very Low</span> <span class="rl rl2">Low</span>
-      <span class="rl rl3">Moderate</span> <span class="rl rl4">High</span> <span class="rl rl5">Very High</span>.
-      Entities are managed in the explorer (NIST80030THREATSOURCE / THREATEVENT / VULNERABILITY / RISK).</div>`;
+    <div class="n3-section">${fmt("n3.secAssessments", { n: d.assessments.length })}</div>${table}
+    <div class="n3-section">${t("n3.secReference")}</div>${referenceHtml()}
+    <div class="legend">${t("n3.legendPrefix")} <span class="rl rl1">${levelName(1)}</span> <span class="rl rl2">${levelName(2)}</span>
+      <span class="rl rl3">${levelName(3)}</span> <span class="rl rl4">${levelName(4)}</span> <span class="rl rl5">${levelName(5)}</span>.
+      ${t("n3.legendSuffix")}</div>`;
 }
 
 // ── Guided "new assessment" modal ──────────────────────────────────────────────
@@ -140,9 +138,9 @@ async function createAssessment(): Promise<void> {
   const v = (id: string): string => (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   const name = v("n3-f-name").trim();
   const err = $("n3-f-err");
-  if (!name) { err.textContent = "⚠️ Enter a name."; ($("n3-f-name") as HTMLInputElement).focus(); return; }
+  if (!name) { err.textContent = t("n3.errName"); ($("n3-f-name") as HTMLInputElement).focus(); return; }
   const btn = $("n3-create") as HTMLButtonElement;
-  btn.disabled = true; err.textContent = "Creating…";
+  btn.disabled = true; err.textContent = t("n3.creating");
   try {
     const body = {
       name, status: v("n3-f-status"), date: v("n3-f-date") || undefined,
@@ -154,12 +152,13 @@ async function createAssessment(): Promise<void> {
     closeModal();
     await load();
     const link = `/?db=XCOMPLIANCE&table=RISKASSESSMENT&editCol=RiskAssessmentID&editVal=${d.id}`;
-    toast(`✅ Assessment created — <a href="${link}" style="color:#7dd3fc">open it ↗</a>`);
+    toast(fmt("n3.created", { link }));
   } catch (e) { err.textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("n3-new").addEventListener("click", openModal);
   $("n3-cancel").addEventListener("click", closeModal);
   $("n3-create").addEventListener("click", () => void createAssessment());
