@@ -137,6 +137,33 @@ export const FRAMEWORKS: FrameworkT[] = [
     ],
   },
   {
+    key: "nistairmf", name: "NIST AI RMF 1.0", provider: "NIST (AI 100-1)", kind: "Framework", jurisdiction: "United States",
+    summary: "The NIST AI Risk Management Framework — a voluntary framework to govern, map, measure and manage the risks of AI systems and build trustworthy AI. Its four functions (GOVERN, MAP, MEASURE, MANAGE) and 72 subcategories are imported as a control catalogue (import_nist_ai_rmf.py); this journey walks them function by function.",
+    effort: "3–9 months",
+    phases: [
+      { name: "GOVERN — culture & accountability", steps: [
+        st("Stand up AI governance & policy", "Put AI risk policies, roles, accountability and training in place; integrate the trustworthy-AI characteristics into how you work (GOVERN 1–4).", L.policies),
+        st("Inventory AI systems", "Establish and resource a mechanism to inventory AI systems and manage their lifecycle, incl. safe decommissioning (GOVERN 1.6/1.7).", L.identity),
+        st("Engagement & third-party AI", "Set processes for feedback from external AI actors and to manage third-party software/data supply-chain AI risk (GOVERN 5–6).", L.tprm),
+      ]},
+      { name: "MAP — context & risk identification", steps: [
+        st("Establish context", "Document intended purpose, users, laws/norms, mission, business value and risk tolerances for each AI system (MAP 1).", L.context),
+        st("Categorize the AI system", "Define the task/method, knowledge limits, human oversight and TEVV considerations (MAP 2–3).", L.assess),
+        st("Map risks, benefits & impacts", "Map component and third-party risks, and characterize impacts to individuals, groups and society (MAP 4–5).", L.riskReg),
+      ]},
+      { name: "MEASURE — assess & track", steps: [
+        st("Select methods & metrics", "Choose measurement approaches/metrics for the most significant AI risks; involve independent assessors (MEASURE 1).", L.assess),
+        st("Evaluate trustworthy characteristics", "Test for validity, safety, security/resilience, transparency, explainability, privacy, fairness/bias and environmental impact (MEASURE 2).", L.aiguard),
+        st("Track risks & gather feedback", "Track existing/emergent AI risks over time and gather feedback on measurement efficacy (MEASURE 3–4).", L.monitoring),
+      ]},
+      { name: "MANAGE — prioritize & act", steps: [
+        st("Prioritize & respond to risks", "Decide go/no-go, prioritize treatment, plan responses (mitigate/transfer/avoid/accept) and document residual risk (MANAGE 1).", L.riskReg),
+        st("Plan benefits & deactivation", "Maximize benefits, sustain value, recover from unknown risks, and be able to deactivate misbehaving AI (MANAGE 2).", L.crisis),
+        st("Manage third-party & monitor post-deployment", "Monitor third-party resources and pre-trained models; run post-deployment monitoring, incident response and continual improvement (MANAGE 3–4).", L.incident),
+      ]},
+    ],
+  },
+  {
     key: "euaiact", name: "EU AI Act (Regulation (EU) 2024/1689)", provider: "European Union", kind: "Regulation", jurisdiction: "European Union",
     summary: "The EU Artificial Intelligence Act — the world's first horizontal, risk-based AI regulation. Obligations scale with risk: prohibited practices (Art. 5), high-risk AI systems (Art. 6 + Annex III) carrying the heaviest duties, transparency-risk systems (Art. 50) and minimal-risk. This journey walks a provider or deployer from AI governance and an AI-system inventory through risk classification, the Art. 9 risk-management system, technical documentation and the ancillary obligations (conformity assessment, CE marking, EU-database registration, post-market monitoring and serious-incident reporting). Import the EU AI Act control catalogue to track the obligations as controls.",
     effort: "9–18 months (phased: GPAI Aug 2025 · high-risk Aug 2026/2027)",

@@ -26786,4 +26786,18 @@ CREATE TABLE IF NOT EXISTS "SLSAARTIFACT" (
   "ProvenanceVerified" INTEGER DEFAULT 0, "Notes" TEXT, "TenantID" INTEGER, "CreatedDate" TEXT);
 CREATE INDEX IF NOT EXISTS ix_slsa_tenant ON "SLSAARTIFACT"("TenantID");
 
+-- LLM Application Penetration Test methodology (llmpentest.ts): OWASP-LLM-2025 engagement + per-test-case tracker
+CREATE TABLE IF NOT EXISTS "LLMPENTEST" (
+  "EngagementID" INTEGER PRIMARY KEY, "EngagementGUID" TEXT, "AISystemID" INTEGER, "SystemName" TEXT,
+  "Title" TEXT, "Scope" TEXT, "Tester" TEXT, "Status" TEXT, "Phase" INTEGER,
+  "ReadinessScore" INTEGER, "Coverage" INTEGER, "Grade" TEXT, "Tested" INTEGER, "Passed" INTEGER, "Failed" INTEGER,
+  "OpenFindings" INTEGER, "CreatedDate" TEXT, "UpdatedDate" TEXT, "TenantID" INTEGER);
+CREATE TABLE IF NOT EXISTS "LLMPENTESTCASE" (
+  "CaseID" INTEGER PRIMARY KEY, "EngagementID" INTEGER, "Owasp" TEXT, "Category" TEXT, "Mode" TEXT,
+  "TestID" TEXT, "TestName" TEXT, "Technique" TEXT, "Status" TEXT, "Severity" TEXT, "Source" TEXT,
+  "Finding" TEXT, "Evidence" TEXT, "CreatedDate" TEXT, "UpdatedDate" TEXT);
+CREATE INDEX IF NOT EXISTS ix_llmpt_tenant ON "LLMPENTEST"("TenantID");
+CREATE INDEX IF NOT EXISTS ix_llmpt_sys ON "LLMPENTEST"("AISystemID");
+CREATE INDEX IF NOT EXISTS ix_llmptcase_eng ON "LLMPENTESTCASE"("EngagementID");
+
 COMMIT;

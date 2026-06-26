@@ -1,0 +1,14 @@
+{
+  "id": "promptfoo",
+  "name": "Promptfoo — LLM red-team / eval import",
+  "type": "import",
+  "category": "AI Security",
+  "description": "Imports a Promptfoo (github.com/promptfoo/promptfoo) red-team eval result into the XORCISM LLM red-team / AI-BAS module and the LLM Pentest Methodology cockpit. Parses the output of `promptfoo redteam eval -o results.json` (or a shared eval JSON), maps each red-team plugin (prompt-injection, jailbreak, pii, harmful:*, rbac/bola/bfla, sql-injection, shell-injection, ssrf, hallucination, system-prompt-override, ...) to the OWASP LLM Top 10, and produces the result list ingested by POST /api/ai-redteam/import/<aiSystemId>. Promptfoo is the automation engine in the Fortbridge OWASP-Top-10-for-LLM methodology. Offline: pass `file`, or run with the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:promptfoo",
+  "run": "run.py",
+  "mapping": "promptfoo",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "A Promptfoo results.json (redteam eval output) or shared eval JSON to parse" }
+  ]
+}

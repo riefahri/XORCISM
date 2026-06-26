@@ -112,6 +112,7 @@ const entryPoints = [
   "client/ts/siem.ts",
   "client/ts/ai-redteam.ts",
   "client/ts/ai-detection.ts",
+  "client/ts/llm-pentest.ts",
   "client/ts/reg-incident-reporting.ts",
   "client/ts/slsa.ts",
   "client/ts/chatops.ts",

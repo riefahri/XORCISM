@@ -9,6 +9,36 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 
 ---
 
+## [Unreleased]
+
+- **NIST AI RMF 1.0 support** — `import_nist_ai_rmf.py` loads the full NIST AI Risk Management Framework
+  Core (GOVERN / MAP / MEASURE / MANAGE, **72 subcategories**) into `XORCISM.CONTROL` under the
+  `"NIST AI RMF 1.0"` vocabulary (already in the framework picker and the AI-inventory governing-framework
+  list), plus a guided **NIST AI RMF compliance journey** (`/compliance-journeys`) that walks the four
+  functions. The AI-governance counterpart to ISO/IEC 42001 and the CSA AICM.
+- **Website — small-business page** is now **fully localizable** (FR + the other 9 site languages) via
+  `data-i18n` keys and a new `FR` block, with a language switcher in the nav, plus a new **Use cases**
+  section (SaaS startup, clinic, law/accounting firm, manufacturer, e-commerce, public body).
+
+- **LLM Application Penetration Test methodology** (`/llm-pentest`) — the **OWASP Top 10 for LLM
+  Applications** testing methodology (after the Fortbridge field guide) as a structured **engagement**
+  per AI system: all 10 OWASP-LLM-2025 categories × the guide's concrete test cases (instruction
+  override, encoding tricks, indirect injection, RAG access across roles, model provenance/checksum,
+  poisoning, RBAC/BOLA, system-prompt extraction, hallucination, token-flood…), each tracked
+  *not-tested → pass / fail / partial / n-a* with severity, finding and evidence. It **composes** the
+  engines XORCISM already runs rather than re-probing: automatable categories **auto-fill from the
+  latest AI-BAS run**, LLM03 Supply chain from **AI-BOM model provenance**, LLM04 Poisoning from the
+  **AI-runtime drift** signal; manual categories (RAG/vector, supply-chain audit, excessive agency) are
+  seeded for the tester. Blended **readiness score** (coverage × pass-rate) + grade, a findings
+  worklist, the 5-step engagement workflow, and high/critical findings that feed the **CROC loop**
+  (`llm.pentest_finding`). `LLMPENTEST` + `LLMPENTESTCASE`.
+- **Promptfoo connector** — imports `promptfoo redteam eval` output (the automation engine of the
+  Fortbridge methodology), maps each red-team plugin to the OWASP LLM Top 10, and feeds the LLM
+  red-team / AI-BAS module (`POST /api/ai-redteam/import`) → which auto-fills a `/llm-pentest`
+  engagement. Joins the existing `garak` / `PyRIT` importers.
+
+---
+
 ## [1.6.0-beta.1] — 2026-06-26
 
 A **risk-quantification, privacy & supply-chain** release, headlined by two new top-line lenses that
