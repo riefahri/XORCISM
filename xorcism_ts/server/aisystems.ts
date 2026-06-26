@@ -26,10 +26,17 @@ export function ensureAiSystemTables(): void {
     CREATE INDEX IF NOT EXISTS ix_aisys_tenant ON AISYSTEM(TenantID);
     CREATE INDEX IF NOT EXISTS ix_aiscomp_sys ON AISYSTEMCOMPONENT(AISystemID);
   `);
-  // Endpoint (for live AI-BAS probing) added after the initial release — backfill on existing installs.
+  // Columns added after the initial release — backfill on existing installs.
   try {
-    const cols = new Set((getDb("XORCISM").prepare('PRAGMA table_info(AISYSTEM)').all() as { name: string }[]).map((c) => c.name));
-    if (!cols.has("Endpoint")) getDb("XORCISM").exec("ALTER TABLE AISYSTEM ADD COLUMN Endpoint TEXT");
+    const db = getDb("XORCISM");
+    const sc = new Set((db.prepare('PRAGMA table_info(AISYSTEM)').all() as { name: string }[]).map((c) => c.name));
+    // Endpoint (live AI-BAS probing) + Discovered/DiscoverySource (agentless cloud AI discovery / Shadow AI).
+    for (const [n, t] of [["Endpoint", "TEXT"], ["Discovered", "INTEGER"], ["DiscoverySource", "TEXT"]] as [string, string][])
+      if (!sc.has(n)) db.exec(`ALTER TABLE AISYSTEM ADD COLUMN ${n} ${t}`);
+    // Model provenance / AI supply-chain integrity (SAIF) on AI-BOM components.
+    const cc = new Set((db.prepare('PRAGMA table_info(AISYSTEMCOMPONENT)').all() as { name: string }[]).map((c) => c.name));
+    for (const [n, t] of [["Hash", "TEXT"], ["ProvenanceVerified", "INTEGER"], ["FineTunedFrom", "TEXT"]] as [string, string][])
+      if (!cc.has(n)) db.exec(`ALTER TABLE AISYSTEMCOMPONENT ADD COLUMN ${n} ${t}`);
   } catch { /* */ }
 }
 
@@ -39,7 +46,7 @@ export interface AiSystem {
   id: number; name: string; description: string; purpose: string; owner: string; provider: string;
   modelName: string; modelType: string; hosting: string; dataClassification: string; usesPersonalData: boolean;
   riskTier: string; lifecycle: string; guardrails: string[]; frameworks: string[]; notes: string; status: string;
-  endpoint: string;
+  endpoint: string; discovered: boolean; discoverySource: string; shadow: boolean;
 }
 
 /** Heuristic model-risk score 0-100 (higher = more attention). */
@@ -69,6 +76,9 @@ function rowToSys(r: any): AiSystem {
     dataClassification: r.DataClassification, usesPersonalData: !!r.UsesPersonalData, riskTier: r.RiskTier,
     lifecycle: r.Lifecycle, guardrails: splitList(r.Guardrails), frameworks: splitList(r.Frameworks),
     notes: r.Notes || "", status: r.Status || "Active", endpoint: r.Endpoint || "",
+    discovered: !!r.Discovered, discoverySource: r.DiscoverySource || "",
+    // Shadow AI = present in the estate but ungoverned: no owner AND no governing framework.
+    shadow: !(r.Owner && String(r.Owner).trim()) && !splitList(r.Frameworks).length,
   };
 }
 
@@ -77,6 +87,19 @@ export function listSystems(tenant: number | null): any[] {
   return (getDb("XORCISM").prepare(
     "SELECT * FROM AISYSTEM WHERE (TenantID = ? OR TenantID IS NULL) ORDER BY Name"
   ).all(tenant) as any[]).map((r) => { const s = rowToSys(r); return { ...s, ...scoreSystem(s) }; });
+}
+
+/** Model-provenance gap (SAIF): model/weights components with a third-party source but unverified
+ *  provenance (no signed hash / not provenance-verified). */
+function unprovenancedModelCount(tenant: number | null): number {
+  try {
+    return (getDb("XORCISM").prepare(
+      `SELECT COUNT(*) n FROM AISYSTEMCOMPONENT c JOIN AISYSTEM s ON s.AISystemID=c.AISystemID
+       WHERE (s.TenantID = ? OR s.TenantID IS NULL)
+         AND LOWER(COALESCE(c.ComponentType,'')) IN ('model','weights','foundation-model','llm')
+         AND COALESCE(c.Source,'')<>'' AND COALESCE(c.ProvenanceVerified,0)<>1`
+    ).get(tenant) as { n: number }).n;
+  } catch { return 0; }
 }
 
 export function aiSystemDashboard(tenant: number | null): any {
@@ -92,10 +115,14 @@ export function aiSystemDashboard(tenant: number | null): any {
     personalData: count((s) => s.usesPersonalData),
     ungoverned: count((s) => !s.frameworks.length),
     noGuardrails: count((s) => !s.guardrails.length),
+    shadowAi: count((s) => s.shadow),
+    discovered: count((s) => s.discovered),
+    unprovenancedModels: unprovenancedModelCount(tenant),
     avgRisk: sys.length ? Math.round(sys.reduce((a, s) => a + s.score, 0) / sys.length) : 0,
   };
   const worklist = sys.filter((s) => s.gaps.length).sort((a, b) => b.score - a.score);
-  return { summary, byTier, worklist, systems: sys.sort((a, b) => b.score - a.score), riskTiers: RISK_TIERS };
+  const shadowList = sys.filter((s) => s.shadow).sort((a, b) => b.score - a.score);
+  return { summary, byTier, worklist, shadowList, systems: sys.sort((a, b) => b.score - a.score), riskTiers: RISK_TIERS };
 }
 
 export function getSystem(id: number, tenant: number | null): any | null {
@@ -104,7 +131,7 @@ export function getSystem(id: number, tenant: number | null): any | null {
   if (!r) return null;
   const s = rowToSys(r);
   const comps = getDb("XORCISM").prepare("SELECT * FROM AISYSTEMCOMPONENT WHERE AISystemID=? ORDER BY ComponentType, Name").all(id) as any[];
-  return { ...s, ...scoreSystem(s), components: comps.map((c) => ({ id: c.ComponentID, type: c.ComponentType, name: c.Name, version: c.Version, provider: c.Provider, source: c.Source, license: c.License, notes: c.Notes })) };
+  return { ...s, ...scoreSystem(s), components: comps.map((c) => ({ id: c.ComponentID, type: c.ComponentType, name: c.Name, version: c.Version, provider: c.Provider, source: c.Source, license: c.License, hash: c.Hash || "", provenanceVerified: !!c.ProvenanceVerified, fineTunedFrom: c.FineTunedFrom || "", notes: c.Notes })) };
 }
 
 export function createSystem(tenant: number | null, b: Record<string, any>): number {

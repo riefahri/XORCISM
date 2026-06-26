@@ -10,6 +10,7 @@ interface SysRow { id: number; name: string; riskTier: string; lifecycle: string
 interface Data {
   summary: { systems: number; assessed: number; notAssessed: number; avgExposure: number; failing: number; probes: number };
   systems: SysRow[]; coverage: Record<string, { exposed: number; tested: number }>; categories: string[]; canRun: boolean;
+  atlas?: { score: number; total: number; mappable: number; covered: number; exposed: number; gaps: { atlasId: string; name: string; status: string }[] };
 }
 function toast(m: string): void { const el = $("toast"); if (!el) return; el.textContent = m; el.className = "show"; setTimeout(() => { el.className = ""; }, 3200); }
 async function getJson(url: string, opts?: RequestInit): Promise<any> {
@@ -49,8 +50,14 @@ function render(d: Data): void {
     return `<tr><td><span class="nm">${esc(sy.name)}</span><div class="muted" style="font-size:11px">${esc(sy.riskTier)} · ${esc(sy.lifecycle)} · ${sy.guardrails.length} guardrail(s)</div></td><td>${run}</td><td style="white-space:nowrap">${act}</td></tr>`;
   }).join("");
 
+  const a = d.atlas;
+  const atlasHtml = a && a.total ? `<div class="sec">MITRE ATLAS coverage <span class="muted" style="font-weight:400">— AI-BAS + runtime detection vs adversarial-ML techniques</span></div>
+    <div class="muted" style="font-size:12.5px;margin-bottom:8px"><b style="color:${a.score >= 70 ? "#34d399" : a.score >= 40 ? "#fbbf24" : "#f87171"};font-size:15px">${a.score}%</b> of mappable ATLAS techniques tested/detected (${a.covered}/${a.mappable}) · <span style="color:${a.exposed ? "#f87171" : "#34d399"}">${a.exposed} exposed</span> · ${a.total} techniques imported</div>
+    <div>${(a.gaps || []).map((g) => `<span class="owasp" style="background:${g.status === "exposed" ? "#7f1d1d" : "#1e2440"};color:${g.status === "exposed" ? "#fecaca" : "#cbd5e1"};border:1px solid #2d3250;border-radius:6px;padding:2px 7px;margin:2px;display:inline-block;font-size:11px" title="${esc(g.name)}">${esc(g.atlasId)} ${g.status === "exposed" ? "⚠" : "○"}</span>`).join("") || "<span class='muted' style='font-size:12px'>✓ no ATLAS gaps</span>"}</div>` : "";
+
   body.innerHTML = `<div class="cards">${cards}</div>
     <div class="sec">OWASP LLM coverage (exposed categories across latest runs)</div><div class="cov">${cov}</div>
+    ${atlasHtml}
     <div class="sec">AI systems (${d.systems.length})</div>
     <table class="t"><thead><tr><th>AI system</th><th>Latest assessment</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="3" class="muted" style="padding:14px;text-align:center">No AI systems registered. Add them in the <a href="/ai-systems">AI inventory</a>.</td></tr>`}</tbody></table>`;
 

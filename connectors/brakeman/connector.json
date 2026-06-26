@@ -1,0 +1,15 @@
+{
+  "id": "brakeman",
+  "name": "Brakeman — Ruby on Rails SAST",
+  "type": "import",
+  "category": "DevSecOps",
+  "description": "Imports a Brakeman (presidentbeef) static-analysis report: each warning (SQLi, XSS, mass-assignment, command injection, unsafe redirect, …) becomes a finding on the scanned application (ASSET), with severity from Brakeman's confidence. From the awesome-web-hacking toolkit. Pass `file` = a Brakeman JSON report (`brakeman -f json`), or run with no config for the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:brakeman",
+  "run": "run.py",
+  "mapping": "brakeman",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 1000, "min": 1, "max": 10000, "help": "Maximum warnings to import" },
+    { "name": "file", "type": "file", "required": false, "help": "A Brakeman JSON report (brakeman -f json)" }
+  ]
+}

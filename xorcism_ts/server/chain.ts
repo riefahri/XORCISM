@@ -55,6 +55,8 @@ export const DEFAULT_PLAYBOOK: PlaybookDef = {
   maxSteps: 60,
   rules: [
     { id: "web-fingerprint", when: { service: "https?|http-proxy|http-alt|ssl/http", ports: [80, 443, 8080, 8443, 8000, 8888] }, run: "whatweb", targetFrom: "url", label: "HTTP service open → fingerprint (WhatWeb)" },
+    { id: "web-content", when: { service: "https?|http-proxy|http-alt|ssl/http", ports: [80, 443, 8080, 8443, 8000, 8888] }, run: "dirsearch", targetFrom: "url", label: "Web server → dirsearch content discovery (hidden dirs/files)" },
+    { id: "web-params", when: { service: "https?|http-proxy|http-alt|ssl/http", ports: [80, 443, 8080, 8443, 8000, 8888] }, run: "arjun", targetFrom: "url", label: "Web server → Arjun HTTP parameter discovery (hidden params → injection/IDOR surface)" },
     { id: "web-nikto", when: { service: "https?|http-proxy|http-alt|ssl/http", ports: [80, 443, 8080, 8443, 8000, 8888] }, run: "nikto", targetFrom: "url", label: "Web server → Nikto vulnerability scan" },
     { id: "web-nuclei", when: { service: "https?|http-proxy|ssl/http", ports: [80, 443, 8080, 8443] }, run: "nuclei", targetFrom: "url", label: "Web server → Nuclei templates" },
     { id: "web-artemis", when: { service: "https?|http-proxy|http-alt|ssl/http", ports: [80, 443, 8080, 8443, 8000, 8888] }, run: "artemis", targetFrom: "url", label: "Web server → Artemis modular scan (CERT-PL: exposed VCS, outdated CMS, misconfig)" },

@@ -57,6 +57,8 @@ function propose(ev: { EventType: string; Summary: string; Severity: string }): 
     return mk("incident-copilot", "Triage and assign per the IR playbook; contain the impacted asset and start the timeline; escalate if scope grows.", "Open high/critical incidents need an owner and a contain→eradicate→recover path with SLA tracking.", 76, s || "Incident raised");
   if (/compliance|control|finding|audit|policy|obligation/.test(t))
     return mk("compliance-impl", "Open a remediation task for the failing control and assign an owner with a due date; attach evidence on closure.", "Failing controls and missed obligations are audit/regulatory risk; tracked remediation restores assurance.", 72, s || "Control / obligation gap");
+  if (/anomaly|extraction|jailbreak|poison|prompt.?inject/.test(t))
+    return mk("ai-incident-response", "Contain the AI system: throttle/enforce rate limits per user + API key, rotate any exposed keys, tighten input/output guardrails, and triage the AI runtime detections. If memorized/PII data was extracted, treat as a data breach (start the DPIA / 72h notification clock).", "AI runtime anomalies (training-data extraction, repeated jailbreak, poisoning drift) are an active attack on a model in production — fast containment limits exfiltration and abuse.", 80, s || "AI runtime anomaly");
   if (/ai|model|llm|prompt|guardrail/.test(t))
     return mk("ai-governance", "Review the AI system in the inventory; add the missing governing framework/guardrails and (if personal data) a DPIA.", "Ungoverned high-risk AI is EU-AI-Act and operational risk; the AI inventory tracks the gap.", 70, s || "AI governance signal");
   if (/threatdebt|adversary|opportunity|paydown/.test(t))

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Regulatory Incident Reporting</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1320px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:14px;max-width:1080px;line-height:1.5}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  table.t{width:100%;border-collapse:collapse;font-size:13px}table.t th,table.t td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}table.t th{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .nm{font-weight:600;color:#e2e8f0}.muted{color:#64748b}
+  .st{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .st-overdue{background:#7f1d1d;color:#fecaca}.st-due-soon{background:#78350f;color:#fcd34d}.st-pending{background:#1e3a5f;color:#bfdbfe}.st-submitted{background:#14532d;color:#bbf7d0}
+  .reg{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;background:#3b2f63;color:#ddd6fe}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:11px;padding:4px 9px;cursor:pointer}.btn-sm2:hover{border-color:#a78bfa}
+  .lic{font-size:11px;color:#64748b;margin-top:22px;border-top:1px solid #1e2133;padding-top:10px;line-height:1.5}
+</style></head><body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/incident-management">&#128680; Incidents</a>
+  <a href="/reg-calendar">&#128197; Regulatory calendar</a>
+  <a href="/privacy">&#128272; Privacy / DPO</a>
+  <span class="spacer"></span>
+  <span class="title">&#9888; Regulatory Incident Reporting</span>
+</div>
+<div class="mw">
+  <h1>Regulatory Incident-Reporting Obligations</h1>
+  <div class="sub">For each cyber incident, who must you notify and <b>by when</b>? This derives the applicable regimes
+    from the incident (personal data → <b>GDPR</b> 72h; significant → <b>NIS2</b> 24h/72h/1mo; major ICT → <b>DORA</b>;
+    actively-exploited/product → <b>CRA</b>) and computes the statutory deadlines from detection. Mark each stage
+    submitted to clear it. Overdue and due-soon first.</div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
+  <div class="lic">A planning aid that derives obligations heuristically from incident attributes — confirm
+    applicability (entity classification, sector) and exact deadlines with your DPO / legal counsel.</div>
+</div>
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/reg-incident-reporting.js"></script>
+</body></html>

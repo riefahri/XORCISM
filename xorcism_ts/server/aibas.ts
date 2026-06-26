@@ -207,6 +207,48 @@ export function getRun(runId: number, tenant: number | null): any | null {
   return { ...runRow(r), results: results.map((x) => ({ probe: x.ProbeID, owasp: x.Owasp, category: x.Category, name: x.Name, technique: x.Technique, outcome: x.Outcome, severity: x.Severity, detail: x.Detail })) };
 }
 
+// MITRE ATLAS technique → the AI-BAS category that TESTS it (cat) and/or the AI-runtime detection
+// type that DETECTS it (det). Joins on semantics (OWASP-LLM numbering versions differ).
+const ATLAS_MAP: Record<string, { cat?: string; det?: string }> = {
+  "AML.T0051": { cat: "Prompt injection", det: "jailbreak" }, "AML.T0054": { cat: "Prompt injection", det: "jailbreak" },
+  "AML.T0057": { cat: "Sensitive info disclosure", det: "extraction" }, "AML.T0024": { cat: "Sensitive info disclosure", det: "extraction" },
+  "AML.T0055": { cat: "Sensitive info disclosure" }, "AML.T0053": { cat: "Excessive agency" },
+  "AML.T0056": { cat: "System-prompt leakage" }, "AML.T0015": { cat: "Insecure output handling" },
+  "AML.T0020": { det: "drift" }, "AML.T0031": { det: "drift" }, "AML.T0018": { det: "drift" },
+  "AML.T0029": { cat: "Unbounded consumption" }, "AML.T0034": { cat: "Unbounded consumption" },
+  "AML.T0048": { cat: "Misinformation" },
+};
+
+/** AI-BAS → MITRE ATLAS coverage: for each ATLAS technique, is it tested (an AI-BAS probe covers its
+ *  category) and/or detected (an AI-runtime detection type covers it)? Threat-Informed Defense for AI.
+ *  Needs the ATLAS matrix (import_atlas.py); degrades to an empty/0 view if absent. */
+export function atlasCoverage(tenant: number | null, coverage?: Record<string, { exposed: number; tested: number }>): any {
+  const cov = coverage || {};
+  const detTypes = new Set<string>();
+  try { for (const r of getDb("XORCISM").prepare("SELECT DISTINCT Type FROM AIDETECTION WHERE (TenantID=? OR TenantID IS NULL)").all(tenant) as { Type: string }[]) detTypes.add(r.Type); } catch { /* */ }
+  let techs: any[] = [];
+  try { techs = getDb("XTHREAT").prepare("SELECT AtlasID, Name, TacticAtlasID, OwaspLlm FROM ATLASTECHNIQUE ORDER BY AtlasID").all() as any[]; } catch { /* */ }
+  const rows = techs.map((t) => {
+    const m = ATLAS_MAP[t.AtlasID] || {};
+    const mappable = !!(m.cat || m.det);
+    const c = m.cat ? cov[m.cat] : undefined;
+    const tested = !!(c && c.tested > 0);
+    const exposed = !!(c && c.exposed > 0);
+    const detected = !!(m.det && detTypes.has(m.det));
+    const status = !mappable ? "n/a" : exposed ? "exposed" : (tested || detected) ? "covered" : "gap";
+    return { atlasId: t.AtlasID, name: t.Name, tactic: t.TacticAtlasID, owasp: t.OwaspLlm || "", tested, detected, exposed, status };
+  });
+  const mappable = rows.filter((r) => r.status !== "n/a");
+  const covered = mappable.filter((r) => r.status === "covered").length;
+  return {
+    score: mappable.length ? Math.round((100 * covered) / mappable.length) : 0,
+    total: techs.length, mappable: mappable.length, covered,
+    exposed: rows.filter((r) => r.status === "exposed").length,
+    gaps: rows.filter((r) => r.status === "exposed" || r.status === "gap").sort((a, b) => (a.status === "exposed" ? 0 : 1) - (b.status === "exposed" ? 0 : 1)).slice(0, 20),
+    techniques: rows,
+  };
+}
+
 export function aibasDashboard(tenant: number | null): any {
   ensureAibasTables();
   const db = getDb("XORCISM");
@@ -234,5 +276,5 @@ export function aibasDashboard(tenant: number | null): any {
     failing: rows.filter((r) => r.latestRun && r.latestRun.failed > 0).length,
     probes: PROBES.length,
   };
-  return { summary, systems: rows, coverage, categories: CATEGORIES, probes: PROBES.map((p) => ({ id: p.id, owasp: p.owasp, category: p.category, name: p.name, severity: p.severity })) };
+  return { summary, systems: rows, coverage, categories: CATEGORIES, atlas: atlasCoverage(tenant, coverage), probes: PROBES.map((p) => ({ id: p.id, owasp: p.owasp, category: p.category, name: p.name, severity: p.severity })) };
 }

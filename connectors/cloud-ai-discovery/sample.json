@@ -1,0 +1,14 @@
+{
+  "bedrock": [
+    { "name": "claude-prod", "model": "anthropic.claude-3-5-sonnet", "modelType": "LLM", "region": "us-east-1", "endpoint": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet" }
+  ],
+  "sagemaker": [
+    { "name": "fraud-scoring-ep", "model": "xgboost-fraud-v4", "modelType": "Classifier", "region": "us-east-1", "endpoint": "https://runtime.sagemaker.us-east-1.amazonaws.com/endpoints/fraud-scoring-ep" }
+  ],
+  "azure": [
+    { "name": "support-gpt4o", "model": "gpt-4o", "modelType": "LLM", "region": "westeurope", "endpoint": "https://acme-openai.openai.azure.com/" }
+  ],
+  "vertex": [
+    { "name": "marketing-gemini", "model": "gemini-1.5-pro", "modelType": "LLM", "region": "europe-west1" }
+  ]
+}

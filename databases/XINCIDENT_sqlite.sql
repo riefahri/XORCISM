@@ -595,4 +595,12 @@ CREATE INDEX IF NOT EXISTS ix_alertevidence_alert ON ALERTEVIDENCE(AlertID)
 
 ;
 
+-- Regulatory incident-reporting obligations — tracked submissions per incident × regulator × stage
+-- (DORA / NIS2 / GDPR / CRA reporting deadlines).
+CREATE TABLE IF NOT EXISTS "REGINCIDENTREPORT" (
+  "ReportID" INTEGER PRIMARY KEY, "IncidentID" INTEGER, "TenantID" INTEGER, "Regulator" TEXT, "Stage" TEXT,
+  "DueDate" TEXT, "Status" TEXT DEFAULT 'pending', "SubmittedDate" TEXT, "Reference" TEXT, "Notes" TEXT, "CreatedDate" TEXT);
+CREATE INDEX IF NOT EXISTS ix_regincrep_inc ON "REGINCIDENTREPORT"("IncidentID");
+CREATE INDEX IF NOT EXISTS ix_regincrep_tenant ON "REGINCIDENTREPORT"("TenantID");
+
 COMMIT;

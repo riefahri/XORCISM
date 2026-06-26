@@ -566,6 +566,13 @@ npm run dev    # tsc --watch (server) + esbuild --watch (client) + nodemon
 
 > Builds run with any Node; **the runtime needs Node 20** (better-sqlite3 ABI).
 
+### Contributing
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full guide — including how to **write a connector**
+(turn a tool's output into XORCISM data in ~40 lines) and how to **write an importer** (bulk-load a
+framework / dataset, idempotently). The golden rule: verify DB-writing code against a **copy** of the
+databases (`DB_DIR` / `XORCISM_DB_DIR`), never the live ones.
+
 ---
 
 ## 🏗️ Architecture

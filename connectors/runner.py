@@ -365,6 +365,65 @@ def import_ai_guardrail(result: Dict[str, Any]) -> Dict[str, int]:
 
 
 # ── Import into XORCISM (mappings) ────────────────────────────────────────────────
+def import_ai_systems(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import agentlessly-discovered AI/LLM services into XORCISM.AISYSTEM (the AI-SPM inventory).
+    Used by the cloud-ai-discovery connector. Idempotent by (Name, Provider) — existing rows are
+    refreshed with the latest model/endpoint + discovery stamp; Owner / Frameworks / Guardrails are
+    NOT clobbered (so a system a human later governs stays governed). New rows are inserted with
+    Discovered=1 and no governance fields, so they surface as Shadow AI on /ai-systems until adopted.
+    Stamps XORCISM_IMPORT_TENANT_ID. Each item: {name, provider, model, modelType, hosting, endpoint,
+    discovered, discoverySource}."""
+    from uuid import uuid4
+
+    items = result.get("aisystems") or []
+    counts = {"aisystems": 0, "aisystems_updated": 0}
+    if not items:
+        return counts
+
+    tid = _import_tenant_id()
+    con = sqlite3.connect(os.path.join(_db_dir(), "XORCISM.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS AISYSTEM (
+             AISystemID INTEGER PRIMARY KEY, AISystemGUID TEXT, Name TEXT, Description TEXT, Purpose TEXT,
+             Owner TEXT, Provider TEXT, ModelName TEXT, ModelType TEXT, Hosting TEXT, DataClassification TEXT,
+             UsesPersonalData INTEGER DEFAULT 0, RiskTier TEXT, Lifecycle TEXT, Guardrails TEXT, Frameworks TEXT,
+             Notes TEXT, Status TEXT, Endpoint TEXT, Discovered INTEGER, DiscoverySource TEXT,
+             TenantID INTEGER, CreatedDate TEXT)""")
+    have = {r[1] for r in cur.execute("PRAGMA table_info(AISYSTEM)").fetchall()}
+    for n, t in (("Endpoint", "TEXT"), ("Discovered", "INTEGER"), ("DiscoverySource", "TEXT")):
+        if n not in have:
+            cur.execute(f"ALTER TABLE AISYSTEM ADD COLUMN {n} {t}")
+    now = datetime.now(timezone.utc).isoformat()
+    nid = (cur.execute("SELECT COALESCE(MAX(AISystemID),0) FROM AISYSTEM").fetchone()[0] or 0) + 1
+
+    for it in items:
+        name = (it.get("name") or it.get("model") or "").strip()
+        prov = (it.get("provider") or "Cloud").strip()
+        if not name:
+            continue
+        src = it.get("discoverySource") or result.get("source") or "cloud-ai-discovery"
+        row = cur.execute("SELECT AISystemID FROM AISYSTEM WHERE Name=? AND COALESCE(Provider,'')=?", (name, prov)).fetchone()
+        if row:
+            cur.execute(
+                "UPDATE AISYSTEM SET ModelName=?, ModelType=?, Hosting=?, Endpoint=?, Discovered=1, DiscoverySource=? WHERE AISystemID=?",
+                (it.get("model"), it.get("modelType") or "LLM", it.get("hosting"), it.get("endpoint"), src, row[0]))
+            counts["aisystems_updated"] += 1
+        else:
+            cur.execute(
+                """INSERT INTO AISYSTEM (AISystemID, AISystemGUID, Name, Provider, ModelName, ModelType, Hosting,
+                     Endpoint, RiskTier, Lifecycle, Status, Discovered, DiscoverySource, Owner, Frameworks, Guardrails,
+                     TenantID, CreatedDate) VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)""",
+                (nid, str(uuid4()), name, prov, it.get("model"), it.get("modelType") or "LLM", it.get("hosting"),
+                 it.get("endpoint"), "Limited", "Production", "Active", src, "", "", "", tid, now))
+            nid += 1
+            counts["aisystems"] += 1
+    con.commit()
+    con.close()
+    return counts
+
+
 def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
     """Route a normalized connector result into XORCISM.
 
@@ -407,6 +466,8 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
         counts.update(import_emulation(result))
     if result.get("guardrail_violations"):
         counts.update(import_ai_guardrail(result))
+    if result.get("aisystems"):
+        counts.update(import_ai_systems(result))
     if any(result.get(k) for k in ("assets", "vulns", "cpes", "components", "services", "project")):
         counts.update(import_findings(result))
     # DevSecOps: a SAST/Secrets/SCA/DAST connector result is also a pipeline security scan — recorded

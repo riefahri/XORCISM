@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — AI Runtime Detection</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1280px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:14px;max-width:1040px;line-height:1.5}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  table.t{width:100%;border-collapse:collapse;font-size:13px}table.t th,table.t td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}table.t th{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .nm{font-weight:600;color:#e2e8f0}.muted{color:#64748b}
+  .sev{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .sv-critical{background:#7f1d1d;color:#fecaca}.sv-high{background:#78350f;color:#fcd34d}.sv-medium{background:#1e3a5f;color:#bfdbfe}.sv-low{background:#1e2133;color:#94a3b8}
+  .ty{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;background:#3b2f63;color:#ddd6fe;text-transform:uppercase}
+  .lic{font-size:11px;color:#64748b;margin-top:22px;border-top:1px solid #1e2133;padding-top:10px;line-height:1.5}
+</style></head><body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/ai-systems">&#129504; AI inventory</a>
+  <a href="/ai-redteam">&#128737; AI-BAS</a>
+  <a href="/ai-guardrails">&#128737; Guardrails</a>
+  <span class="spacer"></span>
+  <span class="title">&#128225; AI Runtime Detection</span>
+</div>
+<div class="mw">
+  <h1>AI Runtime Anomaly Detection</h1>
+  <div class="sub">The runtime layer of AI-TRiSM — "ITDR for AI usage". It baselines each AI system's usage telemetry
+    (requests, tokens, refusals, injection attempts) and raises detections for the runtime threats traditional
+    controls miss: <b>training-data extraction</b> (volume spikes), <b>repeated jailbreak / prompt-injection</b>, and
+    <b>output drift</b> (a data-poisoning signal). High/critical detections feed the CROC loop.</div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
+  <div class="lic">Detections are heuristic, derived from usage rollups ingested from your AI agent / gateway — a
+    monitoring & triage aid, not an inline block. Confirm before acting.</div>
+</div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/ai-detection.js"></script>
+</body></html>

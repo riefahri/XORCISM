@@ -1,0 +1,9 @@
+{
+  "scan_info": { "app_path": "/src/acme-store" },
+  "warnings": [
+    { "warning_type": "SQL Injection", "message": "Possible SQL injection", "file": "app/models/order.rb", "line": 42, "confidence": "High", "fingerprint": "a1b2" },
+    { "warning_type": "Cross-Site Scripting", "message": "Unescaped model attribute", "file": "app/views/orders/show.html.erb", "line": 7, "confidence": "Medium", "fingerprint": "c3d4" },
+    { "warning_type": "Mass Assignment", "message": "Specify exact keys allowed for mass assignment", "file": "app/controllers/users_controller.rb", "line": 15, "confidence": "Weak", "fingerprint": "e5f6" },
+    { "warning_type": "Command Injection", "message": "Possible command injection", "file": "lib/tasks/export.rake", "line": 9, "confidence": "High", "fingerprint": "g7h8" }
+  ]
+}

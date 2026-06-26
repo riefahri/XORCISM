@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — SLSA Supply-Chain Levels</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1240px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:14px;max-width:1040px;line-height:1.5}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+  table.t{width:100%;border-collapse:collapse;font-size:13px}table.t th,table.t td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}table.t th{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .nm{font-weight:600;color:#e2e8f0}.muted{color:#64748b}
+  .lvl{font-size:11px;font-weight:800;border-radius:5px;padding:1px 8px}
+  .lvl-0{background:#7f1d1d;color:#fecaca}.lvl-1{background:#78350f;color:#fcd34d}.lvl-2{background:#1e3a5f;color:#bfdbfe}.lvl-3{background:#14532d;color:#bbf7d0}
+  .y{color:#34d399}.n{color:#64748b}
+  .lic{font-size:11px;color:#64748b;margin-top:22px;border-top:1px solid #1e2133;padding-top:10px;line-height:1.5}
+</style></head><body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/sca">&#128230; SCA / SBOM</a>
+  <a href="/devsecops">&#128736; DevSecOps</a>
+  <a href="/connectors">&#128268; Connectors</a>
+  <span class="spacer"></span>
+  <span class="title">&#128274; SLSA Supply-Chain Levels</span>
+</div>
+<div class="mw">
+  <h1>SLSA Supply-Chain Level Tracker</h1>
+  <div class="sub">Grades each software artifact's <b>build integrity</b> on SLSA Build Levels L0–L3
+    (provenance → hosted + signed → hardened/isolated), from its build attributes. The supply-chain companion
+    to the <b>Xygeni</b> connector, which surfaces the CI/CD and build-integrity findings that gate these levels.
+    Add/edit artifacts in the schema explorer (SLSAARTIFACT); this is the posture rollup + level-up worklist.</div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
+  <div class="lic">SLSA levels are derived from the recorded build attributes — confirm against your actual
+    pipeline provenance (slsa.dev). L3 requires non-falsifiable provenance from an isolated, hosted builder.</div>
+</div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/slsa.js"></script>
+</body></html>

@@ -26767,4 +26767,23 @@ CREATE TABLE IF NOT EXISTS "CYBERINSURANCEPOLICY" (
   "CreatedDate" TEXT,
   "UpdatedDate" TEXT);
 
+-- AI runtime anomaly detection — per-AISYSTEM usage telemetry (daily rollups) + detections.
+CREATE TABLE IF NOT EXISTS "AIUSAGE" (
+  "UsageID" INTEGER PRIMARY KEY, "AISystemID" INTEGER, "TenantID" INTEGER, "Day" TEXT,
+  "Requests" INTEGER, "TokensIn" INTEGER, "TokensOut" INTEGER, "Refusals" INTEGER,
+  "InjectionAttempts" INTEGER, "DistinctUsers" INTEGER, "CreatedDate" TEXT);
+CREATE INDEX IF NOT EXISTS ix_aiusage_sys ON "AIUSAGE"("AISystemID","Day");
+CREATE TABLE IF NOT EXISTS "AIDETECTION" (
+  "DetectionID" INTEGER PRIMARY KEY, "AISystemID" INTEGER, "TenantID" INTEGER, "Day" TEXT,
+  "Type" TEXT, "Severity" TEXT, "Detail" TEXT, "Evidence" TEXT, "Status" TEXT DEFAULT 'open', "CreatedDate" TEXT);
+CREATE INDEX IF NOT EXISTS ix_aidet_tenant ON "AIDETECTION"("TenantID");
+
+-- SLSA supply-chain level tracker — per-artifact build-integrity attributes (computed level L0-L3).
+CREATE TABLE IF NOT EXISTS "SLSAARTIFACT" (
+  "ArtifactID" INTEGER PRIMARY KEY, "ArtifactGUID" TEXT, "ProjectName" TEXT, "Repo" TEXT, "BuildPlatform" TEXT,
+  "ProvenanceGenerated" INTEGER DEFAULT 0, "ProvenanceSigned" INTEGER DEFAULT 0, "BuildHosted" INTEGER DEFAULT 0,
+  "Isolated" INTEGER DEFAULT 0, "Hermetic" INTEGER DEFAULT 0, "TwoPersonReviewed" INTEGER DEFAULT 0,
+  "ProvenanceVerified" INTEGER DEFAULT 0, "Notes" TEXT, "TenantID" INTEGER, "CreatedDate" TEXT);
+CREATE INDEX IF NOT EXISTS ix_slsa_tenant ON "SLSAARTIFACT"("TenantID");
+
 COMMIT;

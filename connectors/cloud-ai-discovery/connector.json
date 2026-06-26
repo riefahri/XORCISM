@@ -1,0 +1,15 @@
+{
+  "id": "cloud-ai-discovery",
+  "name": "Cloud AI Discovery (Shadow AI / AI-SPM)",
+  "type": "import",
+  "category": "AI Security",
+  "description": "Agentless discovery of AI/LLM services across your cloud accounts (AWS Bedrock / SageMaker, Azure OpenAI / ML, GCP Vertex AI) — the AI-SPM inventory layer. Each discovered model/endpoint becomes an AISYSTEM (provider / model / hosting / endpoint, Discovered=1, DiscoverySource); any that aren't already governed (no owner, no framework) surface as Shadow AI on /ai-systems. Reads from the cloud control plane (no agent). Config: per-cloud read-only credentials in the worker environment (AWS_*, AZURE_*, GOOGLE_APPLICATION_CREDENTIALS); or pass `file` = a saved discovery export JSON (or run with no config for the bundled sample).",
+  "intrusive": false,
+  "permission": "connector:cloud-ai-discovery",
+  "run": "run.py",
+  "mapping": "aisystems",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 500, "min": 1, "max": 5000, "help": "Maximum AI services to import" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved cloud-AI discovery export JSON" }
+  ]
+}
