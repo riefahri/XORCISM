@@ -1217,6 +1217,11 @@ CREATE TABLE IF NOT EXISTS SIGMARULE (
   SigmaReference TEXT, AttackTags TEXT,
   SplQuery TEXT, KqlQuery TEXT, EqlQuery TEXT,
   CreatedDate DATE, ValidFrom DATE, ValidUntil DATE);
+-- Free-text tags for a SIGMARULE (like ASSETTAG): "ransomware", "tier-1", "needs-tuning"…
+CREATE TABLE IF NOT EXISTS SIGMARULETAG (
+  SigmaRuleTagID INTEGER PRIMARY KEY, SigmaRuleID INTEGER, Tag TEXT,
+  CreatedDate TEXT, ValidFrom DATE, ValidUntil DATE, PersonID INTEGER);
+CREATE INDEX IF NOT EXISTS ix_sigmaruletag_rule ON SIGMARULETAG(SigmaRuleID);
 -- YARA detection rules (malware classification). YaraSource = the full rule text.
 CREATE TABLE IF NOT EXISTS YARARULE (
   YaraRuleID INTEGER PRIMARY KEY,

@@ -92,6 +92,8 @@ import {
   setCweTags,
   getControlTags,
   setControlTags,
+  getSigmaRuleTags,
+  setSigmaRuleTags,
   resolveUserOrganisationId,
   harvestEmailAddress,
   setupFirstRunNeeded,
@@ -1305,6 +1307,27 @@ router.put("/control-tags", (req: Request, res: Response) => {
   setControlTags(Number(controlId), tags.map((t) => String(t)));
   xid.addAudit({ userId: req.user!.UserID, action: "control_tags", resourceType: "table",
     resourceKey: "XORCISM.CONTROLTAG", detail: `control=${controlId} n=${tags.length}`, ip: clientIp(req) });
+  res.json({ ok: true });
+});
+
+// GET /api/sigmarule-tags?sigmaRuleId=N — tags of a SIGMARULE (SIGMARULETAG, XTHREAT)
+router.get("/sigmarule-tags", (req: Request, res: Response) => {
+  const sid = Number(req.query.sigmaRuleId);
+  if (!sid) return void res.status(400).json({ error: "sigmaRuleId requis" });
+  if (!userCan(req.user, "read", "XTHREAT", "SIGMARULE")) return deny(req, res, "read", "XTHREAT", "SIGMARULE");
+  res.json(getSigmaRuleTags(sid));
+});
+
+// PUT /api/sigmarule-tags { sigmaRuleId, tags:[...] } — replaces the tags
+router.put("/sigmarule-tags", (req: Request, res: Response) => {
+  const { sigmaRuleId, tags } = req.body as { sigmaRuleId: number; tags: unknown[] };
+  if (!sigmaRuleId || !Array.isArray(tags))
+    return void res.status(400).json({ error: "sigmaRuleId et tags[] requis" });
+  if (!userCan(req.user, "update", "XTHREAT", "SIGMARULE") && !userCan(req.user, "create", "XTHREAT", "SIGMARULE"))
+    return deny(req, res, "update", "XTHREAT", "SIGMARULE");
+  setSigmaRuleTags(Number(sigmaRuleId), tags.map((t) => String(t)));
+  xid.addAudit({ userId: req.user!.UserID, action: "sigmarule_tags", resourceType: "table",
+    resourceKey: "XTHREAT.SIGMARULETAG", detail: `sigmarule=${sigmaRuleId} n=${tags.length}`, ip: clientIp(req) });
   res.json({ ok: true });
 });
 

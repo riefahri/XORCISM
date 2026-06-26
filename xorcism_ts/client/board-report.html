@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Board Cyber-Risk Report</title><link rel="stylesheet" href="/css/style.css">
+<title data-i18n="br.pageTitle">XORCISM — Board Cyber-Risk Report</title><link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1200px;margin:0 auto;padding:18px}.mw h1{font-size:21px;margin:0 0 2px}
   .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1000px}
@@ -32,20 +32,20 @@
   svg.lc text{font-family:inherit}
   @media print{.topbar,.no-print{display:none!important}body{background:#fff}.card,.panel,.exec,.qa{break-inside:avoid}}
 </style></head><body>
-<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/dashboard">&#128202; Dashboard</a><a href="/exposure">&#127919; Exposure</a><a href="/risk-register">&#128221; Risk register</a><span class="spacer"></span><span class="title">&#128203; Board Report</span></div>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/dashboard" data-i18n="br.nav.dashboard">&#128202; Dashboard</a><a href="/exposure" data-i18n="br.nav.exposure">&#127919; Exposure</a><a href="/risk-register" data-i18n="br.nav.riskRegister">&#128221; Risk register</a><span class="spacer"></span><span class="title" data-i18n="br.nav.title">&#128203; Board Report</span></div>
 <div class="mw">
   <div style="display:flex;align-items:flex-start;gap:12px">
     <div style="flex:1">
-      <h1>Board Cyber-Risk Report</h1>
-      <div class="sub">A board-ready read-out of cyber risk in <b>business terms</b> — risk as <b>Likelihood &times; Impact</b>, framed against
-        <b>critical (crown-jewel) assets</b> and <b>posture over time</b>, answering the six questions a Board actually asks. Built from your
+      <h1 data-i18n="br.h1">Board Cyber-Risk Report</h1>
+      <div class="sub" data-i18n="br.sub">A board-ready read-out of cyber risk in business terms — risk as Likelihood &times; Impact, framed against
+        critical (crown-jewel) assets and posture over time, answering the six questions a Board actually asks. Built from your
         live XORCISM data; no raw vulnerability counts, no jargon.</div>
     </div>
     <div class="no-print" style="display:flex;gap:8px;padding-top:4px">
-      <button class="btn-sm2" id="btn-ai" title="Generate a board-language narrative with the local AI">&#10024; AI narrative</button>
-      <button class="btn-sm2" id="btn-print">&#128424;&#65039; Print / PDF</button>
+      <button class="btn-sm2" id="btn-ai" data-i18n="br.btn.ai" data-i18n-title="br.btn.ai.title" title="Generate a board-language narrative with the local AI">&#10024; AI narrative</button>
+      <button class="btn-sm2" id="btn-print" data-i18n="br.btn.print">&#128424;&#65039; Print / PDF</button>
     </div>
   </div>
-  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading board report…</div></div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center" data-i18n="br.loading">Loading board report…</div></div>
 </div>
 <div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/board-report.js"></script></body></html>

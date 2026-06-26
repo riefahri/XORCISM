@@ -4,7 +4,7 @@
  */
 import { Router, Request, Response } from "express";
 import { userCan } from "../auth";
-import { topExposures, fusionForVuln } from "../fusion";
+import { topExposures, fusionForVuln, assetsForVuln } from "../fusion";
 
 const router = Router();
 function guard(req: Request, res: Response): boolean {
@@ -30,6 +30,14 @@ router.get("/fusion/vuln/:vid", (req: Request, res: Response) => {
   const f = fusionForVuln(vid);
   if (!f) return void res.status(404).json({ error: "not found" });
   res.json(f);
+});
+
+// GET /api/fusion/vuln/:vid/assets — the in-scope assets impacted by this vulnerability
+router.get("/fusion/vuln/:vid/assets", (req: Request, res: Response) => {
+  if (!guard(req, res)) return;
+  const vid = Number(req.params.vid);
+  if (!Number.isInteger(vid) || vid <= 0) return void res.status(400).json({ error: "invalid id" });
+  res.json({ assets: assetsForVuln(vid, tenantOf(req)) });
 });
 
 export default router;

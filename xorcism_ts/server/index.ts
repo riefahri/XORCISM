@@ -4,6 +4,7 @@
 
 import "express-async-errors";
 import express, { Request, Response, NextFunction } from "express";
+import compression from "compression";
 import path from "path";
 import explorerRouter from "./routes/explorer";
 import biaRouter from "./routes/bia";
@@ -141,6 +142,7 @@ import { ensureRegIncidentTables } from "./regincident";
 import slsaRouter from "./routes/slsa";
 import { ensureSlsaTables, seedSlsaDemo } from "./slsa";
 import scaRouter from "./routes/sca";
+import { seedScaDemo } from "./sca";
 import toolsRouter from "./routes/tools";
 import tidRouter from "./routes/tid";
 import v1Router from "./routes/v1";
@@ -221,6 +223,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+// gzip responses. The client bundles are i18n-string-heavy (each page inlines the 11-language
+// dictionary → ~800 KB–1.4 MB unminified), which compresses ~6× (app.js 1.1 MB → ~325 KB). This
+// is the single biggest first-load win. Runs first so it wraps both static assets and JSON APIs.
+app.use(compression());
 // stash the raw body so webhook receivers (ChatOps / Slack) can verify HMAC signatures
 const keepRaw = (req: Request, _res: Response, buf: Buffer): void => { (req as Request & { rawBody?: Buffer }).rawBody = buf; };
 app.use(express.json({ limit: "25mb", verify: keepRaw })); // large JSON imports
@@ -837,6 +843,7 @@ try { seedCrocDemo(3); } catch { /* demo only */ } // CROC value demo (tenant 3)
 try { seedThreatDebtDemo(3); } catch { /* demo only */ } // AOI demo (tenant 3): 30-day improving (paid-down) Adversary Opportunity Index history
 try { seedAiUsageDemo(3); } catch { /* demo only */ } // AI runtime detection demo (tenant 3): 30d usage baseline + an anomaly day (no-op if no AI systems)
 try { seedLlmPentestDemo(3); } catch { /* demo only */ } // LLM pentest demo (tenant 3): one OWASP-LLM-2025 engagement with a realistic mix of outcomes
+try { seedScaDemo(3); } catch { /* demo only */ } // SCA demo (tenant 3): a representative CycloneDX SBOM (incl. a vulnerable + license/version gaps) so /sca has content
 try { seedAiSkillsDemo(3); } catch { /* demo only */ } // AI Operations demo (tenant 3): 6 skills/prompts mirroring real copilots + sample activity
 try { seedSlsaDemo(3); } catch { /* demo only */ } // SLSA demo (tenant 3): 4 artifacts at varying build-integrity levels
 try { seedTprmDemo(3); } catch { /* demo only */ } // TPRM demo (tenant 3): 4 vendors with tiers, posture, conformance, findings

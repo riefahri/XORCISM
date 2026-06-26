@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Agentic CROC Orchestrator</title>
+<title data-i18n="cro.pageTitle">XORCISM — Agentic CROC Orchestrator</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
@@ -30,26 +30,26 @@
 </style></head><body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/croc">&#128260; CROC loop</a>
-  <a href="/soc">&#128737;&#65039; SOC</a>
-  <a href="/knowledge-graph">&#128376;&#65039; Knowledge graph</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/croc" data-i18n="cro.nav.loop">&#128260; CROC loop</a>
+  <a href="/soc" data-i18n="cro.nav.soc">&#128737;&#65039; SOC</a>
+  <a href="/knowledge-graph" data-i18n="cro.nav.kgraph">&#128376;&#65039; Knowledge graph</a>
   <span class="spacer"></span>
-  <span class="title">&#129302; Agentic CROC Orchestrator</span>
+  <span class="title" data-i18n="cro.nav.title">&#129302; Agentic CROC Orchestrator</span>
 </div>
 <div class="mw">
   <div style="display:flex;align-items:flex-start;gap:12px">
-    <h1 style="flex:1">Agentic CROC orchestrator</h1>
-    <button class="btn-sm2" id="o-demo">Seed demo</button>
-    <button class="btn btn-run" id="o-run">⟳ Run now</button>
+    <h1 style="flex:1" data-i18n="cro.h1">Agentic CROC orchestrator</h1>
+    <button class="btn-sm2" id="o-demo" data-i18n="cro.seedDemo">Seed demo</button>
+    <button class="btn btn-run" id="o-run" data-i18n="cro.runNow">⟳ Run now</button>
   </div>
-  <div class="sub">The autonomous layer over the CROC loop. It watches the <b>LOOPEVENT</b> bus for new high/critical
-    signals, picks the right analyst copilot, and drafts a <b>verdict + recommended action</b> — queued here for your
+  <div class="sub" data-i18n="cro.sub">The autonomous layer over the CROC loop. It watches the LOOPEVENT bus for new high/critical
+    signals, picks the right analyst copilot, and drafts a verdict + recommended action — queued here for your
     approval. Nothing side-effectful runs without a human: the orchestrator triages at machine speed, you stay in the
-    loop. <b>Approve</b> records the decision (and notifies); <b>Dismiss</b> closes it.</div>
-  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
-  <div class="lic">Proposals are generated deterministically from the event type (offline-safe) and labelled with the
-    copilot used. The background poller runs every ~2 min (set <span class="mono">XOR_ORCHESTRATOR=0</span> to disable).</div>
+    loop. Approve records the decision (and notifies); Dismiss closes it.</div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center" data-i18n="cro.loading">Loading…</div></div>
+  <div class="lic" data-i18n="cro.lic">Proposals are generated deterministically from the event type (offline-safe) and labelled with the
+    copilot used. The background poller runs every ~2 min (set XOR_ORCHESTRATOR=0 to disable).</div>
 </div>
 <div id="toast"></div>
 <script src="/js/session-ui.js"></script>

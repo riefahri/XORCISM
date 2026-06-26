@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Attack-surface graph</title>
+<title data-i18n="as.pageTitle">XORCISM — Attack-surface graph</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .as-layout{display:flex;height:calc(100vh - 46px)}
@@ -42,36 +42,36 @@
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
   <a href="/dashboard" data-i18n="nav.dashboard">&#128202; Dashboard</a>
   <span class="spacer"></span>
-  <span class="title">&#128376;&#65039; Attack-surface graph</span>
+  <span class="title" data-i18n="as.nav.title">&#128376;&#65039; Attack-surface graph</span>
 </div>
 
 <div class="as-layout">
   <div class="as-side">
     <div class="sec">
-      <h3>Scope</h3>
-      <label>Focus on an asset</label>
-      <input type="text" id="as-search" list="as-assets" placeholder="AssetName…" autocomplete="off">
+      <h3 data-i18n="as.scope">Scope</h3>
+      <label data-i18n="as.focusLabel">Focus on an asset</label>
+      <input type="text" id="as-search" list="as-assets" placeholder="AssetName…" data-i18n-placeholder="as.searchPh" autocomplete="off">
       <datalist id="as-assets"></datalist>
       <div class="as-btns">
-        <button class="btn btn-primary btn-sm" id="as-focus">Focus</button>
-        <button class="btn btn-ghost btn-sm" id="as-all">Whole tenant</button>
+        <button class="btn btn-primary btn-sm" id="as-focus" data-i18n="as.focusBtn">Focus</button>
+        <button class="btn btn-ghost btn-sm" id="as-all" data-i18n="as.wholeTenant">Whole tenant</button>
       </div>
       <div class="as-stat" id="as-scope" style="margin-top:8px"></div>
     </div>
     <div class="sec">
-      <h3>Options</h3>
-      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="as-labels" style="width:auto"> <span>Relationship labels</span></label>
+      <h3 data-i18n="as.options">Options</h3>
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="as-labels" style="width:auto"> <span data-i18n="as.relLabels">Relationship labels</span></label>
       <div class="as-btns">
-        <button class="btn btn-ghost btn-sm" id="as-zin" title="Zoom in">＋</button>
-        <button class="btn btn-ghost btn-sm" id="as-zout" title="Zoom out">－</button>
-        <button class="btn btn-ghost btn-sm" id="as-fit">Fit</button>
-        <button class="btn btn-ghost btn-sm" id="as-export">Export SVG</button>
-        <button class="btn btn-ghost btn-sm" id="as-reload">Reload</button>
+        <button class="btn btn-ghost btn-sm" id="as-zin" data-i18n-title="as.zoomIn" title="Zoom in">＋</button>
+        <button class="btn btn-ghost btn-sm" id="as-zout" data-i18n-title="as.zoomOut" title="Zoom out">－</button>
+        <button class="btn btn-ghost btn-sm" id="as-fit" data-i18n="as.fit">Fit</button>
+        <button class="btn btn-ghost btn-sm" id="as-export" data-i18n="as.exportSvg">Export SVG</button>
+        <button class="btn btn-ghost btn-sm" id="as-reload" data-i18n="as.reload">Reload</button>
       </div>
       <div class="as-stat" id="as-counts" style="margin-top:8px"></div>
     </div>
     <div class="sec">
-      <h3>Legend / filter</h3>
+      <h3 data-i18n="as.legendFilter">Legend / filter</h3>
       <div class="legend" id="as-legend"></div>
     </div>
   </div>

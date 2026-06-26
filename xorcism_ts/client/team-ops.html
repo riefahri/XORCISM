@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Team Operations</title><link rel="stylesheet" href="/css/style.css">
+<title data-i18n="tops.pageTitle">XORCISM — Team Operations</title><link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
   .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1040px}
@@ -24,12 +24,12 @@
   .modal{position:fixed;inset:0;background:rgba(5,7,15,.74);display:none;align-items:center;justify-content:center;z-index:50}.modal.show{display:flex}
   .dlg{background:#0f1322;border:1px solid #2d3250;border-radius:14px;padding:18px 20px;width:min(760px,95vw);max-height:90vh;overflow:auto}
 </style></head><body>
-<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/purple-team">&#129512; Detection coverage</a><a href="/?db=XTHREAT&amp;table=EMULATION">&#9876;&#65039; BAS</a><a href="/hunting">&#128270; Hunting</a><span class="spacer"></span><span class="title">&#129505; Team Operations</span></div>
-<div class="mw"><h1>Purple / Red / Blue Team Operations</h1>
-<div class="sub">State-of-the-art purple teaming (VECTR-style): run <b>exercises</b> as ATT&amp;CK test cases — each pairs a
-  <b>Red offensive action</b> with the <b>Blue outcome</b> (prevented · detected · logged · missed) and a detection
-  time — to measure <b>efficiency</b> (prevention/detection/visibility rates, MTTD) and per-tactic coverage. Manage
-  Red/Blue/Purple <b>capabilities &amp; capacities</b>, and drive offensive/defensive <b>automation playbooks</b>.</div>
-<div id="body"><div class="muted" style="padding:24px;text-align:center">Loading team operations…</div></div></div>
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/purple-team" data-i18n="tops.nav.purple">&#129512; Detection coverage</a><a href="/?db=XTHREAT&amp;table=EMULATION" data-i18n="tops.nav.bas">&#9876;&#65039; BAS</a><a href="/hunting" data-i18n="tops.nav.hunting">&#128270; Hunting</a><span class="spacer"></span><span class="title" data-i18n="tops.nav.title">&#129505; Team Operations</span></div>
+<div class="mw"><h1 data-i18n="tops.h1">Purple / Red / Blue Team Operations</h1>
+<div class="sub" data-i18n="tops.sub">State-of-the-art purple teaming (VECTR-style): run exercises as ATT&amp;CK test cases — each pairs a
+  Red offensive action with the Blue outcome (prevented · detected · logged · missed) and a detection
+  time — to measure efficiency (prevention/detection/visibility rates, MTTD) and per-tactic coverage. Manage
+  Red/Blue/Purple capabilities &amp; capacities, and drive offensive/defensive automation playbooks.</div>
+<div id="body"><div class="muted" style="padding:24px;text-align:center" data-i18n="tops.loading">Loading team operations…</div></div></div>
 <div class="modal" id="modal"><div class="dlg" id="dlg"></div></div>
 <div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/team-ops.js"></script></body></html>

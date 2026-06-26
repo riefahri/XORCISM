@@ -525,12 +525,12 @@ async function initPostureRadar(): Promise<void> {
   try { const r = await fetch("/api/dashboard/kpis"); if (!r.ok) throw new Error(String(r.status)); k = await r.json(); }
   catch { return; }
   const axes = [
-    { label: "Detection", value: k.tid?.detectRate },
-    { label: "Mitigation", value: k.tid?.mitigateRate },
-    { label: "Validation", value: k.tid?.testRate },
-    { label: "Compliance", value: k.compliance?.completionRate },
-    { label: "Crisis readiness", value: k.crisis?.readinessScore },
-    { label: "Risk treated", value: k.risk?.treatedRate },
+    { label: t("dash.radar.detection"), value: k.tid?.detectRate },
+    { label: t("dash.radar.mitigation"), value: k.tid?.mitigateRate },
+    { label: t("dash.radar.validation"), value: k.tid?.testRate },
+    { label: t("dash.radar.compliance"), value: k.compliance?.completionRate },
+    { label: t("dash.radar.crisis"), value: k.crisis?.readinessScore },
+    { label: t("dash.radar.riskTreated"), value: k.risk?.treatedRate },
   ].filter((a) => a.value != null && Number.isFinite(Number(a.value)));
   if (axes.length < 3) { $("radar-empty").style.display = ""; return; }
   $("radar-stats").textContent = `${axes.length} ${t("dash.programs")}`;
@@ -616,66 +616,66 @@ async function initKpis(): Promise<void> {
       <div class="k-lbl">${lbl}</div><div class="k-foot">${foot}</div></a>`);
   };
 
-  tile(k.riskScore, "Enterprise risk", "risk × value", "/exposure", riskColor(k.riskScore ?? 0));
+  tile(k.riskScore, t("dash.kpi.enterpriseRisk"), t("dash.kpi.enterpriseRisk.f"), "/exposure", riskColor(k.riskScore ?? 0));
   if (k.adversaryOpportunity) {
     const ao = k.adversaryOpportunity;
     const aoColor = ao.index >= 600 ? "#f87171" : ao.index >= 300 ? "#fbbf24" : "#34d399";
-    const foot = ao.net == null ? "true adversary opportunity" : ao.net < 0 ? `▼ ${Math.abs(ao.net)} paid down` : ao.net > 0 ? `▲ ${ao.net} accrued` : "flat — no change";
-    tile(ao.index, "Adversary opportunity", foot, "/adversary-opportunity", aoColor);
+    const foot = ao.net == null ? t("dash.kpi.ao.f") : ao.net < 0 ? `▼ ${Math.abs(ao.net)} ${t("dash.kpi.ao.paid")}` : ao.net > 0 ? `▲ ${ao.net} ${t("dash.kpi.ao.accrued")}` : t("dash.kpi.ao.flat");
+    tile(ao.index, t("dash.kpi.ao"), foot, "/adversary-opportunity", aoColor);
   }
   if (k.insurance) {
-    tile(`${k.insurance.grade}`, "Insurance readiness", `${k.insurance.score}/100 · ${k.insurance.gap} gap(s)`, "/insurance-readiness", pctColor(k.insurance.score));
+    tile(`${k.insurance.grade}`, t("dash.kpi.insurance"), `${k.insurance.score}/100 · ${k.insurance.gap} ${t("dash.kpi.gaps")}`, "/insurance-readiness", pctColor(k.insurance.score));
   }
   if (k.assets) {
-    tile(k.assets.crownJewels, "Crown jewels", `of ${k.assets.total} assets`, "/asset-management", "#7c83fd");
-    tile(k.assets.criticalVulns, "Assets · KEV/critical", "open critical vulns", "/asset-management", badColor(k.assets.criticalVulns));
-    tile(k.assets.internetFacing, "Internet-facing", "publicly exposed", "/asset-management", warnColor(k.assets.internetFacing));
-    tile(k.assets.unbacked, "Unbacked critical", "critical · no backup", "/asset-management", badColor(k.assets.unbacked));
+    tile(k.assets.crownJewels, t("dash.kpi.crownJewels"), `${t("dash.kpi.of")} ${k.assets.total} ${t("dash.kpi.assets")}`, "/asset-management", "#7c83fd");
+    tile(k.assets.criticalVulns, t("dash.kpi.assetsKev"), t("dash.kpi.assetsKev.f"), "/asset-management", badColor(k.assets.criticalVulns));
+    tile(k.assets.internetFacing, t("dash.kpi.internetFacing"), t("dash.kpi.internetFacing.f"), "/asset-management", warnColor(k.assets.internetFacing));
+    tile(k.assets.unbacked, t("dash.kpi.unbacked"), t("dash.kpi.unbacked.f"), "/asset-management", badColor(k.assets.unbacked));
   }
   if (k.identities) {
-    tile(k.identities.privileged, "Privileged identities", "admin / root / owner", "/identities", "#c084fc");
-    tile(k.identities.orphaned, "Orphaned NHI", "no accountable owner", "/identities", warnColor(k.identities.orphaned));
-    tile(k.identities.mfaGaps, "MFA gaps", "privileged · no MFA", "/identities", badColor(k.identities.mfaGaps));
+    tile(k.identities.privileged, t("dash.kpi.privIdentities"), t("dash.kpi.privIdentities.f"), "/identities", "#c084fc");
+    tile(k.identities.orphaned, t("dash.kpi.orphanedNhi"), t("dash.kpi.orphanedNhi.f"), "/identities", warnColor(k.identities.orphaned));
+    tile(k.identities.mfaGaps, t("dash.kpi.mfaGaps"), t("dash.kpi.mfaGaps.f"), "/identities", badColor(k.identities.mfaGaps));
   }
   if (k.incidents) {
-    tile(k.incidents.criticalOpen, "Open critical incidents", `${k.incidents.open} open total`, "/incident-management", badColor(k.incidents.criticalOpen));
-    tile(k.incidents.breached, "SLA / RTO breaches", "past target", "/incident-sla", warnColor(k.incidents.breached));
-    tile(k.incidents.mttdMinutes != null ? (k.incidents.mttdMinutes < 90 ? `${k.incidents.mttdMinutes}m` : `${(k.incidents.mttdMinutes / 60).toFixed(1)}h`) : null, "MTTD", "mean time to detect", "/soc", k.incidents.mttdMinutes != null && k.incidents.mttdMinutes <= 60 ? "#34d399" : "#fbbf24");
-    tile(k.incidents.mttrHours != null ? `${k.incidents.mttrHours}h` : null, "MTTR", "mean time to resolve", "/soc");
+    tile(k.incidents.criticalOpen, t("dash.kpi.openCritIncidents"), `${k.incidents.open} ${t("dash.kpi.openTotal")}`, "/incident-management", badColor(k.incidents.criticalOpen));
+    tile(k.incidents.breached, t("dash.kpi.slaBreaches"), t("dash.kpi.slaBreaches.f"), "/incident-sla", warnColor(k.incidents.breached));
+    tile(k.incidents.mttdMinutes != null ? (k.incidents.mttdMinutes < 90 ? `${k.incidents.mttdMinutes}m` : `${(k.incidents.mttdMinutes / 60).toFixed(1)}h`) : null, "MTTD", t("dash.kpi.mttd.f"), "/soc", k.incidents.mttdMinutes != null && k.incidents.mttdMinutes <= 60 ? "#34d399" : "#fbbf24");
+    tile(k.incidents.mttrHours != null ? `${k.incidents.mttrHours}h` : null, "MTTR", t("dash.kpi.mttr.f"), "/soc");
   }
   if (k.compliance) {
-    tile(k.compliance.completionRate != null ? `${k.compliance.completionRate}%` : null, "Audit completion", "audits completed", "/compliance-management", pctColor(k.compliance.completionRate));
-    tile(k.compliance.highOpen, "High findings open", `${k.compliance.openFindings} open · ${k.compliance.overdue} overdue`, "/compliance-management", badColor(k.compliance.highOpen));
+    tile(k.compliance.completionRate != null ? `${k.compliance.completionRate}%` : null, t("dash.kpi.auditCompletion"), t("dash.kpi.auditCompletion.f"), "/compliance-management", pctColor(k.compliance.completionRate));
+    tile(k.compliance.highOpen, t("dash.kpi.highFindings"), `${k.compliance.openFindings} ${t("dash.kpi.open")} · ${k.compliance.overdue} ${t("dash.kpi.overdue")}`, "/compliance-management", badColor(k.compliance.highOpen));
   }
   if (k.patch) {
-    tile(k.patch.coverage != null ? `${k.patch.coverage}%` : null, "Patch coverage", `${k.patch.instances} asset×CVE`, "/patch-management", pctColor(k.patch.coverage));
-    tile(k.patch.overdue, "Overdue patches", "past patch SLA", "/patch-management", badColor(k.patch.overdue));
-    tile(k.patch.kevUnpatched, "Unpatched KEV", "known-exploited · open", "/patch-management", badColor(k.patch.kevUnpatched));
+    tile(k.patch.coverage != null ? `${k.patch.coverage}%` : null, t("dash.kpi.patchCoverage"), `${k.patch.instances} ${t("dash.kpi.assetCve")}`, "/patch-management", pctColor(k.patch.coverage));
+    tile(k.patch.overdue, t("dash.kpi.overduePatches"), t("dash.kpi.overduePatches.f"), "/patch-management", badColor(k.patch.overdue));
+    tile(k.patch.kevUnpatched, t("dash.kpi.unpatchedKev"), t("dash.kpi.unpatchedKev.f"), "/patch-management", badColor(k.patch.kevUnpatched));
   }
   if (k.risk) {
-    const money = (n: number): string => { try { return new Intl.NumberFormat(undefined, { style: "currency", currency: k.risk!.currency || "EUR", maximumFractionDigits: 0, notation: "compact" }).format(n); } catch { return String(n); } };
-    tile(k.risk.riskScore, "Residual risk posture", `${k.risk.open} open risks`, "/risk-register", k.risk.riskScore >= 60 ? "#f87171" : k.risk.riskScore >= 35 ? "#fbbf24" : "#34d399");
-    tile(k.risk.untreated, "Untreated risks", "high/critical · no plan", "/risk-register", badColor(k.risk.untreated));
-    tile(k.risk.totalALE ? money(k.risk.totalALE) : "—", "Annualized exposure", "open risks · FAIR ALE", "/risk-register", "#f43f5e");
+    const money = (n: number): string => { try { return new Intl.NumberFormat(lang(), { style: "currency", currency: k.risk!.currency || "EUR", maximumFractionDigits: 0, notation: "compact" }).format(n); } catch { return String(n); } };
+    tile(k.risk.riskScore, t("dash.kpi.residualRisk"), `${k.risk.open} ${t("dash.kpi.openRisks")}`, "/risk-register", k.risk.riskScore >= 60 ? "#f87171" : k.risk.riskScore >= 35 ? "#fbbf24" : "#34d399");
+    tile(k.risk.untreated, t("dash.kpi.untreatedRisks"), t("dash.kpi.untreatedRisks.f"), "/risk-register", badColor(k.risk.untreated));
+    tile(k.risk.totalALE ? money(k.risk.totalALE) : "—", t("dash.kpi.annualizedExposure"), t("dash.kpi.annualizedExposure.f"), "/risk-register", "#f43f5e");
   }
   if (k.tid) {
-    tile(k.tid.tidScore, "TID program score", "threat-weighted defence", "/threat-informed-defense", pctColor(k.tid.tidScore));
-    tile(`${k.tid.detectRate}%`, "Detection coverage", `${k.tid.threatRelevant} threat-relevant techniques`, "/threat-informed-defense", pctColor(k.tid.detectRate));
-    tile(k.tid.detectionFailed + k.tid.detectionRegressed, "False coverage / drift", "rules that didn't fire", "/threat-informed-defense", badColor(k.tid.detectionFailed + k.tid.detectionRegressed));
-    tile(k.tid.exposed, "Exposed techniques", "high-threat · 0 defence", "/threat-informed-defense", badColor(k.tid.exposed));
+    tile(k.tid.tidScore, t("dash.kpi.tidScore"), t("dash.kpi.tidScore.f"), "/threat-informed-defense", pctColor(k.tid.tidScore));
+    tile(`${k.tid.detectRate}%`, t("dash.kpi.detectionCoverage"), `${k.tid.threatRelevant} ${t("dash.kpi.threatRelevantTechniques")}`, "/threat-informed-defense", pctColor(k.tid.detectRate));
+    tile(k.tid.detectionFailed + k.tid.detectionRegressed, t("dash.kpi.falseCoverage"), t("dash.kpi.falseCoverage.f"), "/threat-informed-defense", badColor(k.tid.detectionFailed + k.tid.detectionRegressed));
+    tile(k.tid.exposed, t("dash.kpi.exposedTechniques"), t("dash.kpi.exposedTechniques.f"), "/threat-informed-defense", badColor(k.tid.exposed));
   }
   if (k.pqcmm) {
-    tile(`${k.pqcmm.maturityScore}%`, "Quantum readiness", `${k.pqcmm.assessments} assessed · PQCMM`, "/pqcmm", pctColor(k.pqcmm.maturityScore));
-    tile(k.pqcmm.quantumVulnerable, "Quantum-vulnerable", "PQCMM Level 0 · classical only", "/pqcmm", badColor(k.pqcmm.quantumVulnerable));
+    tile(`${k.pqcmm.maturityScore}%`, t("dash.kpi.quantumReadiness"), `${k.pqcmm.assessments} ${t("dash.kpi.assessedPqcmm")}`, "/pqcmm", pctColor(k.pqcmm.maturityScore));
+    tile(k.pqcmm.quantumVulnerable, t("dash.kpi.quantumVulnerable"), t("dash.kpi.quantumVulnerable.f"), "/pqcmm", badColor(k.pqcmm.quantumVulnerable));
   }
   if (k.policy) {
-    tile(`${k.policy.ackCoverage}%`, "Policy acceptance", `${k.policy.requiringAck} published · ack required`, "/policy-management", pctColor(k.policy.ackCoverage));
-    tile(k.policy.pendingAcks, "Pending acknowledgements", `${k.policy.fullyAcknowledged}/${k.policy.requiringAck} fully accepted`, "/policy-management", warnColor(k.policy.pendingAcks));
+    tile(`${k.policy.ackCoverage}%`, t("dash.kpi.policyAcceptance"), `${k.policy.requiringAck} ${t("dash.kpi.publishedAckRequired")}`, "/policy-management", pctColor(k.policy.ackCoverage));
+    tile(k.policy.pendingAcks, t("dash.kpi.pendingAcks"), `${k.policy.fullyAcknowledged}/${k.policy.requiringAck} ${t("dash.kpi.fullyAccepted")}`, "/policy-management", warnColor(k.policy.pendingAcks));
   }
   if (k.crisis) {
-    tile(k.crisis.readinessScore, "Crisis readiness", "completion × coverage", "/crisis-management", pctColor(k.crisis.readinessScore));
-    tile(`${k.crisis.scenarioCoverage}%`, "Scenario coverage", `${k.crisis.exercises} exercise(s) run`, "/crisis-management", pctColor(k.crisis.scenarioCoverage));
-    tile(k.crisis.openActions, "Improvement actions", `${k.crisis.overdueActions} overdue · ${k.crisis.scenariosNeverExercised} untested scenarios`, "/crisis-management", warnColor(k.crisis.openActions));
+    tile(k.crisis.readinessScore, t("dash.kpi.crisisReadiness"), t("dash.kpi.crisisReadiness.f"), "/crisis-management", pctColor(k.crisis.readinessScore));
+    tile(`${k.crisis.scenarioCoverage}%`, t("dash.kpi.scenarioCoverage"), `${k.crisis.exercises} ${t("dash.kpi.exercisesRun")}`, "/crisis-management", pctColor(k.crisis.scenarioCoverage));
+    tile(k.crisis.openActions, t("dash.kpi.improvementActions"), `${k.crisis.overdueActions} ${t("dash.kpi.overdue")} · ${k.crisis.scenariosNeverExercised} ${t("dash.kpi.untestedScenarios")}`, "/crisis-management", warnColor(k.crisis.openActions));
   }
   strip.innerHTML = tiles.join("");
 }
@@ -717,16 +717,31 @@ async function initThreatLevel(): Promise<void> {
       <text x="${CX}" y="64" text-anchor="middle" font-size="9" fill="#94a3b8">/ 100</text>
     </svg>`;
 
+  // Contributor labels + band label come from the server as English enums/strings; localize them
+  // client-side by key (the day-window numbers mirror the server constants: KEV/EPSS = windowDays, CTI = 30).
+  const ds = t("dash.tl.dShort"); // "d" / " j"
+  const cLabel = (c: ThreatLvl["contributors"][number]): string => {
+    switch (c.key) {
+      case "kevRecent": return `${t("dash.tl.c.kevRecent")} (KEV, ${d.windowDays}${ds})`;
+      case "incidentsOpen": return t("dash.tl.c.incidentsOpen");
+      case "epssRecent": return `${t("dash.tl.c.epssRecent")} (${d.windowDays}${ds})`;
+      case "kevUnpatched": return t("dash.tl.c.kevUnpatched");
+      case "threatReports": return `${t("dash.tl.c.threatReports")} (30${ds})`;
+      case "intel": return `${t("dash.tl.c.intel")} (30${ds})`;
+      default: return c.label;
+    }
+  };
+  const bandLabel = t(`dash.tl.lvl.${d.label}`); // localized condition word (falls back to enum)
   const drivers = d.contributors.filter((c) => c.points > 0).slice(0, 4)
-    .map((c) => `<span class="tl-chip">${escapeHtml(c.label)} <b>${c.count}</b></span>`).join("");
-  const driversHtml = drivers || `<span class="tl-chip">No elevated signals in the last ${d.windowDays} days</span>`;
+    .map((c) => `<span class="tl-chip">${escapeHtml(cLabel(c))} <b>${c.count}</b></span>`).join("");
+  const driversHtml = drivers || `<span class="tl-chip">${escapeHtml(t("dash.tl.noSignalsPre"))} ${d.windowDays} ${escapeHtml(t("dash.tl.daysPost"))}</span>`;
 
   el.style.borderLeftColor = d.color;
   el.innerHTML =
     `${gauge}
      <div class="tl-meta">
-       <div class="tl-label" style="color:${d.color}">${escapeHtml(d.label)} <span style="font-size:13px;color:#64748b;font-weight:600">· Threat level ${d.level}/5</span></div>
-       <div class="tl-sub">Global cyber threat condition — recent known-exploited (KEV), high-EPSS, CTI and incident signals (rolling ${d.windowDays}–30 day window).</div>
+       <div class="tl-label" style="color:${d.color}">${escapeHtml(bandLabel)} <span style="font-size:13px;color:#64748b;font-weight:600">· ${escapeHtml(t("dash.tl.level"))} ${d.level}/5</span></div>
+       <div class="tl-sub">${escapeHtml(t("dash.tl.subPre"))} ${d.windowDays}${escapeHtml(t("dash.tl.subPost"))}</div>
        <div class="tl-drivers">${driversHtml}</div>
      </div>`;
   el.style.display = "flex";

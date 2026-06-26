@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — OSINT Link Analysis</title>
+<title data-i18n="og.pageTitle">XORCISM — OSINT Link Analysis</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .og-wrap{max-width:1500px;margin:0 auto;padding:14px 18px}
@@ -35,26 +35,26 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XTHREAT&amp;table=INTELEXCHANGE">&#128225; Intel exchange</a>
-  <a href="/stix-graph">&#128376; STIX graph</a>
+  <a href="/?db=XTHREAT&amp;table=INTELEXCHANGE" data-i18n="og.nav.intel">&#128225; Intel exchange</a>
+  <a href="/stix-graph" data-i18n="og.nav.stix">&#128376; STIX graph</a>
   <span class="spacer"></span>
-  <span class="title">&#128373;&#65039; OSINT Link Analysis</span>
+  <span class="title" data-i18n="og.nav.title">&#128373;&#65039; OSINT Link Analysis</span>
 </div>
 <div class="og-wrap">
-  <h1>OSINT Link Analysis</h1>
-  <div class="og-sub">A Palantir-style entity-link graph over your OSINT/CTI feed (XTHREAT.INTELEXCHANGE): intel reports
-    and the <b>CVEs, threat actors, malware, ATT&amp;CK techniques and IOCs</b> (domains, IPs, emails, hashes, .onion —
-    defang-aware) they contain. Recurring entities collapse into one node, so <b>co-occurrence and pivots emerge</b> —
+  <h1 data-i18n="og.h1">OSINT Link Analysis</h1>
+  <div class="og-sub" data-i18n="og.sub">A Palantir-style entity-link graph over your OSINT/CTI feed (XTHREAT.INTELEXCHANGE): intel reports
+    and the CVEs, threat actors, malware, ATT&amp;CK techniques and IOCs (domains, IPs, emails, hashes, .onion —
+    defang-aware) they contain. Recurring entities collapse into one node, so co-occurrence and pivots emerge —
     click any node to focus its connections and explore. Fed by the OSINT connectors (DARKWATCH, Lyra, VoidAccess,
     Telegram OSINT, Taranis, GCTI…).</div>
   <div id="og-kpi" class="kpi"></div>
   <div class="og-bar">
-    <input id="og-search" placeholder="Search entity (CVE, actor, domain, IP…)" style="min-width:280px">
+    <input id="og-search" data-i18n-placeholder="og.searchPh" placeholder="Search entity (CVE, actor, domain, IP…)" style="min-width:280px">
     <div class="legend" id="og-legend"></div>
   </div>
   <div class="og-stage">
     <div id="og-graph"></div>
-    <div class="og-panel" id="og-panel"><div class="muted">Click a node to inspect it and pivot through its connections.</div></div>
+    <div class="og-panel" id="og-panel"><div class="muted" data-i18n="og.clickNode">Click a node to inspect it and pivot through its connections.</div></div>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>

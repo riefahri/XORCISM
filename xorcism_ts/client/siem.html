@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — SIEM-lite</title>
+<title data-i18n="siem.pageTitle">XORCISM — SIEM-lite</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
@@ -24,29 +24,29 @@
 </style></head><body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/croc-orchestrator">&#129302; Orchestrator</a>
-  <a href="/?db=XTHREAT&amp;table=SIGMARULE">&#128203; Sigma rules</a>
-  <a href="/purple-team">&#128737;&#65039; Purple team</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/croc-orchestrator" data-i18n="siem.nav.orch">&#129302; Orchestrator</a>
+  <a href="/?db=XTHREAT&amp;table=SIGMARULE" data-i18n="siem.nav.sigma">&#128203; Sigma rules</a>
+  <a href="/purple-team" data-i18n="siem.nav.purple">&#128737;&#65039; Purple team</a>
   <span class="spacer"></span>
-  <span class="title">&#128225; SIEM-lite · log → Sigma → alert</span>
+  <span class="title" data-i18n="siem.nav.title">&#128225; SIEM-lite · log → Sigma → alert</span>
 </div>
 <div class="mw">
-  <h1>SIEM-lite — detection pipeline</h1>
-  <div class="sub">Paste log events (JSON) and XORCISM runs them through your <b>Sigma rule library</b> plus a built-in
-    baseline ruleset (Windows/Sysmon). Each match raises an <b>ALERT</b> — which feeds incidents and emits a
-    <b>LOOPEVENT</b>, so the CROC loop and the <a href="/croc-orchestrator">agentic orchestrator</a> pick it up and
+  <h1 data-i18n="siem.h1">SIEM-lite — detection pipeline</h1>
+  <div class="sub" data-i18n="siem.sub">Paste log events (JSON) and XORCISM runs them through your Sigma rule library plus a built-in
+    baseline ruleset (Windows/Sysmon). Each match raises an ALERT — which feeds incidents and emits a
+    LOOPEVENT, so the CROC loop and the agentic orchestrator pick it up and
     propose a response. Closes the detect→respond loop with no external SIEM.</div>
-  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center" data-i18n="siem.loading">Loading…</div></div>
 
-  <div class="sec">Ingest logs</div>
+  <div class="sec" data-i18n="siem.secIngest">Ingest logs</div>
   <textarea class="inp" id="logs" rows="9" placeholder='[ { "source": "Sysmon", "EventID": 1, "Computer": "ws-12", "CommandLine": "powershell -enc ..." } ]'></textarea>
   <div style="display:flex;gap:8px;margin-top:8px">
-    <button class="btn" id="ing">▶ Ingest &amp; detect</button>
-    <button class="btn-sm2" id="samp">Try sample logs</button>
+    <button class="btn" id="ing" data-i18n="siem.ingestBtn">▶ Ingest &amp; detect</button>
+    <button class="btn-sm2" id="samp" data-i18n="siem.sampleBtn">Try sample logs</button>
     <span class="muted" id="stat" style="font-size:12px;align-self:center"></span>
   </div>
-  <div class="lic">Detection reuses the sigma.ts parser/AST (named selections, modifiers, <span class="mono">condition</span>
+  <div class="lic" data-i18n="siem.lic">Detection reuses the sigma.ts parser/AST (named selections, modifiers, condition
     expressions). It is a pragmatic field/keyword evaluator — for production detection at scale, export the Sigma
     bundle and run it in your SIEM. Alerts are idempotent per rule+host+command.</div>
 </div>

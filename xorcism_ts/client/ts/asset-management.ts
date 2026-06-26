@@ -1,10 +1,13 @@
 /**
  * asset-management.ts — Asset Management inventory + governance worklist (/asset-management).
  * Renders the asset estate with posture (owner / exposure / backup / controls / vulns) +
- * derived governance findings, from /api/asset-management.
+ * derived governance findings, from /api/asset-management. Fully i18n via t("asm.*").
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 interface AssetRow {
   id: number; name: string; criticality: string; owner: string | null; environment: string;
@@ -26,6 +29,8 @@ interface Inventory {
 const critClass = (c: string): string => `c-${(c || "unrated").toLowerCase()}`;
 const scoreClass = (n: number): string => (n >= 40 ? "s-hi" : n >= 15 ? "s-md" : "s-lo");
 const yn = (b: boolean): string => (b ? `<span class="ok">✓</span>` : `<span class="no">✗</span>`);
+// Exposure is a server enum ("Internet"/"Internal"); localize for display only.
+const expLabel = (e: string): string => (e === "Internet" ? t("asm.exp.internet") : t("asm.exp.internal"));
 
 function card(lbl: string, val: string, foot: string, color?: string): string {
   return `<div class="am-card"><div class="lbl">${esc(lbl)}</div>
@@ -37,8 +42,8 @@ function vulnCell(v: AssetRow["vulns"]): string {
   if (!v.open) return `<span class="muted">—</span>`;
   const out: string[] = [];
   if (v.kev) out.push(`<span class="vbadge v-kev">${v.kev} KEV</span>`);
-  if (v.critical) out.push(`<span class="vbadge v-crit">${v.critical} crit</span>`);
-  out.push(`<span class="vbadge v-open">${v.open} open</span>`);
+  if (v.critical) out.push(`<span class="vbadge v-crit">${fmt("asm.vb.crit", { n: v.critical })}</span>`);
+  out.push(`<span class="vbadge v-open">${fmt("asm.vb.open", { n: v.open })}</span>`);
   return out.join("");
 }
 
@@ -49,10 +54,10 @@ function rowHtml(r: AssetRow): string {
       <div class="muted" style="font-size:11px">${esc(r.os || r.environment)}${r.address ? ` · ${esc(r.address)}` : ""}</div></td>
     <td><span class="crit ${critClass(r.criticality)}">${esc(r.criticality)}</span></td>
     <td>${esc(r.owner || "—")}</td>
-    <td><span class="pill ${r.exposure === "Internet" ? "exp-internet" : "exp-internal"}">${esc(r.exposure)}</span></td>
-    <td>${yn(r.backed)}${r.backupPlan ? ` <span class="muted" style="font-size:11px">plan</span>` : ""}</td>
+    <td><span class="pill ${r.exposure === "Internet" ? "exp-internet" : "exp-internal"}">${esc(expLabel(r.exposure))}</span></td>
+    <td>${yn(r.backed)}${r.backupPlan ? ` <span class="muted" style="font-size:11px">${t("asm.cell.plan")}</span>` : ""}</td>
     <td>${vulnCell(r.vulns)}</td>
-    <td>${r.controls || `<span class="no">0</span>`} · ${r.hasBia ? `<span class="ok">BIA</span>` : `<span class="no">no BIA</span>`}</td>
+    <td>${r.controls || `<span class="no">0</span>`} · ${r.hasBia ? `<span class="ok">BIA</span>` : `<span class="no">${t("asm.cell.noBia")}</span>`}</td>
     <td>${flags}</td>
     <td class="score ${scoreClass(r.score)}">${r.score || ""}</td>
   </tr>`;
@@ -75,21 +80,18 @@ async function load(): Promise<void> {
   const s = d.summary;
 
   if (!d.rows.length) {
-    $("am-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">
-      No assets registered yet.
-      <a href="/?db=XORCISM&table=ASSET">Add your first asset</a> — give it a name, owner, criticality and
-      exposure, then come back to see the governance worklist.</div>`;
+    $("am-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("asm.empty")}</div>`;
     return;
   }
 
   const cards = [
-    card("Assets", String(s.total), `${s.crownJewels} crown jewels`),
-    card("Internet-facing", String(s.internetFacing), "publicly exposed", s.internetFacing ? "#fb923c" : "#34d399"),
-    card("KEV / critical vulns", String(s.withCriticalVulns), "assets with critical exposure", s.withCriticalVulns ? "#f87171" : "#34d399"),
-    card("Unbacked critical", String(s.unbackedCritical), "critical · no backup", s.unbackedCritical ? "#f87171" : "#34d399"),
-    card("No owner", String(s.noOwner), "accountability gap", s.noOwner ? "#fb923c" : "#34d399"),
-    card("PII-bearing", String(s.pii), "hold personal data", s.pii ? "#fbbf24" : undefined),
-    card("Stale", String(s.stale), "not reviewed > 180d", s.stale ? "#fbbf24" : undefined),
+    card(t("asm.card.assets"), String(s.total), fmt("asm.card.assets.f", { n: s.crownJewels })),
+    card(t("asm.card.internetFacing"), String(s.internetFacing), t("asm.card.internetFacing.f"), s.internetFacing ? "#fb923c" : "#34d399"),
+    card(t("asm.card.kevCritical"), String(s.withCriticalVulns), t("asm.card.kevCritical.f"), s.withCriticalVulns ? "#f87171" : "#34d399"),
+    card(t("asm.card.unbacked"), String(s.unbackedCritical), t("asm.card.unbacked.f"), s.unbackedCritical ? "#f87171" : "#34d399"),
+    card(t("asm.card.noOwner"), String(s.noOwner), t("asm.card.noOwner.f"), s.noOwner ? "#fb923c" : "#34d399"),
+    card(t("asm.card.pii"), String(s.pii), t("asm.card.pii.f"), s.pii ? "#fbbf24" : undefined),
+    card(t("asm.card.stale"), String(s.stale), t("asm.card.stale.f"), s.stale ? "#fbbf24" : undefined),
   ].join("");
 
   const byCrit = Object.entries(s.byCriticality).sort((a, b) => b[1] - a[1])
@@ -98,23 +100,19 @@ async function load(): Promise<void> {
     .map(([e, n]) => `<span class="bd">${esc(e)} <b>${n}</b></span>`).join("");
 
   const findings = d.findings.length
-    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">+${d.findings.length - 60} more…</div>` : ""}`
-    : `<div class="muted" style="padding:12px 0">✓ No governance findings — every asset has an owner, a backup, mapped controls, BIA coverage and no critical vulnerabilities.</div>`;
+    ? `<ul class="findings">${d.findings.slice(0, 60).map(findingHtml).join("")}</ul>${d.findings.length > 60 ? `<div class="muted" style="font-size:11px;margin-top:6px">${fmt("asm.more", { n: d.findings.length - 60 })}</div>` : ""}`
+    : `<div class="muted" style="padding:12px 0">${t("asm.noFindings")}</div>`;
 
   const table = `<table class="am"><thead><tr>
-      <th>Asset</th><th>Criticality</th><th>Owner</th><th>Exposure</th><th>Backup</th><th>Vulns</th><th>Controls / BIA</th><th>Findings</th><th title="Derived risk priority">Risk</th>
+      <th>${t("asm.th.asset")}</th><th>${t("asm.th.criticality")}</th><th>${t("asm.th.owner")}</th><th>${t("asm.th.exposure")}</th><th>${t("asm.th.backup")}</th><th>${t("asm.th.vulns")}</th><th>${t("asm.th.controlsBia")}</th><th>${t("asm.th.findings")}</th><th title="${t("asm.th.risk.title")}">${t("asm.th.risk")}</th>
     </tr></thead><tbody>${d.rows.map(rowHtml).join("")}</tbody></table>`;
 
   $("am-body").innerHTML = `<div class="am-cards">${cards}</div>
-    <div class="am-section">Governance worklist (${d.findings.length})</div>${findings}
-    <div class="am-section">By criticality</div><div class="breakdown">${byCrit}</div>
-    <div class="am-section">By environment</div><div class="breakdown">${byEnv}</div>
-    <div class="am-section">Inventory (${d.rows.length})</div>${table}
-    <div class="legend">↳ <b>Risk</b> is a derived priority (0–100): KEV vuln +40, critical vuln +22,
-      Internet-facing crown jewel +20, critical-not-backed-up +20, no owner +15, end-of-life +10,
-      PII-not-backed-up / no controls +10, no BIA / stale +8. Manage assets under
-      <a href="/?db=XORCISM&table=ASSET">Manage assets</a>; backup plans under
-      <a href="/?db=XORCISM&table=BACKUPPLAN">Backup plans</a>.</div>`;
+    <div class="am-section">${fmt("asm.sec.worklist", { n: d.findings.length })}</div>${findings}
+    <div class="am-section">${t("asm.sec.byCriticality")}</div><div class="breakdown">${byCrit}</div>
+    <div class="am-section">${t("asm.sec.byEnvironment")}</div><div class="breakdown">${byEnv}</div>
+    <div class="am-section">${fmt("asm.sec.inventory", { n: d.rows.length })}</div>${table}
+    <div class="legend">${t("asm.legend")}</div>`;
 }
 
 // ── Guided "new asset" modal ───────────────────────────────────────────────────
@@ -150,9 +148,9 @@ async function createAsset(): Promise<void> {
   const ck = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
   const name = v("am-f-name").trim();
   const err = $("am-f-err");
-  if (!name) { err.textContent = "⚠️ Enter a name."; ($("am-f-name") as HTMLInputElement).focus(); return; }
+  if (!name) { err.textContent = `⚠️ ${t("asm.err.name")}`; ($("am-f-name") as HTMLInputElement).focus(); return; }
   const btn = $("am-create") as HTMLButtonElement;
-  btn.disabled = true; err.textContent = "Creating…";
+  btn.disabled = true; err.textContent = `${t("asm.creating")}`;
   try {
     const body = {
       name, criticality: v("am-f-crit") || undefined, environment: v("am-f-env") || undefined,
@@ -167,27 +165,28 @@ async function createAsset(): Promise<void> {
     closeModal();
     await load();
     const link = `/?db=XORCISM&table=ASSET&editCol=AssetID&editVal=${d.id}`;
-    toast(`✅ Asset created — <a href="${link}" style="color:#7dd3fc">open it ↗</a>`);
+    toast(fmt("asm.toast.created", { link }));
   } catch (e) { err.textContent = `⚠️ ${e}`; }
   finally { btn.disabled = false; }
 }
 
 async function matchCves(): Promise<void> {
   const btn = $("am-match") as HTMLButtonElement;
-  btn.disabled = true; const label = btn.textContent; btn.textContent = "Matching…";
+  btn.disabled = true; const label = btn.textContent; btn.textContent = `${t("asm.matching")}`;
   try {
     const r = await fetch("/api/cve-match/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: 30 }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     await load();
     toast(d.newLinks
-      ? `✅ ${d.newLinks} new CVE link(s) across ${d.assetsAffected} asset(s) — ${d.assetsNotified} notified (scanned ${d.cvesScanned}).`
-      : `✓ No new CVE matches (scanned ${d.cvesScanned} CVEs).`);
+      ? fmt("asm.match.new", { n: d.newLinks, a: d.assetsAffected, x: d.assetsNotified, c: d.cvesScanned })
+      : fmt("asm.match.none", { c: d.cvesScanned }));
   } catch (e) { toast(`⚠️ ${e}`); }
   finally { btn.disabled = false; btn.textContent = label; }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("am-match").addEventListener("click", () => void matchCves());
   $("am-new").addEventListener("click", openModal);
   $("am-cancel").addEventListener("click", closeModal);

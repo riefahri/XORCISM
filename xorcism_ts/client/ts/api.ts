@@ -330,6 +330,10 @@ export const api = {
     request<string[]>(`/api/control-tags?controlId=${controlId}`),
   setControlTags: (controlId: number, tags: string[]) =>
     request<{ ok: boolean }>("/api/control-tags", "PUT", { controlId, tags }),
+  getSigmaRuleTags: (sigmaRuleId: number) =>
+    request<string[]>(`/api/sigmarule-tags?sigmaRuleId=${sigmaRuleId}`),
+  setSigmaRuleTags: (sigmaRuleId: number, tags: string[]) =>
+    request<{ ok: boolean }>("/api/sigmarule-tags", "PUT", { sigmaRuleId, tags }),
   harvestAssetEmail: (email: string) =>
     request<{ ok: boolean; email: string; organisationId: number | null; emailInserted: boolean; addressInserted: boolean; orgLinkInserted: boolean }>(
       "/api/asset-email-harvest", "POST", { email }),

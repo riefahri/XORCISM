@@ -2095,6 +2095,32 @@ export function setControlTags(controlId: number, tags: string[]): void {
   tx();
 }
 
+// Tags of a SIGMARULE (SIGMARULETAG in XTHREAT, free-text Tag column — like ASSETTAG). Lets
+// analysts tag detection rules (e.g. "ransomware", "tier-1", "needs-tuning") in the explorer.
+export function getSigmaRuleTags(sigmaRuleId: number): string[] {
+  const db = getDb("XTHREAT");
+  if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='SIGMARULETAG'").get()) return [];
+  return (db.prepare("SELECT Tag FROM SIGMARULETAG WHERE SigmaRuleID = ? AND Tag IS NOT NULL AND Tag <> '' ORDER BY SigmaRuleTagID")
+    .all(sigmaRuleId) as { Tag: string }[]).map((r) => r.Tag);
+}
+export function setSigmaRuleTags(sigmaRuleId: number, tags: string[]): void {
+  const db = getDb("XTHREAT");
+  db.exec(`CREATE TABLE IF NOT EXISTS SIGMARULETAG (
+             SigmaRuleTagID INTEGER PRIMARY KEY, SigmaRuleID INTEGER, Tag TEXT,
+             CreatedDate TEXT, ValidFrom DATE, ValidUntil DATE, PersonID INTEGER);
+           CREATE INDEX IF NOT EXISTS ix_sigmaruletag_rule ON SIGMARULETAG(SigmaRuleID);`);
+  const ts = nowTs();
+  const today = new Date().toISOString().slice(0, 10);
+  const clean = cleanTagList(tags);
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM SIGMARULETAG WHERE SigmaRuleID = ?").run(sigmaRuleId);
+    let maxId = (db.prepare("SELECT COALESCE(MAX(SigmaRuleTagID),0) AS m FROM SIGMARULETAG").get() as { m: number }).m;
+    const ins = db.prepare("INSERT INTO SIGMARULETAG (SigmaRuleTagID, SigmaRuleID, Tag, CreatedDate, ValidFrom) VALUES (?,?,?,?,?)");
+    clean.forEach((tg) => { maxId++; ins.run(maxId, sigmaRuleId, tg, ts, today); });
+  });
+  tx();
+}
+
 // Tags of a VULNERABILITY (legacy VULNERABILITYTAG table: TagID only, no
 // text column → the label is resolved via the XORCISM.TAG referential, in 2
 // cross-database queries).

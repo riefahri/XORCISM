@@ -3,6 +3,9 @@
  * Renders KPI cards, the approval queue (proposed actions with verdict + recommended action +
  * approve/dismiss) and recently decided actions from /api/croc-orchestrator.
  */
+import { initI18n, t } from "./i18n";
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 const $ = (id: string): HTMLElement | null => document.getElementById(id);
 const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 
@@ -29,8 +32,8 @@ function card(lbl: string, val: string | number, foot: string, color?: string): 
 function queueItem(a: Action): string {
   const cls = (a.severity || "").toLowerCase() === "critical" ? "crit" : "high";
   const actions = DATA?.canAct
-    ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-approve" data-approve="${a.id}">✓ Approve</button><button class="btn btn-dismiss" data-dismiss="${a.id}">✕ Dismiss</button></div>`
-    : `<div class="muted" style="font-size:11px;margin-top:8px">Read-only — response capability required to act.</div>`;
+    ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-approve" data-approve="${a.id}">${t("cro.approve")}</button><button class="btn btn-dismiss" data-dismiss="${a.id}">${t("cro.dismiss")}</button></div>`
+    : `<div class="muted" style="font-size:11px;margin-top:8px">${t("cro.readonly")}</div>`;
   return `<div class="item ${cls}">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="sev ${sevc(a.severity)}">${esc(a.severity)}</span>
@@ -39,9 +42,9 @@ function queueItem(a: Action): string {
       <span class="pill">🤖 ${esc(a.copilot)}</span>
       <span class="muted" style="font-size:11px">conf <span class="conf" style="width:${Math.max(8, a.confidence * 0.5)}px"></span> ${a.confidence}%</span>
     </div>
-    <div style="margin-top:6px;font-size:12.5px"><b style="color:#67e8f9">Verdict:</b> ${esc(a.verdict)}</div>
-    <div class="rec"><b>Recommended:</b> ${esc(a.recommendedAction)}</div>
-    <div class="rationale">${esc(a.rationale)} <span class="muted">· event #${a.loopEventId} · ${esc(a.eventType)}</span></div>
+    <div style="margin-top:6px;font-size:12.5px"><b style="color:#67e8f9">${t("cro.verdict")}</b> ${esc(a.verdict)}</div>
+    <div class="rec"><b>${t("cro.recommended")}</b> ${esc(a.recommendedAction)}</div>
+    <div class="rationale">${esc(a.rationale)} <span class="muted">· ${fmt("cro.eventRef", { n: a.loopEventId, type: esc(a.eventType) })}</span></div>
     ${actions}
   </div>`;
 }
@@ -50,20 +53,20 @@ function render(d: Data): void {
   DATA = d; const body = $("body"); if (!body) return;
   const s = d.summary;
   const cards = [
-    card("In queue", s.proposed, "awaiting approval", s.proposed ? "#fbbf24" : "#34d399"),
-    card("Critical", s.critical, "proposed, critical", s.critical ? "#f87171" : "#34d399"),
-    card("Approved", s.approved, "decided"),
-    card("Dismissed", s.dismissed, "closed"),
-    card("Total", s.total, "all proposals"),
+    card(t("cro.cQueue"), s.proposed, t("cro.cQueue.f"), s.proposed ? "#fbbf24" : "#34d399"),
+    card(t("cro.cCritical"), s.critical, t("cro.cCritical.f"), s.critical ? "#f87171" : "#34d399"),
+    card(t("cro.cApproved"), s.approved, t("cro.cApproved.f")),
+    card(t("cro.cDismissed"), s.dismissed, t("cro.cDismissed.f")),
+    card(t("cro.cTotal"), s.total, t("cro.cTotal.f")),
   ].join("");
-  const queue = d.queue.length ? d.queue.map(queueItem).join("") : `<div class="muted" style="padding:10px 0">✓ Queue clear — no high/critical signals awaiting a decision. Click <b>Run now</b> to scan the loop, or <b>Seed demo</b> to preview.</div>`;
+  const queue = d.queue.length ? d.queue.map(queueItem).join("") : `<div class="muted" style="padding:10px 0">${t("cro.queueClear")}</div>`;
   const recent = d.recent.length
-    ? `<table class="t"><thead><tr><th>Severity</th><th>Action</th><th>Copilot</th><th>Decision &amp; actuation</th><th>When</th></tr></thead><tbody>${d.recent.map((a) => `<tr><td><span class="sev ${sevc(a.severity)}">${esc(a.severity)}</span></td><td>${esc(a.title)}</td><td>${esc(a.copilot)}</td><td>${a.status === "approved" ? `<span style='color:#34d399'>✓ approved</span>${a.executedOutcome ? `<div class="muted" style="font-size:11px">↳ ${esc(a.executedOutcome)}</div>` : ""}` : "<span class='muted'>✕ dismissed</span>"}</td><td class="muted" style="font-size:11px">${esc((a.decidedDate || a.createdDate || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("")}</tbody></table>`
+    ? `<table class="t"><thead><tr><th>${t("cro.thSeverity")}</th><th>${t("cro.thAction")}</th><th>${t("cro.thCopilot")}</th><th>${t("cro.thDecision")}</th><th>${t("cro.thWhen")}</th></tr></thead><tbody>${d.recent.map((a) => `<tr><td><span class="sev ${sevc(a.severity)}">${esc(a.severity)}</span></td><td>${esc(a.title)}</td><td>${esc(a.copilot)}</td><td>${a.status === "approved" ? `<span style='color:#34d399'>${t("cro.approvedTag")}</span>${a.executedOutcome ? `<div class="muted" style="font-size:11px">↳ ${esc(a.executedOutcome)}</div>` : ""}` : `<span class='muted'>${t("cro.dismissedTag")}</span>`}</td><td class="muted" style="font-size:11px">${esc((a.decidedDate || a.createdDate || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("")}</tbody></table>`
     : "";
 
   body.innerHTML = `<div class="cards">${cards}</div>
-    <div class="sec">Approval queue (${d.queue.length})</div>${queue}
-    ${recent ? `<div class="sec">Recently decided</div>${recent}` : ""}`;
+    <div class="sec">${fmt("cro.secQueue", { n: d.queue.length })}</div>${queue}
+    ${recent ? `<div class="sec">${t("cro.secRecent")}</div>${recent}` : ""}`;
 
   body.querySelectorAll<HTMLElement>("[data-approve]").forEach((b) => b.addEventListener("click", () => void decide(Number(b.dataset.approve), "approved")));
   body.querySelectorAll<HTMLElement>("[data-dismiss]").forEach((b) => b.addEventListener("click", () => void decide(Number(b.dataset.dismiss), "dismissed")));
@@ -75,19 +78,20 @@ async function load(): Promise<void> {
   catch (e) { const b = $("body"); if (b) b.innerHTML = `<div class="muted" style="padding:24px;text-align:center">⚠️ ${esc((e as Error).message)}</div>`; }
 }
 async function decide(id: number, decision: string): Promise<void> {
-  try { render(await getJson(`/api/croc-orchestrator/${id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision }) })); toast(decision === "approved" ? "Action approved" : "Action dismissed"); }
+  try { render(await getJson(`/api/croc-orchestrator/${id}/decision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision }) })); toast(decision === "approved" ? t("cro.toastApproved") : t("cro.toastDismissed")); }
   catch (e) { toast(`⚠️ ${(e as Error).message}`); }
 }
 async function run(): Promise<void> {
-  try { const d = await getJson("/api/croc-orchestrator/run", { method: "POST" }); render(d); toast(`Scanned ${d.scanned} event(s), proposed ${d.proposed}`); }
+  try { const d = await getJson("/api/croc-orchestrator/run", { method: "POST" }); render(d); toast(fmt("cro.toastScanned", { n: d.scanned, m: d.proposed })); }
   catch (e) { toast(`⚠️ ${(e as Error).message}`); }
 }
 async function demo(): Promise<void> {
-  try { const d = await getJson("/api/croc-orchestrator/seed-demo", { method: "POST" }); render(d); toast(`Emitted ${d.emitted} events, proposed ${d.proposed}`); }
+  try { const d = await getJson("/api/croc-orchestrator/seed-demo", { method: "POST" }); render(d); toast(fmt("cro.toastEmitted", { n: d.emitted, m: d.proposed })); }
   catch (e) { toast(`⚠️ ${(e as Error).message}`); }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("o-run")?.addEventListener("click", () => void run());
   $("o-demo")?.addEventListener("click", () => void demo());
   void load();

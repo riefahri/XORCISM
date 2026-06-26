@@ -548,3 +548,40 @@ export function deleteSbom(sbomId: number, tenant: number | null): boolean {
   tx();
   return true;
 }
+
+/**
+ * Seed a representative demo SBOM for the demo tenant so /sca has content out of the box.
+ * Idempotent — keyed on a fixed SerialNumber, so it is safe to call at every boot. The demo
+ * deliberately includes a known-vulnerable component (log4j-core 2.14.1, Log4Shell CPE), a
+ * component with no license (ms) and one with no version (left-pad) so the SCA worklist shows
+ * real findings. Links to a demo asset of the tenant when one exists (feeds CPE→asset exposure).
+ */
+export function seedScaDemo(tenant: number): void {
+  const xo = getDb("XORCISM");
+  if (!has(xo, "SBOM") || !colset(xo, "SBOM").has("TenantID")) return;
+  const serial = "urn:uuid:xorcism-demo-sbom-0001";
+  if (xo.prepare("SELECT 1 FROM SBOM WHERE SerialNumber = ? AND TenantID = ?").get(serial, tenant)) return; // already seeded
+  const demo = {
+    bomFormat: "CycloneDX", specVersion: "1.5", serialNumber: serial, version: 1,
+    metadata: { component: { type: "application", name: "xorcism-demo-portal", version: "3.1.0" }, tools: { components: [{ type: "application", name: "syft" }] } },
+    components: [
+      { type: "library", "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1", name: "log4j-core", version: "2.14.1", purl: "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1", cpe: "cpe:2.3:a:apache:log4j:2.14.1:*:*:*:*:*:*:*", licenses: [{ license: { id: "Apache-2.0" } }], supplier: { name: "Apache Software Foundation" } },
+      { type: "library", "bom-ref": "pkg:npm/express@4.18.2", name: "express", version: "4.18.2", purl: "pkg:npm/express@4.18.2", licenses: [{ license: { id: "MIT" } }], supplier: { name: "OpenJS Foundation" } },
+      { type: "library", "bom-ref": "pkg:npm/lodash@4.17.19", name: "lodash", version: "4.17.19", purl: "pkg:npm/lodash@4.17.19", cpe: "cpe:2.3:a:lodash:lodash:4.17.19:*:*:*:*:*:*:*", licenses: [{ license: { id: "MIT" } }] },
+      { type: "framework", "bom-ref": "pkg:npm/react@18.2.0", name: "react", version: "18.2.0", purl: "pkg:npm/react@18.2.0", licenses: [{ license: { id: "MIT" } }] },
+      { type: "library", "bom-ref": "pkg:pypi/requests@2.31.0", name: "requests", version: "2.31.0", purl: "pkg:pypi/requests@2.31.0", licenses: [{ license: { id: "Apache-2.0" } }], supplier: { name: "Python Packaging Authority" } },
+      { type: "library", "bom-ref": "pkg:npm/ms@2.0.0", name: "ms", version: "2.0.0", purl: "pkg:npm/ms@2.0.0" }, // no license → worklist finding
+      { type: "library", "bom-ref": "pkg:npm/left-pad", name: "left-pad", purl: "pkg:npm/left-pad" }, // no version → worklist finding
+    ],
+    dependencies: [
+      { ref: "pkg:npm/express@4.18.2", dependsOn: ["pkg:npm/ms@2.0.0"] },
+      { ref: "pkg:npm/react@18.2.0", dependsOn: ["pkg:npm/lodash@4.17.19", "pkg:npm/left-pad"] },
+    ],
+  };
+  let assetId: number | null = null;
+  try {
+    const a = xo.prepare("SELECT AssetID FROM ASSET WHERE TenantID = ? ORDER BY AssetID LIMIT 1").get(tenant) as { AssetID: number } | undefined;
+    assetId = a ? Number(a.AssetID) : null;
+  } catch { /* asset link is optional */ }
+  importSbom({ sbom: parseSbom(demo), name: "Demo application SBOM", assetId, source: "demo" }, tenant, null);
+}

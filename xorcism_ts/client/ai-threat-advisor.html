@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — AI Threat Advisor</title><link rel="stylesheet" href="/css/style.css">
+<title data-i18n="ata.pageTitle">XORCISM — AI Threat Advisor</title><link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1300px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
   .sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1010px}
@@ -20,16 +20,16 @@
   .muted{color:#64748b}.cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
   .card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}.card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase}.card .val{font-size:24px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b}
 </style></head><body>
-<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/threat-model">&#129520; Threat Modeling</a><a href="/a3m">&#129302; A3M</a><span class="spacer"></span><span class="title">&#129504; AI Threat Advisor</span></div>
-<div class="mw"><h1>AI Threat Advisor — OWASP AI Exchange</h1>
-<div class="sub">Threat modeling for AI &amp; <b>agentic</b> systems. Describe your AI system and the advisor returns the
-  applicable threats from the <b>OWASP AI Exchange</b> (owaspai.org) — prompt injection, excessive agency, tool misuse,
+<div class="topbar"><span class="logo">&#9670; XORCISM</span><a href="/" data-i18n="nav.explorer">&#8592; Explorer</a><a href="/threat-model" data-i18n="ata.nav.tm">&#129520; Threat Modeling</a><a href="/a3m" data-i18n="ata.nav.a3m">&#129302; A3M</a><span class="spacer"></span><span class="title" data-i18n="ata.nav.title">&#129504; AI Threat Advisor</span></div>
+<div class="mw"><h1 data-i18n="ata.h1">AI Threat Advisor — OWASP AI Exchange</h1>
+<div class="sub" data-i18n="ata.sub">Threat modeling for AI &amp; agentic systems. Describe your AI system and the advisor returns the
+  applicable threats from the OWASP AI Exchange (owaspai.org) — prompt injection, excessive agency, tool misuse,
   memory poisoning, rogue agents, identity abuse and more — each with mitigating controls.</div>
-<div class="sec">Describe the AI system</div>
+<div class="sec" data-i18n="ata.secDescribe">Describe the AI system</div>
 <div class="shapes" id="shapes"></div>
-<div style="margin-bottom:10px"><button class="btn-go" id="advise">Advise →</button></div>
+<div style="margin-bottom:10px"><button class="btn-go" id="advise" data-i18n="ata.adviseBtn">Advise →</button></div>
 <div id="result"></div>
-<div class="sec">Full OWASP AI Exchange catalogue</div>
-<div id="catalogue"><div class="muted" style="padding:12px">Loading…</div></div>
+<div class="sec" data-i18n="ata.secCatalogue">Full OWASP AI Exchange catalogue</div>
+<div id="catalogue"><div class="muted" style="padding:12px" data-i18n="ata.loading">Loading…</div></div>
 </div>
 <div id="toast"></div><script src="/js/session-ui.js"></script><script src="/js/ai-threat-advisor.js"></script></body></html>

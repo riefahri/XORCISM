@@ -11,6 +11,149 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 
 ## [Unreleased]
 
+- **Malware Scan, AI Threat Advisor & ChatOps fully localized** — `/malware-scan` (engine status,
+  verdict badges, summary cards, worklist/document/history tables, scan controls), `/ai-threat-advisor`
+  (system-shape checkboxes, advisor cards, OWASP catalogue) and `/chatops` (console chrome, welcome
+  message, replies) were English-only; all three now use the i18n layer (`ms.*` / `ata.*` / `chat.*`
+  keys, FR + EN). The landing **Agentic CROC Orchestrator** and **Two-way ChatOps** cards are now
+  translated too (`landing.orch` / `landing.chatops`).
+- **Six more cockpits fully localized** — `/siem`, `/mssp`, `/team-ops`, `/croc-orchestrator`,
+  `/knowledge-graph` and `/osint-graph` were English-only; all now use the i18n layer
+  (`siem.*` / `mssp.*` / `tops.*` / `cro.*` / `kg.*` / `og.*`, FR + EN). The landing
+  **Security Knowledge Graph** card is now translated too (`landing.kgraph`). *(`/hunting` was
+  already localized.)*
+- **SIGMARULE tagging** — Sigma detection rules can now be tagged (`ransomware`, `tier-1`,
+  `needs-tuning`…) from the explorer form, like assets/controls. New `XTHREAT.SIGMARULETAG` table +
+  `GET/PUT /api/sigmarule-tags`.
+- **Threat-content forms** — `HUNT`, `SIGMARULE` and `INTELEXCHANGE` explorer forms are now wide
+  modals; their name columns (`HuntName` / `SigmaRuleName` / `IntelName`) are click-to-edit; and
+  `HUNT.ValidFrom`, `HUNT.HuntDate` and `SIGMARULE.ValidFrom` got date pickers.
+- **Purple-team, attack-chain viewer & Cyber Insurance Readiness fully localized** — `/purple-team`,
+  the `/pentest/chain` run viewer and `/insurance-readiness` (including the policy modal) were
+  English-only; all three now use the i18n layer (`pt.*` / `ch.*` / `ir.*` keys, FR + EN).
+- **Bug-bounty program: edit by clicking the Name** — in the `XVULNERABILITY / BUGBOUNTYPROGRAM`
+  explorer view the Name is now a click-to-edit link, and the `BUGBOUNTYPROGRAM` form is a wide modal.
+- **run-server.bat pulls the local-AI model** — the launcher now runs `ollama pull llama3.1:8b`
+  (idempotent) when Ollama is found, so the AI copilots' default model is present on first start.
+- **Attack-surface graph & Adversary Opportunity Index fully localized** — `/attack-surface` (node-type
+  labels, scope/legend, details) and `/adversary-opportunity` (gauge, the seven debt sources, "price the
+  fix" tables, attack paths) were English-only; both now use the i18n layer (`as.*` / `ao.*` keys, FR + EN).
+- **Vulnerability Management: see impacted assets** — in the triage worklist the affected-assets cell is now
+  clickable and expands the in-scope assets impacted by that CVE (reusing `GET /api/fusion/vuln/:id/assets`),
+  each linking to the asset's edit form. (Clicking the CVE to edit the vulnerability was already supported.)
+- **Risk register: edit by clicking the Title** — in the `XCOMPLIANCE / RISKREGISTERENTRY` explorer view the
+  Title is now a click-to-edit link (opens that entry's form), and the `RISKREGISTERENTRY` form is now a wide modal.
+- **ASSET form → ASSETVULNERABILITY** — the ASSET edit form now has a link that opens the `ASSETVULNERABILITY`
+  explorer view filtered to that asset's `AssetID`.
+- **Board Report fully localized** — the `/board-report` cockpit (cards, the six board questions,
+  trend/drivers panels, risk & financial tables, executive narrative) was English-only; now uses the
+  i18n layer (`br.*` keys, FR + EN, others fall back to EN).
+- **Exposure: see impacted assets** — on `/exposure`, the "N assets" chip is now clickable and
+  expands an inline list of the in-scope assets impacted by that vulnerability (name · criticality ·
+  internet-facing · address), each linking to the asset's edit form. New `GET /api/fusion/vuln/:id/assets`.
+- **Patch Management: click a CVE to edit it** — in the patch worklist the CVE is now a link that opens
+  the vulnerability's edit form (`VULNERABILITY` in the explorer), alongside the existing asset link.
+- **CyberSentinel AI — primary-engine playbook** — [CyberSentinel AI](https://github.com/3sk1nt4n/cybersentinel-ai)
+  was already integrated (TOOL + `cybersentinel-ai` connector + AI-triage step in 5 attack chains); added a
+  new **"AI-driven full assessment (CyberSentinel AI)"** chain playbook that seeds it as the *primary* tool
+  (live host/URL scan or offline results JSON → ASSET + VULNERABILITY, ATT&CK-tagged).
+- **SCA & Security Awareness fully localized** — the `/sca` (Software Composition Analysis) and
+  `/security-awareness` cockpits were English-only; both now use the i18n layer (`sca.*` / `saw.*`
+  keys, FR + EN, other languages fall back to EN).
+- **Demo SBOM in the demo account** — the demo tenant now ships with a representative CycloneDX SBOM
+  (7 components, incl. a known-vulnerable `log4j-core` and license/version gaps) so `/sca` has content
+  out of the box. Seeded idempotently at boot (`seedScaDemo`). *(Appears after a server restart.)*
+- **AUDITFINDING form** — the explorer's create/edit form for `AUDITFINDING` is now a wide modal with
+  a date picker on the **Due date** (alongside the existing Finding date).
+- **Faster page loads (gzip + minified bundles)** — the client bundles inline the 11-language i18n
+  dictionary, so every page was shipping **800 KB–1.4 MB of uncompressed JS**. Two fixes: the
+  esbuild build now **minifies** (set `XOR_NO_MINIFY=1` to opt out for debugging), and the server
+  now **gzip-compresses** responses (`compression` middleware). Net effect: `app.js` drops from
+  **1.4 MB → ~325 KB on the wire (−70%)**, and `session-ui.js` (loaded on every page) from
+  ~0.9 MB → ~260 KB. *(Requires a server restart to pick up compression.)*
+- **Asset Management is now fully localized** — the `/asset-management` cockpit (KPI cards, table
+  headers, governance worklist, legend, the "new asset" modal, toasts) was English-only; it now
+  uses the i18n layer (`asm.*` keys, FR + EN, other languages fall back to EN).
+- **IDENTITY form** — the explorer's create/edit form for `IDENTITY` is now a wide modal with
+  date pickers on **Expiry**, **Last rotated**, **Last used** and **Modified** dates.
+- **Incident evidence attachments** — each incident on **/incident-management** now carries a 📎 evidence
+  button: attach screenshots, logs or exports (≤ 15 MB) straight from the queue. Files are stored in the
+  content-addressed blob store (`XORCISM.FILEBLOB`, deduped by SHA-256 and pinned so they're never
+  GC'd) and registered per-incident in the new `XINCIDENT.INCIDENTEVIDENCE` table; download reuses
+  `/api/blob/:sha256`. Attaching/detaching is gated on incident **update** (read-only roles only see
+  the list) and audited (`incident_evidence_attach` / `_detach`). This is the lightweight path — for
+  chain-of-custody handling use **CERT Operations** (forensic cases).
+- **Strix connector + attack-chain playbook** — imports findings from [Strix](https://github.com/usestrix/strix),
+  the autonomous AI hacking agent (validates IDOR/injection/SSRF/XSS/auth/business-logic with a PoC): the
+  target becomes an `ASSET`, each validated finding a `VULNERABILITY` (severity + CWE + PoC). New
+  **"Autonomous AI pentest (Strix)"** playbook in `chain.ts` (seed Strix → CyberSentinel AI triage on any
+  finding). + `Strix` in the tool catalogue (Penetration Testing).
+- **Rulezet "detections for my exposed CVEs"** — `tools/rulezet_detections_for_cves.py` reads the CVEs
+  present on your assets (`ASSETVULNERABILITY` ⋈ `VULNERABILITY`), prioritizes them by KEV/EPSS/CVSS, and
+  pulls the matching Rulezet detection rules into `SIGMARULE`/`YARARULE` — closing the loop from exposure
+  to ready-to-deploy detection.
+
+- **Rulezet detection-rule connector** — searches [Rulezet](https://rulezet.org) (the open-source
+  repository of ~197k community detection rules — YARA/Sigma/Suricata/Zeek/CRS/Nova/Wazuh/Elastic — over
+  858+ ATT&CK techniques) and imports the matches into XORCISM. Search by **CVE** (CIRCL
+  Vulnerability-Lookup proxy), by **ATT&CK technique** (attack-chain step) or free-text; Sigma & other
+  formats → `SIGMARULE`, YARA → `YARARULE`, with the rules' ATT&CK techniques kept as tags so they light
+  up **Threat-Informed Defense** and **Purple-Team** detection coverage. + `Rulezet` in the catalogue.
+- **Hunt.io wired into CTI-Expert** — Hunt.io C2 / malicious-infrastructure enrichment is now an Enrich
+  technique in `/cti-expert`, so an IP/domain investigation auto-includes it.
+- **Website compliance page** gains a **Design & Documentation assessments** explainer card (EN + FR).
+
+- **Hunt.io CTI connector** — enriches threat intelligence from the [Hunt.io](https://hunt.io) API
+  (api.hunt.io): pass an `ip` to enrich a single address (`/v1/enrich/ip/{ip}`) or pull the active-C2
+  feed (`/v1/c2s`). Each result becomes a `XTHREAT.INTELEXCHANGE` record (idempotent) carrying the
+  malware family, AS/country, certificate subject, JARM/JA4 fingerprints and the C2 ATT&CK technique
+  (T1071). API key via env. + `Hunt.io` in the tool catalogue.
+- **HDS & TISAX journeys are now fully French** (`journeys_fr.ts`), like the other compliance journeys.
+
+- **EDR connectors** — the most popular endpoint platforms, on a shared normalizer (`connectors/_edr.py`):
+  **CrowdStrike Falcon**, **Microsoft Defender for Endpoint**, **SentinelOne**, **Palo Alto Cortex XDR**
+  and **VMware Carbon Black Cloud**. Each imports the vendor's detections/alerts into `XINCIDENT.ALERT`
+  (via `runner.import_incidents`), links the impacted endpoint as an `ASSET`, keeps the ATT&CK
+  tactic/technique as the classification, and normalizes severity across every vendor scale (0-100, 1-10,
+  words, malicious/suspicious). 5 new tools in the catalogue (Endpoint Security).
+- **Audit: Design & Documentation assessments** — `AUDIT` (and `AUDITFINDING`) now carry an
+  `AssessmentType` (ISAE 3000 / SOC 2 dimension): **Design Assessment**, **Documentation Assessment**,
+  **Operating Effectiveness**, Combined, or Readiness. Selectable in the guided *New audit* form and the
+  explorer; `/compliance-management` reports the type per audit and design/documentation counts. Existing
+  audits default to Operating Effectiveness.
+- **HDS & TISAX compliance journeys** — guided, phased journeys for the two frameworks added last
+  release, in `/compliance-journeys` (HDS: scope → ISO 27001/20000-1 foundation → health-data
+  requirements → certification; TISAX: scope/level → VDA-ISA InfoSec → prototype & data protection →
+  assessment & label).
+
+- **Governed documents: Standards & Procedures on top of Policies** — the policy register (`POLICY`) now
+  carries a `DocumentType` (Policy / Standard / Procedure / Guideline) and a `ParentPolicyID` (the ISO
+  documentation pyramid: Procedure → Standard → Policy), so Standards and Procedures get the *same*
+  lifecycle as policies — publish, version history, and per-user acknowledgement. `/policy-management`
+  shows the type per document and a Policy/Standard/Procedure/Guideline breakdown; the explorer form has
+  the type picker + parent link. Existing rows default to `Policy` (no change to the policy register).
+- **HDS & TISAX framework support** (OverSecur-by-FeelAgile standards parity) — `import_hds.py` (HDS /
+  Hébergeur de Données de Santé: the 6 certified hosting activities + health-data requirements on an
+  ISO 27001 + 20000-1 foundation, with GDPR/ISO crosswalks) and `import_tisax.py` (TISAX / VDA-ISA:
+  Information Security + Prototype Protection + Data Protection control areas + AL1/2/3 assessment levels,
+  with an ISO 27001 Annex A crosswalk) → `XORCISM.CONTROL`. Both in the framework picker and on the
+  website compliance page (16 → 18 cards, EN + FR). XORCISM already covered OverSecur's other standards
+  (ISO 27001, NIS2, DORA, SOC 2) and its 360°-posture / automated-control / e-learning capabilities.
+
+- **AI Operations cockpit** (`/ai-skills`) — "govern your *own* agentic AI" (inspired by Filigran XTM
+  One's agentic layer; the counterpart to the AI inventory and AI-BAS). Four things in one cockpit:
+  a governed **Skills & Prompt Library** (`AISKILL` — reusable markdown skills/prompts with tags,
+  visibility, enable/disable, versioning and usage counts, that the copilots draw from); an **AI activity
+  / decision-provenance log** (`AIACTIVITY` — every copilot/orchestrator decision recorded with actor,
+  action, model, entity and outcome → **EU AI Act Art. 12 record-keeping, ISO 42001, NIST AI RMF
+  MANAGE-4** evidence; the orchestrator now logs every propose/execute); the **agentic-flow / agent
+  handover routing** (`AIHANDOVER` + the orchestrator's default routes, as an editable
+  delegate/consult/transfer/escalate graph); and the configured **AI provider** (`aiProviderInfo()` —
+  local Ollama by default, optional OpenAI-compatible / Anthropic / Azure via env).
+- **Admiralty / NATO source grading** (STANAG 2511) — source-reliability **A–F** × info-credibility
+  **1–6** on intel exchanges, reports and threat actors (`admiraltyGrade()` → combined grade + 0–100
+  confidence), selectable in the explorer.
+
 - **NIST AI RMF 1.0 support** — `import_nist_ai_rmf.py` loads the full NIST AI Risk Management Framework
   Core (GOVERN / MAP / MEASURE / MANAGE, **72 subcategories**) into `XORCISM.CONTROL` under the
   `"NIST AI RMF 1.0"` vocabulary (already in the framework picker and the AI-inventory governing-framework
@@ -19,6 +162,22 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 - **Website — small-business page** is now **fully localizable** (FR + the other 9 site languages) via
   `data-i18n` keys and a new `FR` block, with a language switcher in the nav, plus a new **Use cases**
   section (SaaS startup, clinic, law/accounting firm, manufacturer, e-commerce, public body).
+- **Website — compliance page** now surfaces the frameworks XORCISM already supports but didn't show:
+  **ISO/IEC 42001** (AIMS), **NIST AI RMF**, **CSA AICM**, **ISO/IEC 27031** (ICT readiness for BC),
+  **ISO/IEC 27701** (PIMS) and **PCI DSS v4.0** — 6 new framework cards (EN + FR, grid 10 → 16), with
+  title/OG/JSON-LD updated. The NIST AI RMF journey is also fully French (`journeys_fr.ts`).
+- **Praxen connector** — imports a [Praxen](https://open-agent-ai-security.github.io/praxen/) AI-agent
+  behaviour-verification report (by Exabeam): it checks an agent's code/config/logs against its declared
+  Worker Remit (policy divergence, credential exposure, missing controls, capability drift, hidden
+  prompts, compound attack paths) and maps findings to the OWASP LLM Top 10 (2025) / Agentic AI (2026).
+  The connector turns the JSON report into agent **assets + findings** *and* an OWASP-LLM result list
+  (→ `/ai-redteam` → auto-fills `/llm-pentest`), and seeds a new **"AI agent assessment"** attack-chain
+  playbook (`chain.ts`). + `Praxen` in the TOOL catalogue.
+- **OASIS connector** — imports a report from [OASIS](https://github.com/psyray/oasis), the *Ollama
+  Automated Security Intelligence Scanner* — an **AI-powered SAST** tool (local Ollama LLMs + embeddings)
+  that finds 24+ vulnerability classes and emits **SARIF 2.1.0**. The connector parses the SARIF (shared
+  `_sarif.py`) into project assets + findings and records a **DevSecOps SAST scan** (`oasis` added to the
+  runner's `_DEVSECOPS_TOOLS`). + `OASIS` in the TOOL catalogue.
 
 - **LLM Application Penetration Test methodology** (`/llm-pentest`) — the **OWASP Top 10 for LLM
   Applications** testing methodology (after the Fortbridge field guide) as a structured **engagement**

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Adversary Opportunity Index</title>
+<title data-i18n="ao.pageTitle">XORCISM — Adversary Opportunity Index</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
@@ -29,25 +29,25 @@
 </style></head><body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/exposure">&#127919; Exposure</a>
-  <a href="/attack-path">&#128376; Attack paths</a>
-  <a href="/threat-informed-defense">&#128737; TID</a>
-  <a href="/board-report">&#128202; Board</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/exposure" data-i18n="ao.nav.exposure">&#127919; Exposure</a>
+  <a href="/attack-path" data-i18n="ao.nav.attackPaths">&#128376; Attack paths</a>
+  <a href="/threat-informed-defense" data-i18n="ao.nav.tid">&#128737; TID</a>
+  <a href="/board-report" data-i18n="ao.nav.board">&#128202; Board</a>
   <span class="spacer"></span>
-  <span class="title">&#128176; Adversary Opportunity Index</span>
+  <span class="title" data-i18n="ao.nav.title">&#128176; Adversary Opportunity Index</span>
 </div>
 <div class="mw">
   <div style="display:flex;align-items:flex-start;gap:12px">
-    <h1 style="flex:1">Adversary Opportunity Index <span class="muted" style="font-size:13px;font-weight:400">— the path-organized "threat debt" top-line</span></h1>
-    <button class="btn-sm2" id="snap">Record snapshot</button>
+    <h1 style="flex:1"><span data-i18n="ao.h1">Adversary Opportunity Index</span> <span class="muted" style="font-size:13px;font-weight:400" data-i18n="ao.h1sub">— the path-organized "threat debt" top-line</span></h1>
+    <button class="btn-sm2" id="snap" data-i18n="ao.snapBtn">Record snapshot</button>
   </div>
-  <div class="sub">One derived number for the <b>true adversary opportunity</b> in your environment: every gap that sits on a
-    <b>viable attack path</b> to a crown jewel (the Attack Path Test), weighted by exploitability, by the
-    adversaries that actually use those techniques, by business impact, and <b>net of the controls you can prove</b>.
+  <div class="sub" data-i18n="ao.sub">One derived number for the true adversary opportunity in your environment: every gap that sits on a
+    viable attack path to a crown jewel (the Attack Path Test), weighted by exploitability, by the
+    adversaries that actually use those techniques, by business impact, and net of the controls you can prove.
     The attacker's-eye sibling of the Enterprise Risk Score. Lower is better; it moves only when real exposure changes.</div>
-  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
-  <div class="lic">AOI is a Phase-1 composition over your attack-path graph, threat-informed-defense coverage and control
+  <div id="body"><div class="muted" style="padding:24px;text-align:center" data-i18n="ao.loading">Loading…</div></div>
+  <div class="lic" data-i18n="ao.lic">AOI is a Phase-1 composition over your attack-path graph, threat-informed-defense coverage and control
     assurance. STOCK = today's balance; FLOW = net change vs the previous snapshot. Item-level paid-down/accrued
     accounting and the agentic paydown loop are Phase 2.</div>
 </div>

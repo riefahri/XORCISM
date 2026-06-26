@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — Cyber Insurance Readiness</title>
+<title data-i18n="ir.pageTitle">XORCISM — Cyber Insurance Readiness</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1280px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
@@ -31,47 +31,47 @@
 </style></head><body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/board-report">&#128202; Board</a>
-  <a href="/adversary-opportunity">&#128176; AOI</a>
-  <a href="/assurance">&#9989; Assurance</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/board-report" data-i18n="ir.nav.board">&#128202; Board</a>
+  <a href="/adversary-opportunity" data-i18n="ir.nav.aoi">&#128176; AOI</a>
+  <a href="/assurance" data-i18n="ir.nav.assurance">&#9989; Assurance</a>
   <span class="spacer"></span>
-  <span class="title">&#128737; Cyber Insurance Readiness</span>
+  <span class="title" data-i18n="ir.nav.title">&#128737; Cyber Insurance Readiness</span>
 </div>
 <div class="mw">
-  <h1>Cyber Insurance Readiness</h1>
-  <div class="sub">The <b>insurer's view</b> of your estate — the third lens alongside the defender's Enterprise Risk Score
+  <h1 data-i18n="ir.h1">Cyber Insurance Readiness</h1>
+  <div class="sub" data-i18n="ir.sub">The insurer's view of your estate — the third lens alongside the defender's Enterprise Risk Score
     and the attacker's Adversary Opportunity Index. Every renewal now hinges on a "ransomware supplemental" control
-    checklist; this maps each required control to your <b>live XORCISM signals</b> (MFA, backups, patching, monitoring,
+    checklist; this maps each required control to your live XORCISM signals (MFA, backups, patching, monitoring,
     segmentation, tested IR…) and scores your renewal readiness, ordered by underwriting weight.</div>
-  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
-  <div class="lic">Readiness is an internal planning aid derived from live signals — not an underwriting decision or a
+  <div id="body"><div class="muted" style="padding:24px;text-align:center" data-i18n="ir.loading">Loading…</div></div>
+  <div class="lic" data-i18n="ir.lic">Readiness is an internal planning aid derived from live signals — not an underwriting decision or a
     guarantee of coverage. Confirm the self-attested controls and your actual policy terms with your broker/carrier.</div>
 </div>
 <div class="modal" id="pol-modal">
   <div class="box">
-    <h3>Cyber-insurance policy</h3>
+    <h3 data-i18n="ir.modal.title">Cyber-insurance policy</h3>
     <div class="row2">
-      <div class="fld"><label>Carrier</label><input class="inp" id="pc-carrier" placeholder="e.g. Acme Cyber"></div>
-      <div class="fld"><label>Policy number</label><input class="inp" id="pc-policynum" placeholder="optional"></div>
+      <div class="fld"><label data-i18n="ir.f.carrier">Carrier</label><input class="inp" id="pc-carrier" data-i18n-placeholder="ir.ph.carrier" placeholder="e.g. Acme Cyber"></div>
+      <div class="fld"><label data-i18n="ir.f.policyNum">Policy number</label><input class="inp" id="pc-policynum" data-i18n-placeholder="ir.ph.optional" placeholder="optional"></div>
     </div>
     <div class="row2">
-      <div class="fld"><label>Coverage limit</label><input class="inp" id="pc-limit" type="number" min="0" placeholder="e.g. 5000000"></div>
-      <div class="fld"><label>Retention / deductible</label><input class="inp" id="pc-retention" type="number" min="0" placeholder="e.g. 100000"></div>
+      <div class="fld"><label data-i18n="ir.f.limit">Coverage limit</label><input class="inp" id="pc-limit" type="number" min="0" placeholder="e.g. 5000000"></div>
+      <div class="fld"><label data-i18n="ir.f.retention">Retention / deductible</label><input class="inp" id="pc-retention" type="number" min="0" placeholder="e.g. 100000"></div>
     </div>
     <div class="row2">
-      <div class="fld"><label>Annual premium</label><input class="inp" id="pc-premium" type="number" min="0" placeholder="optional"></div>
-      <div class="fld"><label>Currency</label><input class="inp" id="pc-currency" placeholder="USD" value="USD"></div>
+      <div class="fld"><label data-i18n="ir.f.premium">Annual premium</label><input class="inp" id="pc-premium" type="number" min="0" data-i18n-placeholder="ir.ph.optional" placeholder="optional"></div>
+      <div class="fld"><label data-i18n="ir.f.currency">Currency</label><input class="inp" id="pc-currency" placeholder="USD" value="USD"></div>
     </div>
     <div class="row2">
-      <div class="fld"><label>Renewal date</label><input class="inp" id="pc-renewal" type="date"></div>
-      <div class="fld"><label>Status</label><select class="inp" id="pc-status"><option>Active</option><option>Quoted</option><option>Lapsed</option><option>Declined</option></select></div>
+      <div class="fld"><label data-i18n="ir.f.renewal">Renewal date</label><input class="inp" id="pc-renewal" type="date"></div>
+      <div class="fld"><label data-i18n="ir.f.status">Status</label><select class="inp" id="pc-status"><option value="Active" data-i18n="ir.opt.active">Active</option><option value="Quoted" data-i18n="ir.opt.quoted">Quoted</option><option value="Lapsed" data-i18n="ir.opt.lapsed">Lapsed</option><option value="Declined" data-i18n="ir.opt.declined">Declined</option></select></div>
     </div>
-    <div class="fld"><label>Notes</label><input class="inp" id="pc-notes" placeholder="optional"></div>
+    <div class="fld"><label data-i18n="ir.f.notes">Notes</label><input class="inp" id="pc-notes" data-i18n-placeholder="ir.ph.optional" placeholder="optional"></div>
     <div class="err" id="pc-err"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-      <button class="btn-sm2" id="pc-cancel">Cancel</button>
-      <button class="btn" id="pc-save">Save policy</button>
+      <button class="btn-sm2" id="pc-cancel" data-i18n="ir.cancel">Cancel</button>
+      <button class="btn" id="pc-save" data-i18n="ir.save">Save policy</button>
     </div>
   </div>
 </div>

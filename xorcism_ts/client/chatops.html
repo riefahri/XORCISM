@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — ChatOps console</title>
+<title data-i18n="chat.pageTitle">XORCISM — ChatOps console</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:900px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
@@ -23,27 +23,26 @@
 </style></head><body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/croc-orchestrator">&#129302; Orchestrator</a>
-  <a href="/settings">&#9881;&#65039; Settings</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/croc-orchestrator" data-i18n="chat.nav.orch">&#129302; Orchestrator</a>
+  <a href="/settings" data-i18n="chat.nav.settings">&#9881;&#65039; Settings</a>
   <span class="spacer"></span>
-  <span class="title">&#128172; ChatOps console</span>
+  <span class="title" data-i18n="chat.nav.title">&#128172; ChatOps console</span>
 </div>
 <div class="mw">
-  <h1>ChatOps console</h1>
-  <div class="sub">Query XORCISM and act on it conversationally — the same command set that drives the Slack / Teams
-    integration. Try <code>posture</code>, <code>digest</code>, <code>exposures</code>, <code>obligations</code>,
-    <code>queue</code>, then <code>approve &lt;id&gt;</code>. This console uses your session; Slack/Teams use the
-    signed webhooks (see the docs).</div>
+  <h1 data-i18n="chat.h1">ChatOps console</h1>
+  <div class="sub" data-i18n="chat.sub">Query XORCISM and act on it conversationally — the same command set that drives the Slack / Teams
+    integration. Try posture, digest, exposures, obligations, queue, then approve &lt;id&gt;. This console uses your
+    session; Slack/Teams use the signed webhooks (see the docs).</div>
   <div class="quick" id="quick"></div>
   <div id="log"></div>
   <div class="bar">
-    <input id="inp" placeholder="Type a command (e.g. posture) and hit Enter" autocomplete="off">
-    <button class="btn" id="send">Send</button>
+    <input id="inp" data-i18n-placeholder="chat.inputPh" placeholder="Type a command (e.g. posture) and hit Enter" autocomplete="off">
+    <button class="btn" id="send" data-i18n="chat.sendBtn">Send</button>
   </div>
-  <div class="lic">Slack: add a slash command pointing at <code>/api/chatops/slack/command</code> and interactivity at
-    <code>/api/chatops/slack/interactive</code>; set <code>SLACK_SIGNING_SECRET</code>. Approve/dismiss from chat needs
-    <code>CHATOPS_ALLOW_ACTIONS=1</code> and <code>CHATOPS_TENANT</code>.</div>
+  <div class="lic" data-i18n="chat.lic">Slack: add a slash command pointing at /api/chatops/slack/command and interactivity at
+    /api/chatops/slack/interactive; set SLACK_SIGNING_SECRET. Approve/dismiss from chat needs
+    CHATOPS_ALLOW_ACTIONS=1 and CHATOPS_TENANT.</div>
 </div>
 <script src="/js/session-ui.js"></script>
 <script src="/js/chatops.js"></script>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — SCA (Software Composition Analysis)</title>
+<title data-i18n="sca.pageTitle">XORCISM — SCA (Software Composition Analysis)</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .sc-wrap{max-width:1320px;margin:0 auto;padding:18px}
@@ -70,24 +70,24 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/?db=XORCISM&amp;table=SBOM">&#128230; SBOMs</a>
-  <a href="/?db=XORCISM&amp;table=COMPONENT">&#129513; Components</a>
-  <a href="/asset-management">&#128737;&#65039; Assets</a>
+  <a href="/?db=XORCISM&amp;table=SBOM" data-i18n="sca.nav.sboms">&#128230; SBOMs</a>
+  <a href="/?db=XORCISM&amp;table=COMPONENT" data-i18n="sca.nav.components">&#129513; Components</a>
+  <a href="/asset-management" data-i18n="sca.nav.assets">&#128737;&#65039; Assets</a>
   <span class="spacer"></span>
-  <span class="title">&#129513; SCA — Software Composition</span>
+  <span class="title" data-i18n="sca.nav.title">&#129513; SCA — Software Composition</span>
 </div>
 
 <div class="sc-wrap">
   <div>
-    <h1>SCA &mdash; Software Composition Analysis</h1>
-    <div class="sc-sub">Know what your software is made of. Import a <b>Software Bill of Materials</b> in the
-      two most widely used standards &mdash; <b>CycloneDX</b> (OWASP) and <b>SPDX</b> (Linux Foundation) &mdash;
-      and XORCISM persists every component with its <b>version, PURL, CPE, license, supplier and hash</b>,
-      links CPE-bearing components back to the asset's exposure inventory (<a href="/?db=XORCISM&amp;table=CPEFORASSET">CPEFORASSET</a>),
-      and maps the dependency graph. Spot <b>known-vulnerable components</b>, <b>license-compliance gaps</b> and
-      <b>unpinned versions</b>; <b>export</b> any SBOM back out in either standard.</div>
+    <h1 data-i18n="sca.h1">SCA &mdash; Software Composition Analysis</h1>
+    <div class="sc-sub" data-i18n="sca.sub">Know what your software is made of. Import a Software Bill of Materials in the
+      two most widely used standards &mdash; CycloneDX (OWASP) and SPDX (Linux Foundation) &mdash;
+      and XORCISM persists every component with its version, PURL, CPE, license, supplier and hash,
+      links CPE-bearing components back to the asset's exposure inventory, and maps the dependency
+      graph. Spot known-vulnerable components, license-compliance gaps and unpinned versions; export
+      any SBOM back out in either standard.</div>
   </div>
-  <div id="sc-body"><div class="muted" style="padding:24px;text-align:center">Loading software composition&hellip;</div></div>
+  <div id="sc-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="sca.loading">Loading software composition&hellip;</div></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>

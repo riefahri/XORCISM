@@ -23,16 +23,49 @@ function row(f: Fusion, i: number): string {
   if (f.itw) chips.push(`<span class="chip c-itw">in the wild</span>`);
   if (f.epss != null && f.epss > 0) chips.push(`<span class="chip c-epss">EPSS ${(f.epss * 100).toFixed(1)}%</span>`);
   if (f.cvss != null && f.cvss > 0) chips.push(`<span class="chip c-cvss">CVSS ${f.cvss}</span>`);
-  chips.push(`<span class="chip c-ast">${f.assets} ${t("exp.assets")}</span>`);
+  // Clickable: expands the impacted assets (only if there are any).
+  chips.push(f.assets
+    ? `<button class="chip c-ast asset-toggle" data-vid="${f.VulnerabilityID}" title="${esc(t("exp.viewAssets"))}">${f.assets} ${t("exp.assets")} ▾</button>`
+    : `<span class="chip c-ast">0 ${t("exp.assets")}</span>`);
   const refLink = `/?db=XVULNERABILITY&table=VULNERABILITY&editCol=VulnerabilityID&editVal=${f.VulnerabilityID}`;
   const edb = cve ? ` · <a class="edb" href="/exploitdb?cve=${encodeURIComponent(cve)}" target="_blank" rel="noopener">Exploit-DB</a>` : "";
-  return `<tr>
+  return `<tr data-vid="${f.VulnerabilityID}">
     <td class="rank">${i + 1}</td>
     <td class="prio"><div class="bar"><i style="width:${f.priority}%;background:${prioColor(f.priority)}"></i></div>
       <b style="color:${prioColor(f.priority)}">${f.priority}</b> <span class="muted">/ ${t("exp.score")} ${f.score}</span></td>
     <td class="ref"><a href="${refLink}" target="_blank" rel="noopener">${esc(f.ref)}</a>${edb}</td>
     <td>${chips.join("")}</td>
   </tr>`;
+}
+
+interface ImpactedAsset { id: number; name: string; criticality: string | null; businessValue: number | null; address: string | null; publicFacing: boolean; }
+
+function assetItemHtml(a: ImpactedAsset): string {
+  const link = `/?db=XORCISM&table=ASSET&editCol=AssetID&editVal=${a.id}`;
+  const meta = [a.criticality ? esc(a.criticality) : "", a.publicFacing ? t("exp.internetFacing") : "", a.address ? esc(a.address) : ""].filter(Boolean).join(" · ");
+  return `<a class="asset-pill" href="${link}"><b>${esc(a.name)}</b>${meta ? ` <span class="muted">${meta}</span>` : ""}</a>`;
+}
+
+// Toggle the impacted-assets detail row under a vulnerability row.
+async function toggleAssets(btn: HTMLButtonElement): Promise<void> {
+  const vid = Number(btn.dataset.vid);
+  const tr = btn.closest("tr") as HTMLTableRowElement | null;
+  if (!tr) return;
+  const next = tr.nextElementSibling as HTMLElement | null;
+  if (next && next.classList.contains("asset-detail")) { next.remove(); btn.textContent = btn.textContent!.replace("▴", "▾"); return; }
+  btn.textContent = btn.textContent!.replace("▾", "▴");
+  const detail = document.createElement("tr");
+  detail.className = "asset-detail";
+  detail.innerHTML = `<td colspan="4"><div class="asset-box"><span class="muted">${esc(t("exp.loadingAssets"))}</span></div></td>`;
+  tr.parentElement!.insertBefore(detail, tr.nextSibling);
+  try {
+    const r = await fetch(`/api/fusion/vuln/${vid}/assets`);
+    const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    const list = (d.assets || []) as ImpactedAsset[];
+    detail.querySelector(".asset-box")!.innerHTML = list.length
+      ? `<div class="asset-box-h">${esc(t("exp.impactedAssets"))} (${list.length})</div>${list.map(assetItemHtml).join("")}`
+      : `<span class="muted">${esc(t("exp.noAssets"))}</span>`;
+  } catch (e) { detail.querySelector(".asset-box")!.innerHTML = `<span class="muted">⚠️ ${esc(e)}</span>`; }
 }
 
 async function load(): Promise<void> {
@@ -44,6 +77,7 @@ async function load(): Promise<void> {
   $("ex-results").innerHTML = `<table class="ex"><thead><tr>
       <th>#</th><th>${esc(t("exp.colPriority"))}</th><th>${esc(t("exp.colVuln"))}</th><th>${esc(t("exp.colSignals"))}</th>
     </tr></thead><tbody>${d.results.map(row).join("")}</tbody></table>`;
+  $("ex-results").querySelectorAll<HTMLButtonElement>(".asset-toggle").forEach((b) => b.addEventListener("click", () => void toggleAssets(b)));
 }
 
 function mdLite(s: string): string {

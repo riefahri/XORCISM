@@ -222,7 +222,7 @@ function isReadonlyFormColumn(table: string, col: string): boolean {
 }
 
 // Tables whose modal is widened (relational sub-panels).
-const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO", "VULNERABILITY", "AUDIT", "ASSETVULNERABILITY", "DOCUMENT", "BUGBOUNTYSUBMISSION"]);
+const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO", "VULNERABILITY", "AUDIT", "ASSETVULNERABILITY", "DOCUMENT", "BUGBOUNTYSUBMISSION", "IDENTITY", "AUDITFINDING", "RISKREGISTERENTRY", "BUGBOUNTYPROGRAM", "HUNT", "SIGMARULE", "INTELEXCHANGE"]);
 
 // Display reordering of fields in the forms:
 // table → list of [columnToMove, columnAfterWhich].
@@ -1621,6 +1621,26 @@ const GRID_LINK_COLUMNS: Record<string, GridLinkSpec[]> = {
   BUGBOUNTYSUBMISSION: [
     { col: "Title", srcCol: "SubmissionID", db: "XVULNERABILITY", table: "BUGBOUNTYSUBMISSION", idCol: "SubmissionID" },
   ],
+  // Title → edits this RISKREGISTERENTRY row itself (self-link). PK is RiskRegisterEntryID.
+  RISKREGISTERENTRY: [
+    { col: "Title", srcCol: "RiskRegisterEntryID", db: "XCOMPLIANCE", table: "RISKREGISTERENTRY", idCol: "RiskRegisterEntryID" },
+  ],
+  // Name → edits this BUGBOUNTYPROGRAM row itself (self-link). PK is ProgramID.
+  BUGBOUNTYPROGRAM: [
+    { col: "Name", srcCol: "ProgramID", db: "XVULNERABILITY", table: "BUGBOUNTYPROGRAM", idCol: "ProgramID" },
+  ],
+  // HuntName → edits this HUNT row itself (self-link). PK is HuntID (XTHREAT).
+  HUNT: [
+    { col: "HuntName", srcCol: "HuntID", db: "XTHREAT", table: "HUNT", idCol: "HuntID" },
+  ],
+  // SigmaRuleName → edits this SIGMARULE row itself (self-link). PK is SigmaRuleID (XTHREAT).
+  SIGMARULE: [
+    { col: "SigmaRuleName", srcCol: "SigmaRuleID", db: "XTHREAT", table: "SIGMARULE", idCol: "SigmaRuleID" },
+  ],
+  // IntelName → edits this INTELEXCHANGE row itself (self-link). PK is IntelID (XTHREAT).
+  INTELEXCHANGE: [
+    { col: "IntelName", srcCol: "IntelID", db: "XTHREAT", table: "INTELEXCHANGE", idCol: "IntelID" },
+  ],
 };
 function getGridLink(table: string, col: string): GridLinkSpec | undefined {
   return (GRID_LINK_COLUMNS[table] ?? []).find((s) => s.col === col);
@@ -2929,6 +2949,7 @@ const DATE_PICKER_COLUMNS = new Set<string>([
   "AUDIT.AuditDate",
   "AUDIT.AuditClosureDate",
   "AUDITFINDING.FindingDate",
+  "AUDITFINDING.DueDate",
   "AUDITREPORT.ReportDate",
   "TICKET.DueDate",
   "TICKET.ResolvedDate",
@@ -3001,6 +3022,15 @@ const DATE_PICKER_COLUMNS = new Set<string>([
   "BUGBOUNTYSUBMISSION.SubmittedDate",
   "BUGBOUNTYSUBMISSION.TriagedDate",
   "BUGBOUNTYSUBMISSION.ResolvedDate",
+  // Identity & IAM — credential lifecycle dates
+  "IDENTITY.ExpiryDate",
+  "IDENTITY.LastRotatedDate",
+  "IDENTITY.LastUsedDate",
+  "IDENTITY.ModifiedDate",
+  // Threat hunting / detection content (XTHREAT)
+  "HUNT.ValidFrom",
+  "HUNT.HuntDate",
+  "SIGMARULE.ValidFrom",
 ]);
 
 function hasDatePicker(table: string, col: string): boolean {
@@ -3019,6 +3049,14 @@ const DATE_ONLY_PICKER_COLUMNS = new Set<string>([
   "BUGBOUNTYSUBMISSION.SubmittedDate",
   "BUGBOUNTYSUBMISSION.TriagedDate",
   "BUGBOUNTYSUBMISSION.ResolvedDate",
+  "IDENTITY.ExpiryDate",
+  "IDENTITY.LastRotatedDate",
+  "IDENTITY.LastUsedDate",
+  "IDENTITY.ModifiedDate",
+  "AUDITFINDING.DueDate",
+  "HUNT.ValidFrom",
+  "HUNT.HuntDate",
+  "SIGMARULE.ValidFrom",
 ]);
 function isDateOnlyPicker(table: string, col: string): boolean {
   return DATE_ONLY_PICKER_COLUMNS.has(`${table}.${col}`);
@@ -6134,6 +6172,8 @@ async function openEditModal(row: Record<string, unknown>): Promise<void> {
     });
   } else if (currentTable === "SIGMARULE") {
     appendSigmaConvertButton(body, "ef_"); // Sigma → SPL/KQL/EQL at the top of the form
+    appendTagsPanel(body, "Tags (SIGMARULETAG)", Number(row["SigmaRuleID"]) || null,
+      api.getSigmaRuleTags, api.setSigmaRuleTags, null);
   } else if (currentTable === "ANSWER") {
     await appendAnswerEvidences(body, Number(row["AnswerID"]) || null);
   } else if (currentTable === "THREAT") {
@@ -7764,6 +7804,16 @@ async function appendVulnTable(body: HTMLElement, assetId: number | null): Promi
   label.textContent = "Vulnerabilities for Asset (ASSETVULNERABILITY)";
   label.style.cssText = "font-size:12px;color:var(--text-muted)";
   header.appendChild(label);
+
+  // Deep-link to the ASSETVULNERABILITY explorer view filtered to this asset.
+  if (assetId) {
+    const viewLink = document.createElement("a");
+    viewLink.href = `/?db=XORCISM&table=ASSETVULNERABILITY&filterCol=AssetID&filterVal=${assetId}`;
+    viewLink.textContent = t("asset.avLink");
+    viewLink.title = t("asset.avLink.title");
+    viewLink.style.cssText = "font-size:11px;color:var(--accent);text-decoration:none;margin-left:auto;margin-right:10px";
+    header.appendChild(viewLink);
+  }
 
   const box = document.createElement("div");
   box.style.cssText =

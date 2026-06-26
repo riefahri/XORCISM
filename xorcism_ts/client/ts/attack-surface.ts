@@ -5,7 +5,9 @@
  * related assets and tags. Data comes ready-built (nodes + links) from the
  * server (/api/asset-graph), tenant-scoped. `?asset=<id>` focuses on one asset.
  */
-import { initI18n } from "./i18n";
+import { initI18n, t } from "./i18n";
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 
 // d3 is loaded via CDN (<script> tag).
 declare const d3: any;
@@ -29,6 +31,11 @@ const TYPE_LABEL: Record<string, string> = {
   vulnerability: "Vulnerability", organisation: "Organisation", person: "Person",
   threat: "Threat", incident: "Incident", tag: "Tag",
 };
+// Localized node-type label (falls back to the English map / raw type).
+function typeLabel(tp: string): string {
+  const k = `as.type.${tp}`; const v = t(k);
+  return v === k ? (TYPE_LABEL[tp] || tp) : v;
+}
 
 function colorFor(n: GNode): string {
   if (n.type === "vulnerability" && n.sub && SEV_COLORS[n.sub]) return SEV_COLORS[n.sub];
@@ -55,7 +62,7 @@ async function load(assetId: number | null): Promise<void> {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     data = await r.json() as Graph;
   } catch (e) {
-    toast("Load error: " + String(e));
+    toast(t("as.loadError") + " " + String(e));
     return;
   }
   fillAssetList();
@@ -76,12 +83,12 @@ function fillAssetList(): void {
 function updateScope(): void {
   const f = currentAsset ? data.nodes.find((n) => n.id === `asset:${currentAsset}`) : null;
   $("as-scope").textContent = currentAsset
-    ? `Focused on asset #${currentAsset}` + (f ? ` — ${f.label}` : "")
-    : "Whole tenant attack surface (top assets by risk)";
+    ? fmt("as.focusedOn", { id: currentAsset }) + (f ? ` — ${f.label}` : "")
+    : t("as.wholeSurface");
   const fb = $("as-focusbar");
   if (currentAsset && f) {
     fb.style.display = "block";
-    fb.innerHTML = `Focus: <b>${escapeHtml(f.label)}</b> &nbsp;<a href="#" id="as-clearfocus" style="color:#7c83fd">clear ✕</a>`;
+    fb.innerHTML = `${t("as.focusPrefix")}: <b>${escapeHtml(f.label)}</b> &nbsp;<a href="#" id="as-clearfocus" style="color:#7c83fd">${t("as.clear")}</a>`;
     const c = document.getElementById("as-clearfocus");
     if (c) c.onclick = (e) => { e.preventDefault(); void load(null); };
   } else {
@@ -133,7 +140,7 @@ function render(): void {
     .attr("fill", (d: GNode) => colorFor(d));
   node.append("text").attr("x", 12).attr("y", 3)
     .text((d: GNode) => (d.label.length > 28 ? d.label.slice(0, 27) + "…" : d.label));
-  node.append("title").text((d: GNode) => `${TYPE_LABEL[d.type] || d.type}\n${d.label}${d.sub ? "\n" + d.sub : ""}`);
+  node.append("title").text((d: GNode) => `${typeLabel(d.type)}\n${d.label}${d.sub ? "\n" + d.sub : ""}`);
 
   sim = d3.forceSimulation(g.nodes)
     .force("link", d3.forceLink(g.links).id((d: GNode) => d.id).distance((l: GLink) => ((l.source as any).type === "asset" && (l.target as any).type === "asset" ? 130 : 80)).strength(0.5))
@@ -148,20 +155,20 @@ function render(): void {
     });
 
   buildLegend();
-  $("as-counts").textContent = `${g.nodes.length} nodes · ${g.links.length} edges`;
+  $("as-counts").textContent = fmt("as.counts", { n: g.nodes.length, m: g.links.length });
   $("as-details").style.display = "none";
 }
 
 function buildLegend(): void {
   const counts = new Map<string, number>();
   for (const n of data.nodes) counts.set(n.type, (counts.get(n.type) || 0) + 1);
-  const types = [...counts.keys()].sort((a, b) => (TYPE_LABEL[a] || a).localeCompare(TYPE_LABEL[b] || b));
+  const types = [...counts.keys()].sort((a, b) => typeLabel(a).localeCompare(typeLabel(b)));
   const el = $("as-legend");
   el.innerHTML = "";
   for (const tp of types) {
     const it = document.createElement("div");
     it.className = "it" + (hidden.has(tp) ? " off" : "");
-    it.innerHTML = `<span class="dot" style="background:${TYPE_COLORS[tp] || "#6b7280"}"></span>${TYPE_LABEL[tp] || tp} <span class="as-stat">(${counts.get(tp)})</span>`;
+    it.innerHTML = `<span class="dot" style="background:${TYPE_COLORS[tp] || "#6b7280"}"></span>${typeLabel(tp)} <span class="as-stat">(${counts.get(tp)})</span>`;
     it.onclick = () => { if (hidden.has(tp)) hidden.delete(tp); else hidden.add(tp); render(); };
     el.appendChild(it);
   }
@@ -175,12 +182,12 @@ function showDetails(d: GNode): void {
   const isAsset = d.type === "asset";
   box.innerHTML =
     `<span class="close" id="as-det-close">&#10005;</span>` +
-    `<h4 style="color:${colorFor(d)}">${escapeHtml(TYPE_LABEL[d.type] || d.type)}</h4>` +
+    `<h4 style="color:${colorFor(d)}">${escapeHtml(typeLabel(d.type))}</h4>` +
     `<div style="color:var(--text-soft);margin-bottom:4px">${escapeHtml(d.label)}</div>` +
     (d.sub ? `<div class="as-stat" style="margin-bottom:8px">${escapeHtml(d.sub)}</div>` : "") +
     (isAsset && d.idVal !== String(currentAsset)
-      ? `<button class="btn btn-primary btn-sm" id="as-focus-node" style="margin:0 6px 8px 0">🎯 Focus on this asset</button>` : "") +
-    (linkable ? `<button class="btn btn-ghost btn-sm" id="as-open-form" style="margin-bottom:8px">🔗 Open form (${escapeHtml(d.table!)})</button>` : "");
+      ? `<button class="btn btn-primary btn-sm" id="as-focus-node" style="margin:0 6px 8px 0">${t("as.focusThis")}</button>` : "") +
+    (linkable ? `<button class="btn btn-ghost btn-sm" id="as-open-form" style="margin-bottom:8px">${fmt("as.openForm", { table: escapeHtml(d.table!) })}</button>` : "");
   $("as-det-close").onclick = () => { box.style.display = "none"; d3.selectAll(".node").classed("sel", false); };
   const fb = document.getElementById("as-focus-node");
   if (fb) fb.onclick = () => void load(Number(d.idVal));
@@ -210,7 +217,7 @@ function focusByName(): void {
   if (!name) return;
   const n = data.nodes.find((x) => x.type === "asset" && x.label.toLowerCase() === name)
     || data.nodes.find((x) => x.type === "asset" && x.label.toLowerCase().includes(name));
-  if (!n || !n.idVal) { toast("No matching asset in the current graph."); return; }
+  if (!n || !n.idVal) { toast(t("as.noMatch")); return; }
   void load(Number(n.idVal));
 }
 

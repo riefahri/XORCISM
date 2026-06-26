@@ -3,6 +3,9 @@
  * Renewal-readiness gauge + the underwriter control checklist (live-derived) + a gap worklist ordered
  * by underwriting weight + the self-attestation list. Reads /api/insurance-readiness.
  */
+import { initI18n, t } from "./i18n";
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 const $ = (id: string): HTMLElement | null => document.getElementById(id);
 const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 
@@ -42,21 +45,21 @@ function ctlRow(c: Ctl): string {
 
 function polPanel(d: Data): string {
   const p = d.program.policy, cov = d.program.coverage, ren = d.program.renewal;
-  const editBtn = d.canEdit ? `<button class="btn-sm2" id="pol-edit">${p ? "Edit policy" : "+ Add policy"}</button>` : "";
+  const editBtn = d.canEdit ? `<button class="btn-sm2" id="pol-edit">${p ? t("ir.editPolicy") : t("ir.addPolicy")}</button>` : "";
   const renCol = ren.status === "overdue" ? "#f87171" : ren.status === "due-soon" ? "#fbbf24" : "#34d399";
-  const renTxt = ren.daysToRenewal == null ? "<span class='muted'>not set</span>"
-    : ren.daysToRenewal < 0 ? `<b style="color:${renCol}">overdue ${Math.abs(ren.daysToRenewal)}d</b> (${esc(ren.date)})`
-    : `<b style="color:${renCol}">${ren.daysToRenewal}d</b> (${esc(ren.date)})`;
-  const adq = cov.adequacy === "covered" ? `<b style="color:#34d399">Covered</b>`
-    : cov.adequacy === "underinsured" ? `<b style="color:#f87171">Underinsured by ${money(cov.gap, cov.currency)}</b>`
-    : `<span class="muted">unknown — set a limit / model a loss</span>`;
+  const renTxt = ren.daysToRenewal == null ? `<span class='muted'>${t("ir.notSet")}</span>`
+    : ren.daysToRenewal < 0 ? `<b style="color:${renCol}">${fmt("ir.overdueD", { n: Math.abs(ren.daysToRenewal) })}</b> (${esc(ren.date)})`
+    : `<b style="color:${renCol}">${fmt("ir.daysD", { n: ren.daysToRenewal })}</b> (${esc(ren.date)})`;
+  const adq = cov.adequacy === "covered" ? `<b style="color:#34d399">${t("ir.covered")}</b>`
+    : cov.adequacy === "underinsured" ? `<b style="color:#f87171">${fmt("ir.underinsured", { money: money(cov.gap, cov.currency) })}</b>`
+    : `<span class="muted">${t("ir.adqUnknown")}</span>`;
   const left = p
-    ? `<div class="kv"><div class="lab">Policy</div><b>${esc(p.carrier || "—")}</b>${p.policyNumber ? ` · ${esc(p.policyNumber)}` : ""} · ${esc(p.status)}<br>
-        Limit <b>${money(p.coverageLimit, p.currency)}</b> · retention ${money(p.retention, p.currency)}${p.premium ? ` · premium ${money(p.premium, p.currency)}` : ""}</div>`
-    : `<div class="kv"><div class="lab">Policy</div><span class="muted">No policy on record. Add your carrier, limit and renewal date to track adequacy.</span></div>`;
-  const right = `<div class="kv"><div class="lab">Renewal &amp; coverage adequacy</div>
-      Renewal in ${renTxt}<br>
-      Modeled single-event loss: <b>${cov.modeledLoss == null ? "—" : money(cov.modeledLoss, cov.currency)}</b> → ${adq}</div>`;
+    ? `<div class="kv"><div class="lab">${t("ir.policy")}</div><b>${esc(p.carrier || "—")}</b>${p.policyNumber ? ` · ${esc(p.policyNumber)}` : ""} · ${esc(p.status)}<br>
+        ${t("ir.limit")} <b>${money(p.coverageLimit, p.currency)}</b> · ${t("ir.retention")} ${money(p.retention, p.currency)}${p.premium ? ` · ${t("ir.premium")} ${money(p.premium, p.currency)}` : ""}</div>`
+    : `<div class="kv"><div class="lab">${t("ir.policy")}</div><span class="muted">${t("ir.noPolicy")}</span></div>`;
+  const right = `<div class="kv"><div class="lab">${t("ir.renewalAdq")}</div>
+      ${t("ir.renewalIn")} ${renTxt}<br>
+      ${t("ir.modeledLoss")} <b>${cov.modeledLoss == null ? "—" : money(cov.modeledLoss, cov.currency)}</b> → ${adq}</div>`;
   return `<div class="pol">${left}${right}<div style="grid-column:1/-1;display:flex;justify-content:flex-end">${editBtn}</div></div>`;
 }
 
@@ -66,28 +69,28 @@ function render(d: Data): void {
   const s = d.summary;
   const hero = `<div class="hero">
     <div class="gauge"><div class="n" style="color:${gColor(d.grade)}">${d.score}<span style="font-size:20px;color:#64748b">/100</span></div>
-      <div class="g">Grade <b style="color:${gColor(d.grade)}">${esc(d.grade)}</b> · renewal readiness</div></div>
+      <div class="g">${fmt("ir.gradeReadiness", { g: `<b style="color:${gColor(d.grade)}">${esc(d.grade)}</b>` })}</div></div>
     <div><div class="nm" style="font-size:15px;margin-bottom:6px">${esc(d.verdict)}</div>
-      <div class="muted" style="font-size:12.5px;line-height:1.6">${s.met} controls met · ${s.partial} partial · <span style="color:${s.gap ? "#f87171" : "#34d399"}">${s.gap} gap(s)</span>${s.critical ? ` · <span style="color:#f87171">${s.critical} high-weight gap(s)</span>` : ""} · ${s.attestPending} to self-attest.</div></div>
+      <div class="muted" style="font-size:12.5px;line-height:1.6">${fmt("ir.heroMet", { met: s.met })} · ${fmt("ir.heroPartial", { n: s.partial })} · <span style="color:${s.gap ? "#f87171" : "#34d399"}">${fmt("ir.heroGaps", { n: s.gap })}</span>${s.critical ? ` · <span style="color:#f87171">${fmt("ir.heroCritical", { n: s.critical })}</span>` : ""} · ${fmt("ir.heroAttest", { n: s.attestPending })}</div></div>
   </div>`;
 
   const cards = `<div class="cards">${[
-    card("Readiness", `${d.score}/100`, `grade ${d.grade}`, gColor(d.grade)),
-    card("Controls met", s.met, "underwriter-derivable", "#34d399"),
-    card("Gaps", s.gap, "before renewal", s.gap ? "#f87171" : "#34d399"),
-    card("Critical gaps", s.critical, "high underwriting weight", s.critical ? "#f87171" : "#34d399"),
-    card("Self-attest", s.attestPending, "confirm with broker"),
+    card(t("ir.cReadiness"), `${d.score}/100`, fmt("ir.cReadiness.f", { g: d.grade }), gColor(d.grade)),
+    card(t("ir.cMet"), s.met, t("ir.cMet.f"), "#34d399"),
+    card(t("ir.cGaps"), s.gap, t("ir.cGaps.f"), s.gap ? "#f87171" : "#34d399"),
+    card(t("ir.cCritical"), s.critical, t("ir.cCritical.f"), s.critical ? "#f87171" : "#34d399"),
+    card(t("ir.cAttest"), s.attestPending, t("ir.cAttest.f")),
   ].join("")}</div>`;
 
-  const work = `<div class="sec">Fix before renewal — ordered by underwriting weight</div>` + (d.worklist.length
-    ? `<table class="t"><thead><tr><th>Control</th><th>Why the underwriter cares</th><th>Current</th><th>Impact</th></tr></thead><tbody>${d.worklist.map((w) => `<tr><td><span class="nm">${esc(w.name)}</span></td><td class="muted" style="font-size:12px">${esc(w.insurerWhy)}</td><td class="muted" style="font-size:12px">${esc(w.metric)}</td><td><b style="color:#f87171">${w.impact}</b></td></tr>`).join("")}</tbody></table>`
-    : `<div class="muted" style="padding:8px 0">✓ No derivable control gaps — strong renewal posture.</div>`);
+  const work = `<div class="sec">${t("ir.secWork")}</div>` + (d.worklist.length
+    ? `<table class="t"><thead><tr><th>${t("ir.thControl")}</th><th>${t("ir.thWhyCares")}</th><th>${t("ir.thCurrent")}</th><th>${t("ir.thImpact")}</th></tr></thead><tbody>${d.worklist.map((w) => `<tr><td><span class="nm">${esc(w.name)}</span></td><td class="muted" style="font-size:12px">${esc(w.insurerWhy)}</td><td class="muted" style="font-size:12px">${esc(w.metric)}</td><td><b style="color:#f87171">${w.impact}</b></td></tr>`).join("")}</tbody></table>`
+    : `<div class="muted" style="padding:8px 0">${t("ir.workEmpty")}</div>`);
 
-  const checklist = `<div class="sec">Underwriter control checklist (live-derived)</div>
-    <table class="t"><thead><tr><th>Control</th><th>Category</th><th>Status</th><th>Score</th><th>Evidence</th><th>Wt</th></tr></thead><tbody>${d.controls.map(ctlRow).join("")}</tbody></table>`;
+  const checklist = `<div class="sec">${t("ir.secChecklist")}</div>
+    <table class="t"><thead><tr><th>${t("ir.thControl")}</th><th>${t("ir.thCategory")}</th><th>${t("ir.thStatus")}</th><th>${t("ir.thScore")}</th><th>${t("ir.thEvidence")}</th><th>${t("ir.thWt")}</th></tr></thead><tbody>${d.controls.map(ctlRow).join("")}</tbody></table>`;
 
-  const attest = `<div class="sec">Self-attestation required (not yet provable from telemetry)</div>
-    <table class="t"><thead><tr><th>Control</th><th>Category</th><th>Why the underwriter asks</th></tr></thead><tbody>${d.attest.map((c) => `<tr><td><span class="nm">${esc(c.name)}</span></td><td>${esc(c.category)}</td><td class="muted" style="font-size:12px">${esc(c.insurerWhy)}</td></tr>`).join("")}</tbody></table>`;
+  const attest = `<div class="sec">${t("ir.secAttest")}</div>
+    <table class="t"><thead><tr><th>${t("ir.thControl")}</th><th>${t("ir.thCategory")}</th><th>${t("ir.thWhyAsks")}</th></tr></thead><tbody>${d.attest.map((c) => `<tr><td><span class="nm">${esc(c.name)}</span></td><td>${esc(c.category)}</td><td class="muted" style="font-size:12px">${esc(c.insurerWhy)}</td></tr>`).join("")}</tbody></table>`;
 
   body.innerHTML = hero + polPanel(d) + cards + work + checklist + attest;
   $("pol-edit")?.addEventListener("click", openModal);
@@ -116,7 +119,7 @@ async function savePolicy(): Promise<void> {
   try {
     const r = await fetch("/api/insurance-readiness/policy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-    closeModal(); render(d); toast("Policy saved");
+    closeModal(); render(d); toast(t("ir.policySaved"));
   } catch (e) { const el = $("pc-err"); if (el) el.textContent = `⚠️ ${(e as Error).message}`; }
 }
 
@@ -125,6 +128,7 @@ async function load(): Promise<void> {
   catch (e) { const b = $("body"); if (b) b.innerHTML = `<div class="muted" style="padding:24px;text-align:center">⚠️ ${esc((e as Error).message)}</div>`; }
 }
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   $("pc-save")?.addEventListener("click", () => void savePolicy());
   $("pc-cancel")?.addEventListener("click", closeModal);
   $("pol-modal")?.addEventListener("click", (e) => { if (e.target === $("pol-modal")) closeModal(); });

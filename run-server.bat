@@ -42,7 +42,13 @@ if not errorlevel 1 (
   echo   Ollama   =   launched "%OLLAMA%" serve  ^(http://localhost:11434^)
 ) else (
   echo   Ollama   =   NOT FOUND - AI copilots will use deterministic fallbacks.
-  echo                Install from https://ollama.com then:  ollama pull llama3.1
+  echo                Install from https://ollama.com then:  ollama pull llama3.1:8b
+)
+
+REM --- Pull the default local-AI model (idempotent: skips if already present) ---
+if defined OLLAMA (
+  echo Ensuring local AI model llama3.1:8b is available ^(first run downloads ~4.7 GB^) ...
+  "%OLLAMA%" pull llama3.1:8b
 )
 
 echo Stopping any XORCISM server already listening on port %PORT% ...

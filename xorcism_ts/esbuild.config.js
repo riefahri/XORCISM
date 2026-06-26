@@ -132,7 +132,12 @@ const ctx = esbuild.context({
   platform: "browser",
   target: ["es2020"],
   sourcemap: true,
-  minify: false,
+  // Minify in production. Each page bundle inlines the multi-language i18n dict, so unminified
+  // every page shipped ~900 KB+ of JS (app.js ~1.4 MB) — the main cause of slow first loads.
+  // Minified is ~3× smaller; gzip on the wire (see index.ts) cuts it ~6× more.
+  // Set XOR_NO_MINIFY=1 for readable bundles when debugging the client.
+  minify: process.env.XOR_NO_MINIFY !== "1",
+  legalComments: "none",
   charset: "utf8", // keeps UTF-8 in the output (instead of escaping \uXXXX) — multilingual i18n
   logLevel: "info",
 }).then(async (ctx) => {

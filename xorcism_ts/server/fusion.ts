@@ -163,3 +163,32 @@ export function topExposures(tenant: number | null, limit = 50): { results: Fusi
 
   return { results, scanned: agg.length };
 }
+
+export interface ImpactedAsset { id: number; name: string; criticality: string | null; businessValue: number | null; address: string | null; publicFacing: boolean; }
+
+/** The in-scope assets impacted by a given vulnerability (for the exposure worklist "impacted assets" expand). */
+export function assetsForVuln(vid: number, tenant: number | null): ImpactedAsset[] {
+  const xo = getDb("XORCISM");
+  if (!colset(xo, "ASSETVULNERABILITY").has("VulnerabilityID")) return [];
+  const a = colset(xo, "ASSET");
+  const tenantClause = tenant != null && a.has("TenantID") ? "AND (a.TenantID = ? OR a.TenantID IS NULL)" : "";
+  const args: (number)[] = tenant != null && a.has("TenantID") ? [vid, tenant] : [vid];
+  const crit = a.has("AssetCriticalityLevel") ? "a.AssetCriticalityLevel" : "NULL";
+  const bv = a.has("BusinessValue") ? "a.BusinessValue" : (a.has("RiskScore") ? "a.RiskScore" : "NULL");
+  const addr = ["fqdn", "hostname", "ipaddressIPv4", "websiteurl"].filter((c) => a.has(c)).map((c) => `a.${c}`);
+  const addrExpr = addr.length ? `COALESCE(${addr.join(",")})` : "NULL";
+  const pubExpr = a.has("websiteurl") || a.has("ipaddressIPv4")
+    ? `(COALESCE(NULLIF(${a.has("websiteurl") ? "a.websiteurl" : "''"},''), '') <> '' OR COALESCE(${a.has("ipaddressIPv4") ? "a.ipaddressIPv4" : "''"},'') <> '')`
+    : "0";
+  const rows = xo.prepare(
+    `SELECT DISTINCT a.AssetID id, a.AssetName name, ${crit} crit, ${bv} bv, ${addrExpr} addr, ${pubExpr} pub
+     FROM ASSETVULNERABILITY av JOIN ASSET a ON a.AssetID = av.AssetID
+     WHERE av.VulnerabilityID = ? AND COALESCE(av.FalsePositive,0)=0 ${tenantClause}
+     ORDER BY COALESCE(${bv === "NULL" ? "0" : bv}, 0) DESC, a.AssetName LIMIT 200`
+  ).all(...args) as { id: number; name: string | null; crit: string | null; bv: number | null; addr: string | null; pub: number }[];
+  return rows.map((r) => ({
+    id: Number(r.id), name: String(r.name ?? `Asset #${r.id}`),
+    criticality: r.crit ? String(r.crit) : null, businessValue: r.bv != null ? Number(r.bv) : null,
+    address: r.addr ? String(r.addr) : null, publicFacing: !!r.pub,
+  }));
+}

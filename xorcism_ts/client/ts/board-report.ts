@@ -1,9 +1,13 @@
 /** board-report.ts — Board Cyber-Risk Report (/board-report).
  *  Renders posture + trend + critical assets + risks + remediation + financial + the six
  *  board questions, with an on-demand local-AI board narrative. Reads /api/board-report. */
+// NB: import as T — `t` is used as a param name in this file (md()'s inl(t)).
+import { initI18n, t as T } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
-function toast(m: string): void { const t = $("toast"); t.textContent = m; t.className = "show"; setTimeout(() => { t.className = ""; }, 2800); }
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), T(key));
+function toast(m: string): void { const el = $("toast"); el.textContent = m; el.className = "show"; setTimeout(() => { el.className = ""; }, 2800); }
 
 interface Driver { key: string; label: string; value: number }
 interface TrendPt { date: string; posture: number; risk: number }
@@ -41,7 +45,7 @@ function md(s: string): string {
 
 /** SVG sparkline of posture (0–100, higher = better) over time. */
 function trendSvg(pts: TrendPt[]): string {
-  if (pts.length < 2) return `<div class="muted" style="padding:18px 0">Not enough history yet — posture accrues daily; the trend line will appear after a few days.</div>`;
+  if (pts.length < 2) return `<div class="muted" style="padding:18px 0">${T("br.trend.noHistory")}</div>`;
   const W = 560, H = 150, padL = 30, padR = 10, padT = 12, padB = 22;
   const xs = (i: number): number => padL + (i / (pts.length - 1)) * (W - padL - padR);
   const ys = (v: number): number => padT + (1 - v / 100) * (H - padT - padB);
@@ -67,14 +71,14 @@ function render(r: Report): void {
   const fmt$ = (n: number): string => "$" + Math.round(n).toLocaleString();
 
   const cards = [
-    card("Security posture", `<span class="grade ${gradeCls}">${r.posture.score}</span><span style="font-size:14px;color:#64748b">/100</span>`,
-      `Grade ${r.posture.grade} · ${r.posture.verdict}`, undefined,
-      r.trend.rangeDays ? `<div class="trend ${tcls}">${tarrow} ${r.trend.deltaPct >= 0 ? "+" : ""}${r.trend.deltaPct}% / ${r.trend.rangeDays}d</div>` : ""),
-    card("Critical assets at risk", `${r.criticalAssets.pctAtRisk}%`, `${r.criticalAssets.atRisk} of ${r.criticalAssets.total} crown jewels`, r.criticalAssets.pctAtRisk > 0 ? "#f87171" : "#34d399"),
-    card("Attack paths", String(r.criticalAssets.pathsFound), `from ${r.criticalAssets.entries} exposed foothold(s)`, r.criticalAssets.pathsFound ? "#fbbf24" : "#34d399"),
-    card("Top exploited risks", String(r.risks.filter((x) => x.kev || x.exploits).length), "KEV / public-exploit on worklist", r.risks.some((x) => x.kev) ? "#f87171" : undefined),
-    r.financial.aleTotal ? card("Financial exposure", fmt$(r.financial.aleTotal), "annualized loss expectancy (ALE)", "#fbbf24") : card("Open incidents", String(r.resources.openIncidents), r.resources.mttrHours != null ? `MTTR ${r.resources.mttrHours}h` : "in response", r.resources.openIncidents ? "#fb923c" : "#34d399"),
-    card("Compliance", `${r.resources.compliance.completionPct}%`, `${r.resources.compliance.openFindings} open high/crit finding(s)`, r.resources.compliance.openFindings ? "#fb923c" : "#34d399"),
+    card(T("br.card.posture"), `<span class="grade ${gradeCls}">${r.posture.score}</span><span style="font-size:14px;color:#64748b">/100</span>`,
+      `${fmt("br.card.grade", { g: r.posture.grade })} · ${r.posture.verdict}`, undefined,
+      r.trend.rangeDays ? `<div class="trend ${tcls}">${tarrow} ${r.trend.deltaPct >= 0 ? "+" : ""}${r.trend.deltaPct}% / ${r.trend.rangeDays}${T("br.dShort")}</div>` : ""),
+    card(T("br.card.critAtRisk"), `${r.criticalAssets.pctAtRisk}%`, fmt("br.card.critAtRisk.f", { atRisk: r.criticalAssets.atRisk, total: r.criticalAssets.total }), r.criticalAssets.pctAtRisk > 0 ? "#f87171" : "#34d399"),
+    card(T("br.card.paths"), String(r.criticalAssets.pathsFound), fmt("br.card.paths.f", { n: r.criticalAssets.entries }), r.criticalAssets.pathsFound ? "#fbbf24" : "#34d399"),
+    card(T("br.card.exploited"), String(r.risks.filter((x) => x.kev || x.exploits).length), T("br.card.exploited.f"), r.risks.some((x) => x.kev) ? "#f87171" : undefined),
+    r.financial.aleTotal ? card(T("br.card.financial"), fmt$(r.financial.aleTotal), T("br.card.financial.f"), "#fbbf24") : card(T("br.card.incidents"), String(r.resources.openIncidents), r.resources.mttrHours != null ? `MTTR ${r.resources.mttrHours}h` : T("br.card.inResponse"), r.resources.openIncidents ? "#fb923c" : "#34d399"),
+    card(T("br.card.compliance"), `${r.resources.compliance.completionPct}%`, fmt("br.card.compliance.f", { n: r.resources.compliance.openFindings }), r.resources.compliance.openFindings ? "#fb923c" : "#34d399"),
   ].join("");
 
   // Six board questions
@@ -83,68 +87,69 @@ function render(r: Report): void {
   // Top risks table
   const riskRows = r.risks.length ? r.risks.map((x) => `<tr>
     <td><b>${esc(x.ref)}</b></td>
-    <td>${x.kev ? `<span class="pill pill-kev">KEV</span> ` : ""}${x.exploits ? `<span class="pill pill-exp">Exploit</span> ` : ""}<span class="pill pill-prio">P${x.priority}</span></td>
+    <td>${x.kev ? `<span class="pill pill-kev">KEV</span> ` : ""}${x.exploits ? `<span class="pill pill-exp">${T("br.exploit")}</span> ` : ""}<span class="pill pill-prio">P${x.priority}</span></td>
     <td>${x.epssPct != null ? x.epssPct + "%" : "<span class='muted'>—</span>"}</td>
     <td>${x.assets}</td>
     <td class="muted">${esc(x.whyItMatters)}</td></tr>`).join("")
-    : `<tr><td colspan="5" class="muted">No prioritized exposures on critical assets — surface is clean.</td></tr>`;
+    : `<tr><td colspan="5" class="muted">${T("br.risks.empty")}</td></tr>`;
 
   // Remediation choke points
-  const rem = r.remediation.length ? r.remediation.map((c, i) => `<div class="qa"><div class="q">${i + 1}. ${esc(c.label)} <span class="muted" style="font-weight:400">· ${c.paths} attack path(s)</span></div><div class="a">${esc(c.rationale)}</div></div>`).join("")
-    : `<div class="muted" style="padding:10px 0">No single dominant choke point — continue burning down the prioritized worklist above.</div>`;
+  const rem = r.remediation.length ? r.remediation.map((c, i) => `<div class="qa"><div class="q">${i + 1}. ${esc(c.label)} <span class="muted" style="font-weight:400">· ${fmt("br.rem.paths", { n: c.paths })}</span></div><div class="a">${esc(c.rationale)}</div></div>`).join("")
+    : `<div class="muted" style="padding:10px 0">${T("br.rem.empty")}</div>`;
 
   // Financial detail
   const finRows = r.financial.topRisks.length ? r.financial.topRisks.map((x) => `<tr><td>${esc(x.title)}</td><td><span class="pill pill-prio">${esc(x.level)}</span></td><td style="text-align:right">${x.ale != null ? fmt$(x.ale) : "<span class='muted'>—</span>"}</td></tr>`).join("")
-    : `<tr><td colspan="3" class="muted">No quantified risk-register entries yet. Add ALE / Likelihood × Impact to the risk register to surface the financial view.</td></tr>`;
+    : `<tr><td colspan="3" class="muted">${T("br.fin.empty")}</td></tr>`;
 
   // Posture drivers (what's pushing risk up/down)
   const drivers = r.posture.drivers.length ? r.posture.drivers.map((d) => {
     const up = d.value > 0; const w = Math.min(100, Math.abs(d.value) / Math.max(1, Math.max(...r.posture.drivers.map((x) => Math.abs(x.value)))) * 100);
     return `<div style="margin:5px 0"><div style="display:flex;justify-content:space-between;font-size:12px;color:#cbd5e1"><span>${esc(d.label)}</span><span style="color:${up ? "#f87171" : "#4ade80"}">${up ? "+" : ""}${d.value}</span></div>
       <div style="height:6px;background:#0f1117;border-radius:4px;overflow:hidden;margin-top:2px"><div style="height:100%;width:${w}%;background:${up ? "#ef4444" : "#22c55e"}"></div></div></div>`;
-  }).join("") : `<div class="muted">No risk contributors recorded.</div>`;
+  }).join("") : `<div class="muted">${T("br.drivers.empty")}</div>`;
 
   $("body").innerHTML = `
     <div class="cards">${cards}</div>
 
-    <div class="sec">📋 The six questions your Board is asking</div>
+    <div class="sec">${T("br.sec.questions")}</div>
     <div class="panel">${qa}</div>
 
-    <div class="sec">📈 Are our investments paying off? — Security posture over time</div>
+    <div class="sec">${T("br.sec.investments")}</div>
     <div class="grid2">
-      <div class="panel"><h3>Posture trend (0–100, higher is better)</h3><div class="ph">EnterpriseRiskScore mapped to a board security score, daily.</div>${trendSvg(r.trend.points)}</div>
-      <div class="panel"><h3>What's driving the risk</h3><div class="ph">Signed contributors to the enterprise-risk index (${r.posture.enterpriseRisk}).</div>${drivers}</div>
+      <div class="panel"><h3>${T("br.panel.trend")}</h3><div class="ph">${T("br.panel.trend.sub")}</div>${trendSvg(r.trend.points)}</div>
+      <div class="panel"><h3>${T("br.panel.drivers")}</h3><div class="ph">${fmt("br.panel.drivers.sub", { n: r.posture.enterpriseRisk })}</div>${drivers}</div>
     </div>
 
-    <div class="sec">🎯 What are the risks? — Top exposures in business terms <span class="spacer"></span></div>
-    <div class="panel"><table class="bt"><thead><tr><th>Exposure</th><th>Signals</th><th>EPSS</th><th>Assets</th><th>Why it matters to the business</th></tr></thead><tbody>${riskRows}</tbody></table></div>
+    <div class="sec">${T("br.sec.risks")} <span class="spacer"></span></div>
+    <div class="panel"><table class="bt"><thead><tr><th>${T("br.th.exposure")}</th><th>${T("br.th.signals")}</th><th>EPSS</th><th>${T("br.th.assets")}</th><th>${T("br.th.why")}</th></tr></thead><tbody>${riskRows}</tbody></table></div>
 
-    <div class="sec">🛠️ What do we remediate first? — Least cost, maximum impact</div>
+    <div class="sec">${T("br.sec.remediate")}</div>
     <div class="panel">${rem}</div>
 
-    <div class="sec">💰 Financial exposure — Likelihood × Impact, in money</div>
-    <div class="panel"><table class="bt"><thead><tr><th>Risk</th><th>Level</th><th style="text-align:right">ALE</th></tr></thead><tbody>${finRows}</tbody>${r.financial.aleTotal ? `<tfoot><tr><td colspan="2" style="font-weight:700">Total annualized loss expectancy</td><td style="text-align:right;font-weight:700;color:#fbbf24">${fmt$(r.financial.aleTotal)}</td></tr></tfoot>` : ""}</table></div>
+    <div class="sec">${T("br.sec.financial")}</div>
+    <div class="panel"><table class="bt"><thead><tr><th>${T("br.th.risk")}</th><th>${T("br.th.level")}</th><th style="text-align:right">ALE</th></tr></thead><tbody>${finRows}</tbody>${r.financial.aleTotal ? `<tfoot><tr><td colspan="2" style="font-weight:700">${T("br.fin.total")}</td><td style="text-align:right;font-weight:700;color:#fbbf24">${fmt$(r.financial.aleTotal)}</td></tr></tfoot>` : ""}</table></div>
 
-    <div class="sec">🧠 Executive narrative <span class="spacer"></span><span class="muted no-print" style="font-size:11px;font-weight:400">click “AI narrative” for a local-AI read-out</span></div>
-    <div id="ai-out" class="exec"><span class="muted">Generate a board-language executive summary with the local AI (Ollama) using the button above. Works offline with a deterministic read-out if the model is unavailable.</span></div>
+    <div class="sec">${T("br.sec.narrative")} <span class="spacer"></span><span class="muted no-print" style="font-size:11px;font-weight:400">${T("br.narrative.hint")}</span></div>
+    <div id="ai-out" class="exec"><span class="muted">${T("br.narrative.placeholder")}</span></div>
 
-    <div class="muted" style="font-size:11px;margin-top:18px">Generated ${esc(new Date(r.generatedAt).toLocaleString())} · XORCISM Board Cyber-Risk Report · methodology: posture = 200/(200+EnterpriseRiskScore)×100; risk = Likelihood × Impact.</div>`;
+    <div class="muted" style="font-size:11px;margin-top:18px">${fmt("br.footer", { date: esc(new Date(r.generatedAt).toLocaleString()) })}</div>`;
 }
 
 function loadAi(): void {
   const btn = $("btn-ai") as HTMLButtonElement;
-  btn.disabled = true; const old = btn.innerHTML; btn.innerHTML = "… local AI";
-  const out = $("ai-out"); out.innerHTML = `<span class="muted">Generating board narrative with the local AI…</span>`;
+  btn.disabled = true; const old = btn.innerHTML; btn.innerHTML = T("br.ai.loading");
+  const out = $("ai-out"); out.innerHTML = `<span class="muted">${T("br.ai.generating")}</span>`;
   fetch("/api/ai/board-narrative", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
     .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; }))
     .then((j: { narrative: string; model: string; offline: boolean }) => {
-      out.innerHTML = md(j.narrative) + `<div class="muted" style="font-size:11px;margin-top:10px">— ${j.offline ? "deterministic read-out (local AI unavailable)" : "local model: " + esc(j.model)}</div>`;
+      out.innerHTML = md(j.narrative) + `<div class="muted" style="font-size:11px;margin-top:10px">— ${j.offline ? T("br.ai.offline") : T("br.ai.model") + ": " + esc(j.model)}</div>`;
     })
     .catch((e) => { out.innerHTML = `<span class="muted">⚠️ ${esc(e.message || e)}</span>`; })
     .finally(() => { btn.disabled = false; btn.innerHTML = old; });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   ($("btn-print") as HTMLButtonElement).onclick = () => window.print();
   ($("btn-ai") as HTMLButtonElement).onclick = loadAi;
   fetch("/api/board-report").then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })

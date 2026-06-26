@@ -1,4 +1,7 @@
 /** mssp.ts — client for the MSSP multi-tenant rollup (/mssp). KPI cards + per-tenant posture table. */
+import { initI18n, t } from "./i18n";
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), t(key));
 const $ = (id: string): HTMLElement | null => document.getElementById(id);
 const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 
@@ -32,19 +35,20 @@ function render(d: Data): void {
   const body = $("body"); if (!body) return;
   const s = d.summary;
   const cards = [
-    card("Tenants", s.tenants, `avg posture ${s.avgPosture}/100`),
-    card("At risk", s.atRisk, "posture < 55", s.atRisk ? "#f87171" : "#34d399"),
-    card("Avg AOI", s.avgAoi == null ? "—" : s.avgAoi, "adversary opportunity", s.avgAoi == null ? undefined : aoiColor(s.avgAoi)),
-    card("Total KEV exposure", s.totalKev, "known-exploited", s.totalKev ? "#f87171" : "#34d399"),
-    card("Open incidents", s.totalOpenIncidents, "high/critical", s.totalOpenIncidents ? "#fbbf24" : "#34d399"),
-    card("Open findings", s.totalOpenFindings, "compliance", s.totalOpenFindings ? "#fbbf24" : undefined),
+    card(t("mssp.cTenants"), s.tenants, fmt("mssp.cTenants.f", { n: s.avgPosture })),
+    card(t("mssp.cAtRisk"), s.atRisk, t("mssp.cAtRisk.f"), s.atRisk ? "#f87171" : "#34d399"),
+    card(t("mssp.cAoi"), s.avgAoi == null ? "—" : s.avgAoi, t("mssp.cAoi.f"), s.avgAoi == null ? undefined : aoiColor(s.avgAoi)),
+    card(t("mssp.cKev"), s.totalKev, t("mssp.cKev.f"), s.totalKev ? "#f87171" : "#34d399"),
+    card(t("mssp.cIncidents"), s.totalOpenIncidents, t("mssp.cIncidents.f"), s.totalOpenIncidents ? "#fbbf24" : "#34d399"),
+    card(t("mssp.cFindings"), s.totalOpenFindings, t("mssp.cFindings.f"), s.totalOpenFindings ? "#fbbf24" : undefined),
   ].join("");
   body.innerHTML = `<div class="cards">${cards}</div>
-    <table class="t"><thead><tr><th>Grade</th><th>Tenant</th><th>Posture</th><th>Ent. risk</th><th>AOI</th><th>Assets</th><th>Open vulns</th><th>KEV</th><th>Incidents</th><th>Findings</th><th>AI gaps</th></tr></thead>
-    <tbody>${d.tenants.map(row).join("") || `<tr><td colspan="11" class="muted" style="padding:16px;text-align:center">No tenants found.</td></tr>`}</tbody></table>`;
+    <table class="t"><thead><tr><th>${t("mssp.thGrade")}</th><th>${t("mssp.thTenant")}</th><th>${t("mssp.thPosture")}</th><th>${t("mssp.thEntRisk")}</th><th>AOI</th><th>${t("mssp.thAssets")}</th><th>${t("mssp.thOpenVulns")}</th><th>KEV</th><th>${t("mssp.thIncidents")}</th><th>${t("mssp.thFindings")}</th><th>${t("mssp.thAiGaps")}</th></tr></thead>
+    <tbody>${d.tenants.map(row).join("") || `<tr><td colspan="11" class="muted" style="padding:16px;text-align:center">${t("mssp.noTenants")}</td></tr>`}</tbody></table>`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   fetch("/api/mssp").then((r) => r.json().then((d) => { if (!r.ok) throw new Error(d.error || r.status); return d; }))
     .then(render)
     .catch((e) => { const b = $("body"); if (b) b.innerHTML = `<div class="muted" style="padding:24px;text-align:center">⚠️ ${esc(e.message)}</div>`; });

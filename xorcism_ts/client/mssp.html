@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XORCISM — MSSP Rollup</title>
+<title data-i18n="mssp.pageTitle">XORCISM — MSSP Rollup</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
   .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
@@ -20,19 +20,19 @@
 </style></head><body>
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
-  <a href="/">&#8592; Explorer</a>
-  <a href="/dashboard">&#128202; Dashboard</a>
-  <a href="/board-report">&#128202; Board report</a>
+  <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
+  <a href="/dashboard" data-i18n="mssp.nav.dashboard">&#128202; Dashboard</a>
+  <a href="/board-report" data-i18n="mssp.nav.board">&#128202; Board report</a>
   <span class="spacer"></span>
-  <span class="title">&#127970; MSSP · multi-tenant rollup</span>
+  <span class="title" data-i18n="mssp.nav.title">&#127970; MSSP · multi-tenant rollup</span>
 </div>
 <div class="mw">
-  <h1>MSSP / multi-tenant rollup</h1>
-  <div class="sub">One row per tenant — headline posture (A→F), enterprise risk, asset / open-vuln / KEV counts, open
+  <h1 data-i18n="mssp.h1">MSSP / multi-tenant rollup</h1>
+  <div class="sub" data-i18n="mssp.sub">One row per tenant — headline posture (A→F), enterprise risk, asset / open-vuln / KEV counts, open
     high-critical incidents, open compliance findings and AI-governance gaps. Worst posture first, so you can triage
     your weakest clients. Super-admin only.</div>
-  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
-  <div class="lic">Posture = 200 / (200 + enterprise-risk-score) × 100, the same formula as the board report. Counts are
+  <div id="body"><div class="muted" style="padding:24px;text-align:center" data-i18n="mssp.loading">Loading…</div></div>
+  <div class="lic" data-i18n="mssp.lic">Posture = 200 / (200 + enterprise-risk-score) × 100, the same formula as the board report. Counts are
     live per-tenant queries; large estates may take a moment.</div>
 </div>
 <div id="toast"></div>

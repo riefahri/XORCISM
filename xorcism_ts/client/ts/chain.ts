@@ -6,6 +6,10 @@
  * the next tool". Nodes are coloured by status and flag vulnerabilities found.
  */
 declare const d3: any;
+// NB: import as T — `t` is used as a map param in this file (f.tech.map((t) => …)).
+import { initI18n, t as T } from "./i18n";
+const fmt = (key: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((s, [k, v]) => s.split(`{${k}}`).join(String(v)), T(key));
 
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string {
@@ -62,32 +66,32 @@ function renderHeader(run: Run): void {
   const badge = run.Status === "running" ? "b-run" : run.Status === "done" ? "b-done" : run.Status === "stopped" ? "b-stop" : "b-err";
   const mode = run.Mode === "live" ? "b-live" : "b-sim";
   $("ch-meta").innerHTML =
-    `<div class="kv"><span>Status</span><span class="badge ${badge}">${esc(run.Status)}</span></div>
-     <div class="kv"><span>Mode</span><span class="badge ${mode}">${esc(run.Mode)}${run.Mode === "simulate" ? " (no real scan)" : ""}</span></div>
-     <div class="kv"><span>Playbook</span><b>${esc(run.PlaybookName)}</b></div>
-     <div class="kv"><span>Seed</span><b>${esc(run.SeedTarget)}</b></div>
-     <div class="kv"><span>Steps</span><b>${steps.length}</b></div>
-     <div class="kv"><span>Findings</span><b style="color:${run.FindingsTotal ? "#fca5a5" : "#e2e8f0"}">${run.FindingsTotal}</b></div>` +
-    (run.AssetsTotal ? `<div class="kv"><span>Assets discovered</span><b style="color:#6ee7b7">${run.AssetsTotal}</b></div>` : "");
+    `<div class="kv"><span>${T("ch.kStatus")}</span><span class="badge ${badge}">${esc(run.Status)}</span></div>
+     <div class="kv"><span>${T("ch.kMode")}</span><span class="badge ${mode}">${esc(run.Mode)}${run.Mode === "simulate" ? " " + T("ch.noScan") : ""}</span></div>
+     <div class="kv"><span>${T("ch.kPlaybook")}</span><b>${esc(run.PlaybookName)}</b></div>
+     <div class="kv"><span>${T("ch.kSeed")}</span><b>${esc(run.SeedTarget)}</b></div>
+     <div class="kv"><span>${T("ch.kSteps")}</span><b>${steps.length}</b></div>
+     <div class="kv"><span>${T("ch.kFindings")}</span><b style="color:${run.FindingsTotal ? "#fca5a5" : "#e2e8f0"}">${run.FindingsTotal}</b></div>` +
+    (run.AssetsTotal ? `<div class="kv"><span>${T("ch.kAssets")}</span><b style="color:#6ee7b7">${run.AssetsTotal}</b></div>` : "");
   ($("ch-stop") as HTMLButtonElement).style.display = run.Status === "running" ? "inline-block" : "none";
 }
 
 function renderDetail(s: Step | null): void {
   const box = $("ch-detail");
-  if (!s) { box.innerHTML = `<span class="muted">Click a node to inspect its findings.</span>`; return; }
+  if (!s) { box.innerHTML = `<span class="muted">${T("ch.clickNode")}</span>`; return; }
   const f = facts(s);
-  let h = `<div class="kv"><span>Tool</span><b>${esc(s.Connector)}</b></div>
-           <div class="kv"><span>Target</span><b style="font-family:ui-monospace,monospace;font-size:11px">${esc(s.Target)}</b></div>
-           <div class="kv"><span>Status</span><b>${esc(s.Status)}</b></div>`;
+  let h = `<div class="kv"><span>${T("ch.dTool")}</span><b>${esc(s.Connector)}</b></div>
+           <div class="kv"><span>${T("ch.dTarget")}</span><b style="font-family:ui-monospace,monospace;font-size:11px">${esc(s.Target)}</b></div>
+           <div class="kv"><span>${T("ch.kStatus")}</span><b>${esc(s.Status)}</b></div>`;
   if (s.RuleLabel && s.RuleID !== "seed") h += `<div class="muted" style="margin:4px 0">▸ ${esc(s.RuleLabel)}</div>`;
-  if (f.services.length) h += `<div class="t">Open services (${f.services.length})</div>` + f.services.map((sv) => `<span class="chip">${sv.port}/${esc(sv.name || sv.proto)}${sv.product ? " · " + esc(sv.product) : ""}</span>`).join("");
-  if (f.tech.length) h += `<div class="t">Technologies</div>` + f.tech.map((t) => `<span class="chip">${esc(t)}</span>`).join("");
-  if (f.vulns.length) h += `<div class="t">Vulnerabilities (${f.vulns.length})</div>` + f.vulns.map((v) => `<span class="v">⚠️ [${esc(v.severity)}] ${esc(v.ref)}${v.name ? " — " + esc(v.name) : ""}</span>`).join("");
-  if (f.hosts.length > 1) h += `<div class="t">Hosts / subdomains (${f.hosts.length})</div>` + f.hosts.slice(0, 40).map((hn) => `<span class="chip">${esc(hn)}</span>`).join("");
-  if (f.emails.length) h += `<div class="t">Emails (${f.emails.length})</div>` + f.emails.slice(0, 40).map((e) => `<span class="chip">${esc(e)}</span>`).join("");
-  if (f.leaks.length) h += `<div class="t">Breach / leak (${f.leaks.length})</div>` + f.leaks.map((v) => `<span class="v">⚠️ [${esc(v.severity)}] ${esc(v.name || v.ref)}</span>`).join("");
-  if (!f.services.length && !f.tech.length && !f.vulns.length && f.hosts.length <= 1 && !f.emails.length && !f.leaks.length) h += `<div class="muted" style="margin-top:6px">${esc(s.Summary || "no result yet")}</div>`;
-  if (s.JobID) h += `<div class="muted" style="margin-top:8px">job #${s.JobID}</div>`;
+  if (f.services.length) h += `<div class="t">${fmt("ch.dServices", { n: f.services.length })}</div>` + f.services.map((sv) => `<span class="chip">${sv.port}/${esc(sv.name || sv.proto)}${sv.product ? " · " + esc(sv.product) : ""}</span>`).join("");
+  if (f.tech.length) h += `<div class="t">${T("ch.dTech")}</div>` + f.tech.map((t) => `<span class="chip">${esc(t)}</span>`).join("");
+  if (f.vulns.length) h += `<div class="t">${fmt("ch.dVulns", { n: f.vulns.length })}</div>` + f.vulns.map((v) => `<span class="v">⚠️ [${esc(v.severity)}] ${esc(v.ref)}${v.name ? " — " + esc(v.name) : ""}</span>`).join("");
+  if (f.hosts.length > 1) h += `<div class="t">${fmt("ch.dHosts", { n: f.hosts.length })}</div>` + f.hosts.slice(0, 40).map((hn) => `<span class="chip">${esc(hn)}</span>`).join("");
+  if (f.emails.length) h += `<div class="t">${fmt("ch.dEmails", { n: f.emails.length })}</div>` + f.emails.slice(0, 40).map((e) => `<span class="chip">${esc(e)}</span>`).join("");
+  if (f.leaks.length) h += `<div class="t">${fmt("ch.dLeaks", { n: f.leaks.length })}</div>` + f.leaks.map((v) => `<span class="v">⚠️ [${esc(v.severity)}] ${esc(v.name || v.ref)}</span>`).join("");
+  if (!f.services.length && !f.tech.length && !f.vulns.length && f.hosts.length <= 1 && !f.emails.length && !f.leaks.length) h += `<div class="muted" style="margin-top:6px">${esc(s.Summary || T("ch.noResult"))}</div>`;
+  if (s.JobID) h += `<div class="muted" style="margin-top:8px">${fmt("ch.job", { id: s.JobID })}</div>`;
   box.innerHTML = h;
 }
 
@@ -139,7 +143,7 @@ function renderGraph(): void {
   fit();
 }
 
-function statusWord(s: string): string { return s === "pending" ? "queued…" : s === "running" ? "running…" : s; }
+function statusWord(s: string): string { return s === "pending" ? T("ch.queued") : s === "running" ? T("ch.running") : s; }
 function clip(s: string, n: number): string { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 function paintSelection(): void {
   if (!gRoot) return;
@@ -171,6 +175,7 @@ async function load(): Promise<void> {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   if (Number.isFinite(engagementId) && engagementId > 0) ($("ch-back") as HTMLAnchorElement).href = `/pentest?id=${engagementId}`;
   $("ch-fit").addEventListener("click", fit);
   $("ch-zin").addEventListener("click", () => { if (zoom) d3.select("#ch-svg").transition().duration(200).call(zoom.scaleBy, 1.3); });
@@ -178,16 +183,16 @@ document.addEventListener("DOMContentLoaded", () => {
   $("ch-purple").addEventListener("click", () => window.open(`/purple-team?run=${runId}${Number.isFinite(engagementId) && engagementId > 0 ? `&engagement=${engagementId}` : ""}`, "_blank", "noopener"));
   $("ch-ai").addEventListener("click", async () => {
     const btn = $("ch-ai") as HTMLButtonElement; btn.disabled = true;
-    $("ch-detail").innerHTML = `<span class="muted">🧠 Analyzing…</span>`;
+    $("ch-detail").innerHTML = `<span class="muted">🧠 ${T("ch.analyzing")}</span>`;
     try {
       const r = await fetch(`/api/ai/chain/${runId}/analyze`, { method: "POST" });
       const d = await r.json(); if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-      $("ch-detail").innerHTML = `<div class="muted" style="margin-bottom:5px">${d.offline ? "AI offline — data summary" : "model: " + esc(d.model)}</div>` + mdLite(d.analysis);
+      $("ch-detail").innerHTML = `<div class="muted" style="margin-bottom:5px">${d.offline ? T("ch.aiOffline") : T("ch.model") + ": " + esc(d.model)}</div>` + mdLite(d.analysis);
     } catch (e) { $("ch-detail").innerHTML = `<span class="muted">⚠️ ${esc(e)}</span>`; }
     finally { btn.disabled = false; }
   });
   $("ch-stop").addEventListener("click", async () => {
-    try { await fetch(`/api/pentest/chain/${runId}/stop`, { method: "POST" }); toast("Run stopped"); await load(); }
+    try { await fetch(`/api/pentest/chain/${runId}/stop`, { method: "POST" }); toast(T("ch.runStopped")); await load(); }
     catch (e) { toast(String(e)); }
   });
   $("ch-export").addEventListener("click", () => {
@@ -196,6 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const blob = new Blob([`<?xml version="1.0"?>\n` + clone.outerHTML], { type: "image/svg+xml" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `attack-chain-${runId}.svg`; a.click();
   });
-  if (!Number.isFinite(runId) || runId <= 0) { toast("No run id"); return; }
+  if (!Number.isFinite(runId) || runId <= 0) { toast(T("ch.noRunId")); return; }
   void load();
 });

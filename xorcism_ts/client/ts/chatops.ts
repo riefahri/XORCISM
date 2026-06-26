@@ -2,8 +2,11 @@
  * chatops.ts — client for the in-app ChatOps console (/chatops). Sends commands to
  * /api/chatops/command and renders the (Slack-mrkdwn-ish) replies as a chat thread.
  */
+// NB: import as T — `t` is used as a local in this file (send()'s `const t = text.trim()`).
+import { initI18n, t as T } from "./i18n";
 const $ = (id: string): HTMLElement | null => document.getElementById(id);
 const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+// Literal commands sent to the server — NOT translated.
 const QUICK = ["posture", "digest", "exposures", "obligations", "ai", "queue", "help"];
 
 /** Minimal Slack-mrkdwn → HTML (escape first). */
@@ -30,16 +33,17 @@ async function send(text: string): Promise<void> {
   try {
     const r = await fetch("/api/chatops/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t }) });
     const d = await r.json();
-    add("bot", d.text || d.error || "(no reply)");
+    add("bot", d.text || d.error || T("chat.noReply"));
   } catch (e) { add("bot", `⚠️ ${(e as Error).message}`); }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initI18n();
   const q = $("quick");
   if (q) for (const c of QUICK) { const b = document.createElement("button"); b.className = "q"; b.textContent = c; b.addEventListener("click", () => void send(c)); q.appendChild(b); }
   const inp = $("inp") as HTMLInputElement;
   const fire = (): void => { const v = inp.value; inp.value = ""; void send(v); };
   $("send")?.addEventListener("click", fire);
   inp?.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") fire(); });
-  add("bot", "*XORCISM ChatOps.* Type `help` for commands, or tap a quick command above.");
+  add("bot", T("chat.welcome"));
 });

@@ -51,7 +51,7 @@ function priorityCell(r: Row): string {
 function rowHtml(r: Row): string {
   const opts = STATUSES.map((s) => `<option${s === r.patchStatus ? " selected" : ""}>${esc(s)}</option>`).join("");
   return `<tr data-id="${r.id}">
-    <td><span class="mono">${esc(r.cve)}</span>${r.kev ? ' <span class="kev">KEV</span>' : ""}${r.exploited && !r.kev ? ' <span class="kev" style="background:#7c2d12">EXPL</span>' : ""}<div class="muted" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name)}</div></td>
+    <td><a class="mono" href="/?db=XVULNERABILITY&table=VULNERABILITY&editCol=VulnerabilityID&editVal=${r.vulnerabilityId}" title="${t("pm.editVuln")}" style="color:#7dd3fc;text-decoration:none">${esc(r.cve)}</a>${r.kev ? ' <span class="kev">KEV</span>' : ""}${r.exploited && !r.kev ? ' <span class="kev" style="background:#7c2d12">EXPL</span>' : ""}<div class="muted" style="font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name)}</div></td>
     <td>${priorityCell(r)}</td>
     <td><a href="/?db=XORCISM&table=ASSET&editCol=AssetID&editVal=${r.assetId}">${esc(r.asset)}</a>${r.criticality ? `<div class="muted" style="font-size:11px">${esc(r.criticality)}${r.publicFacing ? " · internet" : ""}</div>` : (r.publicFacing ? `<div class="muted" style="font-size:11px">internet</div>` : "")}</td>
     <td><span class="sev ${sevClass(r.severity)}">${esc(r.severity)}</span>${r.cvss != null ? `<div class="muted" style="font-size:11px">CVSS ${esc(r.cvss)}</div>` : ""}</td>
