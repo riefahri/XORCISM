@@ -1,0 +1,21 @@
+{
+  "engagement": "Q3 external pentest",
+  "hosts": [
+    {
+      "host": "web01.acme.example", "ip": "203.0.113.10",
+      "services": [
+        { "port": 443, "proto": "tcp", "service": "https", "product": "nginx 1.18.0" },
+        { "port": 22, "proto": "tcp", "service": "ssh", "product": "OpenSSH 8.2" }
+      ],
+      "findings": [
+        { "id": "v1", "title": "Path traversal in upload handler", "severity": "high", "cve": "CVE-2023-1234", "exploited": true, "status": "exploited" },
+        { "id": "v2", "title": "Verbose error stack traces", "severity": "low" }
+      ]
+    },
+    {
+      "host": "db01.acme.internal", "ip": "10.0.5.20",
+      "services": [ { "port": 5432, "proto": "tcp", "service": "postgresql", "product": "PostgreSQL 12" } ],
+      "findings": [ { "id": "v3", "title": "Weak DB credentials reused from web01", "severity": "critical", "exploited": true } ]
+    }
+  ]
+}

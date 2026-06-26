@@ -9,6 +9,7 @@ import { getDb, insertRow, updateRow } from "../db";
 import { topExposures } from "../fusion";
 import { incidentSlaView } from "../sla";
 import { computeEnterpriseRiskScore } from "../riskscore";
+import { adversaryOpportunityIndex } from "../threatdebt";
 import { identityInventory } from "../identities";
 import { assetInventory } from "../assets";
 import { incidentInventory } from "../incidents";
@@ -25,7 +26,7 @@ import { buildOpenApi } from "../openapi";
 import { dispatchWebhook } from "../webhook";
 
 const router = Router();
-const VERSION = "1.5.0-beta.1";
+const VERSION = "1.6.0-beta.1";
 
 const tenantOf = (req: Request): number | null => (req.user!.isSuperAdmin ? null : (req.user!.tenantId ?? null));
 const colset = (dbName: string, table: string): Set<string> => {
@@ -205,6 +206,19 @@ router.get("/risk", (req: Request, res: Response) => {
   if (!gate(req, res, "risk:read")) return;
   const tenant = tenantOf(req);
   res.json({ tenantId: tenant, enterpriseRiskScore: computeEnterpriseRiskScore(tenant) });
+});
+
+// GET /api/v1/adversary-opportunity — the Adversary Opportunity Index (path-organized "threat debt"):
+// the true adversary opportunity in the environment + STOCK/FLOW + the top paydown.
+router.get("/adversary-opportunity", (req: Request, res: Response) => {
+  if (!gate(req, res, "exposure:read")) return;
+  const a = adversaryOpportunityIndex(tenantOf(req));
+  res.json({
+    index: a.index, rawDebt: a.rawDebt, pathData: a.pathData, paths: a.paths, factors: a.factors,
+    flow: { net: a.flow.net, accrued: a.flow.accrued, paidDown: a.flow.paidDown, openItems: a.flow.openItems, since: a.flow.since },
+    bySource: a.bySource.map((s) => ({ source: s.key, items: s.items, status: s.status })),
+    topFix: a.worklist[0] ? { label: a.worklist[0].label, retiresAoi: a.worklist[0].deltaEst, paths: a.worklist[0].paths } : null,
+  });
 });
 
 // ── Governance (inventory + worklists) ─────────────────────────────────────────

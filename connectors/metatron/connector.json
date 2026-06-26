@@ -1,0 +1,15 @@
+{
+  "id": "metatron",
+  "name": "Metatron — Offensive Security / Penetration Testing",
+  "type": "import",
+  "category": "Penetration Testing",
+  "description": "Imports a Metatron penetration-test / engagement export into XORCISM: discovered hosts become ASSETs, open services become services, and enumerated vulnerabilities / exploited findings become vulnerabilities on their host (confirmed exploits flagged exploitable). The host -> service -> exploit -> impact steps feed pentest attack chains (XCHAIN) for the /pentest/chain viewer. INTRUSIVE / authorized-targets only — run under a signed Rules of Engagement. Config: METATRON_API_URL + METATRON_API_TOKEN for live pull, or pass `file` = a Metatron export JSON (or run with no config for the bundled sample).",
+  "intrusive": true,
+  "permission": "connector:metatron",
+  "run": "run.py",
+  "mapping": "metatron",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 2000, "min": 1, "max": 20000, "help": "Maximum findings to import" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved Metatron engagement export JSON" }
+  ]
+}

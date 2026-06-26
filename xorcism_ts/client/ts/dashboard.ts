@@ -585,6 +585,8 @@ async function initRiskHeatmap(): Promise<void> {
 // Security-posture KPI strip — aggregates the governance module summaries.
 interface Kpis {
   riskScore: number | null;
+  adversaryOpportunity: { index: number; date: string; net: number | null } | null;
+  insurance: { score: number; grade: string; gap: number; critical: number } | null;
   assets: { total: number; crownJewels: number; internetFacing: number; criticalVulns: number; unbacked: number; noOwner: number } | null;
   identities: { total: number; privileged: number; orphaned: number; mfaGaps: number } | null;
   incidents: { open: number; criticalOpen: number; breached: number; mttrHours: number | null; mttdMinutes: number | null } | null;
@@ -615,6 +617,15 @@ async function initKpis(): Promise<void> {
   };
 
   tile(k.riskScore, "Enterprise risk", "risk × value", "/exposure", riskColor(k.riskScore ?? 0));
+  if (k.adversaryOpportunity) {
+    const ao = k.adversaryOpportunity;
+    const aoColor = ao.index >= 600 ? "#f87171" : ao.index >= 300 ? "#fbbf24" : "#34d399";
+    const foot = ao.net == null ? "true adversary opportunity" : ao.net < 0 ? `▼ ${Math.abs(ao.net)} paid down` : ao.net > 0 ? `▲ ${ao.net} accrued` : "flat — no change";
+    tile(ao.index, "Adversary opportunity", foot, "/adversary-opportunity", aoColor);
+  }
+  if (k.insurance) {
+    tile(`${k.insurance.grade}`, "Insurance readiness", `${k.insurance.score}/100 · ${k.insurance.gap} gap(s)`, "/insurance-readiness", pctColor(k.insurance.score));
+  }
   if (k.assets) {
     tile(k.assets.crownJewels, "Crown jewels", `of ${k.assets.total} assets`, "/asset-management", "#7c83fd");
     tile(k.assets.criticalVulns, "Assets · KEV/critical", "open critical vulns", "/asset-management", badColor(k.assets.criticalVulns));

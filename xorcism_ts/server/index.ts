@@ -126,6 +126,10 @@ import fairtefRouter from "./routes/fairtef";
 import devsecopsRouter from "./routes/devsecops";
 import riskRegisterRouter from "./routes/riskregister";
 import pqcmmRouter from "./routes/pqcmm";
+import threatDebtRouter from "./routes/threatdebt";
+import { ensureThreatDebtTables, seedThreatDebtDemo } from "./threatdebt";
+import insuranceRouter from "./routes/insurance";
+import { ensureInsuranceTables } from "./insurance";
 import scaRouter from "./routes/sca";
 import toolsRouter from "./routes/tools";
 import tidRouter from "./routes/tid";
@@ -323,6 +327,8 @@ app.use("/api", fairtefRouter); // FAIR-TEF: threat/loss event frequency estimat
 app.use("/api", devsecopsRouter); // DevSecOps operations: pipeline security scans coverage + gates + posture
 app.use("/api", riskRegisterRouter); // Risk Register: inherent→residual posture + treatment worklist (CRQ/FAIR ALE)
 app.use("/api", pqcmmRouter); // PQCMM: post-quantum-crypto maturity assessment (quantum-readiness posture)
+app.use("/api", threatDebtRouter); // Adversary Opportunity Index (AOI): path-organized "threat debt" top-line + STOCK/FLOW
+app.use("/api", insuranceRouter); // Cyber Insurance Readiness: insurer control checklist mapped to live signals
 app.use("/api", scaRouter); // SCA / SBOM: software composition analysis, CycloneDX/SPDX import-export + graph
 app.use("/api", toolsRouter); // TOOL catalogue + GitHub-style stars (/tools)
 app.use("/api", tidRouter); // Threat-Informed Defense: ATT&CK technique coverage (adversary use vs detect/mitigate/test)
@@ -657,6 +663,12 @@ app.get("/risk-register", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/pqcmm", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "pqcmm.html"));
 });
+app.get("/adversary-opportunity", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "adversary-opportunity.html"));
+});
+app.get("/insurance-readiness", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "insurance-readiness.html"));
+});
 app.get("/sca", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "sca.html"));
 });
@@ -792,6 +804,7 @@ ensureFrameworkVocabulary(); seedFrameworks(); // Frameworks management: FRAMEWO
 ensureTahitiColumns(); // TaHiTI methodology: HUNT.TahitiPhase + TahitiTrigger columns
 ensureAiGuardTables(); // AI-agent guardrails: AIAGENT / AIGUARDRAILRESULT / AIGUARDRAILVIOLATION (XAGENT)
 try { seedCrocDemo(3); } catch { /* demo only */ } // CROC value demo (tenant 3): 24h bidirectional loop feed + 30-day improving resilience
+try { seedThreatDebtDemo(3); } catch { /* demo only */ } // AOI demo (tenant 3): 30-day improving (paid-down) Adversary Opportunity Index history
 try { seedTprmDemo(3); } catch { /* demo only */ } // TPRM demo (tenant 3): 4 vendors with tiers, posture, conformance, findings
 ensureLandingAccessTable(); // landing-menu NICE-profile access control store
 seedFeaturePageGrants([...FEATURE_PAGE_PATHS]); // full RBAC: per-boot top-up so base roles keep access to existing + newly-added feature pages
@@ -809,6 +822,8 @@ ensureNist80030Tables(); // NIST SP 800-30 risk assessment in XCOMPLIANCE: reuse
 ensureOtSecurityTables(); // OT/ICS Security (IEC 62443/NIST 800-82): reuses AUDIT + OTZONE/OTCONDUIT/OTZONEASSET stubs
 ensureFairMamTables(); // FAIR-MAM materiality assessment model: FAIRMAMCATEGORY taxonomy + FAIRMAMASSESSMENT/LINEITEM
 ensurePqcmmTables(); // PQCMM post-quantum-crypto maturity model: PQCMMLEVEL taxonomy + PQCMMASSESSMENT
+ensureThreatDebtTables(); // Adversary Opportunity Index: THREATDEBTSNAPSHOT (AOI STOCK/FLOW history)
+ensureInsuranceTables(); // Cyber Insurance Readiness: CYBERINSURANCEPOLICY (carrier / limit / renewal record)
 ensureScaTables(); // SCA / SBOM: SBOM + enriched COMPONENT + COMPONENTDEPENDENCY (CycloneDX/SPDX over CPE inventory)
 ensureToolStarTable(); // XORCISM.TOOLSTAR — per-user GitHub-style stars on the TOOL catalogue
 ensureTenantColumns(); // adds TenantID to the operational tables (best-effort)

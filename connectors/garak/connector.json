@@ -1,0 +1,14 @@
+{
+  "id": "garak",
+  "name": "garak — LLM red-team import",
+  "type": "import",
+  "category": "AI Security",
+  "description": "Imports a garak (github.com/NVIDIA/garak, the LLM vulnerability scanner) report into the XORCISM LLM red-team / AI-BAS module. Parses report.jsonl (newline-delimited JSON) or a summary JSON, normalizes each probe's outcome to the OWASP LLM Top 10 (prompt injection, sensitive-info disclosure, insecure output, misinformation, ...), and produces the result list ingested by POST /api/ai-redteam/import/<aiSystemId>. Complements the offline guardrail-coverage assessment at /ai-redteam with ground-truth attack outcomes against a registered AI system. Offline: pass `file`, or run with the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:garak",
+  "run": "run.py",
+  "mapping": "garak",
+  "parameters": [
+    { "name": "file", "type": "file", "required": false, "help": "A garak report.jsonl or summary JSON to parse" }
+  ]
+}

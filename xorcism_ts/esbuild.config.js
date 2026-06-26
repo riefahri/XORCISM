@@ -49,6 +49,8 @@ const entryPoints = [
   "client/ts/devsecops.ts",
   "client/ts/risk-register.ts",
   "client/ts/pqcmm.ts",
+  "client/ts/adversary-opportunity.ts",
+  "client/ts/insurance-readiness.ts",
   "client/ts/sca.ts",
   "client/ts/tools.ts",
   "client/ts/threat-model.ts",

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Adversary Opportunity Index</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1340px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:14px;max-width:1080px;line-height:1.5}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:26px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .hero{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:center;background:#13162a;border:1px solid #2d3250;border-radius:14px;padding:18px 20px;margin-bottom:16px}
+  .gauge{text-align:center}.gauge .n{font-size:54px;font-weight:800;line-height:1}.gauge .d{font-size:12px;color:#94a3b8;margin-top:4px}
+  .flow{font-size:13px;margin-top:6px}.dn{color:#34d399}.up{color:#f87171}.flat2{color:#94a3b8}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:10px}.sec .spacer{flex:1}
+  table.t{width:100%;border-collapse:collapse;font-size:13px}table.t th,table.t td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}table.t th{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .nm{font-weight:600;color:#e2e8f0}.muted{color:#64748b}
+  .src{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+  .srcc{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:10px 12px}
+  .srcc .h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:#e2e8f0}
+  .srcc .n{margin-left:auto;font-size:18px;font-weight:700}.srcc .x{font-size:11px;color:#64748b;margin-top:3px;line-height:1.4}
+  .tag{font-size:9px;font-weight:700;border-radius:5px;padding:1px 6px;text-transform:uppercase}.tag-live{background:#14532d;color:#bbf7d0}.tag-tracked{background:#1e2133;color:#94a3b8}
+  .btn{background:#8b5cf6;border:none;color:#fff;border-radius:7px;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer}.btn:hover{background:#a78bfa}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:12px;padding:6px 11px;cursor:pointer}.btn-sm2:hover{border-color:#a78bfa}
+  .pill{display:inline-block;font-size:11px;background:#1e2440;border:1px solid #2d3250;border-radius:20px;padding:2px 9px;margin:2px;color:#cbd5e1}
+  .lic{font-size:11px;color:#64748b;margin-top:22px;border-top:1px solid #1e2133;padding-top:10px;line-height:1.5}
+  .delta{color:#34d399;font-weight:700}
+</style></head><body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/exposure">&#127919; Exposure</a>
+  <a href="/attack-path">&#128376; Attack paths</a>
+  <a href="/threat-informed-defense">&#128737; TID</a>
+  <a href="/board-report">&#128202; Board</a>
+  <span class="spacer"></span>
+  <span class="title">&#128176; Adversary Opportunity Index</span>
+</div>
+<div class="mw">
+  <div style="display:flex;align-items:flex-start;gap:12px">
+    <h1 style="flex:1">Adversary Opportunity Index <span class="muted" style="font-size:13px;font-weight:400">— the path-organized "threat debt" top-line</span></h1>
+    <button class="btn-sm2" id="snap">Record snapshot</button>
+  </div>
+  <div class="sub">One derived number for the <b>true adversary opportunity</b> in your environment: every gap that sits on a
+    <b>viable attack path</b> to a crown jewel (the Attack Path Test), weighted by exploitability, by the
+    adversaries that actually use those techniques, by business impact, and <b>net of the controls you can prove</b>.
+    The attacker's-eye sibling of the Enterprise Risk Score. Lower is better; it moves only when real exposure changes.</div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
+  <div class="lic">AOI is a Phase-1 composition over your attack-path graph, threat-informed-defense coverage and control
+    assurance. STOCK = today's balance; FLOW = net change vs the previous snapshot. Item-level paid-down/accrued
+    accounting and the agentic paydown loop are Phase 2.</div>
+</div>
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/adversary-opportunity.js"></script>
+</body></html>

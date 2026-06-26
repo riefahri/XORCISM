@@ -8,6 +8,7 @@
  */
 import { getDb } from "./db";
 import { enterpriseRiskBreakdown } from "./riskscore";
+import { threatDebtLatest } from "./threatdebt";
 
 const safe = <T>(fn: () => T, dflt: T): T => { try { return fn(); } catch { return dflt; } };
 // Posture score = 200/(200+EnterpriseRisk) × 100 (mirrors boardreport.ts).
@@ -15,7 +16,7 @@ const postureScore = (enterpriseRisk: number): number => Math.round((200 / (200 
 const grade = (s: number): string => (s >= 85 ? "A" : s >= 70 ? "B" : s >= 55 ? "C" : s >= 40 ? "D" : "F");
 
 interface TenantRow {
-  tenant: number; name: string; posture: number; grade: string; enterpriseRisk: number;
+  tenant: number; name: string; posture: number; grade: string; enterpriseRisk: number; aoi: number | null;
   assets: number; openVulns: number; kev: number; openIncidents: number; openFindings: number; aiGaps: number;
 }
 
@@ -74,7 +75,8 @@ function tenantRow(t: { id: number; name: string }): TenantRow {
     if (!xo2.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='AISYSTEM'").get()) return 0;
     return (xo2.prepare("SELECT COUNT(*) n FROM AISYSTEM WHERE (TenantID=? OR TenantID IS NULL) AND (Frameworks IS NULL OR Frameworks='' OR Guardrails IS NULL OR Guardrails='')").get(t.id) as { n: number }).n;
   }, 0);
-  return { tenant: t.id, name: t.name, posture, grade: grade(posture), enterpriseRisk: Math.round(breakdown.total || 0), assets, openVulns, kev, openIncidents, openFindings, aiGaps };
+  const aoi = safe(() => threatDebtLatest(t.id)?.index ?? null, null); // latest AOI snapshot (cheap read)
+  return { tenant: t.id, name: t.name, posture, grade: grade(posture), enterpriseRisk: Math.round(breakdown.total || 0), aoi, assets, openVulns, kev, openIncidents, openFindings, aiGaps };
 }
 
 export function msspRollup(): any {
@@ -84,6 +86,7 @@ export function msspRollup(): any {
     tenants: rows.length,
     avgPosture: rows.length ? Math.round(rows.reduce((s, r) => s + r.posture, 0) / rows.length) : 0,
     atRisk: rows.filter((r) => r.posture < 55).length,
+    avgAoi: (() => { const w = rows.filter((r) => r.aoi != null); return w.length ? Math.round(w.reduce((s, r) => s + (r.aoi as number), 0) / w.length) : null; })(),
     totalKev: rows.reduce((s, r) => s + r.kev, 0),
     totalOpenIncidents: rows.reduce((s, r) => s + r.openIncidents, 0),
     totalOpenFindings: rows.reduce((s, r) => s + r.openFindings, 0),

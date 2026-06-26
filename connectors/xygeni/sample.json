@@ -1,0 +1,11 @@
+{
+  "project": "acme-checkout",
+  "findings": [
+    { "id": "f1", "category": "SCA", "title": "Prototype pollution in lodash", "severity": "high", "cve": "CVE-2021-23337", "component": { "name": "lodash", "version": "4.17.19" } },
+    { "id": "f2", "category": "secret", "title": "AWS access key", "severity": "critical", "file": "src/config/aws.js" },
+    { "id": "f3", "category": "malicious-package", "title": "Typosquat install hook", "severity": "critical", "component": { "name": "reqeusts", "version": "0.0.1" } },
+    { "id": "f4", "category": "IaC", "title": "S3 bucket public-read ACL", "severity": "high", "path": "infra/s3.tf" },
+    { "id": "f5", "category": "SAST", "title": "SQL injection in order lookup", "severity": "high", "file": "src/api/orders.js" },
+    { "id": "f6", "category": "CI-CD", "title": "Unpinned GitHub Action (supply-chain)", "severity": "medium", "path": ".github/workflows/build.yml" }
+  ]
+}

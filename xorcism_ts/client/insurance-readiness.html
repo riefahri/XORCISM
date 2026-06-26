@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Cyber Insurance Readiness</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .mw{max-width:1280px;margin:0 auto;padding:18px}.mw h1{font-size:20px;margin:0 0 2px}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:14px;max-width:1040px;line-height:1.5}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}.card .val{font-size:26px;font-weight:700;margin-top:3px}.card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .hero{display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:center;background:#13162a;border:1px solid #2d3250;border-radius:14px;padding:18px 20px;margin-bottom:16px}
+  .gauge{text-align:center}.gauge .n{font-size:52px;font-weight:800;line-height:1}.gauge .g{font-size:13px;color:#94a3b8;margin-top:4px}
+  .sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+  table.t{width:100%;border-collapse:collapse;font-size:13px}table.t th,table.t td{text-align:left;padding:7px 9px;border-bottom:1px solid #1e2133;vertical-align:top}table.t th{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .nm{font-weight:600;color:#e2e8f0}.muted{color:#64748b}
+  .st{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
+  .st-met{background:#14532d;color:#bbf7d0}.st-partial{background:#78350f;color:#fcd34d}.st-gap{background:#7f1d1d;color:#fecaca}.st-attest{background:#1e2133;color:#94a3b8}
+  .bar{display:inline-block;height:7px;border-radius:4px;vertical-align:middle}
+  .lic{font-size:11px;color:#64748b;margin-top:22px;border-top:1px solid #1e2133;padding-top:10px;line-height:1.5}
+  .pol{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#13162a;border:1px solid #2d3250;border-radius:12px;padding:14px 16px;margin-bottom:16px}
+  .pol .kv{font-size:12.5px;color:#cbd5e1;line-height:1.8}.pol .kv b{color:#e2e8f0}.pol .lab{font-size:11px;color:#94a3b8;text-transform:uppercase}
+  .btn{background:#0ea5e9;border:none;color:#fff;border-radius:7px;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer}.btn:hover{background:#38bdf8}
+  .btn-sm2{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:12px;padding:6px 11px;cursor:pointer}.btn-sm2:hover{border-color:#38bdf8}
+  .modal{position:fixed;inset:0;background:rgba(4,6,15,.66);display:none;align-items:flex-start;justify-content:center;z-index:1000;overflow:auto;padding:40px 16px}
+  .modal.open{display:flex}.modal .box{background:#13162a;border:1px solid #2d3250;border-radius:14px;width:560px;max-width:100%;padding:20px 22px}
+  .modal h3{margin:0 0 12px;font-size:16px;color:#e2e8f0}.fld{margin-bottom:11px}.fld label{display:block;font-size:11px;color:#94a3b8;text-transform:uppercase;margin-bottom:4px}
+  .inp{background:#0f1117;border:1px solid #2d3250;border-radius:7px;padding:8px 10px;color:#e2e8f0;font-size:13px;width:100%;box-sizing:border-box}.inp:focus{outline:none;border-color:#38bdf8}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}.err{color:#f87171;font-size:12px;min-height:15px}
+</style></head><body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/board-report">&#128202; Board</a>
+  <a href="/adversary-opportunity">&#128176; AOI</a>
+  <a href="/assurance">&#9989; Assurance</a>
+  <span class="spacer"></span>
+  <span class="title">&#128737; Cyber Insurance Readiness</span>
+</div>
+<div class="mw">
+  <h1>Cyber Insurance Readiness</h1>
+  <div class="sub">The <b>insurer's view</b> of your estate — the third lens alongside the defender's Enterprise Risk Score
+    and the attacker's Adversary Opportunity Index. Every renewal now hinges on a "ransomware supplemental" control
+    checklist; this maps each required control to your <b>live XORCISM signals</b> (MFA, backups, patching, monitoring,
+    segmentation, tested IR…) and scores your renewal readiness, ordered by underwriting weight.</div>
+  <div id="body"><div class="muted" style="padding:24px;text-align:center">Loading…</div></div>
+  <div class="lic">Readiness is an internal planning aid derived from live signals — not an underwriting decision or a
+    guarantee of coverage. Confirm the self-attested controls and your actual policy terms with your broker/carrier.</div>
+</div>
+<div class="modal" id="pol-modal">
+  <div class="box">
+    <h3>Cyber-insurance policy</h3>
+    <div class="row2">
+      <div class="fld"><label>Carrier</label><input class="inp" id="pc-carrier" placeholder="e.g. Acme Cyber"></div>
+      <div class="fld"><label>Policy number</label><input class="inp" id="pc-policynum" placeholder="optional"></div>
+    </div>
+    <div class="row2">
+      <div class="fld"><label>Coverage limit</label><input class="inp" id="pc-limit" type="number" min="0" placeholder="e.g. 5000000"></div>
+      <div class="fld"><label>Retention / deductible</label><input class="inp" id="pc-retention" type="number" min="0" placeholder="e.g. 100000"></div>
+    </div>
+    <div class="row2">
+      <div class="fld"><label>Annual premium</label><input class="inp" id="pc-premium" type="number" min="0" placeholder="optional"></div>
+      <div class="fld"><label>Currency</label><input class="inp" id="pc-currency" placeholder="USD" value="USD"></div>
+    </div>
+    <div class="row2">
+      <div class="fld"><label>Renewal date</label><input class="inp" id="pc-renewal" type="date"></div>
+      <div class="fld"><label>Status</label><select class="inp" id="pc-status"><option>Active</option><option>Quoted</option><option>Lapsed</option><option>Declined</option></select></div>
+    </div>
+    <div class="fld"><label>Notes</label><input class="inp" id="pc-notes" placeholder="optional"></div>
+    <div class="err" id="pc-err"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn-sm2" id="pc-cancel">Cancel</button>
+      <button class="btn" id="pc-save">Save policy</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/insurance-readiness.js"></script>
+</body></html>

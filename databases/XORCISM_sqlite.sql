@@ -26709,4 +26709,62 @@ CREATE TABLE IF NOT EXISTS "CONTROLPOAM" (
 CREATE INDEX IF NOT EXISTS ix_ctrlpoam_control ON "CONTROLPOAM"("ControlID");
 CREATE INDEX IF NOT EXISTS ix_ctrlpoam_tenant ON "CONTROLPOAM"("TenantID");
 
+-- Backup/restore TEST log against a BACKUPPLAN (manage backup testing: restore / integrity / failover).
+CREATE TABLE IF NOT EXISTS "BACKUPTEST" (
+  "BackupTestID" INTEGER PRIMARY KEY,
+  "BackupTestGUID" TEXT,
+  "BackupPlanID" INTEGER,
+  "AssetID" INTEGER,
+  "TestDate" DATE,
+  "TestType" TEXT,
+  "Result" TEXT,
+  "RTOAchievedHours" REAL,
+  "RPOAchievedHours" REAL,
+  "DataIntegrityVerified" INTEGER,
+  "TestedByPersonID" INTEGER,
+  "Findings" TEXT,
+  "NextTestDue" DATE,
+  "Notes" TEXT,
+  "CreatedDate" DATE,
+  "TenantID" INTEGER);
+CREATE INDEX IF NOT EXISTS ix_backuptest_plan ON "BACKUPTEST"("BackupPlanID");
+CREATE INDEX IF NOT EXISTS ix_backuptest_tenant ON "BACKUPTEST"("TenantID");
+
+-- Adversary Opportunity Index (AOI) — STOCK/FLOW snapshot history + the item-level debt ledger.
+CREATE TABLE IF NOT EXISTS "THREATDEBTSNAPSHOT" (
+  "SnapshotID" INTEGER PRIMARY KEY,
+  "TenantID" INTEGER,
+  "CreatedDate" TEXT,
+  "AOI" INTEGER,
+  "RawDebt" REAL,
+  "Paths" INTEGER);
+CREATE TABLE IF NOT EXISTS "THREATDEBTLEDGER" (
+  "LedgerID" INTEGER PRIMARY KEY,
+  "TenantID" INTEGER,
+  "ItemKey" TEXT,
+  "Source" TEXT,
+  "Label" TEXT,
+  "Debt" REAL,
+  "OpenedDate" TEXT,
+  "LastSeenDate" TEXT,
+  "ClosedDate" TEXT,
+  "CtemExposureID" INTEGER);
+CREATE INDEX IF NOT EXISTS IX_TDLEDGER_OPEN ON "THREATDEBTLEDGER"("TenantID","ClosedDate");
+
+-- Cyber Insurance Readiness — the tenant's policy record (carrier / limit / renewal).
+CREATE TABLE IF NOT EXISTS "CYBERINSURANCEPOLICY" (
+  "PolicyID" INTEGER PRIMARY KEY,
+  "TenantID" INTEGER,
+  "Carrier" TEXT,
+  "PolicyNumber" TEXT,
+  "CoverageLimit" REAL,
+  "Retention" REAL,
+  "Premium" REAL,
+  "Currency" TEXT,
+  "RenewalDate" TEXT,
+  "Status" TEXT,
+  "Notes" TEXT,
+  "CreatedDate" TEXT,
+  "UpdatedDate" TEXT);
+
 COMMIT;

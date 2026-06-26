@@ -53,6 +53,7 @@ const TOOLS = [
   { name: "compliance_posture", description: "Compliance inventory + posture score (audits/findings/policies).", schema: {}, run: () => api("GET", "/compliance-management") },
   { name: "risk_register", description: "Risk register: inherent→residual posture + treatment worklist.", schema: {}, run: () => api("GET", "/risk-register") },
   { name: "threat_informed_defense", description: "ATT&CK technique coverage (adversary use vs detect/mitigate/test).", schema: {}, run: () => api("GET", "/threat-informed-defense") },
+  { name: "adversary_opportunity", description: "Adversary Opportunity Index (path-organized 'threat debt'): the true adversary opportunity (0-1000) + STOCK/FLOW (paid-down/accrued) + the top paydown.", schema: {}, run: () => api("GET", "/adversary-opportunity") },
   { name: "xorcism_get", description: "Escape hatch: GET any read endpoint under /api/v1 (e.g. '/pqcmm', '/sca', '/fair-mam').",
     schema: { path: { type: "string", description: "a path under /api/v1 starting with /", required: true } },
     run: (a) => api("GET", a.path.startsWith("/") ? a.path : "/" + a.path) },

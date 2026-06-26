@@ -1,0 +1,15 @@
+{
+  "id": "xygeni",
+  "name": "Xygeni — Software Supply Chain Security (SSCS / ASPM)",
+  "type": "import",
+  "category": "DevSecOps",
+  "description": "Imports findings and supply-chain posture from Xygeni (SSCS/ASPM: SAST, SCA/SBOM, secrets, IaC, container, malicious-package/malware detection, CI/CD misconfiguration, and build/pipeline SLSA provenance). Each Xygeni project becomes a project context; SCA component vulnerabilities become vulnerabilities on the project asset (CVE-linked where present), and secrets / IaC / SAST / malicious-package issues become findings. Config (worker environment variables): XYGENI_API_URL (default https://api.xygeni.io), XYGENI_API_TOKEN. Offline: pass `file` = a Xygeni export JSON, or run with no config for the bundled sample.",
+  "intrusive": false,
+  "permission": "connector:xygeni",
+  "run": "run.py",
+  "mapping": "xygeni",
+  "parameters": [
+    { "name": "limit", "type": "int", "default": 1000, "min": 1, "max": 10000, "help": "Maximum findings to import" },
+    { "name": "file", "type": "file", "required": false, "help": "Offline: a saved Xygeni export JSON to parse instead of the live API" }
+  ]
+}

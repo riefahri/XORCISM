@@ -13,6 +13,7 @@
 import { randomUUID } from "crypto";
 import { allocId, getDb, createNotification } from "./db";
 import { emitLoopEvent } from "./croc";
+import { mobilizeToCtem, topOpenItemKeys } from "./threatdebt";
 import { dispatchSoar, soarDashboard, runSoarPlaybook } from "./soar";
 
 const now = (): string => new Date().toISOString();
@@ -58,6 +59,8 @@ function propose(ev: { EventType: string; Summary: string; Severity: string }): 
     return mk("compliance-impl", "Open a remediation task for the failing control and assign an owner with a due date; attach evidence on closure.", "Failing controls and missed obligations are audit/regulatory risk; tracked remediation restores assurance.", 72, s || "Control / obligation gap");
   if (/ai|model|llm|prompt|guardrail/.test(t))
     return mk("ai-governance", "Review the AI system in the inventory; add the missing governing framework/guardrails and (if personal data) a DPIA.", "Ungoverned high-risk AI is EU-AI-Act and operational risk; the AI inventory tracks the gap.", 70, s || "AI governance signal");
+  if (/threatdebt|adversary|opportunity|paydown/.test(t))
+    return mk("threatdebt-paydown", s || "Pay down the highest-ROI adversary opportunity: harden the top choke point or close the highest-debt finding, then re-snapshot to confirm the AOI drop.", "Newly-accrued adversary opportunity compounds; retiring the highest-debt path/finding first removes the most attacker options per unit of effort (price-the-fix).", 75, s ? `Pay down: ${s.slice(0, 80)}` : "Adversary opportunity accrued");
   return mk("soc-triage", "Triage the signal, confirm true/false positive, and assign an owner if it warrants action.", "Every high/critical loop event deserves a verdict and, if real, an owner.", 60, s || `${ev.EventType} event`);
 }
 
@@ -133,6 +136,10 @@ function executeApprovedAction(a: any, tenant: number | null): string {
     else parts.push("no enabled SOAR playbook — response logged");
   } catch { /* */ }
   try { void dispatchSoar(tenant, { action: "croc-approved", eventType: a.EventType, severity: a.Severity, summary: a.Title, refs: [`crocaction:${a.ActionID}`] }); } catch { /* */ }
+  // "Pay down through CTEM": an approved AOI paydown becomes a tracked CTEM exposure (Prioritize stage).
+  if (String(a.EventType || "").toLowerCase().startsWith("threatdebt")) {
+    try { const ex = mobilizeToCtem(tenant, { title: String(a.Title || "AOI paydown"), severity: a.Severity, ledgerKeys: topOpenItemKeys(tenant, 5) }); if (ex) parts.push(`tracked in CTEM (exposure #${ex.id})`); } catch { /* */ }
+  }
   try { emitLoopEvent({ type: "croc.action_executed", source: "orchestrator", summary: `Executed: ${String(a.RecommendedAction).slice(0, 180)}`, severity: "info", tenant, assetId: a.AssetID ?? undefined }); parts.push("loop closed"); } catch { /* */ }
   return parts.join("; ");
 }

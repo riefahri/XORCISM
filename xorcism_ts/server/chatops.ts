@@ -8,6 +8,8 @@
  */
 import crypto from "crypto";
 import { boardReport } from "./boardreport";
+import { adversaryOpportunityIndex } from "./threatdebt";
+import { insuranceReadiness, insuranceProgram } from "./insurance";
 import { generateDigest } from "./crocdigest";
 import { topExposures } from "./fusion";
 import { regCalendar } from "./regobligations";
@@ -21,6 +23,8 @@ const safe = <T>(fn: () => T, dflt: T): T => { try { return fn(); } catch { retu
 const HELP = [
   "*XORCISM ChatOps* — commands:",
   "• `posture` — enterprise posture score & trend",
+  "• `aoi` — Adversary Opportunity Index (path-organized 'threat debt') + top paydown",
+  "• `insurance` — cyber-insurance renewal readiness + coverage adequacy",
   "• `digest` — today's CROC standup (priorities)",
   "• `exposures` — top prioritised exposures",
   "• `obligations` — overdue / imminent regulatory deadlines",
@@ -41,6 +45,24 @@ export function dispatchCommand(raw: string, ctx: ChatContext): ChatReply {
       const r = safe(() => boardReport(ctx.tenant), null as any);
       if (!r) return { text: "Posture unavailable." };
       return { text: `*Posture ${r.posture.score}/100 (${r.posture.grade})* — ${r.posture.verdict}. Enterprise risk ${r.posture.enterpriseRisk}; trend *${r.trend.direction}*. ${r.criticalAssets.atRisk}/${r.criticalAssets.total} crown jewels at risk.` };
+    }
+    case "aoi": case "debt": case "threat-debt": case "threatdebt": {
+      const a = safe(() => adversaryOpportunityIndex(ctx.tenant), null as any);
+      if (!a) return { text: "Adversary Opportunity Index unavailable." };
+      const f = a.flow;
+      const move = f.net == null ? "baseline" : f.net < 0 ? `:small_red_triangle_down: ${Math.abs(f.net)} paid down` : f.net > 0 ? `:small_red_triangle: ${f.net} accrued` : "flat";
+      const split = (f.paidDown || f.accrued) ? ` (${f.paidDown} paid / ${f.accrued} accrued)` : "";
+      const fix = a.worklist[0] ? `\nTop paydown: harden *${a.worklist[0].label}* (~ -${a.worklist[0].deltaEst} AOI, ${a.worklist[0].paths} path[s]).` : "";
+      return { text: `*Adversary Opportunity Index: ${a.index}/1000* — ${move}${split}. ${a.paths.found} path(s) to ${a.paths.jewels} crown jewel(s); ${f.openItems} open debt item(s).${fix}` };
+    }
+    case "insurance": case "cyber-insurance": case "policy": {
+      const r = safe(() => insuranceReadiness(ctx.tenant), null as any);
+      if (!r) return { text: "Insurance readiness unavailable." };
+      const pg = safe(() => insuranceProgram(ctx.tenant), null as any);
+      const cov = pg && pg.coverage.adequacy === "underinsured" ? ` :warning: underinsured by ${pg.coverage.currency} ${Math.round(pg.coverage.gap).toLocaleString()}` : pg && pg.coverage.adequacy === "covered" ? " :white_check_mark: limit covers modeled loss" : "";
+      const ren = pg && pg.renewal.daysToRenewal != null ? ` Renewal in ${pg.renewal.daysToRenewal}d.` : "";
+      const top = r.worklist[0] ? `\nFix first: *${r.worklist[0].name}* — ${r.worklist[0].metric}.` : "";
+      return { text: `*Cyber-insurance readiness: ${r.score}/100 (${r.grade})* — ${r.verdict}. ${r.summary.gap} gap(s), ${r.summary.critical} high-weight.${cov}.${ren}${top}` };
     }
     case "digest": case "standup": {
       const d = safe(() => generateDigest(ctx.tenant), null as any);

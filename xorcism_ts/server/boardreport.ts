@@ -21,6 +21,8 @@ import { getDb, resolveUserOrganisationId, notifyUsers } from "./db";
 import { enterpriseRiskBreakdown, organisationRiskHistory } from "./riskscore";
 import { topExposures } from "./fusion";
 import { attackPathGraph } from "./attackpath";
+import { adversaryOpportunityIndex } from "./threatdebt";
+import { insuranceReadiness } from "./insurance";
 import { riskHunting } from "./croc";
 import { socDashboard } from "./soc";
 
@@ -94,6 +96,8 @@ export interface BoardReport {
   posture: { score: number; grade: string; verdict: string; enterpriseRisk: number; drivers: { key: string; label: string; value: number }[] };
   trend: { points: { date: string; posture: number; risk: number }[]; direction: "improving" | "worsening" | "flat"; deltaPct: number; startScore: number; currentScore: number; rangeDays: number };
   criticalAssets: { total: number; atRisk: number; pctAtRisk: number; pathsFound: number; entries: number };
+  adversaryOpportunity: { index: number; net: number | null; defenceResidual: number; topFix: string | null };
+  insurance: { score: number; grade: string; gap: number; critical: number; topGap: string | null };
   risks: { ref: string; priority: number; kev: boolean; exploits: number; assets: number; epssPct: number | null; whyItMatters: string }[];
   remediation: { label: string; paths: number; rationale: string }[];
   financial: { aleTotal: number; topRisks: { title: string; level: string; ale: number | null }[] };
@@ -133,6 +137,11 @@ export function boardReport(tenant: number | null): BoardReport {
     label: c.label, paths: c.paths,
     rationale: `Sits on ${c.paths} attack path(s) to crown jewels — hardening or segmenting it breaks the most routes for the least cost (highest ROI).`,
   }));
+
+  // — Adversary Opportunity Index (AOI) — the path-organized "threat debt" top-line (reuse ap graph) —
+  const aoi = adversaryOpportunityIndex(tenant, ap);
+  // — Cyber-insurance renewal readiness (reuse ap graph) —
+  const ins = insuranceReadiness(tenant, ap);
 
   // — Top business-framed risks (the "what are the risks" answer) —
   const top = topExposures(tenant, 12).results;
@@ -207,6 +216,8 @@ export function boardReport(tenant: number | null): BoardReport {
     posture: { score, grade: grade(score), verdict: verdict(score), enterpriseRisk: breakdown.total, drivers: breakdown.drivers },
     trend: { points, direction, deltaPct, startScore, currentScore, rangeDays },
     criticalAssets: { total: jewels, atRisk, pctAtRisk, pathsFound: ap.stats.pathsFound, entries: ap.stats.entries },
+    adversaryOpportunity: { index: aoi.index, net: aoi.flow.net, defenceResidual: aoi.factors.defenceResidual, topFix: aoi.worklist[0]?.label ?? null },
+    insurance: { score: ins.score, grade: ins.grade, gap: ins.summary.gap, critical: ins.summary.critical, topGap: ins.worklist[0]?.name ?? null },
     risks,
     remediation,
     financial: { aleTotal: fin.aleTotal, topRisks: fin.rows },

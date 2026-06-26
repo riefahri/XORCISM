@@ -9,6 +9,36 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 
 ---
 
+## [1.6.0-beta.1] — 2026-06-26
+
+A **risk-quantification, privacy & supply-chain** release, headlined by two new top-line lenses that
+join the defender's Enterprise Risk Score:
+
+- **Adversary Opportunity Index (AOI)** (`/adversary-opportunity`) — the *attacker's-eye* "threat debt"
+  top-line. A single 0–1000 number for the true adversary opportunity: every gap on a viable
+  **attack path** to a crown jewel (the Attack Path Test), weighted by exploitability, by the
+  adversaries that use those techniques (threat-informed defense) and by business impact, **net of the
+  controls you can prove**. STOCK/FLOW history, an exact item-level **paid-down/accrued ledger**, a
+  choke-point / per-source / per-finding **"price the fix"** worklist, a **CROC agentic paydown loop**
+  (accrual → orchestrator proposes → approve → executes), and a **bidirectional CTEM bridge** (approved
+  paydowns become tracked CTEM exposures; CTEM-remediated exposures credit the ledger). Surfaced on the
+  dashboard, board report, public REST (`/api/v1/adversary-opportunity`), the MCP server and ChatOps.
+- **Cyber Insurance Readiness** (`/insurance-readiness`) — the *insurer's-eye* lens. Maps the standard
+  ransomware-supplemental underwriter checklist (MFA, backups, EDR/SIEM, PAM, patching, tested IR,
+  segmentation…) to your **live signals**, scores renewal readiness with a gap worklist ordered by
+  underwriting weight, and tracks the **policy** (carrier / limit / renewal) with **coverage adequacy**
+  (limit vs. the FAIR-modeled ransomware loss) and a renewal countdown. On the dashboard, board report
+  and ChatOps.
+
+Also: **privacy frameworks** — ISO/IEC 27701 (PIMS, 49 controls + GDPR crosswalk), a first-class **EU
+GDPR** article catalogue, and the **UK Data (Use and Access) Act 2025 (DUAA)** with a DUAA→GDPR
+crosswalk; **backup testing** management (`BACKUPTEST` log: restore / integrity / failover, RTO/RPO
+achieved, next-test-due); and two new connectors — **Xygeni** (software supply-chain security / ASPM —
+SAST/SCA/secrets/IaC/malware/SLSA) and **Metatron** (offensive-security / pentest → assets + exploited
+findings + attack chains).
+
+---
+
 ## [1.5.0-beta.1] — 2026-06-23
 
 An **AI-security & endpoint-agent** release, headlined by **AI-agent guardrails management** — a

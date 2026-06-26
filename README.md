@@ -109,6 +109,17 @@ and connectors. No SaaS, no telemetry, your data never leaves your infrastructur
   standardized exposure-identifier standard (a *"CVE/CWE for exposures"*: 29 identifiers
   across 8 categories, the 3-stage **Discover → Prioritize → Remediate** program); classify
   observed exposures, track them by stage, and discover them from internet-exposed assets.
+- **Adversary Opportunity Index (AOI)** — `/adversary-opportunity` — the attacker's-eye
+  *"threat debt"* top-line: one 0–1000 number for the true adversary opportunity (every gap on a
+  viable **attack path** to a crown jewel, weighted by exploitability, adversary use and business
+  impact, **net of the controls you can prove**), with STOCK/FLOW history, an exact item-level
+  paid-down/accrued **ledger**, a choke-point/source/finding **"price the fix"** worklist, a CROC
+  **agentic paydown loop** and a bidirectional **CTEM** bridge. On the dashboard, board report,
+  REST (`/api/v1/adversary-opportunity`), the MCP server and ChatOps.
+- **Cyber Insurance Readiness** — `/insurance-readiness` — the insurer's view: the standard
+  ransomware-supplemental control checklist (MFA, backups, EDR/SIEM, PAM, patching, tested IR,
+  segmentation…) scored from your **live signals**, plus a **policy** record with **coverage
+  adequacy** (limit vs. the FAIR-modeled ransomware loss) and a renewal countdown.
 - **Attack paths & choke points** — a reachability graph (`/attack-path`) over the
   asset estate: edges from **same-subnet adjacency** + **BIA dependencies**, entry
   nodes = internet-exposed assets, crown jewels = high business value, traversal cost

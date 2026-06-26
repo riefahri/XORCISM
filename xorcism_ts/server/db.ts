@@ -876,6 +876,7 @@ export const TENANT_SCOPED_TABLES = new Set<string>([
   "XORCISM.ASSET",
   "XORCISM.ASSETCONTROL",
   "XORCISM.BACKUPPLAN",
+  "XORCISM.BACKUPTEST",
   "XOVAL.OVALRESULTS",
   "XORCISM.IDENTITY",
   "XORCISM.IDENTITYPERSON",
@@ -4475,6 +4476,29 @@ export function ensureAssetColumns(): void {
     "TenantID" INTEGER
   );
   CREATE INDEX IF NOT EXISTS ix_backupplan_asset ON "BACKUPPLAN"("AssetID");`);
+  // BACKUPTEST — a log of backup/restore TEST runs against a BACKUPPLAN (manage backup testing):
+  // each row records a test (restore / integrity / failover / recovery drill), its result, the RTO/RPO
+  // actually achieved, and when the next test is due. Schema-driven CRUD via the explorer.
+  db.exec(`CREATE TABLE IF NOT EXISTS "BACKUPTEST" (
+    "BackupTestID" INTEGER PRIMARY KEY,
+    "BackupTestGUID" TEXT,
+    "BackupPlanID" INTEGER,
+    "AssetID" INTEGER,
+    "TestDate" DATE,
+    "TestType" TEXT,
+    "Result" TEXT,
+    "RTOAchievedHours" REAL,
+    "RPOAchievedHours" REAL,
+    "DataIntegrityVerified" INTEGER,
+    "TestedByPersonID" INTEGER,
+    "Findings" TEXT,
+    "NextTestDue" DATE,
+    "Notes" TEXT,
+    "CreatedDate" DATE,
+    "TenantID" INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS ix_backuptest_plan ON "BACKUPTEST"("BackupPlanID");
+  CREATE INDEX IF NOT EXISTS ix_backuptest_tenant ON "BACKUPTEST"("TenantID");`);
   // Idempotent adds for a BACKUPPLAN created before the management fields existed.
   {
     const have = new Set((db.prepare(`PRAGMA table_info("BACKUPPLAN")`).all() as { name: string }[]).map((c) => c.name));

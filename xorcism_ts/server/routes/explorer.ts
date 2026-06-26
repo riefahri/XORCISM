@@ -141,6 +141,8 @@ import { tidInventory } from "../tid";
 import { crisisInventory } from "../crisis";
 import { riskRegisterInventory } from "../riskregister";
 import { pqcmmInventory } from "../pqcmm";
+import { threatDebtLatest } from "../threatdebt";
+import { insuranceReadiness } from "../insurance";
 import { patchInventory } from "../patchmgmt";
 import { threatLevel } from "../threatlevel";
 
@@ -361,6 +363,9 @@ router.get("/dashboard/kpis", (req: Request, res: Response) => {
   const po = safe(() => policyInventory(tenant).summary);
   res.json({
     riskScore: safe(() => computeEnterpriseRiskScore(req.user!.tenantId)),
+    adversaryOpportunity: safe(() => threatDebtLatest(tenant)),
+    insurance: safe(() => { const r = insuranceReadiness(tenant); return { score: r.score, grade: r.grade, gap: r.summary.gap, critical: r.summary.critical }; }),
+
     assets: a && { total: a.total, crownJewels: a.crownJewels, internetFacing: a.internetFacing, criticalVulns: a.withCriticalVulns, unbacked: a.unbackedCritical, noOwner: a.noOwner },
     identities: i && { total: i.total, privileged: i.privileged, orphaned: i.orphaned, mfaGaps: i.mfaGaps },
     incidents: inc && { open: inc.open, criticalOpen: inc.criticalOpen, breached: inc.breached, mttrHours: inc.mttrHours, mttdMinutes: inc.mttdMinutes },
