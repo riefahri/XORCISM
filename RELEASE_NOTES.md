@@ -11,6 +11,39 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 
 ## [Unreleased]
 
+- **Reachability-based SCA prioritization (Endor Labs / Snyk parity).** A vulnerable dependency only
+  matters if it's actually **reachable** in the running app. `/sca` now ranks vulnerable components by a
+  composite of **reachability** (derived from each component's SBOM scope — dev/test/optional are not
+  runtime-reachable — then propagated across the dependency graph so a transitive dep pulled in by a
+  runtime parent is reachable too) × **exploitability** (CISA KEV / EPSS / CVSS). Findings fall into
+  **Act / Schedule / Defer** buckets, with a headline **"noise reduced %"** (the share of vulnerable deps
+  that are unreachable and can be deprioritized). New `scaPriority()` engine + `GET /api/sca/priority` +
+  a reachability panel on the SCA page (EN/FR). Verified: a dev-only vulnerable dep is deferred while a
+  runtime KEV dep and a transitively-reachable dep are prioritized (33% noise reduced on the test set).
+- **Security Questionnaire Auto-Answer (Conveyor / Loopio / Vanta-style).** New **`/questionnaire-assistant`**
+  page: paste a customer security questionnaire (one question per line) and XORCISM **drafts answers from
+  your own knowledge base** — a reusable **answer library**, published policies and controls, and the live
+  control-assurance posture. Each question is matched to the most relevant evidence (keyword retrieval),
+  drafted by the **local LLM grounded only in that context** (with a fully **offline fallback**: best
+  library match, else a citation-backed stitch), and returned with **sources + a confidence level**.
+  Accept good answers to grow the library; export to CSV. Everything stays local — no questionnaire content
+  leaves your infrastructure. New `qaa.ts` engine + `QUESTIONNAIREANSWER` library table + routes + landing
+  card. Verified: library hit → high confidence (verbatim), posture-backed draft → medium with sources,
+  irrelevant question → "Not documented".
+- **Continuous Control Monitoring (GRC-automation parity — Vanta/Drata/Secureframe).** A competitive
+  analysis showed XORCISM matched the leaders on vuln-management (Tenable/Qualys/Rapid7), CTEM
+  (XM Cyber/Cymulate), EASM and CTI — but its control-assurance page was a *point-in-time snapshot* of 8
+  objectives, missing the continuous-monitoring loop that defines the GRC-automation segment. `/assurance`
+  is now a real **Continuous Control Monitoring** view:
+  - **Per-framework readiness** — every control objective is mapped to **SOC 2 / ISO 27001 / NIST CSF 2.0**,
+    rolled up into a live readiness % per framework (the *"you are N% SOC 2 ready"* headline).
+  - **Posture trend** — each evaluation is persisted as a throttled snapshot (≤1 per 12 h) into a new
+    `CONTROLASSURANCESNAPSHOT` table; the page shows the proven-% trend over time (sparkline), and the
+    scheduler records a global snapshot at boot + every 6 h so history accrues even unattended.
+  - **Drift detection** — controls that **regressed or improved** vs the previous snapshot are surfaced
+    (e.g. *"Security monitoring: proven → gap"*), so a control silently breaking is caught.
+  All computed **live from XORCISM's own telemetry** (no manual evidence). Verified end-to-end: framework
+  rollup, snapshot persistence + 12 h throttle, trend, and up/down drift.
 - **Performance — much faster page loads & navigation.** Three deep changes:
   - **Shared i18n bundle (the big one).** The 11-language i18n dictionary (~700 KB) was being inlined into
     *every* page bundle **and** into `session-ui.js` (loaded on every page) — so each page shipped ~1.9 MB
