@@ -7,9 +7,13 @@
  * filling the history table with an identical row every 30 s).
  *
  * Scoring (integer, default 0, never negative):
- *   • If the asset has ≥ 1 uncorrected ASSETVULNERABILITY (AssetVulnerabilityStatusID = 0):
+ *   • If the asset has ≥ 1 uncorrected ASSETVULNERABILITY (AssetVulnerabilityStatusID = 0), excluding
+ *     analyst-confirmed false positives (FalsePositive = 1):
  *       – per vulnerability: +5 ; +10 if VULNERABILITY.KEV > 0 ; +50 if Exploited = 1 ;
  *         +10 if EasilyExploitable = 1 ; +50 if ASSETVULNERABILITY.TotalControl = 1
+ *         — then this per-vulnerability subtotal is multiplied by a remediation factor (residual
+ *           risk after mitigation effort): Done/Resolved ×0.1, In progress ×0.5, Planned ×0.85,
+ *           Deferred/none ×1.0 (the most-mitigating plan wins; overdue plans still bite via 'patch')
  *       – asset factors × criticality value (AssetCriticalityLevel → 0.5/0.7/1/2/3/5):
  *         +10× TaskCriticalAsset, +50× PublicFacing, +10× DefenseCriticalAsset,
  *         +10× managedbythirdparty, +10× hostedbythirdparty
@@ -55,8 +59,41 @@ function criticalityValue(raw: unknown): number {
   }
 }
 
+/**
+ * Residual-risk multiplier from an asset-vulnerability's remediation plan status. Risk =
+ * exposure × (1 − mitigation effectiveness): active remediation lowers the residual risk of an
+ * as-yet-uncorrected vulnerability, while a vulnerability with no plan carries its full weight.
+ * The most-mitigating plan wins when several exist. Overdue plans are still penalised separately
+ * by the patch component, so slippage is punished even when a plan exists.
+ */
+function remediationFactor(status: string): number {
+  const s = status.toLowerCase();
+  if (/done|complete|resolv|patched|fixed|mitigat|closed/.test(s)) return 0.1;  // effectively handled
+  if (/progress|wip|started|ongoing/.test(s)) return 0.5;                        // actively worked
+  if (/plan/.test(s)) return 0.85;                                               // committed, not started
+  return 1.0;                                                                    // deferred / unknown / none
+}
+
+/** Best (lowest) remediation factor per AssetVulnerabilityID, from ASSETVULNERABILITYREMEDIATION. */
+function remediationFactorByAv(xo: ReturnType<typeof getDb>, avIds: number[]): Map<number, number> {
+  const m = new Map<number, number>();
+  if (!avIds.length) return m;
+  if (!xo.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ASSETVULNERABILITYREMEDIATION'").get()) return m;
+  const rc = new Set((xo.prepare(`PRAGMA table_info("ASSETVULNERABILITYREMEDIATION")`).all() as { name: string }[]).map((c) => c.name));
+  if (!rc.has("AssetVulnerabilityID")) return m;
+  const statusCol = rc.has("Status") ? "Status" : "''";
+  const ph = avIds.map(() => "?").join(",");
+  for (const r of xo.prepare(`SELECT AssetVulnerabilityID, ${statusCol} AS Status FROM ASSETVULNERABILITYREMEDIATION WHERE AssetVulnerabilityID IN (${ph})`).all(...avIds) as { AssetVulnerabilityID: number; Status: string }[]) {
+    const f = remediationFactor(String(r.Status ?? ""));
+    const avid = Number(r.AssetVulnerabilityID);
+    const cur = m.get(avid);
+    if (cur == null || f < cur) m.set(avid, f);
+  }
+  return m;
+}
+
 export interface RiskComponents {
-  vulnerabilities: number; // +5/vuln + KEV/Exploited/EasilyExploitable/TotalControl
+  vulnerabilities: number; // Σ per-vuln (+5 +KEV/Exploited/EasilyExploitable/TotalControl) × remediation factor; excludes false positives
   assetFactors: number;    // criticality × exposure + encryption + financial value
   hardening: number;       // −10 if hardened (ASSETOVALDEFINITION)
   patch: number;           // +15/overdue patch (ASSETVULNERABILITY past its remediation TargetDate)
@@ -88,31 +125,38 @@ export class AssetRiskScoreCalculator {
     };
     if (!asset) return c;
 
-    // — Uncorrected vulnerabilities (AssetVulnerabilityStatusID = 0 ; NULL treated
-    //   as uncorrected) — XORCISM ↔ XVULNERABILITY join —
+    // — Uncorrected vulnerabilities (AssetVulnerabilityStatusID = 0 ; NULL treated as uncorrected) —
+    //   XORCISM ↔ XVULNERABILITY join. Analyst-confirmed false positives are excluded (they are not
+    //   real exposure), and each instance's points are scaled by its remediation factor so active
+    //   remediation lowers residual risk. —
+    const avc = new Set((xo.prepare(`PRAGMA table_info("ASSETVULNERABILITY")`).all() as { name: string }[]).map((x) => x.name));
+    const fpClause = avc.has("FalsePositive") ? "AND COALESCE(CAST(FalsePositive AS INTEGER), 0) = 0" : "";
     const unpatched = xo
       .prepare(
-        'SELECT VulnerabilityID, TotalControl FROM "ASSETVULNERABILITY" ' +
-          'WHERE AssetID = ? AND COALESCE(CAST(AssetVulnerabilityStatusID AS INTEGER), 0) = 0'
+        'SELECT AssetVulnerabilityID, VulnerabilityID, TotalControl FROM "ASSETVULNERABILITY" ' +
+          `WHERE AssetID = ? AND COALESCE(CAST(AssetVulnerabilityStatusID AS INTEGER), 0) = 0 ${fpClause}`
       )
-      .all(assetId) as { VulnerabilityID: number; TotalControl: unknown }[];
+      .all(assetId) as { AssetVulnerabilityID: number; VulnerabilityID: number; TotalControl: unknown }[];
 
     if (unpatched.length) {
+      const remFactor = remediationFactorByAv(xo, unpatched.map((u) => Number(u.AssetVulnerabilityID)));
       const xv = getDb("XVULNERABILITY");
       const getVuln = xv.prepare(
         'SELECT KEV, Exploited, EasilyExploitable FROM "VULNERABILITY" WHERE VulnerabilityID = ?'
       );
       for (const av of unpatched) {
-        c.vulnerabilities += 5; // each uncorrected vulnerability
+        let pts = 5; // each uncorrected vulnerability
         const v = getVuln.get(av.VulnerabilityID) as
           | { KEV: unknown; Exploited: unknown; EasilyExploitable: unknown }
           | undefined;
         if (v) {
-          if (num(v.KEV) > 0) c.vulnerabilities += 10; // KEV catalogue
-          if (num(v.Exploited) === 1) c.vulnerabilities += 50; // exploited
-          if (num(v.EasilyExploitable) === 1) c.vulnerabilities += 10; // easily exploitable
+          if (num(v.KEV) > 0) pts += 10; // KEV catalogue
+          if (num(v.Exploited) === 1) pts += 50; // exploited
+          if (num(v.EasilyExploitable) === 1) pts += 10; // easily exploitable
         }
-        if (num(av.TotalControl) === 1) c.vulnerabilities += 50; // total control
+        if (num(av.TotalControl) === 1) pts += 50; // total control
+        // Mitigation credit: an active remediation plan lowers this instance's residual weight.
+        c.vulnerabilities += pts * (remFactor.get(Number(av.AssetVulnerabilityID)) ?? 1);
       }
 
       // — Asset factors (applied only if ≥ 1 uncorrected vulnerability) —
@@ -128,16 +172,16 @@ export class AssetRiskScoreCalculator {
     }
 
     // — Patch posture: +15 per unpatched ASSETVULNERABILITY past its remediation TargetDate
-    //   (the Patch Management SLA is breached). Column-aware: only if PatchStatus/TargetDate exist. —
+    //   (the Patch Management SLA is breached). Column-aware; false positives excluded. —
     try {
-      const avc = new Set((xo.prepare(`PRAGMA table_info("ASSETVULNERABILITY")`).all() as { name: string }[]).map((x) => x.name));
       if (avc.has("PatchStatus") && avc.has("TargetDate")) {
         // 'Unpatched' contains the substring 'patched' → match exact terminal states, don't LIKE '%patched%'.
+        const fp = avc.has("FalsePositive") ? "AND COALESCE(CAST(FalsePositive AS INTEGER),0) = 0" : "";
         const overdue = (xo.prepare(
           'SELECT COUNT(*) n FROM "ASSETVULNERABILITY" WHERE AssetID = ? ' +
           "AND COALESCE(CAST(AssetVulnerabilityStatusID AS INTEGER),0) = 0 " +
           "AND LOWER(COALESCE(PatchStatus,'')) NOT IN ('patched','applied','installed','fixed','remediated','resolved','done') " +
-          "AND TargetDate IS NOT NULL AND TRIM(TargetDate) <> '' AND substr(TargetDate,1,10) < ?"
+          `${fp} AND TargetDate IS NOT NULL AND TRIM(TargetDate) <> '' AND substr(TargetDate,1,10) < ?`
         ).get(assetId, d) as { n: number }).n;
         c.patch += num(overdue) * 15;
       }
@@ -285,7 +329,8 @@ export const riskScoreCalculator = new AssetRiskScoreCalculator();
 // registered and unremediated risk of a tenant, minus credit for demonstrated assurance.
 // All component queries are light (per-tenant COUNT/SELECT) so the 30 s loop stays cheap.
 //
-//   ASSETS        + Σ latest ASSET.RiskScore (technical hygiene — unchanged base)
+//   ASSETS        + Σ latest ASSET.RiskScore (technical hygiene — now net of false positives and
+//                   discounted for in-flight remediation, since ASSET.RiskScore reflects both)
 //   RISK REGISTER + per OPEN entry: residual weight (Crit 40 / High 25 / Med 10 / Low 3 /
 //                   VeryLow 1 / unrated 5) + 15 if untreated high-crit + 8 if review overdue
 //   INCIDENTS     + per OPEN incident: severity (Crit 30 / High 15 / Med 6 / Low 2) + 15 compromise
@@ -388,11 +433,12 @@ export function enterpriseRiskBreakdown(tenantId: number | null): EnterpriseRisk
     const avc = new Set((xo.prepare(`PRAGMA table_info("ASSETVULNERABILITY")`).all() as { name: string }[]).map((c) => c.name));
     const ac = new Set((xo.prepare(`PRAGMA table_info("ASSET")`).all() as { name: string }[]).map((c) => c.name));
     if (avc.has("PatchStatus") && avc.has("TargetDate") && ac.has("TenantID")) {
+      const fp = avc.has("FalsePositive") ? "AND COALESCE(CAST(av.FalsePositive AS INTEGER),0) = 0" : "";
       const n = num((xo.prepare(
         'SELECT COUNT(*) n FROM "ASSETVULNERABILITY" av JOIN "ASSET" a ON a.AssetID = av.AssetID ' +
         "WHERE a.TenantID = ? AND COALESCE(CAST(av.AssetVulnerabilityStatusID AS INTEGER),0) = 0 " +
         "AND LOWER(COALESCE(av.PatchStatus,'')) NOT IN ('patched','applied','installed','fixed','remediated','resolved','done') " +
-        "AND av.TargetDate IS NOT NULL AND TRIM(av.TargetDate) <> '' AND substr(av.TargetDate,1,10) < ?"
+        `${fp} AND av.TargetDate IS NOT NULL AND TRIM(av.TargetDate) <> '' AND substr(av.TargetDate,1,10) < ?`
       ).get(tenantId, today) as { n: number }).n);
       patch = Math.min(80, n * 4);
     }

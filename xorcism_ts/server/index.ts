@@ -46,6 +46,7 @@ import incidentsRouter from "./routes/incidents";
 import complianceRouter from "./routes/compliance";
 import otSecurityRouter from "./routes/otsecurity";
 import patchMgmtRouter from "./routes/patchmgmt";
+import ovalEditorRouter from "./routes/ovaleditor";
 import monitoringRouter from "./routes/monitoring";
 import control53Router from "./routes/control53";
 import trustCenterRouter from "./routes/trustcenter";
@@ -88,6 +89,8 @@ import ctemRouter from "./routes/ctem";
 import { seedCtemIdentifiers } from "./ctem";
 import ctiExpertRouter from "./routes/ctiexpert";
 import { ensureCtiExpertTables } from "./ctiexpert";
+import threatCopilotRouter from "./routes/threatcopilot";
+import crqRouter from "./routes/crq";
 import wifiPentestRouter from "./routes/wifipentest";
 import { ensureWifiTables } from "./wifipentest";
 import regObligationsRouter from "./routes/regobligations";
@@ -178,7 +181,7 @@ import {
   seedAdmin,
 } from "./auth";
 import { purgeExpiredSessions, seedFeaturePageGrants } from "./xid";
-import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureComplianceJourneyTables, ensureQuestionnaireRunTables, ensureTprmTables, ensureZeroTrustTables, ensureZtSigninTable, ensureZtPolicyTable, ensureItdrTables, ensureIdGovTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable, startReplicaSync, dbDriver } from "./db";
+import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureCloudComplianceTables, ensureComplianceJourneyTables, ensureQuestionnaireRunTables, ensureTprmTables, ensureZeroTrustTables, ensureZtSigninTable, ensureZtPolicyTable, ensureItdrTables, ensureIdGovTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable, startReplicaSync, dbDriver } from "./db";
 import { tr } from "./i18n";
 
 const PORT = Number(process.env.PORT) || 9292;
@@ -288,6 +291,7 @@ app.use("/api", incidentsRouter); // Incident Management: incident inventory + g
 app.use("/api", complianceRouter); // Compliance Management: audit inventory + findings/policy worklist
 app.use("/api", otSecurityRouter); // OT Security: IEC 62443 / NIST 800-82 OT assessments + OT assets + zones
 app.use("/api", patchMgmtRouter); // Patch Management: asset↔vuln patch status, SLAs, remediation plans
+app.use("/api", ovalEditorRouter); // OVAL Definition editor: author defs + criteria trees reusing imported OVAL tests
 app.use("/api", monitoringRouter); // Asset Monitoring: uptime/SSL/incident monitors over ASSET
 app.use("/api", control53Router); // NIST SP 800-53 control management: catalogue + implementation status + baselines + posture
 app.use("/api", trustCenterRouter); // Trust Center: admin config + PUBLIC read-only posture (/api/public/trust/:slug)
@@ -320,6 +324,8 @@ app.use("/api", soarCockpitRouter); // SOAR cockpit: orchestration playbooks (tr
 app.use("/api", endpointQueryRouter); // Tanium-style real-time endpoint querying (Interact): sensors + answer grid
 app.use("/api", ctemRouter); // CTEM (ctem.org): standardized exposure-identifier taxonomy + 3-stage exposure cockpit
 app.use("/api", ctiExpertRouter); // CTI-Expert: AI-orchestrated OSINT investigation (cti-expert skill → local AI)
+app.use("/api", threatCopilotRouter); // Threat-Intel Copilot (Exvora-inspired): decision-ready triage + multi-mode analyst
+app.use("/api", crqRouter); // CRQ decision support (Gartner-aligned): operationalize FAIR/CRQ ALE into decisions
 app.use("/api", wifiPentestRouter); // Wi-Fi pentest: local Wi-Fi security assessment (netsh/nmcli survey → A–F grading + toolkit)
 app.use("/api", regObligationsRouter); // Regulatory calendar: obligations & deadlines (EU AI Act/DORA/NIS2/CRA/GDPR) → REGOBLIGATION
 app.use("/api", aiSystemsRouter); // AI system inventory + AI-BOM + model-risk register (AISYSTEM, XORCISM)
@@ -563,6 +569,12 @@ app.get("/ctem", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/cti-expert", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "cti-expert.html"));
 });
+app.get("/threat-copilot", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "threat-copilot.html"));
+});
+app.get("/crq", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "crq.html"));
+});
 app.get("/wifi-pentest", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "wifi-pentest.html"));
 });
@@ -732,6 +744,9 @@ app.get("/threat-informed-defense", pageGuard("/"), (_req: Request, res: Respons
 app.get("/oval-scan", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "oval-scan.html"));
 });
+app.get("/oval-editor", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "oval-editor.html"));
+});
 app.get("/api-docs", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "api-docs.html"));
 });
@@ -801,6 +816,7 @@ ensureDocumentSensitivity(); // adds DOCUMENT.SensitivityLabel + TLP (data-class
 ensurePersonOrgChartColumns(); // adds PERSON org-chart/AD/Entra fields (ManagerPersonID, JobTitle, UPN…) if missing
 ensureAwarenessTables(); // security-awareness training + phishing-simulation schema (PHISHINGSIMULATION/RESULT)
 ensureMalwareScanTables(); // multi-engine malware scan store (XMALWARE.MALWARESCAN/MALWARESCANENGINE)
+ensureCloudComplianceTables(); // cloud compliance checker findings (XORCISM.CLOUDFINDING)
 ensureComplianceJourneyTables(); // guided compliance-journey wizard (XCOMPLIANCE.COMPLIANCEJOURNEY/STEP)
 ensureQuestionnaireRunTables(); // guided questionnaire runner (XCOMPLIANCE.QUESTIONNAIRERUN/RESPONSE)
 ensureTprmTables(); // TPRM cockpit (XCOMPLIANCE.TPRMVENDOR/TPRMFINDING)

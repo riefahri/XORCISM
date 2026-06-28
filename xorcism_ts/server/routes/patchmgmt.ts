@@ -4,7 +4,7 @@
  */
 import { Router, Request, Response } from "express";
 import { userCan, clientIp } from "../auth";
-import { patchInventory, updatePatchStatus, createRemediation, createRemediationTicket, listRemediationsForAsset, PATCH_STATUSES } from "../patchmgmt";
+import { patchInventory, updatePatchStatus, createRemediation, createRemediationsForAsset, setFalsePositive, createRemediationTicket, listRemediationsForAsset, PATCH_STATUSES } from "../patchmgmt";
 import { createNotification } from "../db";
 import * as xid from "../xid";
 
@@ -97,6 +97,54 @@ router.post("/patch-management/remediation", (req: Request, res: Response) => {
     xid.addAudit({ userId: req.user.UserID ?? null, action: "remediation_create", resourceType: "ASSETVULNERABILITYREMEDIATION",
       resourceKey: String(out.id), detail: `assetVuln=${assetVulnId} name="${name}" priority="${priority}"${ticketId ? ` ticket=${ticketId}` : ""}`, ip: clientIp(req) });
     res.json({ ok: true, ...out, ticketId, notified });
+  } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// POST /api/patch-management/remediation-bulk — create a remediation plan for ALL of an asset's
+// open (non-false-positive) vulnerabilities at once. Body: { assetId, name, type, status, priority,
+// targetDate, ownerPersonId, scope?: "missing"|"all" }.
+router.post("/patch-management/remediation-bulk", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "create", "XORCISM", "ASSETVULNERABILITY")) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as Record<string, unknown>;
+  const assetId = Number(b.assetId);
+  const name = String(b.name ?? "").trim();
+  if (!Number.isInteger(assetId) || assetId <= 0) return void res.status(400).json({ error: "assetId required" });
+  if (!name) return void res.status(400).json({ error: "name required" });
+  const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
+  try {
+    const out = createRemediationsForAsset({
+      assetId, name,
+      description: b.description ? String(b.description) : undefined,
+      type: b.type ? String(b.type) : undefined,
+      status: b.status ? String(b.status) : undefined,
+      targetDate: b.targetDate ? String(b.targetDate) : undefined,
+      ownerPersonId: b.ownerPersonId != null && String(b.ownerPersonId) !== "" ? Number(b.ownerPersonId) : null,
+      priority: b.priority ? String(b.priority) : undefined,
+      scope: b.scope === "all" ? "all" : "missing",
+    }, tenant);
+    xid.addAudit({ userId: req.user.UserID ?? null, action: "remediation_bulk_create", resourceType: "ASSETVULNERABILITYREMEDIATION",
+      resourceKey: `asset:${assetId}`, detail: `name="${name}" created=${out.created} skipped=${out.skipped} total=${out.total} scope=${b.scope === "all" ? "all" : "missing"}`, ip: clientIp(req) });
+    res.json({ ok: true, ...out });
+  } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// POST /api/patch-management/false-positive — flag/un-flag an asset↔vuln instance as a false positive.
+// Body: { assetVulnId, falsePositive: boolean }.
+router.post("/patch-management/false-positive", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "update", "XORCISM", "ASSETVULNERABILITY")) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as Record<string, unknown>;
+  const id = Number(b.assetVulnId);
+  if (!Number.isInteger(id) || id <= 0) return void res.status(400).json({ error: "assetVulnId required" });
+  const fp = b.falsePositive === true || b.falsePositive === 1 || b.falsePositive === "1" || b.falsePositive === "true";
+  const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
+  try {
+    const out = setFalsePositive(id, fp, tenant);
+    if (!out.ok) return void res.status(404).json({ error: "asset-vuln not found / not in scope" });
+    xid.addAudit({ userId: req.user.UserID ?? null, action: "vuln_false_positive", resourceType: "ASSETVULNERABILITY",
+      resourceKey: String(id), detail: `falsePositive=${fp ? 1 : 0}`, ip: clientIp(req) });
+    res.json({ ok: true, falsePositive: fp });
   } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
 });
 

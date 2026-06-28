@@ -27,6 +27,23 @@
   .sev{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase}
   .sv-Critical{background:#7f1d1d;color:#fecaca}.sv-High{background:#78350f;color:#fcd34d}.sv-Medium{background:#1e3a5f;color:#bfdbfe}.sv-Low{background:#1e2133;color:#94a3b8}
   .worklist{list-style:none;margin:0;padding:0}.worklist li{padding:7px 0;border-bottom:1px solid #1e2133;font-size:13px;display:flex;align-items:center;gap:8px}
+  /* AWS compliance checker */
+  .cs-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+  .btn-chk{background:#7c83fd;color:#0b0d18;border:none;border-radius:8px;font-size:13px;font-weight:700;padding:8px 14px;cursor:pointer}
+  .btn-chk:hover{background:#9aa0ff}.btn-ghost{background:#13162a;border:1px solid #2d3250;color:#cbd5e1;border-radius:8px;font-size:13px;padding:8px 13px;cursor:pointer}
+  .chk-score{display:inline-flex;align-items:baseline;gap:6px}.chk-score .pct{font-size:26px;font-weight:800}
+  .st-pass{color:#34d399}.st-fail{color:#f87171}
+  table.chk{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.chk th,table.chk td{text-align:left;padding:6px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.chk th{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .pf{font-size:10px;font-weight:700;border-radius:5px;padding:1px 8px}.pf.pass{background:#14532d;color:#bbf7d0}.pf.fail{background:#7f1d1d;color:#fecaca}
+  .chk-cid{font-family:ui-monospace,monospace;color:#7dd3fc}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(4,6,15,.66);align-items:flex-start;justify-content:center;z-index:1200;overflow:auto;padding:44px 16px}
+  .modal-bg.open{display:flex}
+  .modal{background:#13162a;border:1px solid #2d3250;border-radius:14px;width:min(720px,96vw);padding:20px 22px}
+  .modal h3{margin:0 0 4px;font-size:17px}.modal .lead{font-size:12.5px;color:#94a3b8;margin:0 0 12px}
+  .modal textarea{width:100%;box-sizing:border-box;min-height:200px;background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-family:ui-monospace,monospace;font-size:11.5px;resize:vertical}
+  .modal .foot{display:flex;gap:10px;align-items:center;margin-top:14px}
 </style>
 </head>
 <body>
@@ -44,8 +61,32 @@
     third-party hosted, a cloud tag or a cloud hostname) enriched with their KEV/critical vulnerabilities, public
     exposure and encryption posture, against a <b>CSA Cloud Controls Matrix</b> reference. Fed by the cloud
     connectors (Entra ID, Wiz, Lacework, Upwind, Chainguard…). The worklist is what to fix first.</div>
+  <div class="cs-actions">
+    <button class="btn-chk" id="cs-run-check">🔍 AWS compliance check (CIS)</button>
+    <span class="muted" style="font-size:12px">CloudTrail · AWS Config · IAM password policy · MFA · root keys · inactive users (90d) · key rotation</span>
+  </div>
+  <div id="cs-compliance"></div>
   <div id="cs-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="cs.loading">Loading cloud estate…</div></div>
 </div>
+
+<!-- AWS compliance checker modal -->
+<div class="modal-bg" id="cs-chk-modal">
+  <div class="modal">
+    <h3>AWS compliance check (CIS AWS Foundations)</h3>
+    <p class="lead">Paste an AWS <b>posture snapshot</b> (account password policy, IAM users with MFA / access keys / last activity,
+      root account, CloudTrail trails, AWS Config recorders). Produce it with the <code>aws-config</code> / <code>aws-cloudtrail</code>
+      connectors or AWS CLI. Checks: password policy, MFA for IAM users, root access keys &amp; MFA, inactive users (90 days),
+      access-key rotation, CloudTrail &amp; AWS Config enablement.</p>
+    <textarea id="cs-chk-json" spellcheck="false" placeholder='{ "account": "123456789012", "password_policy": {...}, "root_account": {...}, "users": [...], "cloudtrail": {...}, "config": {...} }'></textarea>
+    <div style="margin-top:6px"><a href="#" id="cs-chk-sample" class="muted" style="font-size:11.5px;text-decoration:underline">↧ Load a sample snapshot</a></div>
+    <div class="foot">
+      <span id="cs-chk-err" style="flex:1;color:#f87171;font-size:12px"></span>
+      <button class="btn-ghost" id="cs-chk-cancel">Cancel</button>
+      <button class="btn-chk" id="cs-chk-run">Run check</button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/session-ui.js"></script>
 <script src="/js/cloud-security.js"></script>
 </body>

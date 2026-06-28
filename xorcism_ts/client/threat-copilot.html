@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Threat-Intel Copilot</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .tc-wrap{max-width:1240px;margin:0 auto;padding:18px}
+  .tc-wrap h1{font-size:20px;margin:0 0 2px}
+  .tc-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:980px}
+  .tc-panel{background:#13162a;border:1px solid #2d3250;border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .tc-panel h2{font-size:13px;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+  .tc-chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .tc-chip{flex:1;min-width:150px;background:#0f1322;border:1px solid #2d3250;border-radius:10px;padding:10px 12px}
+  .tc-chip .n{font-size:24px;font-weight:800}
+  .tc-chip .l{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .tc-chip.act{border-left:3px solid #f87171}.tc-chip.act .n{color:#f87171}
+  .tc-chip.prioritise{border-left:3px solid #fbbf24}.tc-chip.prioritise .n{color:#fbbf24}
+  .tc-chip.track{border-left:3px solid #34d399}.tc-chip.track .n{color:#34d399}
+  .tc-chip.scope{border-left:3px solid #7c83fd}.tc-chip.scope .n{font-size:15px;color:#a5b4fc;padding-top:6px}
+  table.tc-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.tc-tbl th,table.tc-tbl td{text-align:left;padding:6px 8px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.tc-tbl th{color:#94a3b8;text-transform:uppercase;font-size:10px;letter-spacing:.4px}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;border-radius:20px;padding:2px 9px}
+  .pill.Act{background:rgba(248,113,113,.16);color:#fca5a5}
+  .pill.Prioritise{background:rgba(251,191,36,.16);color:#fcd34d}
+  .pill.Track{background:rgba(52,211,153,.16);color:#6ee7b7}
+  .cve{color:#7dd3fc;font-family:ui-monospace,monospace}
+  .kev{color:#f87171;font-weight:700}
+  .muted{color:#64748b}
+  /* analyst */
+  .tc-modes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .tc-mode{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:8px;font-size:12.5px;padding:7px 14px;cursor:pointer}
+  .tc-mode.active{background:#7c83fd;color:#0b0d18;font-weight:700;border-color:#7c83fd}
+  .tc-mode .h{display:block;font-size:10px;color:inherit;opacity:.7;font-weight:400}
+  #tc-q{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:10px 12px;color:#e2e8f0;font-size:13px;font-family:inherit;min-height:54px;resize:vertical}
+  .tc-actions{display:flex;gap:10px;align-items:center;margin-top:10px}
+  .btn-run{background:#7c83fd;color:#0b0d18;border:none;border-radius:8px;font-size:13px;font-weight:700;padding:9px 18px;cursor:pointer}
+  .btn-run:hover{background:#9aa0ff}
+  .tc-answer{white-space:pre-wrap;background:#0b0d14;border:1px solid #2d3250;border-radius:8px;padding:12px 14px;color:#e2e8f0;font-size:13px;line-height:1.5;margin-top:12px;display:none}
+  .tc-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px}
+  .tc-meta .col{flex:1;min-width:240px}
+  .tc-meta .sec{font-size:10.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+  .tc-q{font-size:11.5px;color:#cbd5e1;padding:3px 0;border-bottom:1px solid #1a1e30}
+  .tc-q .c{color:#7dd3fc}
+  .src{display:inline-block;font-size:11px;background:#161a2e;border:1px solid #2d3250;border-radius:6px;padding:2px 7px;margin:2px 4px 0 0;color:#cbd5e1}
+  .src .t{color:#7dd3fc}
+  .badge-off{font-size:10px;background:#3a2410;color:#fbbf24;border:1px solid #5a3a14;border-radius:6px;padding:2px 7px}
+  .badge-ai{font-size:10px;background:#10241a;color:#34d399;border:1px solid #14502f;border-radius:6px;padding:2px 7px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Home</a>
+  <a href="/cti-expert">&#128270; CTI-Expert</a>
+  <a href="/vulnerability-management">&#128737; Vulnerabilities</a>
+  <span class="spacer"></span>
+  <span class="title">&#129504; Threat-Intel Copilot</span>
+</div>
+
+<div class="tc-wrap">
+  <h1>Threat-Intel Copilot</h1>
+  <div class="tc-sub">From noise to signal — decision-ready intelligence grounded in your own data. Every relevant CVE is
+    scored <b>Act / Prioritise / Track</b> from KEV (active exploitation), EPSS (exploit probability), CVSS and SSVC.
+    The analyst answers in four modes and always shows the queries it ran and the sources it cited.</div>
+
+  <div class="tc-panel">
+    <h2>Decision-ready triage <span id="tc-scope" class="muted" style="font-weight:400;text-transform:none;letter-spacing:0"></span></h2>
+    <div class="tc-chips" id="tc-chips"></div>
+    <div style="overflow:auto;max-height:460px">
+      <table class="tc-tbl" id="tc-feed"><thead><tr>
+        <th>Decision</th><th>CVE</th><th>Signals (why)</th><th>EPSS</th><th>CVSS</th><th>Assets</th><th>Conf.</th>
+      </tr></thead><tbody id="tc-feed-body"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="tc-panel">
+    <h2>Analyst <span id="tc-prov" style="font-weight:400"></span></h2>
+    <div class="tc-modes" id="tc-modes">
+      <button class="tc-mode active" data-mode="ask">Ask<span class="h">answer from your data</span></button>
+      <button class="tc-mode" data-mode="investigate">Investigate<span class="h">a CVE / actor / asset</span></button>
+      <button class="tc-mode" data-mode="draft">Draft<span class="h">board-ready brief</span></button>
+      <button class="tc-mode" data-mode="challenge">Challenge<span class="h">competing hypotheses</span></button>
+    </div>
+    <textarea id="tc-q" placeholder="e.g. What should we remediate first this week? · Investigate CVE-2024-3094 · Draft a board brief · Challenge: the SharePoint flaw is our top risk"></textarea>
+    <div class="tc-actions">
+      <button class="btn-run" id="tc-run">▷ Run</button>
+      <span class="muted" id="tc-status" style="font-size:12px"></span>
+    </div>
+    <div class="tc-answer" id="tc-answer"></div>
+    <div class="tc-meta" id="tc-metawrap" style="display:none">
+      <div class="col"><div class="sec">Queries run</div><div id="tc-queries"></div></div>
+      <div class="col"><div class="sec">Sources cited</div><div id="tc-sources"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/threat-copilot.js"></script>
+</body>
+</html>

@@ -247,6 +247,7 @@ const GRID_VALUE_LABELS: Record<string, Record<string, string>> = {
   "ASSET.virtual": { ...YES_NO },
   "ASSET.ADParticipation": { ...YES_NO },
   "ASSET.PublicFacing": { ...YES_NO },
+  "ASSET.MFAEnabled": { ...YES_NO },
   // Patch status: 0 → Unpatched, 1 → Patched
   "ASSETVULNERABILITY.Status": { "0": "Unpatched", "1": "Patched" },
   // Business value 1–5 → label (form select stores the int; grid shows the label).
@@ -2273,6 +2274,7 @@ const CHECKBOX_COLUMNS: Record<string, CheckboxSpec> = {
   "ASSET.virtual": { checked: "1", unchecked: "0", default: "0" },
   "ASSET.ADParticipation": { checked: "1", unchecked: "0", default: "0" },
   "ASSET.HostPII": { checked: "1", unchecked: "0", default: "0" },
+  "ASSET.MFAEnabled": { checked: "1", unchecked: "0", default: "0" }, // MFA implemented? (boolean 0/1)
   "VULNERABILITY.Exploited": { checked: "1", unchecked: "0", default: "0" },
   "VULNERABILITY.EasilyExploitable": { checked: "1", unchecked: "0", default: "0" },
   "VULNERABILITY.KEV": { checked: "1", unchecked: "0", default: "0" },
@@ -2460,7 +2462,7 @@ FK_COLUMNS["AUDITFINDING.RemediationOwnerPersonID"] = { db: "XORCISM", table: "P
 
 // ── Policy & document management metadata (ISO 42001 / 27001 / NIST AI RMF …) ──
 const DOC_LANGUAGES = ["en", "fr", "de", "es", "it", "nl", "pt", "ar"];
-const DOC_FRAMEWORKS = ["ISO/IEC 42001:2023", "ISO/IEC 27001:2022", "ISO/IEC 27031:2011", "ISO/IEC 27701:2019", "NIST AI RMF 1.0", "NIST SP 800-53", "Secure Controls Framework (SCF)", "CSA CCM v4", "CSA AI Controls Matrix (AICM) v1.1", "OWASP ASVS 4.0.3", "PCI DSS v4.0", "ITMG IRCF v1.0", "CRI Profile v2.2", "EU AI Act", "DORA (EU 2022/2554)", "NIS2", "Référentiel Cyber France (ReCyF)", "SOC 2", "GDPR", "Data (Use and Access) Act 2025 (DUAA)", "CISA Zero Trust Maturity Model v2.0", "DoD Zero Trust", "HDS (Hébergeur de Données de Santé)", "TISAX (VDA-ISA)", "ACSC ISM", "ASD Essential Eight", "Databricks DASF", "MLASVS (MLASTG)"];
+const DOC_FRAMEWORKS = ["ISO/IEC 42001:2023", "ISO/IEC 27001:2022", "ISO/IEC 27031:2011", "ISO/IEC 27701:2019", "NIST AI RMF 1.0", "NIST SP 800-53", "Secure Controls Framework (SCF)", "CSA CCM v4", "CSA AI Controls Matrix (AICM) v1.1", "OWASP ASVS 4.0.3", "PCI DSS v4.0", "ITMG IRCF v1.0", "CRI Profile v2.2", "EU AI Act", "DORA (EU 2022/2554)", "NIS2", "Référentiel Cyber France (ReCyF)", "SOC 2", "GDPR", "Data (Use and Access) Act 2025 (DUAA)", "CISA Zero Trust Maturity Model v2.0", "DoD Zero Trust", "HDS (Hébergeur de Données de Santé)", "TISAX (VDA-ISA)", "ACSC ISM", "ASD Essential Eight", "Databricks DASF", "MLASVS (MLASTG)", "OWASP SPVS 1.0", "OWASP SPVS 1.5-AI", "OWASP AISVS 1.0", "CMMC 2.0", "ISO/SAE 21434:2021"];
 const DOC_CLASSIFICATION = ["Public", "Internal", "Confidential", "Restricted"];
 const DOC_CATEGORIES = ["AI Management System", "Information Security", "Privacy", "Data Governance", "Risk Management", "Operations", "Human Resources"];
 const DOC_TYPES = ["Policy", "Procedure", "Standard", "Guideline", "Record", "Report", "Evidence", "Form", "Plan"];
@@ -5332,7 +5334,8 @@ function renderTable(rows: Record<string, unknown>[]): void {
         (currentTable === "THREATFEED" && col === "ThreatFeedName") ||
         (currentTable === "POLICY" && col === "PolicyName") ||
         (currentTable === "IDENTITY" && col === "IdentityName") ||
-        (currentTable === "CRISISSCENARIO" && col === "ScenarioName")
+        (currentTable === "CRISISSCENARIO" && col === "ScenarioName") ||
+        (currentTable === "OVALDEFINITION" && col === "OVALDefinitionTitle")
       )) {
         // Name column → clickable to open this record's edit form.
         const a = document.createElement("a");
@@ -7538,7 +7541,7 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
     box.innerHTML = `<div style="padding:8px;color:var(--text-dim);font-size:12px">—</div>`;
     return;
   }
-  let vulns: { VulnerabilityID: number; VULGUID: string; VULDescription: string; AssetVulnerabilityID?: number; PatchStatus?: string | null; RemediationCount?: number }[] = [];
+  let vulns: { VulnerabilityID: number; VULGUID: string; VULDescription: string; AssetVulnerabilityID?: number; PatchStatus?: string | null; RemediationCount?: number; FalsePositive?: number }[] = [];
   try {
     vulns = await api.getAssetVulnerabilities(assetId);
   } catch (e) {
@@ -7565,17 +7568,19 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
     '</tr></thead>';
   const tb = document.createElement("tbody");
   vulns.forEach((v) => {
+    const isFp = Number(v.FalsePositive) === 1;
+    const dim = isFp ? "opacity:.5;text-decoration:line-through" : "";
     const tr = document.createElement("tr");
     const td1 = document.createElement("td");
-    td1.style.cssText = "padding:4px 8px;border-bottom:1px solid var(--border-subtle);color:var(--text-soft);word-break:break-all;vertical-align:top";
+    td1.style.cssText = `padding:4px 8px;border-bottom:1px solid var(--border-subtle);color:var(--text-soft);word-break:break-all;vertical-align:top;${dim}`;
     td1.textContent = v.VULGUID ?? `#${v.VulnerabilityID}`;
     const td2 = document.createElement("td");
-    td2.style.cssText = "padding:4px 8px;border-bottom:1px solid var(--border-subtle);color:var(--text-soft);white-space:pre-wrap;word-break:break-word;vertical-align:top";
+    td2.style.cssText = `padding:4px 8px;border-bottom:1px solid var(--border-subtle);color:var(--text-soft);white-space:pre-wrap;word-break:break-word;vertical-align:top;${dim}`;
     td2.textContent = v.VULDescription ?? "";
-    // Remediation plan cell: a "+ plan" button (or "✓ planned (N)" when one exists). Disabled
-    // until the asset-vulnerability junction row has a PK (always true here — DB-backed rows).
+    // Remediation plan cell: a "+ plan" button (or "✓ planned (N)" when one exists) + a false-positive
+    // toggle. Disabled until the asset-vulnerability junction row has a PK (always true here — DB-backed rows).
     const tdPlan = document.createElement("td");
-    tdPlan.style.cssText = "padding:3px 8px;border-bottom:1px solid var(--border-subtle);vertical-align:top";
+    tdPlan.style.cssText = "padding:3px 8px;border-bottom:1px solid var(--border-subtle);vertical-align:top;white-space:nowrap";
     const avId = v.AssetVulnerabilityID;
     const planned = (v.RemediationCount ?? 0) > 0;
     const planBtn = document.createElement("button");
@@ -7585,8 +7590,23 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
     planBtn.textContent = planned ? `✓ ${t("rem.plannedN").replace("{n}", String(v.RemediationCount))}` : t("rem.add");
     planBtn.title = t("rem.tip");
     if (avId == null) { planBtn.disabled = true; planBtn.title = t("link.saveFirst"); }
+    else if (isFp) { planBtn.disabled = true; planBtn.title = t("rem.fpNoplan"); }
     else planBtn.onclick = () => openRemediationModal(avId, v.VULGUID || `#${v.VulnerabilityID}`, () => renderVulnBox(box, assetId));
     tdPlan.appendChild(planBtn);
+    // False-positive toggle — flags ASSETVULNERABILITY.FalsePositive (drops out of risk + worklists).
+    const fpBtn = document.createElement("button");
+    fpBtn.type = "button";
+    fpBtn.className = "btn btn-ghost btn-sm";
+    fpBtn.style.cssText = "padding:2px 8px;font-size:11px;margin-left:6px" + (isFp ? ";color:var(--warning,#fbbf24);border-color:var(--warning,#fbbf24)" : "");
+    fpBtn.textContent = isFp ? `✓ ${t("rem.fp")}` : t("rem.fp");
+    fpBtn.title = isFp ? t("rem.fpTipOn") : t("rem.fpTip");
+    if (avId == null) { fpBtn.disabled = true; fpBtn.title = t("link.saveFirst"); }
+    else fpBtn.onclick = async () => {
+      fpBtn.disabled = true;
+      try { await api.setVulnFalsePositive(avId, !isFp); await renderVulnBox(box, assetId); }
+      catch (e) { toast(t("rem.fpErr") + " " + e, "err"); fpBtn.disabled = false; }
+    };
+    tdPlan.appendChild(fpBtn);
     const tdRm = document.createElement("td");
     tdRm.style.cssText = "padding:2px 6px;border-bottom:1px solid var(--border-subtle);text-align:right;vertical-align:top";
     const rm = document.createElement("button");
@@ -7700,6 +7720,72 @@ function openRemediationModal(assetVulnId: number, vulnLabel: string, onDone: ()
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       bg.remove();
       toast(t("rem.created") + (d.ticketId ? ` · ${t("rem.ticket")} REM-${d.ticketId}` : ""), "ok");
+      onDone();
+    } catch (e) { err.textContent = "⚠️ " + (e as Error).message; btn.disabled = false; }
+  };
+}
+
+// Bulk remediation modal — creates ONE remediation plan for EVERY open vulnerability of an asset
+// ("create a remediation plan for all the vulnerabilities"). All plans share the name → one patch
+// package. Mirrors openRemediationModal's fields + a scope (only-missing vs every open instance).
+function openBulkRemediationModal(assetId: number, onDone: () => void): void {
+  const bg = document.createElement("div");
+  bg.style.cssText = "position:fixed;inset:0;background:rgba(5,7,15,.72);display:flex;align-items:center;justify-content:center;z-index:3000";
+  bg.onclick = (e) => { if (e.target === bg) bg.remove(); };
+  const card = document.createElement("div");
+  card.style.cssText = "background:var(--surface-2,#0f1322);border:1px solid var(--border,#2d3250);border-radius:14px;padding:20px 22px;width:min(540px,94vw);max-height:90vh;overflow:auto";
+  const lbl = (s: string) => `<label style="display:block;font-size:12px;color:var(--text-muted,#94a3b8);margin:10px 0 4px">${s}</label>`;
+  const inputCss = "width:100%;background:var(--bg,#0f1117);border:1px solid var(--border,#2d3250);color:var(--text,#e2e8f0);border-radius:7px;padding:8px 10px;font-size:13px;box-sizing:border-box";
+  const opt = (vals: string[]) => vals.map((v) => `<option value="${v}">${v}</option>`).join("");
+  card.innerHTML =
+    `<h3 style="margin:0 0 4px;font-size:16px;color:var(--text,#e7ebf3)">${t("rem.allTitle")}</h3>
+     <div style="font-size:12px;color:var(--text-muted,#94a3b8);margin-bottom:8px">${t("rem.allLead")}</div>
+     ${lbl(t("rem.name") + " *")}<input id="rmb-name" type="text" style="${inputCss}" placeholder="${t("rem.allNamePh")}" autocomplete="off">
+     ${lbl(t("rem.scope"))}<select id="rmb-scope" style="${inputCss}"><option value="missing">${t("rem.scopeMissing")}</option><option value="all">${t("rem.scopeAll")}</option></select>
+     ${lbl(t("rem.type"))}<select id="rmb-type" style="${inputCss}">${opt(["Patch", "Mitigation", "Configuration", "Workaround", "Compensating control", "Accept risk"])}</select>
+     ${lbl(t("rem.status"))}<select id="rmb-status" style="${inputCss}">${opt(["Planned", "In progress", "Done", "Deferred"])}</select>
+     <div style="display:flex;gap:10px">
+       <div style="flex:1">${lbl(t("rem.priority"))}<select id="rmb-priority" style="${inputCss}">${opt(["", "Very Low", "Low", "Moderate", "High", "Very High", "Critical"])}</select></div>
+       <div style="flex:1">${lbl(t("rem.target"))}<input id="rmb-target" type="date" style="${inputCss}"></div>
+     </div>
+     ${lbl(t("rem.owner"))}<select id="rmb-owner" style="${inputCss}"><option value="">${t("rem.unassigned")}</option></select>
+     ${lbl(t("rem.desc"))}<textarea id="rmb-desc" rows="2" style="${inputCss};resize:vertical" placeholder="${t("rem.descPh")}"></textarea>
+     <div id="rmb-err" style="color:var(--danger,#f87171);font-size:12px;min-height:16px;margin-top:8px"></div>
+     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+       <button id="rmb-cancel" type="button" class="btn btn-ghost btn-sm">${t("modal.cancel") || "Cancel"}</button>
+       <button id="rmb-create" type="button" class="btn btn-primary btn-sm">${t("rem.allCreate")}</button>
+     </div>`;
+  bg.appendChild(card);
+  document.body.appendChild(bg);
+  const g = (id: string) => card.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`#${id}`)!;
+  (g("rmb-name") as HTMLInputElement).focus();
+  void (async () => {
+    try {
+      const people = await api.getLookup("XORCISM", "PERSON", "PersonID", "FullName");
+      const sel = g("rmb-owner") as HTMLSelectElement;
+      people.forEach((p) => { if (p.id == null) return; const o = document.createElement("option"); o.value = String(p.id); o.textContent = p.label == null || p.label === "" ? `#${p.id}` : String(p.label); sel.appendChild(o); });
+    } catch { /* owner stays optional */ }
+  })();
+  (card.querySelector("#rmb-cancel") as HTMLButtonElement).onclick = () => bg.remove();
+  (card.querySelector("#rmb-create") as HTMLButtonElement).onclick = async () => {
+    const name = (g("rmb-name") as HTMLInputElement).value.trim();
+    const err = card.querySelector("#rmb-err") as HTMLElement;
+    if (!name) { err.textContent = t("rem.nameReq"); return; }
+    const btn = card.querySelector("#rmb-create") as HTMLButtonElement;
+    btn.disabled = true; err.textContent = t("rem.creating");
+    try {
+      const d = await api.createRemediationBulk({
+        assetId, name,
+        scope: (g("rmb-scope") as HTMLSelectElement).value === "all" ? "all" : "missing",
+        type: (g("rmb-type") as HTMLSelectElement).value,
+        status: (g("rmb-status") as HTMLSelectElement).value,
+        priority: (g("rmb-priority") as HTMLSelectElement).value || undefined,
+        targetDate: (g("rmb-target") as HTMLInputElement).value || undefined,
+        ownerPersonId: (g("rmb-owner") as HTMLSelectElement).value || undefined,
+        description: (g("rmb-desc") as HTMLTextAreaElement).value.trim() || undefined,
+      });
+      bg.remove();
+      toast(t("rem.allDone").replace("{created}", String(d.created)).replace("{skipped}", String(d.skipped)).replace("{total}", String(d.total)), d.created ? "ok" : undefined);
       onDone();
     } catch (e) { err.textContent = "⚠️ " + (e as Error).message; btn.disabled = false; }
   };
@@ -7819,6 +7905,15 @@ async function appendVulnTable(body: HTMLElement, assetId: number | null): Promi
   box.style.cssText =
     "max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:6px;background:var(--bg)";
 
+  // "+ Plan for all" — bulk-create a remediation plan across every open vulnerability of the asset.
+  const planAllBtn = document.createElement("button");
+  planAllBtn.type = "button";
+  planAllBtn.className = "btn btn-ghost btn-sm";
+  planAllBtn.textContent = t("rem.all");
+  planAllBtn.title = t("rem.allTip");
+  planAllBtn.style.marginRight = "6px";
+  if (assetId) header.appendChild(planAllBtn);
+
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "btn btn-ghost btn-sm";
@@ -7831,6 +7926,7 @@ async function appendVulnTable(body: HTMLElement, assetId: number | null): Promi
 
   if (assetId) {
     addBtn.onclick = () => openVulnModal(assetId, () => renderVulnBox(box, assetId));
+    planAllBtn.onclick = () => openBulkRemediationModal(assetId, () => renderVulnBox(box, assetId));
     await renderVulnBox(box, assetId);
   } else if (pendingAssetLinks) {
     const m = pendingAssetLinks.vulns;
@@ -7920,6 +8016,14 @@ async function appendOvalDefinitionXml(body: HTMLElement, pattern: string): Prom
   copy.className = "btn btn-ghost btn-sm";
   copy.textContent = "📋 Copier";
   header.appendChild(copy);
+  // Open this definition in the advanced OVAL editor (criteria-tree builder reusing imported tests).
+  const edit = document.createElement("a");
+  edit.className = "btn btn-ghost btn-sm";
+  edit.textContent = "✎ OVAL editor";
+  edit.title = t("tip.ovalEditor");
+  edit.href = pattern ? `/oval-editor?id=${encodeURIComponent(pattern)}` : "/oval-editor";
+  edit.target = "_blank"; edit.rel = "noopener"; edit.style.textDecoration = "none";
+  header.appendChild(edit);
 
   const ta = document.createElement("textarea");
   ta.readOnly = true;

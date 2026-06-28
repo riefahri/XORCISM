@@ -555,6 +555,63 @@ export const FRAMEWORKS: FrameworkT[] = [
       ]},
     ],
   },
+  {
+    key: "cmmc", name: "CMMC 2.0", provider: "U.S. DoD (32 CFR Part 170)", kind: "Certification", jurisdiction: "United States",
+    summary: "Cybersecurity Maturity Model Certification 2.0 for the Defense Industrial Base. Level 1 (17 FAR 52.204-21 practices, protecting FCI) and Level 2 (110 practices = NIST SP 800-171 Rev 2, protecting CUI) are imported as the 'CMMC 2.0' control catalogue; this journey walks scoping, the SSP, the SPRS self-assessment score, POA&M and the C3PAO assessment.",
+    effort: "6–18 months",
+    phases: [
+      { name: "Scope & Level", steps: [
+        st("Determine FCI/CUI scope", "Identify where Federal Contract Information and Controlled Unclassified Information are stored, processed or transmitted, and define the assessment boundary.", L.scope),
+        st("Select the CMMC level", "Determine the required level from your DoD contracts: Level 1 (FCI), Level 2 (CUI), or Level 3 (CUI, highest priority).", L.assess),
+        st("Inventory in-scope assets", "Catalogue the in-scope systems, enclaves and Security Protection Assets (SPAs).", L.assets),
+      ]},
+      { name: "Implement Practices", steps: [
+        st("Map the CMMC practices", "Adopt the CMMC 2.0 control catalogue (Level 1 = 17 practices, Level 2 = 110 = NIST SP 800-171 Rev 2) and map them to your assets and controls.", L.controlsTable),
+        st("Access control & MFA", "Implement access control, identification & authentication and MFA (AC / IA domains).", L.identity),
+        st("Configuration & vulnerability mgmt", "Harden baselines and run risk-based vulnerability & patch management (CM / RA / SI).", L.config),
+        st("Audit logging & monitoring", "Operate audit logging, monitoring and alerting (AU / SI domains).", L.monitoring),
+        st("Incident response", "Stand up and test the incident-handling capability (IR domain).", L.incident),
+      ]},
+      { name: "SSP & Assessment", steps: [
+        st("System Security Plan (SSP)", "Document the System Security Plan describing the boundary and how each requirement is met (3.12.4).", L.policies),
+        st("Self-assessment & SPRS score", "Assess each practice (Met / Not Met) per the DoD Assessment Methodology, compute the SPRS score (110 max, weighted deductions) and submit it to SPRS.", L.assess),
+        st("Collect evidence", "Gather evidence for each practice to support the assessment.", L.evidence),
+      ]},
+      { name: "POA&M & Certification", steps: [
+        st("Plan of Action & Milestones (POA&M)", "Record open items in a POA&M; note that conditional certification allows only certain practices to be deferred and closed within 180 days.", L.riskReg),
+        st("C3PAO / DIBCAC assessment", "Engage a C3PAO for the Level 2 third-party assessment (or DIBCAC for Level 3); complete the formal assessment.", L.assess),
+        st("Annual affirmation", "Submit the annual senior-official affirmation of continued compliance in SPRS.", L.trust),
+      ]},
+    ],
+  },
+  {
+    key: "iso21434", name: "ISO/SAE 21434:2021", provider: "ISO/SAE", kind: "Certification", jurisdiction: "International (automotive)",
+    summary: "Road-vehicle cybersecurity engineering across the lifecycle of E/E systems (concept → development → validation → production → operations → end-of-support), plus the TARA method. Underpins UNECE WP.29 R155 (CSMS) type approval. The clause 5–15 structure is imported as the 'ISO/SAE 21434:2021' control catalogue; this journey walks it phase by phase.",
+    effort: "9–18 months",
+    phases: [
+      { name: "Organizational & project management", steps: [
+        st("Cybersecurity governance & culture", "Establish cybersecurity governance, policy, responsibilities and a cybersecurity culture (clause 5).", L.policies),
+        st("Project cybersecurity plan", "Assign project cybersecurity responsibilities and plan the activities and work products (clause 6).", L.riskReg),
+        st("Distributed activities & suppliers", "Evaluate supplier capability and agree the cybersecurity interface (responsibilities) with suppliers (clause 7).", L.tprm),
+      ]},
+      { name: "TARA & concept", steps: [
+        st("Item definition", "Define the item, its boundary, functions and operational environment (clause 9.3).", L.assets),
+        st("Threat analysis & risk assessment (TARA)", "Identify assets, threat scenarios, impact, attack paths & feasibility, and determine risk (clause 15).", L.riskEbios),
+        st("Cybersecurity goals & concept", "Decide risk treatment, set cybersecurity goals/claims and derive the cybersecurity concept (clause 9.4–9.5).", L.riskReg),
+      ]},
+      { name: "Development & validation", steps: [
+        st("Design & implementation", "Refine requirements into an architecture with cybersecurity controls (clause 10.4.1).", L.controlsTable),
+        st("Integration & verification", "Verify the implementation meets the cybersecurity requirements, including security testing (clause 10.4.2).", L.config),
+        st("Cybersecurity validation", "Validate at vehicle level that the cybersecurity goals are adequate and met (clause 11).", L.assess),
+      ]},
+      { name: "Production, operations & assurance", steps: [
+        st("Production control plan", "Ensure cybersecurity controls are correctly implemented in manufacturing (clause 12).", L.config),
+        st("Continual activities & PSIRT", "Operate monitoring, vulnerability management and incident response for fielded items (clauses 8 & 13).", L.incident),
+        st("End of support & decommissioning", "Plan end of cybersecurity support and decommissioning (clause 14).", L.assess),
+        st("Cybersecurity case & assessment", "Compile the cybersecurity case and complete the independent cybersecurity assessment (clause 6.4.7–6.4.8).", L.evidence),
+      ]},
+    ],
+  },
 ];
 
 const BY_KEY = new Map(FRAMEWORKS.map((f) => [f.key, f]));

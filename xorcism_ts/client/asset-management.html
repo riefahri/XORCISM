@@ -75,6 +75,10 @@
   <div style="display:flex;align-items:flex-start;gap:12px">
     <h1 style="flex:1" data-i18n="asm.title">Asset Management</h1>
     <button class="btn btn-ghost btn-sm" id="am-match" data-i18n="asm.btn.match" data-i18n-title="asm.btn.match.title" title="Link recent CVEs to assets by technology (CPE + tags) and notify">↻ Match CVEs</button>
+    <button class="btn btn-ghost btn-sm" id="am-clean-fp" data-i18n="asm.btn.cleanFp" data-i18n-title="asm.btn.cleanFp.title" title="Re-score the CVE-match backlog and flag weak keyword links (e.g. an asset tagged 'email') as false positives — reversible">🧹 Clean CVE false positives</button>
+    <button class="btn btn-ghost btn-sm" id="am-import" data-i18n="asm.btn.import" data-i18n-title="asm.btn.import.title" title="Bulk-import assets from an Excel/CSV file with column mapping">⬆ Import Excel</button>
+    <button class="btn btn-ghost btn-sm" id="am-import-arf" data-i18n="asm.btn.importArf" data-i18n-title="asm.btn.importArf.title" title="Import assets from a NIST ARF / Asset Identification (SCAP) XML document">⬆ Import ARF</button>
+    <button class="btn btn-ghost btn-sm" id="am-export-arf" data-i18n="asm.btn.exportArf" data-i18n-title="asm.btn.exportArf.title" title="Export the asset estate as a NIST ARF 1.1 (SCAP) XML document">⬇ Export ARF</button>
     <button class="btn-newasset" id="am-new" data-i18n="asm.btn.new">+ New asset</button>
   </div>
   <div>
@@ -127,9 +131,10 @@
       <div class="fld"><label data-i18n="asm.f.bv">Business value (optional)</label><input id="am-f-bv" type="text" data-i18n-placeholder="asm.ph.bv" placeholder="e.g. Revenue-critical" maxlength="60" autocomplete="off"></div>
       <div class="fld"><label data-i18n="asm.f.fv">Financial value (optional)</label><input id="am-f-fv" type="number" min="0" step="1000" placeholder="250000"></div>
     </div>
-    <div class="fld" style="display:flex;gap:18px;margin-top:2px">
+    <div class="fld" style="display:flex;gap:18px;margin-top:2px;flex-wrap:wrap">
       <label class="ck"><input type="checkbox" id="am-f-public"> <span data-i18n="asm.f.internetFacing">Internet-facing</span></label>
       <label class="ck"><input type="checkbox" id="am-f-pii"> <span data-i18n="asm.f.pii">Hosts PII</span></label>
+      <label class="ck"><input type="checkbox" id="am-f-mfa"> <span data-i18n="asm.f.mfa">MFA enabled</span></label>
     </div>
     <div class="fld">
       <label data-i18n="asm.f.notes">Notes (optional)</label>
@@ -139,6 +144,61 @@
       <span class="am-err" id="am-f-err" style="flex:1"></span>
       <button class="btn btn-ghost btn-sm" id="am-cancel" data-i18n="asm.btn.cancel">Cancel</button>
       <button class="btn-newasset" id="am-create" data-i18n="asm.btn.create">Create asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Excel/CSV import modal (column mapping) -->
+<div class="am-modal-bg" id="am-imp-modal">
+  <div class="am-modal" style="width:680px">
+    <h3 data-i18n="asm.imp.title">Import assets from Excel</h3>
+    <p class="lead" data-i18n="asm.imp.lead">Upload an Excel (.xlsx / .xls) or CSV file, map its columns to asset fields, then
+      bulk-create the assets. The first row is treated as the header. Only <b>Name</b> is required.</p>
+    <div class="fld">
+      <label data-i18n="asm.imp.file">Spreadsheet file</label>
+      <input id="am-imp-file" type="file" accept=".xlsx,.xls,.csv,.ods" autocomplete="off">
+      <div style="margin-top:6px">
+        <a href="#" id="am-imp-template" class="muted" style="font-size:11.5px;text-decoration:underline" data-i18n="asm.imp.template">↓ Download a template (.xlsx)</a>
+      </div>
+    </div>
+    <div id="am-imp-status" class="muted" style="font-size:12px;min-height:16px;margin-bottom:8px"></div>
+    <div id="am-imp-mapwrap" style="display:none">
+      <div class="am-section" style="margin:6px 0 8px" data-i18n="asm.imp.mapHead">Map columns → asset fields</div>
+      <div id="am-imp-map" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px"></div>
+      <label class="ck" style="margin-top:14px;display:flex;align-items:center;gap:7px;font-size:12px;color:#cbd5e1">
+        <input type="checkbox" id="am-imp-upsert" style="width:auto"> <span data-i18n="asm.imp.upsert">Update existing assets matched by name (instead of creating duplicates)</span>
+      </label>
+    </div>
+    <div id="am-imp-result" style="margin-top:10px"></div>
+    <div class="am-modal-foot">
+      <span class="am-err" id="am-imp-err" style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" id="am-imp-cancel" data-i18n="asm.btn.cancel">Cancel</button>
+      <button class="btn-newasset" id="am-imp-run" disabled data-i18n="asm.imp.run">Import assets</button>
+    </div>
+  </div>
+</div>
+
+<!-- ARF (Asset Reporting Format) import modal -->
+<div class="am-modal-bg" id="am-arf-modal">
+  <div class="am-modal" style="width:620px">
+    <h3 data-i18n="asm.arf.title">Import assets from ARF (SCAP)</h3>
+    <p class="lead" data-i18n="asm.arf.lead">Upload a NIST <b>Asset Reporting Format</b> 1.1 (NISTIR 7694) / Asset
+      Identification XML document — e.g. an OpenSCAP result file or a XORCISM ARF export. Each computing-device
+      becomes an asset (hostname, FQDN, IPv4/IPv6, CPE); a XORCISM extension block restores criticality,
+      environment and value when present.</p>
+    <div class="fld">
+      <label data-i18n="asm.arf.file">ARF / Asset Identification XML</label>
+      <input id="am-arf-file" type="file" accept=".xml,.arf" autocomplete="off">
+    </div>
+    <div id="am-arf-status" class="muted" style="font-size:12px;min-height:16px;margin:6px 0 8px"></div>
+    <label class="ck" style="display:flex;align-items:center;gap:7px;font-size:12px;color:#cbd5e1">
+      <input type="checkbox" id="am-arf-upsert" style="width:auto"> <span data-i18n="asm.arf.upsert">Update existing assets matched by name (instead of creating duplicates)</span>
+    </label>
+    <div id="am-arf-result" style="margin-top:10px"></div>
+    <div class="am-modal-foot">
+      <span class="am-err" id="am-arf-err" style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" id="am-arf-cancel" data-i18n="asm.btn.cancel">Cancel</button>
+      <button class="btn-newasset" id="am-arf-run" disabled data-i18n="asm.arf.run">Import ARF</button>
     </div>
   </div>
 </div>

@@ -9,6 +9,7 @@ import {
   riskRegisterInventory, createRiskRegisterEntry,
   getRiskGovernance, saveRiskStrategy, createMeasure, updateMeasure,
   entryMeasures, linkMeasure, unlinkMeasure, setLinkStatus,
+  importRiskRegisterEntries, importRiskAssessments, RISK_REGISTER_IMPORT_FIELDS, RISK_ASSESSMENT_IMPORT_FIELDS,
 } from "../riskregister";
 import * as xid from "../xid";
 
@@ -53,6 +54,51 @@ router.post("/risk-register/entry", (req: Request, res: Response) => {
     }, tenant);
     xid.addAudit({ userId: req.user.UserID ?? null, action: "risk_register_create", resourceType: "RISKREGISTERENTRY",
       resourceKey: String(out.id), detail: `title="${title}"`, ip: clientIp(req) });
+    res.json({ ok: true, ...out });
+  } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// ── Excel/CSV import: Risk Register entries + Risk Assessments ────────────────────
+// GET …/import-fields — the logical fields a spreadsheet column can map to (drives the client UI).
+router.get("/risk-register/import-fields", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  res.json({ fields: RISK_REGISTER_IMPORT_FIELDS.map((f) => ({ key: f.key, type: f.type })) });
+});
+router.get("/risk-assessment/import-fields", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "read", "XCOMPLIANCE", "RISKASSESSMENT")) return void res.status(403).json({ error: "forbidden" });
+  res.json({ fields: RISK_ASSESSMENT_IMPORT_FIELDS.map((f) => ({ key: f.key, type: f.type })) });
+});
+
+// POST /api/risk-register/import — bulk-create/upsert RISKREGISTERENTRY from column-mapped rows.
+router.post("/risk-register/import", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "create", "XCOMPLIANCE", "RISKREGISTERENTRY")) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as { rows?: unknown; upsert?: unknown };
+  if (!Array.isArray(b.rows) || b.rows.length === 0) return void res.status(400).json({ error: "rows[] required" });
+  if (b.rows.length > 5000) return void res.status(400).json({ error: "too many rows (max 5000 per import)" });
+  const rows = b.rows.filter((r) => r && typeof r === "object") as Record<string, unknown>[];
+  try {
+    const out = importRiskRegisterEntries(rows, tenantOf(req), { upsert: !!b.upsert });
+    xid.addAudit({ userId: req.user.UserID ?? null, action: "risk_register_import", resourceType: "RISKREGISTERENTRY",
+      detail: `rows=${rows.length} created=${out.created} updated=${out.updated} skipped=${out.skipped} errors=${out.errors.length} upsert=${!!b.upsert}`, ip: clientIp(req) });
+    res.json({ ok: true, ...out });
+  } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// POST /api/risk-assessment/import — bulk-create/upsert RISKASSESSMENT from column-mapped rows.
+router.post("/risk-assessment/import", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "create", "XCOMPLIANCE", "RISKASSESSMENT")) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as { rows?: unknown; upsert?: unknown };
+  if (!Array.isArray(b.rows) || b.rows.length === 0) return void res.status(400).json({ error: "rows[] required" });
+  if (b.rows.length > 5000) return void res.status(400).json({ error: "too many rows (max 5000 per import)" });
+  const rows = b.rows.filter((r) => r && typeof r === "object") as Record<string, unknown>[];
+  try {
+    const out = importRiskAssessments(rows, tenantOf(req), { upsert: !!b.upsert });
+    xid.addAudit({ userId: req.user.UserID ?? null, action: "risk_assessment_import", resourceType: "RISKASSESSMENT",
+      detail: `rows=${rows.length} created=${out.created} updated=${out.updated} skipped=${out.skipped} errors=${out.errors.length} upsert=${!!b.upsert}`, ip: clientIp(req) });
     res.json({ ok: true, ...out });
   } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
 });

@@ -296,9 +296,13 @@ export const api = {
   setAssetCpes: (assetId: number, cpeIds: number[]) =>
     request<{ ok: boolean }>("/api/asset-cpes", "PUT", { assetId, cpeIds }),
   getAssetVulnerabilities: (assetId: number) =>
-    request<{ VulnerabilityID: number; VULReferentialID: string; VULGUID: string; VULDescription: string; AssetVulnerabilityID?: number; PatchStatus?: string | null; RemediationCount?: number }[]>(
+    request<{ VulnerabilityID: number; VULReferentialID: string; VULGUID: string; VULDescription: string; AssetVulnerabilityID?: number; PatchStatus?: string | null; RemediationCount?: number; FalsePositive?: number }[]>(
       `/api/asset-vulnerabilities?assetId=${assetId}`
     ),
+  setVulnFalsePositive: (assetVulnId: number, falsePositive: boolean) =>
+    request<{ ok: boolean; falsePositive: boolean }>("/api/patch-management/false-positive", "POST", { assetVulnId, falsePositive }),
+  createRemediationBulk: (body: { assetId: number; name: string; type?: string; status?: string; priority?: string; targetDate?: string; ownerPersonId?: string | number; description?: string; scope?: "missing" | "all" }) =>
+    request<{ ok: boolean; created: number; skipped: number; total: number }>("/api/patch-management/remediation-bulk", "POST", body),
   getAssetRemediations: (assetId: number) =>
     request<{ plans: Record<string, { AssetVulnerabilityRemediationID: number; AssetVulnerabilityID: number; RemediationName: string; RemediationType: string | null; Status: string | null; Priority: string | null; TargetDate: string | null; OwnerName: string | null }[]> }>(
       `/api/patch-management/remediations?assetId=${assetId}`

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — OVAL Definition editor</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .ox-wrap{max-width:1280px;margin:0 auto;padding:18px}
+  .ox-wrap h1{font-size:20px;margin:0 0 2px}
+  .ox-sub{color:#94a3b8;font-size:13px;margin-bottom:14px;max-width:960px}
+  .ox-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .ox-bar input.search{flex:1;min-width:220px;background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:8px 11px;color:#e2e8f0;font-size:13px}
+  .ox-panel{background:#13162a;border:1px solid #2d3250;border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .ox-panel h2{font-size:13px;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px;margin:0 0 12px}
+  .ox-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+  .ox-fld{display:flex;flex-direction:column;gap:4px}
+  .ox-fld.full{grid-column:1 / -1}
+  .ox-fld label{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .ox-fld input,.ox-fld select,.ox-fld textarea{background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:13px;font-family:inherit;box-sizing:border-box;width:100%}
+  .ox-fld textarea{resize:vertical;min-height:54px}
+  .ox-ck{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#cbd5e1}
+  .ox-ck input{width:auto}
+  .ox-refs .ref-row{display:flex;gap:8px;margin-bottom:6px}
+  .ox-refs input{flex:1}
+  /* criteria tree */
+  .node-criteria{border:1px solid #2d3250;border-left:3px solid #7c83fd;border-radius:9px;padding:9px 10px;margin:7px 0;background:#0f1322}
+  .node-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .node-head select,.node-head input[type=text]{background:#0b0d14;border:1px solid #2d3250;border-radius:7px;padding:5px 8px;color:#e2e8f0;font-size:12.5px}
+  .node-head .op{font-weight:700;color:#a5b4fc}
+  .node-children{margin-left:16px;border-left:1px dashed #2d3250;padding-left:10px}
+  .leaf{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;border:1px solid #232842;border-radius:8px;padding:6px 8px;margin:6px 0;background:#0b0d14}
+  .leaf.criterion{border-left:3px solid #34d399}.leaf.extend{border-left:3px solid #fbbf24}
+  .leaf .pick{flex:1;min-width:240px;position:relative}
+  .leaf .pick input{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:7px;padding:6px 9px;color:#e2e8f0;font-size:12.5px}
+  .leaf .sel{font-size:11px;color:#34d399;margin-top:3px;word-break:break-all}
+  .leaf .cmt{flex:1;min-width:160px;background:#0f1117;border:1px solid #2d3250;border-radius:7px;padding:6px 9px;color:#cbd5e1;font-size:12px}
+  .ac{position:absolute;z-index:50;left:0;right:0;top:100%;background:#13162a;border:1px solid #2d3250;border-radius:8px;max-height:240px;overflow:auto;box-shadow:0 8px 28px rgba(0,0,0,.6)}
+  .ac div{padding:6px 9px;font-size:12px;color:#cbd5e1;cursor:pointer;border-bottom:1px solid #1e2133}
+  .ac div:hover{background:#1b2140}
+  .ac .id{color:#7dd3fc;font-family:ui-monospace,monospace}
+  .btn-mini{background:#1e2440;border:1px solid #2d3250;color:#cbd5e1;border-radius:7px;font-size:11px;padding:4px 9px;cursor:pointer}
+  .btn-mini:hover{background:#2a3157}
+  .btn-rm{background:none;border:none;color:#f87171;cursor:pointer;font-size:13px;padding:2px 6px}
+  .ox-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .btn-primary2{background:#7c83fd;color:#0b0d18;border:none;border-radius:8px;font-size:13px;font-weight:700;padding:9px 16px;cursor:pointer}
+  .btn-primary2:hover{background:#9aa0ff}
+  .btn-ghost2{background:#13162a;border:1px solid #2d3250;color:#cbd5e1;border-radius:8px;font-size:13px;padding:9px 14px;cursor:pointer}
+  .ox-status{font-size:12.5px;color:#94a3b8;min-height:16px}
+  pre.ox-xml{background:#0b0d14;border:1px solid #2d3250;border-radius:8px;padding:10px 12px;color:#cbd5e1;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;max-height:420px;overflow:auto;white-space:pre;margin:0}
+  .muted{color:#64748b}
+  /* test inspector */
+  .tst-view{margin:6px 0 2px;background:#0b0d14;border:1px solid #232842;border-left:3px solid #34d399;border-radius:8px;padding:8px 10px;font-size:12px;color:#cbd5e1;width:100%;box-sizing:border-box}
+  .tst-view .meta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;font-size:11.5px}
+  .tst-view .meta b{color:#7dd3fc;font-weight:600}
+  .tst-view table{width:100%;border-collapse:collapse;font-size:11.5px;margin:4px 0}
+  .tst-view th,.tst-view td{text-align:left;padding:3px 6px;border-bottom:1px solid #1e2133;vertical-align:top}
+  .tst-view th{color:#94a3b8;text-transform:uppercase;font-size:10px;letter-spacing:.4px}
+  .tst-view .ent-name{color:#a5b4fc;font-family:ui-monospace,monospace}
+  .tst-view .sec{font-size:10.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;margin:6px 0 2px}
+  .tst-view pre{background:#070910;border:1px solid #1e2133;border-radius:6px;padding:6px 8px;font-family:ui-monospace,monospace;font-size:10.5px;color:#9fb0c8;max-height:200px;overflow:auto;white-space:pre-wrap;margin:2px 0 0}
+  .tst-view .none{color:#f59e0b}
+  /* modal */
+  .ox-modal-bg{display:none;position:fixed;inset:0;background:rgba(4,6,15,.66);align-items:flex-start;justify-content:center;z-index:1200;overflow:auto;padding:48px 16px}
+  .ox-modal-bg.open{display:flex}
+  .ox-modal{background:#13162a;border:1px solid #2d3250;border-radius:14px;width:min(640px,96vw);padding:20px 22px}
+  .ox-modal h3{margin:0 0 4px;font-size:17px}
+  .ox-modal .lead{font-size:12.5px;color:#94a3b8;margin:0 0 14px}
+  .ox-modal .foot{display:flex;gap:10px;align-items:center;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/oval-scan">&#129516; OVAL scan results</a>
+  <a href="/?db=XOVAL&amp;table=OVALDEFINITION">&#128218; OVAL definitions</a>
+  <span class="spacer"></span>
+  <span class="title">&#128221; OVAL Definition editor</span>
+</div>
+
+<div class="ox-wrap">
+  <h1>OVAL Definition editor</h1>
+  <div class="ox-sub">Author an OVAL definition and its criteria tree — reusing the OVAL <b>tests</b> and
+    <b>definitions</b> already imported into XOVAL (140k+ tests, 35k+ definitions). The criterion leaves
+    reference existing tests; <i>extend_definition</i> leaves reference existing definitions; AND/OR/ONE/XOR
+    groups nest freely. Saving persists the definition relationally <i>and</i> generates an OVAL document
+    in the chosen schema version (OVAL-Community <b>5.12.x</b> / 5.11.2). Use <b>⬆ Import test content</b> to
+    load a full OVAL document so each criterion's test shows the object/states it checks (and can be inlined
+    as <i>self-contained</i> output). New definitions get the <code>oval:ai.xorcism:def:N</code> namespace.</div>
+
+  <div class="ox-bar">
+    <input id="ox-loadq" class="search" type="text" placeholder="Load / clone an existing definition — type ≥2 chars (id or title)…" autocomplete="off">
+    <div id="ox-loadac" style="position:relative"></div>
+    <button class="btn-ghost2" id="ox-import-tests" title="Import OVAL test content (objects/states) from a full OVAL document so tests show what they check">⬆ Import test content</button>
+    <button class="btn-ghost2" id="ox-new">＋ New definition</button>
+  </div>
+
+  <div class="ox-panel">
+    <h2>Definition metadata</h2>
+    <div class="ox-grid">
+      <div class="ox-fld"><label>OVAL identifier</label><input id="ox-idPattern" type="text" readonly placeholder="(assigned on save: oval:ai.xorcism:def:N)"></div>
+      <div class="ox-fld"><label>Version</label><input id="ox-version" type="number" min="1" step="1" value="1"></div>
+      <div class="ox-fld"><label>Class</label><select id="ox-class"></select></div>
+      <div class="ox-fld"><label>Affected family</label><select id="ox-family"></select></div>
+      <div class="ox-fld"><label>OVAL schema version</label><select id="ox-schema"></select></div>
+      <div class="ox-fld" style="justify-content:flex-end"><label class="ox-ck" title="Inline the referenced tests' objects/states (from imported test content) so the document is self-contained / evaluatable"><input type="checkbox" id="ox-selfcontained"> Self-contained output (inline objects/states)</label></div>
+      <div class="ox-fld full"><label>Title *</label><input id="ox-title" type="text" maxlength="1000" placeholder="e.g. Ensure SMBv1 is disabled"></div>
+      <div class="ox-fld full"><label>Description</label><textarea id="ox-desc" maxlength="8000"></textarea></div>
+      <div class="ox-fld"><label>Platform (optional)</label><input id="ox-platform" type="text" placeholder="e.g. Microsoft Windows 11"></div>
+      <div class="ox-fld" style="justify-content:flex-end"><label class="ox-ck"><input type="checkbox" id="ox-deprecated"> Deprecated</label></div>
+      <div class="ox-fld full">
+        <label>References (CVE / CCE / URL)</label>
+        <div id="ox-refs" class="ox-refs"></div>
+        <button class="btn-mini" id="ox-addref" style="align-self:flex-start;margin-top:2px">＋ Add reference</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ox-panel">
+    <h2>Criteria tree</h2>
+    <div id="ox-tree"></div>
+  </div>
+
+  <div class="ox-panel">
+    <div class="ox-actions">
+      <button class="btn-primary2" id="ox-save">💾 Save definition</button>
+      <button class="btn-ghost2" id="ox-preview">👁 Preview OVAL XML</button>
+      <span class="ox-status" id="ox-status" style="flex:1"></span>
+    </div>
+    <div id="ox-xmlwrap" style="display:none;margin-top:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="ox-status">Generated OVAL XML</span>
+        <button class="btn-mini" id="ox-copy">📋 Copy</button>
+        <button class="btn-mini" id="ox-download">⬇ Download .xml</button>
+      </div>
+      <pre class="ox-xml" id="ox-xml"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Import OVAL test content modal -->
+<div class="ox-modal-bg" id="ox-imp-modal">
+  <div class="ox-modal">
+    <h3>Import OVAL test content</h3>
+    <p class="lead">Upload a full OVAL document (<code>&lt;oval_definitions&gt;</code> with <code>&lt;tests&gt;/&lt;objects&gt;/&lt;states&gt;</code>)
+      — e.g. a CIS benchmark or distro OVAL feed. For each <code>*_test</code> a self-contained bundle (the test plus its
+      referenced object, states and variables) is stored so the editor can show what each criterion actually checks.
+      Matched by test id (upsert).</p>
+    <div class="ox-fld"><label>OVAL document (.xml)</label><input id="ox-imp-file" type="file" accept=".xml,.oval" autocomplete="off"></div>
+    <div id="ox-imp-status" class="ox-status" style="margin:8px 0;min-height:16px"></div>
+    <div id="ox-imp-result"></div>
+    <div class="foot">
+      <span class="ox-status" id="ox-imp-err" style="flex:1;color:#f87171"></span>
+      <button class="btn-ghost2" id="ox-imp-cancel">Cancel</button>
+      <button class="btn-primary2" id="ox-imp-run" disabled>Import content</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/oval-editor.js"></script>
+</body>
+</html>

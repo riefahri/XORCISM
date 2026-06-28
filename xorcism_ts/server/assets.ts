@@ -223,7 +223,7 @@ export function assetInventory(tenant: number | null): AssetInventory {
 export function createAsset(
   p: { name: string; description?: string; criticality?: string; os?: string; hostname?: string;
        ip?: string; environment?: string; publicFacing?: boolean; businessValue?: string;
-       financialValue?: number | null; currency?: string; hostPii?: boolean;
+       financialValue?: number | null; currency?: string; hostPii?: boolean; mfaEnabled?: boolean;
        ownerPersonId?: number | null; notes?: string },
   tenant: number | null,
 ): { id: number } {
@@ -253,6 +253,7 @@ export function createAsset(
     FinancialValue: p.financialValue ?? null,
     Currency: p.currency ? String(p.currency).slice(0, 10) : null,
     HostPII: p.hostPii ? 1 : 0,
+    MFAEnabled: p.mfaEnabled ? 1 : 0,
     PersonID: p.ownerPersonId ?? null,
     notes: p.notes ? String(p.notes).slice(0, 4000) : null,
     Enabled: 1,
@@ -265,4 +266,131 @@ export function createAsset(
   const sql = `INSERT INTO ASSET (${keys.map((k) => `"${k}"`).join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`;
   const r = db.prepare(sql).run(...keys.map((k) => candidate[k]));
   return { id: Number(r.lastInsertRowid) };
+}
+
+// ── Bulk import (Excel / spreadsheet) ─────────────────────────────────────────
+// The logical fields a spreadsheet column can be mapped to. Order = the order shown
+// in the client mapping UI. `name` is the only required field (the asset's key, also
+// used to de-duplicate on upsert). Booleans accept yes/true/1/x/✓/oui (case-insensitive).
+export const ASSET_IMPORT_FIELDS = [
+  { key: "name", type: "text" },
+  { key: "description", type: "text" },
+  { key: "criticality", type: "text" },
+  { key: "environment", type: "text" },
+  { key: "os", type: "text" },
+  { key: "hostname", type: "text" },
+  { key: "ip", type: "text" },
+  { key: "publicFacing", type: "bool" },
+  { key: "hostPii", type: "bool" },
+  { key: "mfaEnabled", type: "bool" },
+  { key: "businessValue", type: "text" },
+  { key: "financialValue", type: "number" },
+  { key: "currency", type: "text" },
+  { key: "notes", type: "text" },
+] as const;
+type AssetImportField = (typeof ASSET_IMPORT_FIELDS)[number]["key"];
+const BOOL_TRUE = new Set(["1", "true", "yes", "y", "x", "t", "✓", "on", "enabled", "oui", "vrai", "actif"]);
+const toBool = (v: unknown): boolean => {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  return BOOL_TRUE.has(String(v ?? "").trim().toLowerCase());
+};
+
+export interface AssetImportResult {
+  created: number; updated: number; skipped: number;
+  errors: { row: number; error: string }[];
+}
+
+/**
+ * Bulk-create (or upsert) assets from already-column-mapped rows. Each row is keyed by the
+ * logical field names in ASSET_IMPORT_FIELDS; the Excel→field mapping happens client-side.
+ * Rows with no `name` are skipped. With `upsert`, an existing asset of the same name (within
+ * the tenant) is updated in place — only the columns the row actually provides are touched.
+ */
+export function importAssets(
+  rows: Record<string, unknown>[],
+  tenant: number | null,
+  opts: { upsert?: boolean } = {},
+): AssetImportResult {
+  const db = getDb("XORCISM");
+  const ac = cols("XORCISM", "ASSET");
+  if (!ac.size) throw new Error("ASSET table not available");
+  const out: AssetImportResult = { created: 0, updated: 0, skipped: 0, errors: [] };
+  // Upsert lookup by name within the same tenant (IS handles the super-admin null tenant too).
+  const findByName = db.prepare("SELECT AssetID FROM ASSET WHERE AssetName = ? COLLATE NOCASE AND TenantID IS ? LIMIT 1");
+
+  const str = (v: unknown): string | undefined => {
+    const s = String(v ?? "").trim();
+    return s ? s : undefined;
+  };
+  const provided = (row: Record<string, unknown>, k: AssetImportField): boolean =>
+    Object.prototype.hasOwnProperty.call(row, k) && String(row[k] ?? "").trim() !== "";
+
+  const tx = db.transaction((items: Record<string, unknown>[]) => {
+    items.forEach((row, i) => {
+      const name = String(row.name ?? "").trim();
+      if (!name) { out.skipped++; return; }
+      try {
+        if (opts.upsert) {
+          const ex = findByName.get(name, tenant) as { AssetID: number } | undefined;
+          if (ex) {
+            updateAssetColumns(db, ac, ex.AssetID, row, provided);
+            out.updated++;
+            return;
+          }
+        }
+        createAsset({
+          name,
+          description: str(row.description),
+          criticality: str(row.criticality),
+          environment: str(row.environment),
+          os: str(row.os),
+          hostname: str(row.hostname),
+          ip: str(row.ip),
+          publicFacing: provided(row, "publicFacing") ? toBool(row.publicFacing) : false,
+          hostPii: provided(row, "hostPii") ? toBool(row.hostPii) : false,
+          mfaEnabled: provided(row, "mfaEnabled") ? toBool(row.mfaEnabled) : false,
+          businessValue: str(row.businessValue),
+          financialValue: provided(row, "financialValue") ? Number(String(row.financialValue).replace(/[^0-9.\-]/g, "")) || null : null,
+          currency: str(row.currency),
+          notes: str(row.notes),
+        }, tenant);
+        out.created++;
+      } catch (e) { out.errors.push({ row: i + 1, error: String((e as Error).message || e) }); }
+    });
+  });
+  tx(rows);
+  return out;
+}
+
+// Update only the ASSET columns a mapped import row actually provides (never clobber
+// existing data with blanks). Mirrors createAsset's logical-field → column mapping.
+function updateAssetColumns(
+  db: ReturnType<typeof getDb>, ac: Set<string>, assetId: number,
+  row: Record<string, unknown>, provided: (r: Record<string, unknown>, k: AssetImportField) => boolean,
+): void {
+  const set: Record<string, unknown> = {};
+  if (provided(row, "description")) set.AssetDescription = String(row.description).slice(0, 4000);
+  if (provided(row, "criticality")) set.AssetCriticalityLevel = String(row.criticality).slice(0, 60);
+  if (provided(row, "os")) set.OSName = String(row.os).slice(0, 200);
+  if (provided(row, "hostname")) set.hostname = String(row.hostname).slice(0, 255);
+  if (provided(row, "ip")) set.ipaddressIPv4 = String(row.ip).slice(0, 45);
+  if (provided(row, "environment")) {
+    const env = String(row.environment).toLowerCase();
+    set.cloud = env === "cloud" ? 1 : 0;
+    set.virtual = env === "virtual" ? 1 : 0;
+    set.managedbythirdparty = env === "third-party" || env === "thirdparty" ? 1 : 0;
+  }
+  if (provided(row, "publicFacing")) set.PublicFacing = toBool(row.publicFacing) ? 1 : 0;
+  if (provided(row, "hostPii")) set.HostPII = toBool(row.hostPii) ? 1 : 0;
+  if (provided(row, "mfaEnabled")) set.MFAEnabled = toBool(row.mfaEnabled) ? 1 : 0;
+  if (provided(row, "businessValue")) set.BusinessValue = String(row.businessValue).slice(0, 60);
+  if (provided(row, "financialValue")) set.FinancialValue = Number(String(row.financialValue).replace(/[^0-9.\-]/g, "")) || null;
+  if (provided(row, "currency")) set.Currency = String(row.currency).slice(0, 10);
+  if (provided(row, "notes")) set.notes = String(row.notes).slice(0, 4000);
+  const keys = Object.keys(set).filter((k) => ac.has(k));
+  if (!keys.length) return;
+  if (ac.has("LastCheckedDate")) { set.LastCheckedDate = new Date().toISOString(); keys.push("LastCheckedDate"); }
+  db.prepare(`UPDATE ASSET SET ${keys.map((k) => `"${k}" = ?`).join(", ")} WHERE AssetID = ?`)
+    .run(...keys.map((k) => set[k]), assetId);
 }

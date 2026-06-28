@@ -1,0 +1,14 @@
+{
+  "id": "anssi-ad-control-paths",
+  "name": "ANSSI AD Control Paths",
+  "type": "import",
+  "category": "Identity Security",
+  "description": "Imports the output of ANSSI's AD Control Paths (github.com/ANSSI-FR/AD-control-paths) — analysis of Active Directory access-control relationships that reveal hidden privilege-escalation / takeover paths to high-value objects (Domain Admins, the domain root, etc.). Pass a relationship CSV exported by the tooling (a `*.csv` of source -> target via a control right). Each AD object becomes an ASSET (tagged ad/identity) and each control relationship becomes a VULN finding (an identity attack path) on the target object. Read-only (no DB access in run.py).",
+  "intrusive": false,
+  "permission": "connector:anssi-ad-control-paths",
+  "run": "run.py",
+  "mapping": "anssi-ad-control-paths",
+  "parameters": [
+    { "name": "file", "type": "file", "required": true, "help": "Path on the worker to an AD-control-paths relationship CSV (columns auto-detected: source/target/right)." }
+  ]
+}

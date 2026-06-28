@@ -34,8 +34,11 @@ function rowHtml(r: ConfigRow): string {
   const issues = r.issues.length
     ? r.issues.map((i) => `<span class="tag${/no cce|status/.test(i.toLowerCase()) ? " tag-w" : ""}">${esc(i)}</span>`).join("")
     : `<span class="ok">${t("config.rowOk")}</span>`;
+  // Baseline title → clickable to edit the OVAL definition (explorer edit form, which links on to the
+  // advanced OVAL editor); the id-pattern → the advanced /oval-editor directly.
+  const editHref = `/?db=XOVAL&table=OVALDEFINITION&editCol=OVALDefinitionID&editVal=${r.id}`;
   return `<tr>
-    <td><div class="cname">${esc(r.title)}</div>${r.pattern ? `<div class="muted" style="font-size:11px"><span class="ref">${esc(r.pattern)}</span></div>` : ""}</td>
+    <td><a class="cname cname-link" href="${editHref}" title="${esc(t("tip.edit"))}">${esc(r.title)}</a>${r.pattern ? `<div class="muted" style="font-size:11px"><a class="ref" href="/oval-editor?id=${encodeURIComponent(r.pattern)}" title="${esc(t("config.editInOvalEditor"))}">${esc(r.pattern)}</a></div>` : ""}</td>
     <td><span class="st ${stClass(r.status)}">${esc(r.status)}</span></td>
     <td>${esc(r.version)}</td>
     <td>${r.hasCce ? '<span class="ok">CCE ✓</span>' : '<span class="muted">—</span>'}</td>

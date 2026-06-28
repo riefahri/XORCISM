@@ -1,0 +1,14 @@
+{
+  "id": "aws-compliance",
+  "name": "AWS Compliance Checker (CIS AWS Foundations)",
+  "type": "import",
+  "category": "Cloud Security",
+  "description": "Built-in cloud compliance checker for AWS. Feed it a posture snapshot (JSON) describing the account: IAM password policy, IAM users (MFA / access keys / last activity), the root account, CloudTrail trails and AWS Config recorders. Produce the snapshot with the AWS CLI (`aws iam get-account-password-policy`, `aws iam generate-credential-report`, `aws cloudtrail describe-trails`, `aws configservice describe-configuration-recorders`) or a CSPM export. The connector runs the CIS AWS Foundations checks (password policy, MFA for IAM users, root account access keys & MFA, inactive users (90 days), access-key rotation, CloudTrail multi-region/log-validation/CloudWatch/KMS, AWS Config all-regions recorder) and maps each FAIL to a compliance finding (VULN) on the AWS account asset. The same checks back the in-app checker at POST /api/cloud-security/aws-check. Read-only (no DB access in run.py).",
+  "intrusive": false,
+  "permission": "connector:aws-compliance",
+  "run": "run.py",
+  "mapping": "aws-compliance",
+  "parameters": [
+    { "name": "file", "type": "file", "required": true, "help": "Path on the worker to the AWS posture snapshot (.json) — see README for the schema and how to build it from the AWS CLI." }
+  ]
+}

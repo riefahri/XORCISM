@@ -268,6 +268,67 @@ export function createRemediation(
   return { id: nextId };
 }
 
+/**
+ * Create a remediation plan for EVERY (open, non-false-positive) vulnerability of an asset in one
+ * shot — "create a remediation plan for all the vulnerabilities". All plans share the same name so
+ * they form a single patch package (patchInventory groups by RemediationName). Resolved instances
+ * are skipped; by default instances that already have a plan are skipped too (scope="missing"),
+ * unless scope="all" forces a plan on every open instance.
+ */
+export function createRemediationsForAsset(
+  p: { assetId: number; name: string; description?: string; type?: string; status?: string; targetDate?: string;
+       ownerPersonId?: number | null; priority?: string; scope?: "missing" | "all" },
+  tenant: number | null,
+): { created: number; skipped: number; total: number; ids: number[] } {
+  const xo = getDb("XORCISM");
+  const avc = cols("XORCISM", "ASSETVULNERABILITY");
+  if (!avc.size) throw new Error("ASSETVULNERABILITY table not available");
+  const fp = avc.has("FalsePositive") ? "AND (FalsePositive IS NULL OR FalsePositive = 0)" : "";
+  const tw = tenant != null && avc.has("TenantID") ? "AND (TenantID = ? OR TenantID IS NULL)" : "";
+  const args: unknown[] = [p.assetId]; if (tw) args.push(tenant);
+  const rows = xo.prepare(
+    `SELECT AssetVulnerabilityID, ${avc.has("PatchStatus") ? "PatchStatus" : "NULL AS PatchStatus"}
+     FROM ASSETVULNERABILITY WHERE AssetID = ? AND VulnerabilityID IS NOT NULL ${fp} ${tw}`
+  ).all(...args) as { AssetVulnerabilityID: number; PatchStatus: string | null }[];
+  if (!rows.length) return { created: 0, skipped: 0, total: 0, ids: [] };
+
+  // Instances that already carry a remediation plan (skip in the default "missing" scope).
+  const planned = new Set<number>();
+  if (p.scope !== "all" && xo.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ASSETVULNERABILITYREMEDIATION'").get()) {
+    const ids = rows.map((r) => r.AssetVulnerabilityID); const ph = ids.map(() => "?").join(",");
+    for (const r of xo.prepare(`SELECT DISTINCT AssetVulnerabilityID FROM ASSETVULNERABILITYREMEDIATION WHERE AssetVulnerabilityID IN (${ph})`).all(...ids) as { AssetVulnerabilityID: number }[])
+      planned.add(Number(r.AssetVulnerabilityID));
+  }
+
+  const out = { created: 0, skipped: 0, total: rows.length, ids: [] as number[] };
+  const tx = xo.transaction(() => {
+    for (const r of rows) {
+      const avId = Number(r.AssetVulnerabilityID);
+      if (RESOLVED.test(String(r.PatchStatus ?? ""))) { out.skipped++; continue; }   // already handled
+      if (p.scope !== "all" && planned.has(avId)) { out.skipped++; continue; }        // already planned
+      const res = createRemediation({
+        assetVulnId: avId, name: p.name, description: p.description, type: p.type, status: p.status,
+        targetDate: p.targetDate, ownerPersonId: p.ownerPersonId ?? null, priority: p.priority,
+      }, tenant);
+      out.created++; out.ids.push(res.id);
+    }
+  });
+  tx();
+  return out;
+}
+
+/** Flag (or un-flag) one asset↔vulnerability instance as a false positive (ASSETVULNERABILITY.FalsePositive).
+ * False positives drop out of the patch worklist, coverage maths and the risk scores. */
+export function setFalsePositive(assetVulnId: number, falsePositive: boolean, tenant: number | null): { ok: boolean } {
+  const xo = getDb("XORCISM");
+  const avc = cols("XORCISM", "ASSETVULNERABILITY");
+  if (!avc.has("FalsePositive")) throw new Error("FalsePositive column not available");
+  const tw = tenant != null && avc.has("TenantID") ? "AND (TenantID = ? OR TenantID IS NULL)" : "";
+  const args: unknown[] = [falsePositive ? 1 : 0, assetVulnId]; if (tw) args.push(tenant);
+  const r = xo.prepare(`UPDATE ASSETVULNERABILITY SET FalsePositive = ? WHERE AssetVulnerabilityID = ? ${tw}`).run(...args);
+  return { ok: r.changes > 0 };
+}
+
 /** Open an XTICKET work item for a remediation plan (asset↔vuln). Idempotent per asset-vuln instance
  * (tag remediation-av:<id>). Resolves the CVE + asset name for a meaningful subject. Best-effort. */
 export function createRemediationTicket(

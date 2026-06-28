@@ -129,7 +129,7 @@ async function loadOwners(): Promise<void> {
 function openModal(): void {
   for (const id of ["am-f-name", "am-f-os", "am-f-host", "am-f-ip", "am-f-bv", "am-f-fv", "am-f-notes"]) (document.getElementById(id) as HTMLInputElement).value = "";
   for (const id of ["am-f-crit", "am-f-env", "am-f-owner"]) (document.getElementById(id) as HTMLSelectElement).value = "";
-  for (const id of ["am-f-public", "am-f-pii"]) (document.getElementById(id) as HTMLInputElement).checked = false;
+  for (const id of ["am-f-public", "am-f-pii", "am-f-mfa"]) (document.getElementById(id) as HTMLInputElement).checked = false;
   $("am-f-err").textContent = "";
   $("am-modal").classList.add("open");
   ($("am-f-name") as HTMLInputElement).focus();
@@ -157,7 +157,8 @@ async function createAsset(): Promise<void> {
       os: v("am-f-os").trim() || undefined, ownerPersonId: v("am-f-owner") || undefined,
       hostname: v("am-f-host").trim() || undefined, ip: v("am-f-ip").trim() || undefined,
       businessValue: v("am-f-bv").trim() || undefined, financialValue: v("am-f-fv") || undefined,
-      publicFacing: ck("am-f-public"), hostPii: ck("am-f-pii"), notes: v("am-f-notes").trim() || undefined,
+      publicFacing: ck("am-f-public"), hostPii: ck("am-f-pii"), mfaEnabled: ck("am-f-mfa"),
+      notes: v("am-f-notes").trim() || undefined,
     };
     const r = await fetch("/api/asset-management/asset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json();
@@ -185,14 +186,284 @@ async function matchCves(): Promise<void> {
   finally { btn.disabled = false; btn.textContent = label; }
 }
 
+// Clean CVE-match false positives — re-scores the existing keyword-matched backlog and flags the
+// now-weak links (e.g. an asset tagged "email" linked to thousands of CVEs) as FalsePositive. The
+// flag is reversible (the rows stay; un-flag in the explorer) and scanner/manual links are untouched.
+async function cleanFalsePositives(): Promise<void> {
+  if (!window.confirm(t("asm.cleanFp.confirm"))) return;
+  const btn = $("am-clean-fp") as HTMLButtonElement;
+  btn.disabled = true; const label = btn.textContent; btn.textContent = `${t("asm.cleaning")}`;
+  try {
+    const r = await fetch("/api/cve-match/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onlyRescore: true, minConfidence: "medium" }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    await load();
+    const rs = d.rescore as { scanned: number; flagged: number; kept: number } | undefined;
+    toast(rs ? fmt("asm.cleanFp.done", { f: rs.flagged, k: rs.kept, s: rs.scanned }) : t("asm.cleanFp.none"));
+  } catch (e) { toast(`⚠️ ${e}`); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
+// ── Excel / CSV import with column mapping ──────────────────────────────────────
+// Logical ASSET fields a spreadsheet column can map to. `guess` = lowercase header
+// substrings used to auto-select a column. `bool` fields accept yes/true/1/x/✓/oui.
+// Mirrors the server's ASSET_IMPORT_FIELDS (assets.ts) — keep the two in sync.
+interface ImpField { key: string; labelKey: string; required?: boolean; bool?: boolean; guess: string[]; }
+const IMPORT_FIELDS: ImpField[] = [
+  { key: "name", labelKey: "asm.imp.f.name", required: true, guess: ["asset name", "assetname", "name", "nom", "hostname", "host", "machine", "libellé", "title"] },
+  { key: "description", labelKey: "asm.imp.f.description", guess: ["description", "desc", "détail", "detail"] },
+  { key: "criticality", labelKey: "asm.imp.f.criticality", guess: ["critical", "criticité", "criticite", "importance", "tier", "niveau"] },
+  { key: "environment", labelKey: "asm.imp.f.environment", guess: ["environment", "environnement", "env", "deployment", "type"] },
+  { key: "os", labelKey: "asm.imp.f.os", guess: ["operating system", "os name", "osname", "os", "système", "platform", "plateforme"] },
+  { key: "hostname", labelKey: "asm.imp.f.hostname", guess: ["hostname", "host name", "fqdn", "host"] },
+  { key: "ip", labelKey: "asm.imp.f.ip", guess: ["ipv4", "ip address", "ipaddress", "ip", "adresse ip", "address"] },
+  { key: "publicFacing", labelKey: "asm.imp.f.publicFacing", bool: true, guess: ["public", "internet", "exposed", "exposé", "expose", "facing", "externe"] },
+  { key: "hostPii", labelKey: "asm.imp.f.hostPii", bool: true, guess: ["pii", "personal data", "données personnelles", "dcp", "rgpd", "gdpr"] },
+  { key: "mfaEnabled", labelKey: "asm.imp.f.mfaEnabled", bool: true, guess: ["mfa", "2fa", "multi-factor", "multifactor", "multi factor", "authentification", "mfaenabled"] },
+  { key: "businessValue", labelKey: "asm.imp.f.businessValue", guess: ["business value", "valeur métier", "valeur metier", "business", "métier"] },
+  { key: "financialValue", labelKey: "asm.imp.f.financialValue", guess: ["financial", "valeur financière", "valeur financiere", "cost", "coût", "montant", "value"] },
+  { key: "currency", labelKey: "asm.imp.f.currency", guess: ["currency", "devise", "monnaie"] },
+  { key: "notes", labelKey: "asm.imp.f.notes", guess: ["notes", "note", "comment", "commentaire", "remarque"] },
+];
+
+let impHeaders: string[] = [];
+let impRows: unknown[][] = [];
+const impSelects: Record<string, HTMLSelectElement> = {};
+
+// Minimal local typing for the global SheetJS (UMD) build — just the bits we use; avoids a
+// dependency on the optional "xlsx" type declarations (the lib loads at runtime from /vendor).
+interface XlsxLib {
+  read(data: Uint8Array, opts: { type: string }): { SheetNames: string[]; Sheets: Record<string, unknown> };
+  utils: {
+    sheet_to_json(ws: unknown, opts: { header: 1; blankrows: boolean; defval: string }): unknown[][];
+    aoa_to_sheet(data: unknown[][]): unknown;
+    book_new(): unknown;
+    book_append_sheet(wb: unknown, ws: unknown, name: string): void;
+  };
+  writeFile(wb: unknown, filename: string): void;
+}
+
+// Lazy-load SheetJS (served at /vendor/xlsx.full.min.js) only when the import modal is used.
+function loadXlsx(): Promise<void> {
+  if ((window as unknown as { XLSX?: unknown }).XLSX) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "/vendor/xlsx.full.min.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("xlsx load failed"));
+    document.head.appendChild(s);
+  });
+}
+const getXlsx = (): XlsxLib | undefined => (window as unknown as { XLSX?: XlsxLib }).XLSX;
+
+function openImport(): void {
+  impHeaders = []; impRows = [];
+  ($("am-imp-file") as HTMLInputElement).value = "";
+  $("am-imp-status").textContent = "";
+  $("am-imp-result").innerHTML = "";
+  $("am-imp-err").textContent = "";
+  $("am-imp-map").innerHTML = "";
+  $("am-imp-mapwrap").style.display = "none";
+  ($("am-imp-upsert") as HTMLInputElement).checked = false;
+  ($("am-imp-run") as HTMLButtonElement).disabled = true;
+  $("am-imp-modal").classList.add("open");
+}
+function closeImport(): void { $("am-imp-modal").classList.remove("open"); }
+
+function buildImportMapping(): void {
+  const wrap = $("am-imp-map");
+  wrap.innerHTML = "";
+  const used = new Set<number>();
+  for (const f of IMPORT_FIELDS) {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;flex-direction:column;gap:3px";
+    const lbl = document.createElement("label");
+    lbl.textContent = t(f.labelKey) + (f.required ? " *" : "");
+    lbl.style.cssText = "font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px";
+    const sel = document.createElement("select");
+    sel.style.cssText = "width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:7px 9px;color:#e2e8f0;font-size:12.5px";
+    const none = document.createElement("option"); none.value = "-1"; none.textContent = t("asm.imp.ignore"); sel.appendChild(none);
+    impHeaders.forEach((h, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = h || `${t("asm.imp.col")} ${i + 1}`; sel.appendChild(o); });
+    let guessIdx = -1;
+    for (let i = 0; i < impHeaders.length; i++) {
+      const hl = (impHeaders[i] || "").toLowerCase().trim();
+      if (!used.has(i) && hl && f.guess.some((g) => hl === g || hl.includes(g))) { guessIdx = i; break; }
+    }
+    if (guessIdx >= 0) { sel.value = String(guessIdx); used.add(guessIdx); }
+    impSelects[f.key] = sel;
+    row.appendChild(lbl); row.appendChild(sel); wrap.appendChild(row);
+  }
+}
+
+async function onImportFile(): Promise<void> {
+  const file = ($("am-imp-file") as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const status = $("am-imp-status");
+  status.textContent = t("asm.imp.reading");
+  ($("am-imp-run") as HTMLButtonElement).disabled = true;
+  $("am-imp-result").innerHTML = "";
+  try {
+    await loadXlsx();
+    const XLSX = getXlsx();
+    if (!XLSX) { status.textContent = t("asm.imp.noxlsx"); return; }
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(new Uint8Array(buf), { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: "" }) as unknown[][];
+    if (!aoa.length) { status.textContent = t("asm.imp.empty"); return; }
+    impHeaders = (aoa[0] as unknown[]).map((h) => String(h ?? "").trim());
+    impRows = aoa.slice(1).filter((r) => Array.isArray(r) && r.some((c) => String(c ?? "").trim() !== ""));
+    buildImportMapping();
+    $("am-imp-mapwrap").style.display = "block";
+    status.textContent = fmt("asm.imp.detected", { cols: impHeaders.length, rows: impRows.length });
+    ($("am-imp-run") as HTMLButtonElement).disabled = impRows.length === 0;
+  } catch (e) { status.textContent = `⚠️ ${e}`; }
+}
+
+async function downloadTemplate(ev: Event): Promise<void> {
+  ev.preventDefault();
+  try {
+    await loadXlsx();
+    const XLSX = getXlsx();
+    if (!XLSX) { toast(`⚠️ ${t("asm.imp.noxlsx")}`); return; }
+    const headers = IMPORT_FIELDS.map((f) => t(f.labelKey));
+    const sample = ["web-prod-01", "Public e-commerce web server", "High", "cloud", "Ubuntu 22.04", "web-prod-01.example.com", "10.0.1.20", "yes", "yes", "no", "Revenue-critical", "250000", "EUR", "Front-end fleet"];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Assets");
+    XLSX.writeFile(wb, "asset-import-template.xlsx");
+  } catch (e) { toast(`⚠️ ${e}`); }
+}
+
+async function runImport(): Promise<void> {
+  const err = $("am-imp-err");
+  err.textContent = "";
+  if (Number(impSelects.name?.value ?? -1) < 0) { err.textContent = `⚠️ ${t("asm.imp.needName")}`; return; }
+  const rows = impRows.map((row) => {
+    const o: Record<string, unknown> = {};
+    for (const f of IMPORT_FIELDS) {
+      const ci = Number(impSelects[f.key]?.value ?? -1);
+      if (ci >= 0) { const cell = row[ci]; if (String(cell ?? "").trim() !== "") o[f.key] = cell; }
+    }
+    return o;
+  }).filter((o) => String(o.name ?? "").trim() !== "");
+  if (!rows.length) { err.textContent = `⚠️ ${t("asm.imp.needName")}`; return; }
+  const btn = $("am-imp-run") as HTMLButtonElement;
+  btn.disabled = true; err.textContent = t("asm.imp.importing");
+  try {
+    const r = await fetch("/api/asset-management/import", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rows, upsert: ($("am-imp-upsert") as HTMLInputElement).checked }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    err.textContent = "";
+    const errLines = (d.errors as { row: number; error: string }[] | undefined)?.slice(0, 8)
+      .map((e) => `<div>${t("asm.imp.row")} ${e.row}: ${esc(e.error)}</div>`).join("") || "";
+    $("am-imp-result").innerHTML =
+      `<div style="background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#cbd5e1">
+        <div class="ok">${fmt("asm.imp.done", { created: d.created, updated: d.updated, skipped: d.skipped })}</div>
+        ${d.errors?.length ? `<div class="no" style="margin-top:6px">${fmt("asm.imp.errors", { n: d.errors.length })}</div>${errLines}` : ""}
+      </div>`;
+    toast(fmt("asm.imp.toast", { created: d.created, updated: d.updated }));
+    await load();
+  } catch (e) { err.textContent = `⚠️ ${e}`; }
+  finally { btn.disabled = false; }
+}
+
+// ── ARF (Asset Reporting Format) import / export ────────────────────────────────
+async function exportArf(): Promise<void> {
+  const btn = $("am-export-arf") as HTMLButtonElement;
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = t("asm.arf.exporting");
+  try {
+    const r = await fetch("/api/asset-management/export/arf");
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || `HTTP ${r.status}`); }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `xorcism-assets-arf-${new Date().toISOString().slice(0, 10)}.xml`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast(t("asm.arf.exported"));
+  } catch (e) { toast(`⚠️ ${e}`); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
+let arfXml = "";
+function openArf(): void {
+  arfXml = "";
+  ($("am-arf-file") as HTMLInputElement).value = "";
+  $("am-arf-status").textContent = "";
+  $("am-arf-result").innerHTML = "";
+  $("am-arf-err").textContent = "";
+  ($("am-arf-upsert") as HTMLInputElement).checked = false;
+  ($("am-arf-run") as HTMLButtonElement).disabled = true;
+  $("am-arf-modal").classList.add("open");
+}
+function closeArf(): void { $("am-arf-modal").classList.remove("open"); }
+
+async function onArfFile(): Promise<void> {
+  const file = ($("am-arf-file") as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const status = $("am-arf-status");
+  ($("am-arf-run") as HTMLButtonElement).disabled = true;
+  $("am-arf-result").innerHTML = ""; $("am-arf-err").textContent = "";
+  try {
+    arfXml = await file.text();
+    if (!/asset-report-collection|asset|computing-device/i.test(arfXml)) { status.textContent = t("asm.arf.notArf"); return; }
+    status.textContent = fmt("asm.arf.loaded", { kb: Math.max(1, Math.round(arfXml.length / 1024)) });
+    ($("am-arf-run") as HTMLButtonElement).disabled = false;
+  } catch (e) { status.textContent = `⚠️ ${e}`; }
+}
+
+async function runArfImport(): Promise<void> {
+  const err = $("am-arf-err"); err.textContent = "";
+  if (!arfXml.trim()) { err.textContent = `⚠️ ${t("asm.arf.notArf")}`; return; }
+  const btn = $("am-arf-run") as HTMLButtonElement;
+  btn.disabled = true; err.textContent = t("asm.arf.importing");
+  try {
+    const r = await fetch("/api/asset-management/import/arf", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ xml: arfXml, upsert: ($("am-arf-upsert") as HTMLInputElement).checked }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    err.textContent = "";
+    const errLines = (d.errors as { row: number; error: string }[] | undefined)?.slice(0, 8)
+      .map((e) => `<div>${t("asm.imp.row")} ${e.row}: ${esc(e.error)}</div>`).join("") || "";
+    $("am-arf-result").innerHTML =
+      `<div style="background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#cbd5e1">
+        <div class="ok">${fmt("asm.arf.done", { parsed: d.parsed, created: d.created, updated: d.updated, skipped: d.skipped })}</div>
+        ${d.errors?.length ? `<div class="no" style="margin-top:6px">${fmt("asm.imp.errors", { n: d.errors.length })}</div>${errLines}` : ""}
+      </div>`;
+    toast(fmt("asm.imp.toast", { created: d.created, updated: d.updated }));
+    await load();
+  } catch (e) { err.textContent = `⚠️ ${e}`; }
+  finally { btn.disabled = false; }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initI18n();
   $("am-match").addEventListener("click", () => void matchCves());
+  $("am-export-arf").addEventListener("click", () => void exportArf());
+  $("am-import-arf").addEventListener("click", openArf);
+  $("am-arf-cancel").addEventListener("click", closeArf);
+  $("am-arf-modal").addEventListener("click", (e) => { if (e.target === $("am-arf-modal")) closeArf(); });
+  ($("am-arf-file") as HTMLInputElement).addEventListener("change", () => void onArfFile());
+  $("am-arf-run").addEventListener("click", () => void runArfImport());
+  $("am-clean-fp").addEventListener("click", () => void cleanFalsePositives());
   $("am-new").addEventListener("click", openModal);
   $("am-cancel").addEventListener("click", closeModal);
   $("am-create").addEventListener("click", () => void createAsset());
   $("am-modal").addEventListener("click", (e) => { if (e.target === $("am-modal")) closeModal(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+  $("am-import").addEventListener("click", openImport);
+  $("am-imp-cancel").addEventListener("click", closeImport);
+  $("am-imp-modal").addEventListener("click", (e) => { if (e.target === $("am-imp-modal")) closeImport(); });
+  ($("am-imp-file") as HTMLInputElement).addEventListener("change", () => void onImportFile());
+  $("am-imp-template").addEventListener("click", (e) => void downloadTemplate(e));
+  $("am-imp-run").addEventListener("click", () => void runImport());
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeModal(); closeImport(); closeArf(); } });
   ($("am-f-name") as HTMLInputElement).addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") void createAsset(); });
   void loadOwners();
   void load();

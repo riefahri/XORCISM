@@ -11,6 +11,198 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 
 ## [Unreleased]
 
+- **Cloud Management: AWS compliance checker + CloudTrail & AWS Config** — `/cloud-security` gains a built-in
+  **CIS AWS Foundations** checker. Upload an AWS posture snapshot (or produce it with the new `aws-config` /
+  `aws-cloudtrail` data or the `aws-compliance` connector) and it scores: IAM **password policy** (length/reuse/
+  complexity), **MFA for IAM console users**, **no root account access keys** & **root MFA**, **inactive users
+  (90 days)**, **access-key rotation (90 days)**, **CloudTrail** enablement (multi-region / log-file validation /
+  CloudWatch Logs / KMS) and **AWS Config** all-regions recorder. Results are stored in `XORCISM.CLOUDFINDING`
+  and shown with a compliance score and pass/fail-by-severity. New `evaluateAwsCompliance` in `cloudsec.ts`,
+  `POST /api/cloud-security/aws-check` + `GET /api/cloud-security/compliance`, an `aws-compliance` connector
+  (failing checks → VULNs) and TOOL-catalogue entries (AWS CIS Checker, CloudTrail, AWS Config).
+- **CRQ Decision Support — `/crq` (Gartner-aligned)** — following Gartner's *Innovation Insight for Cyber Risk
+  Quantification* (operationalize CRQ, don't just produce a number), a new cockpit turns the quantified risk
+  register (FAIR/CRQ annualized loss) into the four decisions Gartner says a mature program answers
+  continuously: **what to remediate first** (ranked by ALE), **which investments cut the most risk** (expected
+  ALE reduction / ROSI), **which risks breach appetite** (board-level), and **scenario comparison** (current vs
+  treated ALE) — in financial terms with an uncertainty band. Read-only over the live register, so it is
+  continuous rather than periodic. New `crq.ts` + `GET /api/crq`, landing card, EN/FR.
+- **ANSSI open-source tools (catalogue + connector)** — added the ANSSI-FR tools to the TOOL catalogue:
+  **DFIR-ORC**, **ORADAD**, **ORADAZ**, **AD Control Paths**, **ADTimeline**, **bmc-tools**, **DECODE**,
+  **OSAKA**, **fuzzysully**, **packetweaver**, **polichombr**, **lidi** — plus an **`anssi-ad-control-paths`
+  connector** that maps AD Control Paths' relationship CSV into AD objects (ASSET) and identity attack-path
+  findings (VULN), with severity raised for paths to high-value targets (Domain/Enterprise Admins, the domain root).
+- **Threat-Intel Copilot (Exvora-inspired) — `/threat-copilot`** — a "noise → signal, decision-ready"
+  cockpit grounded entirely in XORCISM's own data (no external SaaS). **Decision-ready triage** scores every
+  relevant CVE to **Act / Prioritise / Track** from KEV (active exploitation), EPSS (exploit probability),
+  CVSS and the stored SSVC decision, each with a confidence and a plain-English "why" — scoped to the
+  tenant's asset estate (ASSETVULNERABILITY) when links exist, else the global KEV/high-EPSS frontier. A
+  **multi-mode analyst** (the "Vera"-style assistant) answers in four modes — **Ask** (answer from your
+  data), **Investigate** (a CVE / threat actor / asset), **Draft** (a board-ready threat-landscape brief)
+  and **Challenge** (Analysis of Competing Hypotheses + a cognitive-bias checklist over your HYPOTHESIS
+  records) — and **always shows the queries it ran and the sources it cited**. Uses the local LLM for
+  synthesis with a deterministic offline fallback, so it works with no model configured. New
+  `server/threatcopilot.ts` + `/api/threat-copilot/{feed,ask}`, landing card, EN/FR.
+- **OVAL editor → latest version + test-content inspector** — the `/oval-editor` now targets the
+  **OVAL-Community** schema line: a schema-version selector (**5.12.3 / 5.12.1 / 5.11.2**, default latest;
+  5.11.2 kept for OpenSCAP interop) drives the generated `<oval:schema_version>`. You can now **see what a
+  criterion's test (`tst`) actually checks**: a "👁 view test" inspector on every criterion shows the test
+  type, check / check_existence, and the referenced object + state entities (name / operation / datatype /
+  value) plus the raw bundle XML. Because XOVAL only ever imported the definition→criteria→test skeleton
+  (test objects/states were never imported), an **⬆ Import test content** action ingests a full OVAL
+  document (CIS benchmark or distro feed) and stores a self-contained per-test bundle into `OVALTEST.BLOB`
+  (matched by test id, upsert); a Python CLI `import_oval_tests.py` does the same for bulk/offline feeds.
+  With content imported, the editor can also emit **self-contained OVAL** (inlining the referenced
+  `<tests>/<objects>/<states>`), turning an authored definition into an evaluatable document. New
+  `parseOvalTests` / `importOvalTestContent` / `getOvalTest` in `ovaleditor.ts`.
+- **ARF (Asset Reporting Format) import/export for Asset Management** — the `/asset-management` page gains
+  **Export ARF** and **Import ARF** buttons that speak the NIST **Asset Reporting Format 1.1** (NISTIR 7694)
+  over the **Asset Identification 1.1** (NISTIR 7693) data model — the SCAP container OpenSCAP and validated
+  scanners emit. *Export* serialises the asset estate to an `<arf:asset-report-collection>`: each asset is an
+  `<arf:asset>` wrapping an `<ai:computing-device>` (CPE, FQDN, hostname, motherboard-GUID, IPv4/IPv6
+  network-interfaces), plus a XORCISM inventory-extension report carrying the GRC fields the AI model can't
+  express (criticality, environment, business/financial value, PII, MFA, description/notes) and a
+  `<core:relationships>` block linking the report `isAbout` every asset (ARF relationship vocabulary). *Import*
+  ingests any ARF/Asset-Identification XML — a foreign scanner's result file (read as AI computing-devices) or a
+  XORCISM export (AI identity **+** the extension merged back) — creating assets, or **upserting by name** when
+  the option is ticked. The parser is namespace-tolerant (matches by element local-name, so `arf:`/`ai:`/`core:`
+  or no prefix all work). CPEs are exported but not re-linked on import (CPE links are derived data, re-creatable
+  via the CVE matcher). New `server/arf.ts`; verified by full export→parse→create→upsert round-trip on a DB copy
+  and `.xml` well-formedness validation. EN/FR.
+- **Excel/CSV import for the Risk Register and Risk Assessments** — the `/risk-register` page gains two
+  import buttons (**Import register**, **Import assessments**) that open a column-mapping dialog. Upload an
+  Excel (`.xlsx`/`.xls`) or CSV file; the dialog lazy-loads the SheetJS reader, detects the header row,
+  and lets you map each spreadsheet column to the target field (with fuzzy auto-matching of common
+  EN/FR header names, and a one-click downloadable template). Risk-register fields: title (required),
+  reference/ID, category, description, status, treatment, probability (1–5), impact (1–5), review date,
+  target date — the **inherent risk level is computed as probability × impact**. Risk-assessment fields:
+  name (required), description, status, version, date. An optional **"update existing"** checkbox upserts
+  by title (register) / name (assessment) instead of always creating. Rows with a blank required field are
+  skipped and per-row errors are surfaced. Server importers (`importRiskRegisterEntries` /
+  `importRiskAssessments` in `riskregister.ts`, column-aware + transactional, capped at 5000 rows/request,
+  RBAC + audited) write to `XCOMPLIANCE.RISKREGISTERENTRY` / `RISKASSESSMENT`. The dialog is a reusable
+  client helper (`xlsx-import.ts`) shared with Asset Management's import. EN/FR.
+- **ISO/SAE 21434:2021 support (automotive cybersecurity engineering)** — `import_iso21434.py` loads the
+  standard's clause structure (clauses 5–15, the normative "requirements & recommendations" sub-clauses:
+  organizational & project cybersecurity management, distributed & continual activities, concept,
+  product development, validation, production, operations & maintenance, end-of-support &
+  decommissioning, and the TARA method) into `XORCISM.CONTROL` as the Vocabulary **"ISO/SAE 21434:2021"**
+  (42 sub-clauses, CIS = clause id e.g. `15.6`). Only the factual clause numbering + short headings are
+  used (the copyrighted normative text is not reproduced — each `Statement` is an original one-line
+  summary). Added to the framework picker, a guided **ISO/SAE 21434 lifecycle journey** (org/project
+  management → TARA & concept → development & validation → production/operations/assurance), and a
+  website compliance card (Automotive · R155, EN/FR + structured data). It's the engineering backbone
+  for UNECE WP.29 R155 (CSMS) type approval. Committed snapshot; idempotent; launched on prod.
+- **CVE→asset matching: far fewer false positives (precision-tuned)** — the continuous CVE→ASSET
+  matcher (`cvematch.ts`) used to link an asset to any CVE whose **full description** contained one of
+  the asset's tokens, with only a tiny stop-list — so an asset tagged `email` matched the ~4,900 CVEs
+  that merely mention "email", and bare vendor/OS tokens (`apple`, `windows`, `microsoft`) matched
+  almost everything. Matching is now **confidence-tiered** and only auto-links at/above a threshold
+  (default **Medium**):
+  - **High** — a precise CPE link (`VULNERABILITYFORCPE` ↔ the asset's CPE, which *is* populated:
+    62k rows) or a CPE **vendor+product pair** both word-matched in the CVE text.
+  - **Medium** — a *specific product* token (from the asset's CPE products, or a product-shaped tag).
+  - **Low** — a short/ambiguous tag (recorded, not auto-linked by default).
+  - **Dropped** — a large blocklist of generic categories / protocols / OS / vendor names
+    (email, web, dns, vpn, firewall, cloud, windows, apple, microsoft, …) and bare CPE vendor tokens
+    never match on their own. Every auto-link now records **MatchConfidence / MatchSource /
+    MatchedToken** on `ASSETVULNERABILITY` for audit and triage.
+  The on-demand rematch (`POST /api/cve-match/run`) accepts `minConfidence` (`high|medium|low`) and an
+  opt-in `rescore` that **re-scores the existing keyword-matched backlog and flags the now-weak links
+  as FalsePositive** (reversible; scanner-found and manually-added links are left untouched). Verified
+  on copies: an `email`-tagged asset went from ~thousands of bogus links to **0**; the backlog rescore
+  flagged ~1,800 weak legacy links while keeping the legitimate ones.
+- **Advanced OVAL Definition editor (/oval-editor)** — author and edit OVAL definitions in XORCISM with
+  a visual editor that **reuses the OVAL content already imported in XOVAL** (140k+ tests, 35k+
+  definitions). A metadata form (class/affected-family comboboxes, title, description, version,
+  deprecated, CVE/CCE references) plus a **recursive criteria-tree builder**: AND/OR/ONE/XOR groups
+  nest freely; `criterion` leaves pick an existing OVAL **test** via an autocomplete combobox
+  (`/api/oval/test-search`), `extend_definition` leaves pick an existing **definition**
+  (`/api/oval/def-search`); every node has negate / comment (and criteria have applicability_check).
+  It generates an **OVAL 5.11-compliant** `<oval_definitions>` document (live preview + download) and
+  **persists the definition relationally** into the XOVAL tables (OVALDEFINITION + the
+  OVALCRITERIA / OVALCRITERIACRITERION / OVALCRITERIAEXTENDDEFINITION / OVALCRITERIAFOROVALCRITERIA
+  tree) **and** stores the generated XML in OVALDEFINITION.BLOB. Authored definitions use the
+  `oval:ai.xorcism:def:N` namespace + a repository marker so they stay separate from the imported
+  CIS/MITRE reference set; any imported definition can be loaded as a clone, edited and saved as a new
+  authored definition. Reached from the OVAL-scan page and the explorer OVALDEFINITION form. New
+  endpoints under `/api/oval/*` (meta / test-search / def-search / definition GET+POST / preview),
+  RBAC-guarded on XOVAL.OVALDEFINITION and audited. (Objects/States aren't reconstructable — those
+  XOVAL tables were not imported — so leaves reference tests by id, the standard OVAL repository
+  authoring model.) Verified end-to-end on a copy of XOVAL.db (create / load round-trip / update).
+- **CMMC 2.0 support (DoD Cybersecurity Maturity Model Certification)** — `import_cmmc.py` loads the
+  CMMC 2.0 model (32 CFR Part 170) into `XORCISM.CONTROL` under the Vocabulary **"CMMC 2.0"**: the
+  assessable practice set — **Level 1 (17 FAR 52.204-21 practices, FCI)** + **Level 2 (110 practices =
+  NIST SP 800-171 Rev 2, CUI)** across the 14 domains, with the 17 Level-1 practices flagged (CIS ids
+  like `AC.L1-3.1.1` / `AC.L2-3.1.3`) — plus a 1:1 **`CONTROLMAPPING` crosswalk** of every practice to
+  its NIST SP 800-171 Rev 2 id so CMMC is interoperable. (Level 3 = Level 2 + selected NIST SP 800-172
+  enhanced requirements, government-assessed — noted in the catalogue.) The catalogue is embedded from
+  public-domain NIST/DoD text (no fragile fetch) and a committed `importers/data/cmmc.json` snapshot is
+  written; idempotent (delete-then-insert by VocabularyID). Added to the framework picker, a guided
+  **CMMC 2.0 compliance journey** (scope/level → implement practices → SSP & SPRS self-assessment →
+  POA&M & C3PAO certification), and a website compliance card (EN/FR + structured data). Launched on prod.
+- **TTPForge support (Meta adversary-emulation engine)** — `import_ttpforge.py` makes XORCISM
+  understand the **TTPForge** TTP format (github.com/facebookincubator/TTPForge, Meta's Purple-Team
+  attack-simulation engine: TTPs as declarative YAML — MITRE ATT&CK mapping, args, and multi-step
+  actions with cleanup). It parses any TTPForge TTP repository and loads each TTP into XORCISM's
+  adversary-emulation library — `XTHREAT.ATOMICTEST` (Source="TTPForge", ATT&CK technique resolved
+  from the `mitre:` block, steps rendered into Command/Cleanup) grouped into a runnable
+  `EMULATIONSCENARIO` — exactly like the Atomic Red Team importer, feeding the BAS / ATT&CK
+  validation-coverage heatmap. A committed snapshot ships the engine's example TTPs; `--repo <path>`
+  (PyYAML) re-parses a fresh clone or **your own red-team TTP library**, and `--label` names the
+  scenario. Idempotent (upsert by the TTP `uuid`); `requirements.platforms` drives platform inference;
+  Go-templated structural files and `tests/` self-test fixtures are skipped. A TTPForge entry was added
+  to the tool catalogue (Adversary Emulation). Verified on a copy of XTHREAT.db.
+- **OWASP AISVS 1.0 imported + "Free GRC tool" landing page** — `import_aisvs.py` parses the OWASP
+  **Artificial Intelligence Security Verification Standard** (github.com/OWASP/AISVS, v1.0, June 2026)
+  into a committed JSON snapshot and loads its **191 verification requirements across 12 chapters**
+  (training-data integrity, input validation, model lifecycle, infrastructure, access control & identity,
+  supply chain, model behavior & safety, memory/embeddings/vector DB, orchestration & agentic security,
+  MCP security, adversarial robustness, monitoring & logging — each graded Level 1/2/3) into
+  `XORCISM.CONTROL` under the Vocabulary **"OWASP AISVS 1.0"**, as a selectable AI control framework
+  next to ISO/IEC 42001, NIST AI RMF, the EU AI Act, CSA AICM, MLASVS and Databricks DASF. Re-parse a
+  fresh clone via `--repo`. Added to the framework picker + an OWASP AISVS TOOL entry. Idempotent;
+  launched on prod. A new SEO-optimized website page **/free-grc-tool.html** details the GRC features
+  (policy lifecycle, quantified risk register, compliance & audit, controls library, Trust Center,
+  TPRM, privacy, AI governance), benefits, and the 40+ supported frameworks (EN + FR, JSON-LD
+  SoftwareApplication + FAQPage, sitemap + internal links).
+- **Bulk remediation, false-positive triage & remediation/FP-aware risk scoring** — the ASSET form's
+  "Vulnerabilities for Asset" panel gains two actions and the risk model is revised to reflect them:
+  - **"+ Plan for all"** creates a remediation plan for *every* open (non-false-positive) vulnerability
+    of the asset in one shot (`POST /api/patch-management/remediation-bulk`); all plans share a name so
+    they form a single patch package. Resolved instances are skipped, and by default instances that
+    already have a plan are skipped (idempotent) — a scope toggle allows forcing a plan on every open
+    instance. No ticket storm (bulk creates plans only).
+  - **False-positive toggle** on each vulnerability row (`POST /api/patch-management/false-positive`)
+    sets `ASSETVULNERABILITY.FalsePositive`; flagged rows render greyed/struck and drop out of the
+    worklists and risk scores.
+  - **Revised risk scores (asset + enterprise).** The canonical `ASSET.RiskScore` and the aggregated
+    `EnterpriseRiskScore` now (a) **exclude analyst-confirmed false positives** from the vulnerability
+    and overdue-patch terms (previously false positives still inflated the score), and (b) **discount
+    each open vulnerability by its remediation status** — residual risk = exposure × (1 − mitigation):
+    Done/Resolved ×0.1, In progress ×0.5, Planned ×0.85, Deferred/none ×1.0 (most-mitigating plan
+    wins). Overdue plans still incur the existing SLA penalty, so genuine progress lowers risk while
+    slippage is punished. Enterprise inherits the asset improvements through its asset-sum component.
+- **Asset MFA tracking + Excel/CSV asset import** — `ASSET` gains an `MFAEnabled` flag (0/1) to
+  record whether multi-factor authentication is implemented on an asset; the column is added
+  idempotently at boot (`ensureAssetColumns`) and is editable/visible in the explorer (Yes/No) and
+  the guided "New asset" modal. Asset Management (`/asset-management`) adds an **⬆ Import Excel**
+  workflow: upload an Excel (`.xlsx`/`.xls`) or CSV file, **map its columns to asset fields** (with
+  fuzzy header auto-matching), optionally **upsert** existing assets by name (only mapped columns are
+  updated — blanks never overwrite existing data), and bulk-create the rest. A one-click `.xlsx`
+  template download documents the expected layout. Booleans accept yes/true/1/x/✓/oui. Parsing happens
+  client-side (lazy-loaded SheetJS); the server endpoint (`POST /api/asset-management/import`, RBAC
+  `create XORCISM.ASSET`, audited) creates via the same path as the guided form. Fully bilingual
+  (EN/FR). Mapped fields: name (required) / description / criticality / environment / OS / hostname /
+  IPv4 / Internet-facing / hosts-PII / **MFA enabled** / business value / financial value / currency /
+  notes.
+- **OWASP SPVS imported** — `import_spvs.py` parses the OWASP **Secure Pipeline Verification Standard**
+  (owasp.org/www-project-spvs) into a committed JSON snapshot and loads both releases as selectable
+  control frameworks: **SPVS 1.0 (110 requirements)** and **SPVS 1.5-AI (132 requirements)** → two
+  `XORCISM.CONTROL` vocabularies, across the five pipeline stages (Plan / Develop / Integrate / Release
+  / Operate) with L1/L2/L3 maturity and NIST 800-53 / OWASP CI/CD Top-10 (CICD-SEC) / CWE mappings.
+  Re-parse a fresh clone via `--repo`. Added to the framework picker + an OWASP SPVS TOOL entry
+  (DevSecOps). Idempotent; launched on prod.
 - **MLASTG / MLASVS imported** — `import_mlasvs.py` parses the MLASTG repo (bb1nfosec/MLASTG, the
   "MLSec Application Security Testing Guide" — the ML/AI analogue of OWASP MASVS/MASTG) into a
   committed JSON snapshot and loads its **MLASVS verification standard (114 L1/L2 controls** across

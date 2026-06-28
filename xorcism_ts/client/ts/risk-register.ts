@@ -3,6 +3,7 @@
  * Inherent→residual posture, treatment, CRQ/FAIR ALE, from /api/risk-register.
  */
 import { initI18n, t } from "./i18n";
+import { openXlsxImport } from "./xlsx-import";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
 const fmt = (key: string, vars: Record<string, string | number>): string =>
@@ -362,8 +363,51 @@ async function addEntryMeasure(): Promise<void> {
   catch (e) { toast(`⚠️ ${e}`); }
 }
 
+function openRegisterImport(): void {
+  openXlsxImport({
+    title: t("rr.imp.title"),
+    lead: t("rr.imp.lead"),
+    endpoint: "/api/risk-register/import",
+    upsertLabel: t("rr.imp.upsert"),
+    templateName: "risk-register",
+    fields: [
+      { key: "title", label: t("rr.imp.f.title"), required: true, guess: ["title", "risk", "name", "titre", "libelle", "intitule"] },
+      { key: "ref", label: t("rr.imp.f.ref"), guess: ["ref", "reference", "id", "code", "risk id", "risk ref"] },
+      { key: "category", label: t("rr.imp.f.category"), guess: ["category", "categorie", "type", "domain", "domaine"] },
+      { key: "description", label: t("rr.imp.f.description"), guess: ["description", "desc", "details", "detail", "summary"] },
+      { key: "status", label: t("rr.imp.f.status"), guess: ["status", "statut", "state", "etat"] },
+      { key: "treatment", label: t("rr.imp.f.treatment"), guess: ["treatment", "traitement", "response", "strategy", "reponse"] },
+      { key: "probability", label: t("rr.imp.f.probability"), guess: ["probability", "probabilite", "likelihood", "vraisemblance", "proba"] },
+      { key: "impact", label: t("rr.imp.f.impact"), guess: ["impact", "severity", "gravite", "consequence"] },
+      { key: "reviewDate", label: t("rr.imp.f.reviewDate"), guess: ["review", "review date", "revue", "date revue", "next review"] },
+      { key: "targetDate", label: t("rr.imp.f.targetDate"), guess: ["target", "target date", "due", "due date", "echeance", "deadline"] },
+    ],
+    onDone: () => { void load(); },
+  });
+}
+
+function openAssessmentImport(): void {
+  openXlsxImport({
+    title: t("ra.imp.title"),
+    lead: t("ra.imp.lead"),
+    endpoint: "/api/risk-assessment/import",
+    upsertLabel: t("ra.imp.upsert"),
+    templateName: "risk-assessment",
+    fields: [
+      { key: "name", label: t("ra.imp.f.name"), required: true, guess: ["name", "nom", "title", "titre", "assessment", "evaluation"] },
+      { key: "description", label: t("ra.imp.f.description"), guess: ["description", "desc", "scope", "perimetre", "details"] },
+      { key: "status", label: t("ra.imp.f.status"), guess: ["status", "statut", "state", "etat"] },
+      { key: "version", label: t("ra.imp.f.version"), guess: ["version", "ver", "rev", "revision"] },
+      { key: "date", label: t("ra.imp.f.date"), guess: ["date", "assessment date", "date evaluation", "created", "creation"] },
+    ],
+    onDone: () => { void load(); },
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   $("rr-new").addEventListener("click", openRiskModal);
+  $("rr-import").addEventListener("click", openRegisterImport);
+  $("rr-import-ra").addEventListener("click", openAssessmentImport);
   $("rr-s-save").addEventListener("click", () => void saveStrategy());
   $("rr-s-cancel").addEventListener("click", () => $("rr-strategy-modal").classList.remove("open"));
   $("rr-s-add-appetite").addEventListener("click", () => { const h = $("rr-s-appetite"); h.insertAdjacentHTML("beforeend", appetiteRowHtml()); const row = h.lastElementChild as HTMLElement; row?.querySelector(".ap-rm")?.addEventListener("click", () => row.remove()); });

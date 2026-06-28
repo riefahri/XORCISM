@@ -268,6 +268,128 @@ export function createRiskRegisterEntry(
   return { id: Number(r.lastInsertRowid) };
 }
 
+// ── Excel/CSV import: Risk Register entries (RISKREGISTERENTRY) + Risk Assessments (RISKASSESSMENT) ──
+// The Excel→field mapping happens client-side (the reusable xlsx-import modal); rows arrive keyed by
+// these logical field names. Only the title/name is required; "upsert" updates an existing row matched
+// by title/name (only the columns the row actually provides are touched — blanks never overwrite).
+export const RISK_REGISTER_IMPORT_FIELDS = [
+  { key: "title", type: "text" }, { key: "ref", type: "text" }, { key: "category", type: "text" },
+  { key: "description", type: "text" }, { key: "status", type: "text" }, { key: "treatment", type: "text" },
+  { key: "probability", type: "number" }, { key: "impact", type: "number" },
+  { key: "reviewDate", type: "date" }, { key: "targetDate", type: "date" },
+] as const;
+export const RISK_ASSESSMENT_IMPORT_FIELDS = [
+  { key: "name", type: "text" }, { key: "description", type: "text" }, { key: "status", type: "text" },
+  { key: "version", type: "text" }, { key: "date", type: "date" },
+] as const;
+
+export interface RiskImportResult { created: number; updated: number; skipped: number; errors: { row: number; error: string }[]; }
+const _str = (v: unknown): string | undefined => { const s = String(v ?? "").trim(); return s || undefined; };
+const _has = (row: Record<string, unknown>, k: string): boolean => Object.prototype.hasOwnProperty.call(row, k) && String(row[k] ?? "").trim() !== "";
+const _lvl = (v: unknown): number | null => { const n = Math.round(Number(v)); return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null; };
+
+function updateRREntry(cc: ReturnType<typeof getDb>, rc: Set<string>, id: number, row: Record<string, unknown>): void {
+  const set: Record<string, unknown> = {};
+  if (_has(row, "description")) set.Description = String(row.description).slice(0, 4000);
+  if (_has(row, "category")) set.Category = String(row.category).slice(0, 120);
+  if (_has(row, "ref")) set.Ref = String(row.ref).slice(0, 60);
+  if (_has(row, "status")) set.Status = String(row.status).slice(0, 60);
+  if (_has(row, "treatment")) set.TreatmentStrategy = String(row.treatment).slice(0, 60);
+  const p = _has(row, "probability") ? _lvl(row.probability) : undefined;
+  const im = _has(row, "impact") ? _lvl(row.impact) : undefined;
+  if (p !== undefined) set.InherentProbability = p;
+  if (im !== undefined) set.InherentImpact = im;
+  if (p != null && im != null) set.InherentRiskLevel = p * im;
+  if (_has(row, "reviewDate")) set.ReviewDate = String(row.reviewDate);
+  if (_has(row, "targetDate")) set.TargetDate = String(row.targetDate);
+  const keys = Object.keys(set).filter((k) => rc.has(k));
+  if (!keys.length) return;
+  cc.prepare(`UPDATE RISKREGISTERENTRY SET ${keys.map((k) => `"${k}" = ?`).join(", ")} WHERE RiskRegisterEntryID = ?`).run(...keys.map((k) => set[k]), id);
+}
+
+export function importRiskRegisterEntries(rows: Record<string, unknown>[], tenant: number | null, opts: { upsert?: boolean } = {}): RiskImportResult {
+  const cc = getDb("XCOMPLIANCE");
+  const rc = cols("RISKREGISTERENTRY");
+  if (!rc.size) throw new Error("RISKREGISTERENTRY table not available");
+  const out: RiskImportResult = { created: 0, updated: 0, skipped: 0, errors: [] };
+  const findByTitle = cc.prepare("SELECT RiskRegisterEntryID id FROM RISKREGISTERENTRY WHERE Title = ? COLLATE NOCASE AND TenantID IS ? LIMIT 1");
+  const tx = cc.transaction((items: Record<string, unknown>[]) => {
+    items.forEach((row, i) => {
+      const title = String(row.title ?? "").trim();
+      if (!title) { out.skipped++; return; }
+      try {
+        if (opts.upsert && rc.has("TenantID")) {
+          const ex = findByTitle.get(title, tenant) as { id: number } | undefined;
+          if (ex) { updateRREntry(cc, rc, ex.id, row); out.updated++; return; }
+        }
+        createRiskRegisterEntry({
+          title, ref: _str(row.ref), category: _str(row.category), description: _str(row.description),
+          status: _str(row.status), treatment: _str(row.treatment),
+          probability: _has(row, "probability") ? _lvl(row.probability) : null,
+          impact: _has(row, "impact") ? _lvl(row.impact) : null,
+          reviewDate: _str(row.reviewDate), targetDate: _str(row.targetDate),
+        }, tenant);
+        out.created++;
+      } catch (e) { out.errors.push({ row: i + 1, error: String((e as Error).message || e) }); }
+    });
+  });
+  tx(rows);
+  return out;
+}
+
+/** Create a RISKASSESSMENT (the assessment header used by EBIOS / NIST 800-30). Column-aware + GUID. */
+export function createRiskAssessment(p: { name: string; description?: string; status?: string; version?: string; date?: string }, tenant: number | null): { id: number } {
+  const cc = getDb("XCOMPLIANCE");
+  const rc = cols("RISKASSESSMENT");
+  if (!rc.size) throw new Error("RISKASSESSMENT table not available");
+  const now = new Date().toISOString();
+  const candidate: Record<string, unknown> = {
+    RiskAssessmentGUID: randomUUID(),
+    Name: (p.name || "Untitled assessment").slice(0, 300),
+    Description: p.description ? String(p.description).slice(0, 4000) : null,
+    Status: (p.status || "Draft").slice(0, 60),
+    Version: p.version ? String(p.version).slice(0, 40) : null,
+    Date: p.date || now.slice(0, 10),
+    CreatedDate: now, TenantID: tenant,
+  };
+  const keys = Object.keys(candidate).filter((k) => rc.has(k));
+  const r = cc.prepare(`INSERT INTO RISKASSESSMENT (${keys.map((k) => `"${k}"`).join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`).run(...keys.map((k) => candidate[k]));
+  return { id: Number(r.lastInsertRowid) };
+}
+
+export function importRiskAssessments(rows: Record<string, unknown>[], tenant: number | null, opts: { upsert?: boolean } = {}): RiskImportResult {
+  const cc = getDb("XCOMPLIANCE");
+  const rc = cols("RISKASSESSMENT");
+  if (!rc.size) throw new Error("RISKASSESSMENT table not available");
+  const out: RiskImportResult = { created: 0, updated: 0, skipped: 0, errors: [] };
+  const findByName = cc.prepare("SELECT RiskAssessmentID id FROM RISKASSESSMENT WHERE Name = ? COLLATE NOCASE AND TenantID IS ? LIMIT 1");
+  const tx = cc.transaction((items: Record<string, unknown>[]) => {
+    items.forEach((row, i) => {
+      const name = String(row.name ?? "").trim();
+      if (!name) { out.skipped++; return; }
+      try {
+        if (opts.upsert && rc.has("TenantID")) {
+          const ex = findByName.get(name, tenant) as { id: number } | undefined;
+          if (ex) {
+            const set: Record<string, unknown> = {};
+            if (_has(row, "description")) set.Description = String(row.description).slice(0, 4000);
+            if (_has(row, "status")) set.Status = String(row.status).slice(0, 60);
+            if (_has(row, "version")) set.Version = String(row.version).slice(0, 40);
+            if (_has(row, "date")) set.Date = String(row.date);
+            const keys = Object.keys(set).filter((k) => rc.has(k));
+            if (keys.length) cc.prepare(`UPDATE RISKASSESSMENT SET ${keys.map((k) => `"${k}" = ?`).join(", ")} WHERE RiskAssessmentID = ?`).run(...keys.map((k) => set[k]), ex.id);
+            out.updated++; return;
+          }
+        }
+        createRiskAssessment({ name, description: _str(row.description), status: _str(row.status), version: _str(row.version), date: _str(row.date) }, tenant);
+        out.created++;
+      } catch (e) { out.errors.push({ row: i + 1, error: String((e as Error).message || e) }); }
+    });
+  });
+  tx(rows);
+  return out;
+}
+
 // ════════════════════════════════════════════════════════════════════════════════
 //  Risk-management strategy & appetite (RISKSTRATEGY / RISKAPPETITE) + a reusable
 //  library of risk measures (RISKMEASURE) linkable to register entries (RISKMEASURELINK).

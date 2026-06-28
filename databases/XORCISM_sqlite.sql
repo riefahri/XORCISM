@@ -26379,7 +26379,7 @@ CREATE TABLE IF NOT EXISTS "ASSETVULNERABILITY"(
     "ValidFromDate" TEXT NULL,
     "ValidUntilDate" TEXT NULL,
     "ToolID" INTEGER NULL
-, "TenantID" INTEGER, "AssetVulnerabilityStatusID" INTEGER, "Status" INTEGER, "TotalControl" INTEGER, "FalsePositive" INTEGER DEFAULT 0);
+, "TenantID" INTEGER, "AssetVulnerabilityStatusID" INTEGER, "Status" INTEGER, "TotalControl" INTEGER, "FalsePositive" INTEGER DEFAULT 0, "PatchStatus" TEXT, "PatchedDate" DATE, "TargetDate" DATE, "RemediationOwnerPersonID" INTEGER, "Priority" TEXT, "MatchConfidence" TEXT, "MatchSource" TEXT, "MatchedToken" TEXT);
 CREATE TABLE IF NOT EXISTS THREATMODEL (
       ThreatModelID INTEGER PRIMARY KEY,
       ThreatModelGUID TEXT, ThreatModelName TEXT, Description TEXT,
@@ -26484,6 +26484,7 @@ ALTER TABLE "ASSET" ADD COLUMN "SLAResponseHours" REAL;
 ALTER TABLE "ASSET" ADD COLUMN "SLAResolutionHours" REAL;
 ALTER TABLE "ASSET" ADD COLUMN "Backed" INTEGER;
 ALTER TABLE "ASSET" ADD COLUMN "BackupPlanID" INTEGER;
+ALTER TABLE "ASSET" ADD COLUMN "MFAEnabled" INTEGER;
 ALTER TABLE "ASSETLOCATION" ADD COLUMN "AssetLocationName" TEXT;
 ALTER TABLE "CONFIDENTIALITYLEVEL" ADD COLUMN "ConfidentialityLevelName" TEXT;
 ALTER TABLE "CONFIDENTIALITYLEVEL" ADD COLUMN "ConfidentialityLevelDescription" TEXT;

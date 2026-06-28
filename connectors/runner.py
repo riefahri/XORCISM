@@ -438,6 +438,8 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
         return {"notified": int(result.get("notify") or 0)}
     if result.get("intel"):
         counts.update(import_threat_intel(result))
+    if result.get("controls"):
+        counts.update(import_controls(result))
     if result.get("euvd"):
         counts.update(import_euvd(result))
     if result.get("detections") or result.get("sigma"):
@@ -584,6 +586,72 @@ def import_threat_intel(result: Dict[str, Any]) -> Dict[str, int]:
                 (intel_id, aid, techid, _now()),
             )
             counts["intel_attack_links"] += cur.rowcount
+
+    con.commit()
+    con.close()
+    return counts
+
+
+def import_controls(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import a framework / control catalogue into XORCISM.CONTROL (used by control-catalogue
+    connectors such as ANSSI Dalton). Each item: {vocab, ref, name, statement, description, tags}.
+    Idempotent by (VocabularyID, CIS=ref): existing rows are updated, new ones inserted. The
+    VOCABULARY row is found-or-created so the importer runs against any DB version."""
+    from uuid import uuid4
+
+    items = result.get("controls") or []
+    counts = {"controls": 0, "controls_updated": 0, "vocabularies": 0}
+    if not items:
+        return counts
+
+    con = sqlite3.connect(os.path.join(_db_dir(), "XORCISM.db"), timeout=20)
+    con.execute("PRAGMA busy_timeout=20000")
+    cur = con.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS VOCABULARY (VocabularyID INTEGER PRIMARY KEY, VocabularyGUID TEXT, VocabularyName TEXT, VocabularyVersion TEXT, VocabularyReference TEXT, VocabularyDescription TEXT, CreatedDate DATE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS CONTROL (ControlID INTEGER PRIMARY KEY, ControlGUID TEXT, ControlName TEXT, ControlDescription TEXT, VocabularyID INTEGER, CIS TEXT, Statement TEXT, CreatedDate DATE, ValidFromDate DATE, isEncrypted INTEGER)")
+    vcols = {r[1] for r in cur.execute("PRAGMA table_info(VOCABULARY)").fetchall()}
+    ccols = {r[1] for r in cur.execute("PRAGMA table_info(CONTROL)").fetchall()}
+    src = result.get("source") or "control-catalogue"
+
+    def ensure_vocab(name: str, version: str = "", ref: str = "", desc: str = "") -> int:
+        row = cur.execute("SELECT VocabularyID FROM VOCABULARY WHERE VocabularyName=?", (name,)).fetchone()
+        if row:
+            return int(row[0])
+        vid = (cur.execute("SELECT COALESCE(MAX(VocabularyID),0) FROM VOCABULARY").fetchone()[0] or 0) + 1
+        rec = {"VocabularyID": vid, "VocabularyGUID": str(uuid4()), "VocabularyName": name,
+               "VocabularyVersion": version, "VocabularyReference": ref, "VocabularyDescription": desc,
+               "CreatedDate": _now()}
+        keys = [k for k in rec if k in vcols]
+        cur.execute(f"INSERT INTO VOCABULARY ({','.join(keys)}) VALUES ({','.join('?'*len(keys))})", [rec[k] for k in keys])
+        counts["vocabularies"] += 1
+        return vid
+
+    next_cid = (cur.execute("SELECT COALESCE(MAX(ControlID),0) FROM CONTROL").fetchone()[0] or 0) + 1
+    vid_cache: Dict[str, int] = {}
+    for it in items:
+        vname = str(it.get("vocab") or it.get("vocabulary") or src)
+        if vname not in vid_cache:
+            vid_cache[vname] = ensure_vocab(vname, str(it.get("version") or ""), str(it.get("reference") or ""), str(it.get("vocab_description") or ""))
+        vid = vid_cache[vname]
+        ref = str(it.get("ref") or it.get("cis") or it.get("name") or "").strip()
+        if not ref:
+            continue
+        name = str(it.get("name") or ref)[:300]
+        statement = str(it.get("statement") or it.get("title") or "")[:2000]
+        desc = str(it.get("description") or "")[:2000]
+        row = cur.execute("SELECT ControlID FROM CONTROL WHERE VocabularyID=? AND CIS=?", (vid, ref)).fetchone()
+        rec = {"ControlName": name, "ControlDescription": desc, "VocabularyID": vid, "CIS": ref,
+               "Statement": statement, "ValidFromDate": _now()[:10], "isEncrypted": 0}
+        if row:
+            sets = [k for k in rec if k in ccols]
+            cur.execute(f"UPDATE CONTROL SET {','.join(k+'=?' for k in sets)} WHERE ControlID=?", [rec[k] for k in sets] + [row[0]])
+            counts["controls_updated"] += 1
+        else:
+            rec.update({"ControlID": next_cid, "ControlGUID": str(uuid4()), "CreatedDate": _now()})
+            next_cid += 1
+            keys = [k for k in rec if k in ccols]
+            cur.execute(f"INSERT INTO CONTROL ({','.join(keys)}) VALUES ({','.join('?'*len(keys))})", [rec[k] for k in keys])
+            counts["controls"] += 1
 
     con.commit()
     con.close()

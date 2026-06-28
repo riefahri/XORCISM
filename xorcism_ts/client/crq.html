@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — CRQ Decision Support</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .cq-wrap{max-width:1240px;margin:0 auto;padding:18px}
+  .cq-wrap h1{font-size:20px;margin:0 0 2px}
+  .cq-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1000px}
+  .cq-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .cq-card{flex:1;min-width:150px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .cq-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .cq-card .val{font-size:23px;font-weight:800;margin-top:3px}.cq-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .cq-panel{background:#13162a;border:1px solid #2d3250;border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .cq-panel h2{font-size:13px;font-weight:700;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px}
+  .cq-panel .qh{font-size:12px;color:#a5b4fc;margin:0 0 10px}
+  table.cq{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.cq th,table.cq td{text-align:left;padding:6px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.cq th{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .lvl{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px}
+  .lvl.crit,.lvl.veryhigh{background:#7f1d1d;color:#fecaca}.lvl.high{background:#78350f;color:#fcd34d}.lvl.medium,.lvl.moderate{background:#1e3a5f;color:#bfdbfe}.lvl.low,.lvl.verylow{background:#1e2133;color:#94a3b8}
+  .over{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;background:#7f1d1d;color:#fecaca}
+  .bars{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .bar-row{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .bar-row .nm{width:240px;color:#e2e8f0}.bar-row .track{flex:1;background:#0f1117;border-radius:6px;height:18px;overflow:hidden}
+  .bar-row .fill{height:100%;background:linear-gradient(90deg,#7c83fd,#22d3ee)}
+  .bar-row .amt{width:150px;text-align:right;font-variant-numeric:tabular-nums;color:#cbd5e1}
+  .muted{color:#64748b}.qbox{background:#0f1322;border-left:3px solid #7c83fd;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:13px;color:#cbd5e1}
+  .qbox .q{color:#a5b4fc;font-weight:600;margin-bottom:3px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Home</a>
+  <a href="/risk-register">&#128202; Risk Register</a>
+  <a href="/fair-mam">&#128176; FAIR-MAM</a>
+  <span class="spacer"></span>
+  <span class="title">&#128178; CRQ Decision Support</span>
+</div>
+<div class="cq-wrap">
+  <h1>Cyber Risk Quantification — Decision Support</h1>
+  <div class="cq-sub">Operationalize CRQ the way Gartner's <i>Innovation Insight for Cyber Risk Quantification</i> recommends:
+    not another number, but answers to the decisions that matter — <b>what to remediate first</b>, <b>which investments
+    cut the most risk</b>, <b>which risks breach appetite</b>, and <b>how to optimize limited resources</b>. Driven live
+    from your quantified risk register (FAIR/CRQ annualized loss), in financial terms, with an uncertainty band.</div>
+  <div id="cq-body"><div class="muted" style="padding:24px;text-align:center">Loading quantified risk portfolio…</div></div>
+</div>
+<script src="/js/session-ui.js"></script>
+<script src="/js/crq.js"></script>
+</body>
+</html>

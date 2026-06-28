@@ -874,6 +874,7 @@ export function getSchema(dbName: string, table: string): object[] {
 // Key = "DB.TABLE" in UPPERCASE.
 export const TENANT_SCOPED_TABLES = new Set<string>([
   "XORCISM.ASSET",
+  "XORCISM.CLOUDFINDING",
   "XORCISM.ASSETCONTROL",
   "XORCISM.BACKUPPLAN",
   "XORCISM.BACKUPTEST",
@@ -1991,6 +1992,7 @@ export interface VulnRow {
   AssetVulnerabilityID?: number;
   PatchStatus?: string | null;
   RemediationCount?: number;
+  FalsePositive?: number; // 0/1 — analyst-confirmed false positive (excluded from risk)
 }
 
 // ── Tag referential (XORCISM.TAG; name column = TagValue) ─────────────
@@ -2673,15 +2675,16 @@ export function getAssetVulnerabilities(assetId: number): VulnRow[] {
   const xo = getDb("XORCISM");
   const avCols = new Set((xo.prepare(`PRAGMA table_info("ASSETVULNERABILITY")`).all() as { name: string }[]).map((c) => c.name));
   const hasPatch = avCols.has("PatchStatus");
+  const hasFp = avCols.has("FalsePositive");
   const avRows = xo.prepare(
-    `SELECT AssetVulnerabilityID, VulnerabilityID${hasPatch ? ", PatchStatus" : ""}
+    `SELECT AssetVulnerabilityID, VulnerabilityID${hasPatch ? ", PatchStatus" : ""}${hasFp ? ", FalsePositive" : ""}
      FROM ASSETVULNERABILITY WHERE AssetID = ? AND VulnerabilityID IS NOT NULL
      ORDER BY AssetVulnerabilityID`
-  ).all(assetId) as { AssetVulnerabilityID: number; VulnerabilityID: number; PatchStatus?: string | null }[];
+  ).all(assetId) as { AssetVulnerabilityID: number; VulnerabilityID: number; PatchStatus?: string | null; FalsePositive?: number }[];
   if (!avRows.length) return [];
   // First junction row wins per vulnerability (a remediation plan attaches to one instance).
-  const byVuln = new Map<number, { avId: number; patch: string | null }>();
-  for (const r of avRows) if (!byVuln.has(r.VulnerabilityID)) byVuln.set(r.VulnerabilityID, { avId: r.AssetVulnerabilityID, patch: r.PatchStatus ?? null });
+  const byVuln = new Map<number, { avId: number; patch: string | null; fp: number }>();
+  for (const r of avRows) if (!byVuln.has(r.VulnerabilityID)) byVuln.set(r.VulnerabilityID, { avId: r.AssetVulnerabilityID, patch: r.PatchStatus ?? null, fp: Number(r.FalsePositive) === 1 ? 1 : 0 });
 
   // Count existing remediation plans per junction instance (so the UI can show "planned").
   const remCount = new Map<number, number>();
@@ -2707,7 +2710,7 @@ export function getAssetVulnerabilities(assetId: number): VulnRow[] {
     .all(...vids) as VulnRow[];
   return rows.map((v) => {
     const m = byVuln.get(v.VulnerabilityID);
-    return { ...v, AssetVulnerabilityID: m?.avId, PatchStatus: m?.patch ?? null, RemediationCount: m ? (remCount.get(m.avId) || 0) : 0 };
+    return { ...v, AssetVulnerabilityID: m?.avId, PatchStatus: m?.patch ?? null, RemediationCount: m ? (remCount.get(m.avId) || 0) : 0, FalsePositive: m?.fp ?? 0 };
   });
 }
 
@@ -4574,18 +4577,21 @@ export function ensureAssetColumns(): void {
     BusinessValue: "INTEGER",
     Backed: "INTEGER",        // backed up? boolean (0/1)
     BackupPlanID: "INTEGER",  // FK-style reference to a backup plan
+    MFAEnabled: "INTEGER",    // multi-factor auth implemented on this asset? boolean (0/1)
   };
   for (const [n, t] of Object.entries(cols)) {
     if (!existing.has(n)) db.exec(`ALTER TABLE "ASSET" ADD COLUMN "${n}" ${t}`);
   }
-  // ASSETVULNERABILITY.FalsePositive flag (0/1) — idempotent.
+  // ASSETVULNERABILITY: FalsePositive flag (0/1) + CVE-match provenance (confidence/source/token) — idempotent.
   if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ASSETVULNERABILITY'").get()) {
     const avCols = new Set(
       (db.prepare(`PRAGMA table_info("ASSETVULNERABILITY")`).all() as { name: string }[]).map((c) => c.name)
     );
-    if (!avCols.has("FalsePositive")) {
-      db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "FalsePositive" INTEGER DEFAULT 0`);
-    }
+    if (!avCols.has("FalsePositive")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "FalsePositive" INTEGER DEFAULT 0`);
+    // CVE→asset auto-match provenance (lets users audit/triage keyword vs CPE matches and tune precision).
+    if (!avCols.has("MatchConfidence")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "MatchConfidence" TEXT`); // High|Medium|Low
+    if (!avCols.has("MatchSource")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "MatchSource" TEXT`);         // cpe|cpe-pair|cpe-keyword|tag
+    if (!avCols.has("MatchedToken")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "MatchedToken" TEXT`);       // the token/CPE that matched
   }
   // ASSETFORORGANISATION.Relationship (free text describing the asset↔org relationship) — idempotent.
   if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ASSETFORORGANISATION'").get()) {
@@ -4842,6 +4848,28 @@ export function ensureMalwareScanTables(): void {
       CREATE INDEX IF NOT EXISTS ix_malscan_sha256 ON MALWARESCAN(Sha256);
       CREATE INDEX IF NOT EXISTS ix_malscan_doc ON MALWARESCAN(DocumentID);
       CREATE INDEX IF NOT EXISTS ix_malscaneng_scan ON MALWARESCANENGINE(ScanID);`);
+  } catch { /* best-effort */ }
+}
+
+/**
+ * Cloud compliance checker (CSPM) — XORCISM.CLOUDFINDING stores the per-check results of the built-in
+ * AWS compliance checker (CIS AWS Foundations subset: IAM password policy, MFA for IAM users, root
+ * access keys / MFA, inactive users, key rotation, CloudTrail & AWS Config enablement…). Fed by
+ * POST /api/cloud-security/aws-check (a posture snapshot, e.g. from the aws-config / aws-cloudtrail
+ * connectors). Tenant-scoped; surfaced on /cloud-security. Idempotent at boot.
+ */
+export function ensureCloudComplianceTables(): void {
+  try {
+    const db = getDb("XORCISM");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS CLOUDFINDING (
+        CloudFindingID INTEGER PRIMARY KEY, FindingGUID TEXT,
+        Provider TEXT, Account TEXT, CheckID TEXT, Title TEXT, Service TEXT, Category TEXT,
+        Severity TEXT, Status TEXT, Resource TEXT, Detail TEXT, Remediation TEXT, Benchmark TEXT,
+        ScanDate TEXT, TenantID INTEGER, CreatedDate TEXT);
+      CREATE INDEX IF NOT EXISTS ix_cloudfinding_tenant ON CLOUDFINDING(TenantID);
+      CREATE INDEX IF NOT EXISTS ix_cloudfinding_acct ON CLOUDFINDING(Provider, Account);
+      CREATE INDEX IF NOT EXISTS ix_cloudfinding_status ON CLOUDFINDING(Status);`);
   } catch { /* best-effort */ }
 }
 
