@@ -11,6 +11,62 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 
 ## [Unreleased]
 
+- **Agentless & offline host scan (Cyberwatch-style credentialed scan)** — added the one acquisition
+  method XORCISM was missing: a **credentialed agentless host scan**. Instead of an agent, an admin
+  **SSH** (Linux/Unix) or **WinRM/PowerShell** (Windows) session — or an **air-gapped collector** for
+  segregated networks (*mode déconnecté*) — reads the host's OS, installed software and a few
+  security-baseline checks into a JSON snapshot. New **`agentless-scan` connector** + bundled
+  **`collect.sh`** / **`collect.ps1`** collectors (run remotely or locally, read-only, no agent). On
+  import: the host → **ASSET**; the OS and **every installed package → a CPE linked to that asset**, so
+  XORCISM's own CVE matcher (`cvematch`, runs post-import) **detects every affected CVE with no active
+  probing** — agentless vulnerability detection that then flows into Vulnerability Management, Patch
+  Management, exposure prioritization (EPSS/KEV/SSVC/Exploit-DB) and the attack-path graph. Failed
+  baseline checks → **hardening VULNs + a per-host "hardening level: N%"** (Cyberwatch-style Compliance
+  Manager); CVEs already in the snapshot import directly. CPEs resolve to correct NVD `vendor:product`
+  via a built-in package map (openssh→openbsd, httpd→apache, mysql→oracle…). 100% offline / self-hosted —
+  no host data leaves your infrastructure. Plus the **"Agentless host scan → vulnerabilities & hardening"
+  attack-chain playbook** (`/chain`) that seeds `agentless-scan` and escalates findings to CyberSentinel
+  AI. (Inspired by [Cyberwatch](https://cyberwatch.fr/)'s Vulnerability Manager + Compliance Manager.)
+- **pentest-ai-agents (AI pentest agents) — TOOL + connector + attack chain** — added
+  [pentest-ai-agents](https://github.com/0xSteph/pentest-ai-agents), a suite of **50 Claude Code subagents
+  for penetration testing** (recon / scanning / exploitation / post-exploitation / reporting) that
+  orchestrate 80+ tools (nmap, nuclei, sqlmap, BloodHound, Impacket, Ghidra…) and persist to a **SQLite
+  findings database** (`engagements / hosts / services / vulns / credentials / chains`) plus markdown/JSON
+  reports. New **`pentest-ai-agents` connector** ingests that engagement — the **SQLite findings DB itself**
+  (opened read-only) *or* a **JSON export** of its tables, auto-detected — and maps `hosts` → **ASSETs**
+  (tagged by OS/role), `services` → **service facts**, and each `vuln`, recovered `credential` and
+  identified attack-`chain` → a severity-ranked **VULN** carrying the agent's own `mitre_id`, CVE, CVSS,
+  `tool_used` and found-by agent. Worker-safe (no live targeting, never writes the source DB). Plus the
+  **TOOL catalogue entry** and the **"AI-driven pentest (pentest-ai-agents)" attack-chain playbook**
+  (`/chain`) which seeds `pentest-ai-agents` and escalates any finding to CyberSentinel AI for deep ATT&CK
+  analysis — feeding exposure / attack-path / vulnerability views.
+- **RedCloud-OS (cloud adversary simulation) — TOOL + connector + attack chain** — added
+  [RedCloud-OS](https://github.com/RedCloudOS), the *"Cloud Adversary Simulation Operating System for
+  Red Teams"* that bundles the leading cloud attack tools across **AWS / Azure / GCP / Kubernetes**
+  (Pacu, ScoutSuite, Prowler, cloud_enum, cloudfox, PMapper, heimdall, AzureHound, ROADtools,
+  gcp_scanner, GCPBucketBrute, peirates, KubiScan, BloodHound, gitleaks…) organised by kill-chain phase.
+  New **`redcloud-os` connector** ingests a RedCloud-OS engagement bundle — or a **raw ScoutSuite
+  (`scoutsuite_results` JS/JSON), Prowler (OCSF / v3 JSON) or BloodHound/AzureHound/PMapper graph**
+  export, all **auto-detected** — and maps cloud resources & identities to **ASSETs** (tagged by CSP +
+  kind) and every misconfiguration / public exposure / privilege-escalation edge to an **ATT&CK-tagged
+  cloud-attack VULN** (T1078/T1098/T1190/T1530/T1552/T1556/T1562/T1580), severity raised toward
+  privileged targets. Worker-safe (no live cloud or DB access in `run.py`). Plus the **TOOL catalogue
+  entry** and the **"Cloud adversary simulation (RedCloud-OS)" attack-chain playbook** (`/chain`) which
+  seeds `redcloud-os` and escalates any finding to CyberSentinel AI for deep ATT&CK analysis — feeding
+  exposure / attack-path / cloud-security views.
+- **SOC 2 journey — full Trust Services Criteria coverage** — the SOC 2 (Type II) compliance journey
+  (`/compliance-journeys`) was expanded from a 4-phase outline to a complete walkthrough of the AICPA
+  Trust Services Criteria: **8 phases · 31 deep-linked steps**. Scope & system description (report type,
+  category selection, system boundary, subservice organizations) → the **Common Criteria broken out
+  criterion-by-criterion** (CC1–CC2 control environment & communication · CC3–CC4 risk assessment &
+  monitoring · CC5–CC6 control activities & logical/physical access · CC7–CC9 operations, change &
+  risk mitigation) → the **optional categories** (Availability A1 · Confidentiality C1 · Processing
+  Integrity PI1 · Privacy P1–P8) → operating the controls & building the evidence trail → readiness,
+  the **Type I report**, the observation window and the **Type II examination by a licensed CPA**. Each
+  step deep-links into the module that does the work (scope, identities, risk register, monitoring,
+  controls, config, vulnerabilities, incidents, crisis/BCP, TPRM, privacy, policies, awareness,
+  evidence). Fully bilingual (EN/FR) — criteria numbers/titles only, original summaries (no TSC text
+  reproduced).
 - **ISO/IEC 42001:2023 journey — full standard coverage** — the AI Management System (AIMS) compliance
   journey (`/compliance-journeys`) was expanded from a thin 5-phase outline to a complete walkthrough of the
   standard: **8 phases · 37 deep-linked steps** covering every clause (4 Context · 5 Leadership · 6 Planning
