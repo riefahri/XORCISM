@@ -106,4 +106,57 @@ async function load(): Promise<void> {
     <div class="muted" style="font-size:11px;margin-top:12px">${fmt("asr.evaluatedAt", { t: esc(d.evaluatedAt) })}</div>`;
 }
 
-document.addEventListener("DOMContentLoaded", () => { initI18n(); void load(); });
+// Audit & Accreditation package — generate the traceable, AI-narrated report (download as Markdown).
+async function genAuditPackage(): Promise<void> {
+  const host = document.getElementById("as-audit"); if (!host) return;
+  const btn = document.getElementById("as-genpkg") as HTMLButtonElement | null;
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Generating…"; }
+  host.innerHTML = `<div class="muted" style="padding:10px">${t("asr.pkgGenerating") || "Assembling control, regulatory, risk and BIA evidence…"}</div>`;
+  try {
+    const r = await fetch("/api/audit-package"); if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json() as { executiveSummary: string; ai: boolean; model: string; accreditation: { provenPct: number; gap: number }; regulatory: { cloud: { pass: number; fail: number }; auditTrailTotal: number }; risk: { register: { total: number; overAppetite: number } }; bia: { total: number; critical: number; computedTotal: number; computedCritical: number }; trend: { at: string; provenPct: number }[]; markdown: string };
+    const url = URL.createObjectURL(new Blob([d.markdown], { type: "text/markdown" }));
+    const biaTotal = d.bia.total || d.bia.computedTotal, biaCrit = d.bia.total ? d.bia.critical : d.bia.computedCritical;
+    const biaLbl = d.bia.total ? "BIA" : "BIA (computed)";
+    // posture trend sparkline
+    let spark = "";
+    if (d.trend && d.trend.length >= 2) {
+      const W = 200, H = 30, n = d.trend.length;
+      const pts = d.trend.map((p, i) => `${(i / (n - 1)) * W},${(H - (p.provenPct / 100) * H).toFixed(1)}`).join(" ");
+      const delta = d.trend[n - 1].provenPct - d.trend[0].provenPct;
+      spark = `<div class="muted" style="font-size:11px;margin-top:8px">Posture trend (${n} snapshots, ${delta >= 0 ? "+" : ""}${delta} pts)
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:200px;height:30px;vertical-align:middle;margin-left:6px"><polyline points="${pts}" fill="none" stroke="${pctColor(d.trend[n - 1].provenPct)}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></div>`;
+    }
+    host.innerHTML = `<div style="border:1px solid #2d3250;border-radius:10px;padding:14px;background:#13162a;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap"><b style="color:#e7ebf3">📄 Audit &amp; accreditation package</b>
+        <span class="muted" style="font-size:11px">${d.ai ? "AI summary (" + esc(d.model) + ")" : "offline summary"}</span>
+        <span style="flex:1"></span>
+        <a href="${url}" download="audit-accreditation-package.md" style="color:#86efac;font-size:12px">⬇ Markdown</a>
+        <select id="as-oscal-profile" title="OSCAL control-id profile" style="background:#0f1117;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;padding:2px 6px;font-size:11px">
+          <option value="">default</option><option value="soc2">SOC 2</option><option value="iso27001">ISO 27001</option><option value="nistcsf">NIST CSF</option></select>
+        <a id="as-oscal-ssp" href="/api/audit-package?format=oscal" style="color:#93c5fd;font-size:12px" title="OSCAL System Security Plan">⬇ OSCAL SSP</a>
+        <a id="as-oscal-poam" href="/api/audit-package?format=poam" style="color:#93c5fd;font-size:12px" title="OSCAL Plan of Action &amp; Milestones">⬇ OSCAL POA&amp;M</a></div>
+      <div style="font-size:13px;color:#cbd5e1;white-space:pre-wrap;line-height:1.5">${esc(d.executiveSummary)}</div>
+      <div class="tally" style="margin-top:10px">
+        <span class="pill p-proven">Accreditation ${d.accreditation.provenPct}%</span>
+        <span class="pill p-gap">${d.accreditation.gap} control gap(s)</span>
+        <span class="pill p-partial">Cloud ${d.regulatory.cloud.pass}✓/${d.regulatory.cloud.fail}✗</span>
+        <span class="pill p-attest">${d.regulatory.auditTrailTotal} audit-log entries</span>
+        <span class="pill p-gap">${d.risk.register.overAppetite}/${d.risk.register.total} risks over appetite</span>
+        <span class="pill p-proven">${biaLbl} ${biaCrit}/${biaTotal} critical</span>
+      </div>${spark}</div>`;
+    // profile picker drives the OSCAL export control-id namespace (SOC 2 / ISO 27001 / NIST CSF)
+    const sel = document.getElementById("as-oscal-profile") as HTMLSelectElement | null;
+    if (sel) sel.onchange = () => {
+      const q = sel.value ? `&profile=${sel.value}` : "";
+      (document.getElementById("as-oscal-ssp") as HTMLAnchorElement).href = `/api/audit-package?format=oscal${q}`;
+      (document.getElementById("as-oscal-poam") as HTMLAnchorElement).href = `/api/audit-package?format=poam${q}`;
+    };
+  } catch (e) { host.innerHTML = `<div class="muted" style="padding:10px">⚠️ ${esc(e)}</div>`; }
+  finally { if (btn) { btn.disabled = false; btn.textContent = "📄 Generate audit & accreditation package"; } }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initI18n(); void load();
+  const b = document.getElementById("as-genpkg"); if (b) b.addEventListener("click", () => void genAuditPackage());
+});

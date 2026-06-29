@@ -256,6 +256,94 @@ export function evaluateAwsCompliance(snap: AwsSnapshot, tenant: number | null, 
   return result;
 }
 
+// Shared roll-up + persist (used by the Azure/GCP evaluators; AWS inlines its own equivalent).
+function finalize(provider: string, account: string, F: CloudFinding[], tenant: number | null, opts: { persist?: boolean }): CloudCheckResult {
+  const fails = F.filter((f) => f.status === "fail");
+  const bySeverity: Record<string, number> = {};
+  for (const f of fails) bySeverity[f.severity] = (bySeverity[f.severity] || 0) + 1;
+  const scored = F.filter((f) => f.status !== "info").length;
+  const passN = F.filter((f) => f.status === "pass").length;
+  const result: CloudCheckResult = { account, provider, summary: { pass: passN, fail: fails.length, info: F.filter((f) => f.status === "info").length, score: scored ? Math.round((passN / scored) * 100) : 0, bySeverity }, findings: F };
+  if (opts.persist !== false) persistFindings(provider, account, tenant, F);
+  return result;
+}
+
+export interface AzureSnapshot {
+  tenant?: string; security_defaults_enabled?: boolean; legacy_auth_blocked?: boolean;
+  password_policy?: { min_length?: number; complexity?: boolean; expiry_days?: number } | null;
+  users?: { user: string; mfa?: boolean; admin?: boolean; guest?: boolean; last_sign_in_days?: number | null }[];
+}
+/** Evaluate an Entra ID / Azure posture snapshot → CLOUDFINDING (CIS Microsoft Azure Foundations subset). */
+export function evaluateAzureCompliance(snap: AzureSnapshot, tenant: number | null, opts: { persist?: boolean } = {}): CloudCheckResult {
+  const account = String(snap.tenant || "azure-tenant");
+  const F: CloudFinding[] = [];
+  const add = (checkId: string, title: string, severity: CloudFinding["severity"], ok: boolean, resource: string, detail: string, remediation: string): void =>
+    void F.push({ checkId, title, service: "Entra ID", category: "Identity", severity, status: ok ? "pass" : "fail", resource, detail, remediation, benchmark: "CIS Microsoft Azure Foundations" });
+  if (snap.security_defaults_enabled !== undefined)
+    add("AZ-1.1", "Security defaults / MFA enforcement enabled", "High", !!snap.security_defaults_enabled, account, snap.security_defaults_enabled ? "Security defaults or an MFA Conditional Access policy is enabled." : "Security defaults disabled and no MFA enforcement.", "Enable security defaults or a Conditional Access policy requiring MFA.");
+  const pp = snap.password_policy;
+  if (pp !== undefined) {
+    if (!pp) add("AZ-1.2", "Password policy is set", "Medium", false, account, "No password policy configured.", "Configure Entra password protection.");
+    else add("AZ-1.2", "Password minimum length >= 14", "Medium", (pp.min_length ?? 0) >= 14, account, `MinimumPasswordLength = ${pp.min_length ?? 0}`, "Set a minimum password length of 14 or more.");
+  }
+  if (snap.legacy_auth_blocked !== undefined)
+    add("AZ-1.3", "Legacy authentication blocked", "High", !!snap.legacy_auth_blocked, account, snap.legacy_auth_blocked ? "Legacy authentication blocked." : "Legacy authentication is allowed (bypasses MFA).", "Block legacy authentication via Conditional Access.");
+  const users = snap.users;
+  if (Array.isArray(users)) {
+    const admins = users.filter((u) => u.admin), adminNoMfa = admins.filter((u) => !u.mfa);
+    if (!admins.length) add("AZ-2.1", "MFA enabled for privileged users", "Critical", true, account, "No privileged users.", "n/a");
+    else if (!adminNoMfa.length) add("AZ-2.1", "MFA enabled for privileged users", "Critical", true, account, `All ${admins.length} privileged users have MFA.`, "n/a");
+    else for (const u of adminNoMfa) add("AZ-2.1", "MFA enabled for privileged user", "Critical", false, u.user, `Admin '${u.user}' has no MFA.`, "Require MFA for this administrator.");
+    const noMfa = users.filter((u) => !u.mfa && !u.guest);
+    if (!noMfa.length) add("AZ-2.2", "MFA enabled for all users", "High", true, account, "All users have MFA.", "n/a");
+    else for (const u of noMfa.slice(0, 300)) add("AZ-2.2", "MFA enabled for user", "High", false, u.user, `User '${u.user}' has no MFA.`, "Enable MFA for this user.");
+    const inactive = users.filter((u) => (u.last_sign_in_days ?? 0) > INACTIVE_DAYS);
+    if (!inactive.length) add("AZ-3.1", `No inactive users > ${INACTIVE_DAYS} days`, "Medium", true, account, "No stale users.", "n/a");
+    else for (const u of inactive.slice(0, 300)) add("AZ-3.1", `Inactive user > ${INACTIVE_DAYS} days`, "Medium", false, u.user, `User '${u.user}' inactive > ${INACTIVE_DAYS} days.`, "Disable or remove inactive accounts.");
+  }
+  return finalize("Azure", account, F, tenant, opts);
+}
+
+export interface GcpSnapshot {
+  project?: string;
+  users?: { user: string; mfa?: boolean; two_step?: boolean; admin?: boolean; last_login_days?: number | null }[];
+  service_accounts?: { name: string; user_managed_keys?: number; oldest_key_age_days?: number | null }[];
+  primitive_owner_bindings?: number;
+}
+/** Evaluate a Google Cloud posture snapshot → CLOUDFINDING (CIS GCP Foundations subset). */
+export function evaluateGcpCompliance(snap: GcpSnapshot, tenant: number | null, opts: { persist?: boolean } = {}): CloudCheckResult {
+  const account = String(snap.project || "gcp-project");
+  const F: CloudFinding[] = [];
+  const add = (checkId: string, title: string, severity: CloudFinding["severity"], ok: boolean, resource: string, detail: string, remediation: string, service = "IAM"): void =>
+    void F.push({ checkId, title, service, category: service, severity, status: ok ? "pass" : "fail", resource, detail, remediation, benchmark: "CIS Google Cloud Foundations" });
+  const has2sv = (u: { mfa?: boolean; two_step?: boolean }): boolean => !!(u.mfa || u.two_step);
+  const users = snap.users;
+  if (Array.isArray(users)) {
+    const admins = users.filter((u) => u.admin), adminNo = admins.filter((u) => !has2sv(u));
+    if (!admins.length) add("GCP-1.1", "MFA enabled for privileged users", "Critical", true, account, "No privileged users.", "n/a");
+    else if (!adminNo.length) add("GCP-1.1", "MFA enabled for privileged users", "Critical", true, account, `All ${admins.length} admins enforce 2-Step Verification.`, "n/a");
+    else for (const u of adminNo) add("GCP-1.1", "MFA enabled for privileged user", "Critical", false, u.user, `Admin '${u.user}' has no 2-Step Verification (MFA).`, "Enforce 2-Step Verification.");
+    const no2 = users.filter((u) => !has2sv(u));
+    if (!no2.length) add("GCP-1.2", "MFA enabled for all users", "High", true, account, "All users enforce 2-Step Verification.", "n/a");
+    else for (const u of no2.slice(0, 300)) add("GCP-1.2", "MFA enabled for user", "High", false, u.user, `User '${u.user}' has no 2-Step Verification (MFA).`, "Enforce 2-Step Verification.");
+    const inactive = users.filter((u) => (u.last_login_days ?? 0) > INACTIVE_DAYS);
+    if (!inactive.length) add("GCP-3.1", `No inactive users > ${INACTIVE_DAYS} days`, "Medium", true, account, "No stale users.", "n/a");
+    else for (const u of inactive.slice(0, 300)) add("GCP-3.1", `Inactive user > ${INACTIVE_DAYS} days`, "Medium", false, u.user, `User '${u.user}' inactive > ${INACTIVE_DAYS} days.`, "Disable inactive accounts.");
+  }
+  const sas = snap.service_accounts;
+  if (Array.isArray(sas)) {
+    const withKeys = sas.filter((s) => (s.user_managed_keys ?? 0) > 0);
+    if (!withKeys.length) add("GCP-2.1", "No user-managed service account keys", "High", true, account, "No user-managed service-account keys.", "n/a");
+    else for (const s of withKeys) add("GCP-2.1", "User-managed service account keys present", "High", false, s.name, `SA '${s.name}' has ${s.user_managed_keys} user-managed key(s).`, "Avoid user-managed keys; use workload identity.");
+    const stale = sas.filter((s) => (s.oldest_key_age_days ?? 0) > KEY_ROTATE_DAYS);
+    if (!stale.length) add("GCP-2.2", `Service account key rotation <= ${KEY_ROTATE_DAYS} days`, "Medium", true, account, "All service-account keys within the rotation window.", "n/a");
+    else for (const s of stale) add("GCP-2.2", `Service account key rotation > ${KEY_ROTATE_DAYS} days`, "Medium", false, s.name, `SA '${s.name}' oldest key is ${s.oldest_key_age_days} days old.`, "Rotate service-account keys.");
+  }
+  if (snap.primitive_owner_bindings !== undefined)
+    add("GCP-4.1", "No primitive Owner role bindings", "High", (snap.primitive_owner_bindings ?? 0) === 0, account, `Primitive Owner bindings = ${snap.primitive_owner_bindings ?? 0}`, "Replace primitive Owner with least-privilege roles.");
+  return finalize("GCP", account, F, tenant, opts);
+}
+
 function persistFindings(provider: string, account: string, tenant: number | null, findings: CloudFinding[]): void {
   const xo = getDb("XORCISM");
   if (!xo.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='CLOUDFINDING'").get()) return;

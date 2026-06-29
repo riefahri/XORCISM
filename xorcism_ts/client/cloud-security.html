@@ -63,6 +63,8 @@
     connectors (Entra ID, Wiz, Lacework, Upwind, Chainguard…). The worklist is what to fix first.</div>
   <div class="cs-actions">
     <button class="btn-chk" id="cs-run-check">🔍 AWS compliance check (CIS)</button>
+    <button class="btn-chk" id="cs-run-check-azure">🔍 Azure compliance check (CIS)</button>
+    <button class="btn-chk" id="cs-run-check-gcp">🔍 GCP compliance check (CIS)</button>
     <span class="muted" style="font-size:12px">CloudTrail · AWS Config · IAM password policy · MFA · root keys · inactive users (90d) · key rotation</span>
   </div>
   <div id="cs-compliance"></div>
@@ -72,7 +74,7 @@
 <!-- AWS compliance checker modal -->
 <div class="modal-bg" id="cs-chk-modal">
   <div class="modal">
-    <h3>AWS compliance check (CIS AWS Foundations)</h3>
+    <h3 id="cs-chk-title">AWS compliance check (CIS AWS Foundations)</h3>
     <p class="lead">Paste an AWS <b>posture snapshot</b> (account password policy, IAM users with MFA / access keys / last activity,
       root account, CloudTrail trails, AWS Config recorders). Produce it with the <code>aws-config</code> / <code>aws-cloudtrail</code>
       connectors or AWS CLI. Checks: password policy, MFA for IAM users, root access keys &amp; MFA, inactive users (90 days),

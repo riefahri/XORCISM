@@ -34,6 +34,8 @@ import purpleTeamRouter from "./routes/purpleteam";
 import ransomwareRouter from "./routes/ransomware";
 import assuranceRouter from "./routes/assurance";
 import qaaRouter from "./routes/qaa";
+import auditpackRouter from "./routes/auditpack";
+import oscalCatalogRouter from "./routes/oscalcatalog";
 import slaRouter from "./routes/sla";
 import { ensureSlaColumns } from "./sla";
 import pirRouter from "./routes/pir";
@@ -126,6 +128,7 @@ import { ensureBlobStore } from "./blobstore";
 import netflowRouter from "./routes/netflow";
 import osintGraphRouter from "./routes/osintgraph";
 import policiesRouter from "./routes/policies";
+import policyvalRouter from "./routes/policyval";
 import configurationRouter from "./routes/configuration";
 import crisisRouter from "./routes/crisis";
 import fairmamRouter from "./routes/fairmam";
@@ -310,6 +313,8 @@ app.use("/api", purpleTeamRouter); // purple-team: chain ATT&CK detection covera
 app.use("/api", ransomwareRouter); // ransomware-to-$ scenario simulator (BIA/FAIR impact + D3FEND controls)
 app.use("/api", assuranceRouter); // continuously-proven compliance (control assurance from live telemetry)
 app.use("/api", qaaRouter); // security questionnaire auto-answer (drafts from the knowledge base + local AI)
+app.use("/api", auditpackRouter); // audit & accreditation package (control impl + regulatory + risk + BIA, AI-narrated)
+app.use("/api", oscalCatalogRouter); // OSCAL catalog/profile import for control-id resolution in the SSP export
 app.use("/api", slaRouter); // incident SLA view: incidents measured against asset-defined resolution SLAs
 app.use("/api", pirRouter); // Priority Intelligence Requirements coverage register
 app.use("/api", identitiesRouter); // IAM: identity inventory (human + non-human) + governance findings
@@ -374,6 +379,7 @@ app.use("/api", blobRouter); // Content-addressed blob store: GET /blob/:sha256,
 app.use("/api", netflowRouter); // NetFlow around ASSET: discovered assets, services, sessions cartography (obserae)
 app.use("/api", osintGraphRouter); // OSINT Link Analysis: entity-link graph over INTELEXCHANGE
 app.use("/api", policiesRouter); // Policy & Document Management: policy lifecycle + document register worklist
+app.use("/api", policyvalRouter); // Policy validation: AI requirement extraction + cross-environment evidence checks
 app.use("/api", configurationRouter); // Configuration Management: OVAL secure-config content library + verification worklist
 app.use("/api", crisisRouter); // Crisis Management: tabletop-exercise readiness + scenario library + improvement worklist
 app.use("/api", fairmamRouter); // FAIR-MAM: materiality assessment (loss-magnitude decomposition + verdict)

@@ -10997,6 +10997,8 @@ const en: Dict = {
   "landing.assurance.d": "Compliance controls proven live by your security telemetry — detection, exposure, findings, pentest — not annual screenshots.",
   "landing.qassist": "Questionnaire assistant",
   "landing.qassist.d": "Auto-draft answers to customer security questionnaires from your own knowledge base — policies, controls, live posture — with sources, confidence and a reusable answer library.",
+  "landing.trustcenter": "Trust Center",
+  "landing.trustcenter.d": "Public, data-driven trust page (Drata-style) powered by live data: NIST 800-53 coverage, compliance frameworks, uptime, policies; shareable public link /trust/<slug>.",
   "nav.ctiwatch": "📡 CTI watch", "landing.ctiwatch": "CTI watch",
   "landing.ctiwatch.d": "Threat intel that acts: CISA KEV and your threat reports cross-referenced with your inventory — only what affects you, one click to a ticket.",
   "nav.drift": "📈 Surface drift", "landing.drift": "Surface drift",

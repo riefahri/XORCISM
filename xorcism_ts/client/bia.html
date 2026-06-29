@@ -29,6 +29,28 @@
     </div>
   </div>
 
+  <!-- Computed BIA draft (data-driven, from asset value + dependency centrality) -->
+  <div class="card" id="computed-section">
+    <div class="card-header">
+      <span class="card-title">&#129518; Brouillon BIA calcul&eacute; <span style="font-weight:400;color:#64748b;font-size:12px">— criticit&eacute; &amp; RTO/RPO/MTD d&eacute;duits</span></span>
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" id="btn-derive-deps" title="D&eacute;river les d&eacute;pendances asset&rarr;asset depuis les relations applicatives et r&eacute;seau">&#128279; D&eacute;river d&eacute;pendances</button>
+        <button class="btn btn-ghost btn-sm" id="btn-refresh-computed" title="Recalculer">&#8635;</button>
+      </div>
+    </div>
+    <div class="statusbar" id="computed-status">Chargement&hellip;</div>
+    <div style="overflow-x:auto">
+      <table class="bia" id="computed-table" style="min-width:1000px;display:none">
+        <thead><tr>
+          <th class="col-name">Asset</th><th class="col-crit">Criticit&eacute;</th><th style="width:60px">Score</th>
+          <th class="col-mtd">RTO</th><th class="col-mtd">RPO</th><th class="col-mtd">MTD</th>
+          <th>Facteurs</th><th style="width:90px">Actions</th>
+        </tr></thead>
+        <tbody id="computed-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Entry table (shown when audit selected) -->
   <div class="card" id="entry-section" style="display:none">
     <div class="card-header">

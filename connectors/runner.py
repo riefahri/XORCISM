@@ -438,6 +438,8 @@ def import_result(mapping: str, result: Dict[str, Any]) -> Dict[str, int]:
         return {"notified": int(result.get("notify") or 0)}
     if result.get("intel"):
         counts.update(import_threat_intel(result))
+    if result.get("malware"):
+        counts.update(import_malware(result))
     if result.get("controls"):
         counts.update(import_controls(result))
     if result.get("euvd"):
@@ -586,6 +588,93 @@ def import_threat_intel(result: Dict[str, Any]) -> Dict[str, int]:
                 (intel_id, aid, techid, _now()),
             )
             counts["intel_attack_links"] += cur.rowcount
+
+    con.commit()
+    con.close()
+    return counts
+
+
+def import_malware(result: Dict[str, Any]) -> Dict[str, int]:
+    """Import malwoverview-style malware triage into XMALWARE.MALWARESCAN (+ MALWARESCANENGINE).
+
+    Each sample → one MALWARESCAN row (idempotent by Sha256 + Source); each aggregated TI/AV service
+    (VirusTotal, MalwareBazaar, Hybrid Analysis, Triage, OTX, …) → one MALWARESCANENGINE row, so the
+    results land in the same store as the /malware-scan page. Tables are self-created/typed to match
+    db.ts so the importer runs against any DB version. No live network — it ingests the connector's output."""
+    from uuid import uuid4
+
+    items = result.get("malware") or []
+    counts = {"malware": 0, "malware_updated": 0, "malware_engines": 0}
+    if not items:
+        return counts
+    src = result.get("source") or "malwoverview"
+    tid = _import_tenant_id()
+
+    con = sqlite3.connect(os.path.join(_db_dir(), "XMALWARE.db"), timeout=15)
+    con.execute("PRAGMA busy_timeout=15000")
+    cur = con.cursor()
+    cur.execute("""CREATE TABLE IF NOT EXISTS MALWARESCAN (
+        ScanID INTEGER PRIMARY KEY, ScanGUID TEXT, Target TEXT, TargetType TEXT,
+        Md5 TEXT, Sha1 TEXT, Sha256 TEXT, DocumentID INTEGER, ObservableID INTEGER,
+        Verdict TEXT, Score INTEGER, Positives INTEGER, Total INTEGER,
+        EnginesQueried INTEGER, EnginesLive INTEGER, Summary TEXT, Source TEXT,
+        TenantID INTEGER, CreatedBy TEXT, CreatedDate TEXT)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS MALWARESCANENGINE (
+        EngineResultID INTEGER PRIMARY KEY, ScanID INTEGER, Engine TEXT, Verdict TEXT,
+        Detection TEXT, Score INTEGER, Positives INTEGER, Total INTEGER, Category TEXT,
+        Link TEXT, Live INTEGER DEFAULT 0, Raw TEXT, CreatedDate TEXT)""")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_malscan_sha256 ON MALWARESCAN(Sha256)")
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_malscaneng_scan ON MALWARESCANENGINE(ScanID)")
+
+    def _int(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        sha256 = (it.get("sha256") or "").strip().lower() or None
+        engines = it.get("engines") or it.get("services") or []
+        target = it.get("target") or sha256 or it.get("md5") or it.get("sha1") or "sample"
+        vals = (
+            target, it.get("targetType") or it.get("type") or ("hash" if sha256 else "file"),
+            it.get("md5"), it.get("sha1"), sha256,
+            it.get("verdict") or "unknown", _int(it.get("score")), _int(it.get("positives")), _int(it.get("total")),
+            _int(it.get("enginesQueried")) if it.get("enginesQueried") is not None else len(engines),
+            _int(it.get("enginesLive")), it.get("summary"), src, tid, src, _now(),
+        )
+        row = cur.execute("SELECT ScanID FROM MALWARESCAN WHERE Sha256=? AND Source=? LIMIT 1",
+                          (sha256, src)).fetchone() if sha256 else None
+        if row:
+            scan_id = row[0]
+            cur.execute("""UPDATE MALWARESCAN SET Target=?, TargetType=?, Md5=?, Sha1=?, Sha256=?,
+                Verdict=?, Score=?, Positives=?, Total=?, EnginesQueried=?, EnginesLive=?, Summary=?,
+                Source=?, TenantID=?, CreatedBy=?, CreatedDate=? WHERE ScanID=?""", (*vals, scan_id))
+            cur.execute("DELETE FROM MALWARESCANENGINE WHERE ScanID=?", (scan_id,))
+            counts["malware_updated"] += 1
+        else:
+            scan_id = (cur.execute("SELECT COALESCE(MAX(ScanID),0)+1 FROM MALWARESCAN").fetchone()[0]) or 1
+            cur.execute("""INSERT INTO MALWARESCAN (ScanID, ScanGUID, Target, TargetType, Md5, Sha1, Sha256,
+                Verdict, Score, Positives, Total, EnginesQueried, EnginesLive, Summary, Source, TenantID, CreatedBy, CreatedDate)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (scan_id, str(uuid4()), *vals))
+            counts["malware"] += 1
+
+        for e in engines:
+            if not isinstance(e, dict):
+                continue
+            try:
+                raw = json.dumps(e.get("raw"), default=str) if e.get("raw") is not None else None
+            except Exception:
+                raw = None
+            eid = (cur.execute("SELECT COALESCE(MAX(EngineResultID),0)+1 FROM MALWARESCANENGINE").fetchone()[0]) or 1
+            cur.execute("""INSERT INTO MALWARESCANENGINE (EngineResultID, ScanID, Engine, Verdict, Detection,
+                Score, Positives, Total, Category, Link, Live, Raw, CreatedDate) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (eid, scan_id, e.get("engine") or e.get("service") or "service", e.get("verdict"),
+                 e.get("detection"), _int(e.get("score")), _int(e.get("positives")), _int(e.get("total")),
+                 e.get("category"), e.get("link"), 1 if e.get("live") else 0, raw, _now()))
+            counts["malware_engines"] += 1
 
     con.commit()
     con.close()

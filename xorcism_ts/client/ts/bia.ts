@@ -370,6 +370,64 @@ function addRow(): void {
   (tr.querySelector("input") as HTMLInputElement)?.focus();
 }
 
+// ── Computed BIA draft (data-driven; promote a row into the selected audit) ─────
+interface ComputedRow { assetId: number; asset: string; criticality: string; score: number; rto: string; rpo: string; mtd: string; drivers: string[]; }
+const escHtml = (s: unknown): string => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+const critColor = (c: string): string => c === "Critical" ? "#ef4444" : c === "High" ? "#f59e0b" : c === "Medium" ? "#3b82f6" : "#64748b";
+
+async function loadComputed(): Promise<void> {
+  try {
+    const r = await fetch("/api/bia/computed"); if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json() as { rows: ComputedRow[]; total: number; critical: number };
+    const tbody = $("computed-tbody"), table = $("computed-table") as HTMLTableElement;
+    if (!d.rows.length) { $("computed-status").textContent = "Aucun asset porteur de signal d'impact — renseignez la valeur/criticité des assets."; table.style.display = "none"; return; }
+    $("computed-status").innerHTML = `${d.total} asset(s) évalué(s), <b style="color:#ef4444">${d.critical}</b> high/critical. Cliquez « Promouvoir » pour créer une entrée BIA formelle dans l'audit sélectionné.`;
+    table.style.display = "";
+    tbody.innerHTML = "";
+    for (const row of d.rows) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${escHtml(row.asset)}</td>
+        <td><span style="color:${critColor(row.criticality)};font-weight:600">${escHtml(row.criticality)}</span></td>
+        <td>${row.score}</td><td>${escHtml(row.rto)}</td><td>${escHtml(row.rpo)}</td><td>${escHtml(row.mtd)}</td>
+        <td style="font-size:11px;color:#94a3b8">${row.drivers.map(escHtml).join(", ")}</td>
+        <td></td>`;
+      const btn = document.createElement("button");
+      btn.className = "btn btn-ghost btn-sm"; btn.textContent = "↥ Promouvoir";
+      btn.title = "Créer une entrée BIA formelle à partir de ce brouillon";
+      btn.onclick = () => promoteComputed(row, btn);
+      tr.lastElementChild!.appendChild(btn);
+      tbody.appendChild(tr);
+    }
+  } catch (e) { $("computed-status").textContent = `Erreur: ${String(e)}`; }
+}
+
+async function promoteComputed(row: ComputedRow, btn: HTMLButtonElement): Promise<void> {
+  if (!currentAuditId) { toast("Sélectionnez d'abord un audit BIA.", "err"); return; }
+  btn.disabled = true;
+  try {
+    const entry: BiaEntry = {
+      BIAAuditID: currentAuditId, AssetName: row.asset, AssetType: "Systeme",
+      CriticalityLevel: row.criticality, RTO: row.rto, RPO: row.rpo, MTD: row.mtd,
+      Notes: `Calculé (score ${row.score}) — facteurs: ${row.drivers.join(", ")}`,
+    };
+    await biaApi.createEntry(entry);
+    toast(`« ${row.asset} » ajouté à l'audit`, "ok");
+    await loadEntries();
+    btn.textContent = "✓ Ajouté";
+  } catch (e) { toast(`Erreur: ${String(e)}`, "err"); btn.disabled = false; }
+}
+
+async function deriveDeps(): Promise<void> {
+  const b = $("btn-derive-deps") as HTMLButtonElement; b.disabled = true;
+  try {
+    const r = await fetch("/api/bia/asset-dependencies/derive", { method: "POST" }); if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json() as { appEdges: number; networkEdges: number; totalEdges: number };
+    toast(`${d.totalEdges} dépendance(s) dérivée(s) (${d.appEdges} appli, ${d.networkEdges} réseau)`, "ok");
+    await loadComputed();
+  } catch (e) { toast(`Erreur: ${String(e)}`, "err"); }
+  finally { b.disabled = false; }
+}
+
 // ── Export ────────────────────────────────────────────────────────────────────
 
 function gatherData(): string[][] {
@@ -438,8 +496,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("btn-depgraph").onclick = () => { if (currentAuditId) window.open(`/bia-graph?audit=${currentAuditId}`, "_blank", "noopener"); };
   $("btn-finalize").onclick = () => updateAuditStatus("Final");
   $("filter-crit").onchange = renderTable;
+  $("btn-refresh-computed").onclick = () => void loadComputed();
+  $("btn-derive-deps").onclick = () => void deriveDeps();
 
   loadAssetNames();
   loadPersonNames();
   loadAudits();
+  void loadComputed();
 });

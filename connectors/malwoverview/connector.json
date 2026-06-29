@@ -1,0 +1,14 @@
+{
+  "id": "malwoverview",
+  "name": "Malwoverview — malware triage & threat hunting",
+  "type": "import",
+  "category": "Malware Analysis",
+  "description": "Imports malwoverview (github.com/alexandreborges/malwoverview) output into XORCISM's malware store (XMALWARE). Malwoverview is a Python CLI for initial malware triage and threat hunting that aggregates ~18 threat-intelligence / sandbox services — VirusTotal, Hybrid Analysis, Triage, Polyswarm, MalwareBazaar, URLhaus, ThreatFox, Malshare, Malpedia, AlienVault OTX and more — and can emit JSON. Run malwoverview against a hash/file/URL with JSON output, then pass that file here. Each sample becomes a MALWARESCAN row (MD5/SHA1/SHA256, aggregate verdict, positives/total, family in tags) and each aggregated service becomes a MALWARESCANENGINE row (per-service verdict/detection/link) — the same backend as the /malware-scan page. The sample's family, tags and MITRE ATT&CK techniques are also surfaced as an INTELEXCHANGE item cross-linked into the ATT&CK matrix. Auto-detects a malwoverview/normalized bundle, a raw VirusTotal v3 file report, or a raw MalwareBazaar hash query. Read-only import (no live API calls, no DB access in run.py — worker-safe; malwoverview itself uses your own per-service API keys).",
+  "intrusive": false,
+  "permission": "connector:malwoverview",
+  "run": "run.py",
+  "mapping": "malwoverview",
+  "parameters": [
+    { "name": "file", "type": "file", "required": true, "help": "Path on the worker to malwoverview JSON output (a normalized bundle {samples:[…]}, a single sample, a list, a VirusTotal v3 report, or a MalwareBazaar hash query)." }
+  ]
+}

@@ -11,6 +11,104 @@ EXISTS + additive ALTER) — upgrading is in-place and never drops data.
 
 ## [Unreleased]
 
+- **Audit & Accreditation package — one traceable, AI-narrated report (audit / regulatory / risk / BIA).**
+  A new generator (`auditpack.ts`, `GET /api/audit-package?format=json|md`, "📄 Generate audit &
+  accreditation package" button on `/assurance`) assembles what XORCISM already holds into **audit-ready
+  documentation**, with a section per need:
+  - **Audit & accreditation** — live control-implementation status + per-framework readiness
+    (SOC 2 / ISO 27001 / NIST CSF) + an evidence index, each control cited to telemetry (control-assurance).
+  - **Regulations & compliance** — cloud CIS configuration findings (AWS/Azure/GCP) + the **audit trail**
+    (XAUDITLOG) for traceability + control implementations.
+  - **Cyber-risk management** — security posture, emerging exposures (KEV/EPSS/exploit) and the risk
+    register **vs appetite**, for decision-ready reporting.
+  - **Business impact analysis** — critical functions/assets with **RTO/RPO/MTD** and impact dimensions.
+  Every figure **recomputes from live data** at generation time (the deterministic checks are the source of
+  truth); the **local AI only narrates** the executive summary (offline templated fallback). Exports to a
+  Markdown document — automated, traceable reporting that cuts the manual audit-prep effort.
+- **Audit & Accreditation — OSCAL export, computed BIA, defined-appetite reporting & posture trend.**
+  Deepens the package across all four areas:
+  - **OSCAL export** (NIST OSCAL 1.1.2): `?format=oscal` emits a machine-readable **System Security Plan**
+    (one `implemented-requirement` per control with implementation-status + evidence links), `?format=poam`
+    emits a **Plan of Action & Milestones** (control gaps + cloud-config failures + KEV exposures). Download
+    links on `/assurance` — the artifacts an assessor/accreditation body ingests directly.
+  - **Computed BIA** (`bia.ts`, `GET /api/bia/computed`): derives a criticality tier and **suggested
+    RTO/RPO/MTD** for every asset from data already held — business/financial value, risk score, exposure
+    flags (public-facing, mission/defense-critical) and **dependency centrality** (network connections) —
+    each row carrying the *drivers* that placed it in its tier. Where a formal `BIAENTRY` exists it stays
+    authoritative; otherwise the package shows this **computed draft** so every critical asset has objectives.
+  - **Defined risk appetite** (tuned on `/risk-register`) now appears in the report's risk section — the
+    stated tolerance per category, not just performance against it.
+  - **Posture trend over time**: the scheduler persists a **daily rollup** (`AUDITPACKAGESNAPSHOT`, one row
+    per tenant per day) so the package and `/assurance` panel show a control-readiness **trend sparkline**.
+- **Audit & Accreditation — OSCAL catalog import, computed BIA on /bia, true asset dependency edges.**
+  - **OSCAL catalog/profile import** (`oscalcatalog.ts`, `POST /api/oscal/catalog`, `GET /api/oscal/catalogs`):
+    import a real OSCAL catalog (e.g. NIST SP 800-53) or profile so the SSP export can **resolve each control
+    to its canonical control-id + official title**. The SSP export now takes a **profile** (`?profile=soc2|
+    iso27001|nistcsf`) — selectable from the `/assurance` panel — emitting that framework's control-ids with
+    the matching `import-profile` href (SOC 2 `CC7.2`, ISO `A.8.15`, NIST CSF `DE.CM`).
+  - **Computed BIA on the /bia page**: the existing BIA editor now shows the **computed draft** (criticality +
+    suggested RTO/RPO/MTD + the drivers behind each, from `GET /api/bia/computed`) with a **↥ Promote** button
+    that turns a draft row into a formal `BIAENTRY` in the selected audit.
+  - **True asset→asset dependency edges** (`assetdeps.ts`, `ASSETDEPENDENCY`): a real directed dependency
+    table, **derived** (`POST /api/bia/asset-dependencies/derive`) from application dependencies (mapped to
+    their hosting assets) and shared-connection network adjacency. The BIA computation's dependency centrality
+    now uses this genuine **in-degree** ("how many assets depend on this one") instead of a connection-count
+    proxy — so a heavily-depended-upon asset (e.g. a shared DB) ranks higher even with a modest risk score.
+- **Policy validation — multi-cloud, threshold-aware, with drift & regression alerts.** Extends the
+  policy-validation engine:
+  - **Multi-cloud**: the Cloud Security checker now evaluates **Azure (Entra ID)** and **GCP** posture
+    snapshots (`/api/cloud-security/azure-check`, `/gcp-check`) — password policy, MFA / 2-Step
+    Verification, legacy auth, inactive users, service-account keys, primitive Owner — into CLOUDFINDING,
+    so policy validation covers **AWS + Azure + GCP** in one report.
+  - **Threshold-aware**: the cloud-password and new **on-prem `host.password_policy`** collectors read the
+    *observed* value and compare it to the **policy's own** threshold (e.g. "observed 8, policy requires
+    ≥ 14"), not just the benchmark's. The agentless `collect.sh`/`collect.ps1` now emit value-bearing
+    password-policy checks (Linux login.defs/pwquality; Windows `net accounts` / AD default domain policy).
+  - **Drift + alerts**: each validation is snapshotted (`POLICYVALIDATIONSNAPSHOT`) for a **compliance
+    trend**, with **drift detection** (what regressed/improved since the last run); a requirement going
+    pass→fail fires a `policy.regression` notification (in-app + Teams + CROC loop). The modal shows a
+    trend sparkline and a regressed/improved banner.
+- **Policy validation — does the written policy actually hold? (AI + live evidence).** A new layer on
+  `/policy-management`: for any policy, click **🛡 Validate** to (1) **extract** its prose into structured,
+  checkable requirements with the **local LLM** (password standards, MFA, root keys, inactive users…),
+  each mapped to a control ref (NIST IA‑5/IA‑2…) and an evidence collector — **you approve** which
+  requirements count (offline heuristic fallback when the LLM is unreachable); (2) **validate** the
+  approved requirements against the evidence XORCISM already holds — **cloud CIS findings**, **asset /
+  identity MFA**, and the **agentless host baseline** — across on‑prem / cloud / hybrid; (3) get a
+  **compliance %, by‑environment breakdown, a violation worklist (evidence‑cited) and the gaps**.
+  Deterministic checks decide pass/fail (audit‑grade); the AI only structures and explains, and anything
+  with no evidence is reported **unverifiable, never a false pass**. New `policyval.ts` engine
+  (`POLICYREQUIREMENT` + `POLICYVALIDATION`) + routes. First slice covers password + MFA, whose collectors
+  already exist in three environments. (Local AI — policy text never leaves your infrastructure.)
+- **Malwoverview (malware triage) — TOOL + connector → XMALWARE.** Added
+  [malwoverview](https://github.com/alexandreborges/malwoverview) (Alexandre Borges), the Python malware
+  triage / threat-hunting CLI that aggregates ~18 TI & sandbox services (VirusTotal, Hybrid Analysis,
+  Triage, Polyswarm, MalwareBazaar, URLhaus, ThreatFox, Malshare, Malpedia, OTX…). New **`malwoverview`
+  connector** ingests its JSON and maps each sample → a **MALWARESCAN** row (MD5/SHA1/SHA256, aggregate
+  verdict, positives/total, family) and each aggregated service → a **MALWARESCANENGINE** row — the same
+  store as the `/malware-scan` page — while the sample's family/tags/**MITRE ATT&CK** become an
+  **INTELEXCHANGE** item cross-linked into the ATT&CK matrix. Auto-detects a normalized bundle, a raw
+  VirusTotal v3 report, or a MalwareBazaar hash query; idempotent by SHA-256. New `import_malware` path in
+  the connector runner (raw XMALWARE writes, worker-safe) + a TOOL catalogue entry.
+- **i18n tooling — parity checker + pluggable batch translator.** New `xorcism_ts/tools/i18n_parity.cjs`
+  reports each locale's key coverage vs the EN source (`--json`, `--missing <lang>`, and a `--ci` gate that
+  fails only on *stale* keys). New `xorcism_ts/tools/i18n_translate.cjs` fills the missing locale keys by
+  machine-translating the EN source — **pluggable providers** (`--provider ollama|deepl|google|mock`,
+  local-first), **placeholder/HTML-safe** (`{n}` and `<tags>` are masked before translation and a key is
+  skipped if a marker is dropped, so the UI never breaks), batched, idempotent, and writes straight into
+  `client/ts/locales/*.ts`. Run `node tools/i18n_translate.cjs --provider deepl --lang all` (with
+  `DEEPL_API_KEY`/`GOOGLE_API_KEY`, or a faster Ollama endpoint) to complete the ~5.3k-key long-tail
+  unattended. Also fixed an EN gap (`landing.trustcenter` was missing from English → that card showed in
+  French for EN users).
+- **Localization — new pages translated into all 11 languages.** The latest features' chrome (the
+  Questionnaire-Assistant page, the SCA reachability / control-monitoring / affected-CPEs panel headers,
+  the new landing card, and the VM "CPEs" control) is now hand-translated into all nine non-EN/FR locales
+  (de/it/es/pt/zh/ja/ar/ru/he) — 27 high-visibility keys each. (As before, any key a locale doesn't define
+  still falls back to English, so every page always renders fully.)
+- **VULNERABILITY form — "Affected CPEs" panel.** Opening a vulnerability in the explorer now shows the
+  CPEs it affects (from `XVULNERABILITY.VULNERABILITYFORCPE`, names resolved cross-database from
+  `XORCISM.CPE`), each flagged *known vulnerable* / *unconfirmed*. New `getVulnerabilityCpes()` +
+  `GET /api/vulnerability-cpes`, read-only panel next to the Tags section (EN/FR).
 - **Reachability-based SCA prioritization (Endor Labs / Snyk parity).** A vulnerable dependency only
   matters if it's actually **reachable** in the running app. `/sca` now ranks vulnerable components by a
   composite of **reachability** (derived from each component's SBOM scope — dev/test/optional are not

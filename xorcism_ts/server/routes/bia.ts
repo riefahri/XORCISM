@@ -16,6 +16,8 @@ import { clientIp } from "../auth";
 import * as xid from "../xid";
 import { tr } from "../i18n";
 import type { BiaAudit, BiaEntry } from "../types";
+import { computeBia } from "../bia";
+import { deriveAssetDependencies, listAssetDependencies, addAssetDependency, removeAssetDependency } from "../assetdeps";
 
 const router = Router();
 
@@ -402,6 +404,45 @@ router.delete("/dependencies/:id", (req: Request, res: Response) => {
   const pt = parentAuditTenant(req, res, row.BIAAuditID); if (!pt) return;
   d.prepare("DELETE FROM BIADEPENDENCY WHERE BIADependencyID=?").run(id);
   res.json({ ok: true });
+});
+
+// ── Computed BIA draft (data-driven criticality + suggested RTO/RPO/MTD per asset) ─────
+// GET /api/bia/computed
+router.get("/computed", (req: Request, res: Response) => {
+  try { res.json(computeBia(biaScope(req), 200)); }
+  catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// ── True asset→asset dependency edges (ASSETDEPENDENCY) — feeds computeBia centrality ──
+// GET /api/bia/asset-dependencies
+router.get("/asset-dependencies", (req: Request, res: Response) => {
+  try { res.json(listAssetDependencies(biaScope(req), 500)); }
+  catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// POST /api/bia/asset-dependencies/derive — infer edges from application & network relationships
+router.post("/asset-dependencies/derive", (req: Request, res: Response) => {
+  try {
+    const r = deriveAssetDependencies(biaScope(req));
+    xid.addAudit({ userId: req.user!.UserID, action: "bia_asset_deps_derive", resourceType: "table", resourceKey: `XORCISM.ASSETDEPENDENCY (${r.totalEdges} new)`, ip: clientIp(req) });
+    res.json(r);
+  } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// POST /api/bia/asset-dependencies { fromAssetId, toAssetId } — manual edge ("From depends on To")
+router.post("/asset-dependencies", (req: Request, res: Response) => {
+  const b = req.body as { fromAssetId?: unknown; toAssetId?: unknown; type?: unknown };
+  const from = Number(b.fromAssetId), to = Number(b.toAssetId);
+  if (![from, to].every((n) => Number.isInteger(n) && n > 0)) return void res.status(400).json({ error: "fromAssetId, toAssetId required" });
+  if (from === to) return void res.status(400).json({ error: "an asset cannot depend on itself" });
+  try { res.json(addAssetDependency(biaScope(req), from, to, String(b.type || "manual").slice(0, 60), "manual")); }
+  catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// DELETE /api/bia/asset-dependencies/:id
+router.delete("/asset-dependencies/:id", (req: Request, res: Response) => {
+  try { res.json(removeAssetDependency(Number(req.params.id))); }
+  catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
 export default router;

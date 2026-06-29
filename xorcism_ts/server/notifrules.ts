@@ -58,6 +58,8 @@ export const EVENT_TYPES: EventType[] = [
     label: "Compliance journey step overdue", description: "A step in a compliance journey passed its target date." },
   { key: "compliance.audit_due", category: "Compliance", level: "info", default: false,
     label: "Audit / assessment due", description: "A scheduled audit or assessment is approaching its due date." },
+  { key: "policy.regression", category: "Compliance", level: "warning", default: true,
+    label: "Policy control regressed", description: "A policy requirement that previously passed now fails on-prem/cloud/hybrid evidence." },
 ];
 const BY_KEY = new Map(EVENT_TYPES.map((e) => [e.key, e]));
 export function isEvent(key: string): boolean { return BY_KEY.has(key); }

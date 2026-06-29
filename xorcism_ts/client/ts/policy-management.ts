@@ -46,6 +46,7 @@ function actionsHtml(r: PolicyRow): string {
   if (!r.retired && !r.published) a.push(`<button style="${BTN}" data-publish="${r.id}" data-ver="${esc(r.version === "—" ? "" : r.version)}">Publish</button>`);
   if (r.published) { a.push(`<button style="${BTN}" data-retire="${r.id}">Retire</button>`); if (r.requiresAck) a.push(`<button style="${BTN}" data-cov="${r.id}">Coverage</button>`); }
   a.push(`<button style="${BTN}" data-hist="${r.id}" title="Version history">History${r.versions ? ` (${r.versions})` : ""}</button>`);
+  a.push(`<button style="${BTN}" data-validate="${r.id}" title="Validate this policy against live evidence (on-prem / cloud / hybrid)">🛡 Validate</button>`);
   return a.join(" ");
 }
 
@@ -171,6 +172,70 @@ function wire(): void {
   on("cov", (id) => coverageDialog(id));
   on("hist", (id) => versionsDialog(id));
   on("ack", (id) => post(`/api/policy-management/policy/${id}/acknowledge`).then((j) => { toast(j.already ? "Already acknowledged" : "Acknowledged — thank you"); void load(); }).catch((e) => toast("⚠️ " + (e.message || e))));
+  on("validate", (id) => validateDialog(id));
+}
+
+// ── Policy validation (AI requirement extraction + cross-environment evidence checks) ──
+interface VReq { requirementId: number; attribute: string; description: string; collectorKey: string; controlRef: string; scope: string; approved: boolean; status: string; pass: number; fail: number; total: number }
+interface VReport { policyName: string; compliancePct: number; measurable: number; passed: number; evaluatedAt: string | null;
+  byEnv: { env: string; pass: number; fail: number; total: number }[];
+  requirements: VReq[]; violations: { requirement: string; env: string; target: string; detail: string; evidenceRef: string }[]; gaps: { requirement: string; reason: string }[];
+  trend?: { at: string; pct: number }[]; drift?: { requirementId: number; name: string; from: string; to: string; dir: string }[]; }
+function trendSpark(trend?: { at: string; pct: number }[]): string {
+  if (!trend || trend.length < 2) return "";
+  const W = 240, H = 32, n = trend.length;
+  const pts = trend.map((p, i) => `${(i / (n - 1)) * W},${(H - (p.pct / 100) * H).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:160px;height:32px"><polyline points="${pts}" fill="none" stroke="${pctColor(trend[n - 1].pct)}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+}
+const resColor = (s: string): string => s === "pass" ? "#34d399" : s === "fail" ? "#f87171" : s === "partial" ? "#fbbf24" : "#64748b";
+
+function validateDialog(id: number): void {
+  openModal(`<div class="muted" style="padding:10px">Loading…</div>`);
+  fetch(`/api/policy-validation?policy=${id}`).then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; }))
+    .then((d: { report: VReport }) => renderValidate(id, d.report))
+    .catch((e) => openModal(`<div class="muted" style="padding:10px">⚠️ ${esc(e.message || e)}</div><div style="text-align:right"><button style="${BTN}" id="pp-close">Close</button></div>`));
+}
+
+function renderValidate(id: number, rep: VReport): void {
+  const reqRows = rep.requirements.length ? rep.requirements.map((q) => `<tr style="border-bottom:1px solid #1e2133">
+      <td style="padding:5px 8px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-appr="${q.requirementId}" ${q.approved ? "checked" : ""}> <span style="color:#e2e8f0">${esc(q.description || q.attribute)}</span></label>
+        <div class="muted" style="font-size:10px;margin-left:22px">${esc(q.collectorKey)}${q.controlRef ? " · " + esc(q.controlRef) : ""} · scope ${esc(q.scope)}</div></td>
+      <td style="padding:5px 8px;text-align:center"><span style="color:${resColor(q.status)};font-weight:600">${esc(q.approved ? q.status : "(unapproved)")}</span>${q.total ? `<div class="muted" style="font-size:10px">${q.pass}✓ / ${q.fail}✗ of ${q.total}</div>` : ""}</td>
+      <td style="padding:5px 8px;text-align:right"><button style="${BTN}" data-delreq="${q.requirementId}" title="Remove">✕</button></td></tr>`).join("")
+    : `<tr><td colspan="3" class="muted" style="padding:8px">No requirements yet — click <b>Extract (AI)</b> to parse this policy into checkable rules.</td></tr>`;
+  const byEnv = rep.byEnv.length ? rep.byEnv.map((e) => `<span class="bd">${esc(e.env)} <b style="color:#34d399">${e.pass}✓</b>${e.fail ? ` <b style="color:#f87171">${e.fail}✗</b>` : ""}</span>`).join("") : "";
+  const regressed = (rep.drift || []).filter((d) => d.dir === "down");
+  const driftHtml = (rep.drift && rep.drift.length) ? `<div style="margin:6px 0 10px;padding:8px 10px;border:1px solid ${regressed.length ? "#7f1d1d" : "#14532d"};border-radius:8px;background:#13162a;font-size:12px">
+      <b style="color:${regressed.length ? "#f87171" : "#86efac"}">${regressed.length ? "⚠ Regressed since last run" : "✓ Improved since last run"}</b> ${rep.drift.map((d) => `<span class="bd" style="background:${d.dir === "down" ? "#3b1418" : "#0c2a20"};color:${d.dir === "down" ? "#fecaca" : "#86efac"}">${d.dir === "down" ? "▼" : "▲"} ${esc(d.name)} (${esc(d.from)}→${esc(d.to)})</span>`).join(" ")}</div>` : "";
+  const viol = rep.violations.length ? `<div class="pp-section" style="color:#f87171">Violations (${rep.violations.length})</div>` + rep.violations.slice(0, 40).map((v) => `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #1e2133"><span class="bd" style="background:#3b1418;color:#fecaca">${esc(v.env)}</span> <b>${esc(v.target)}</b> — ${esc(v.detail)} <span class="muted" style="font-size:10px">[${esc(v.evidenceRef)}]</span></div>`).join("") : "";
+  const gaps = rep.gaps.length ? `<div class="pp-section" style="color:#fbbf24">Gaps / unverifiable (${rep.gaps.length})</div>` + rep.gaps.map((g) => `<div style="font-size:12px;padding:2px 0" class="muted">○ ${esc(g.requirement)} — ${esc(g.reason)}</div>`).join("") : "";
+  openModal(`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="font-size:15px;color:#e7ebf3">🛡 Policy validation</b> <span class="muted">${esc(rep.policyName)}</span><span style="flex:1"></span>
+      <button style="${BTN};border-color:#7c3aed;color:#c4b5fd" id="pv-extract">✨ Extract (AI)</button>
+      <button style="${BTN};border-color:#34d399;color:#86efac" id="pv-run">▶ Validate</button>
+      <button style="${BTN}" id="pp-close">Close</button></div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+      <span style="font-size:28px;font-weight:700;color:${pctColor(rep.compliancePct)}">${rep.compliancePct}%</span>
+      <div class="muted" style="font-size:12px;flex:1">${rep.passed}/${rep.measurable} measurable requirements pass${rep.evaluatedAt ? ` · ${esc(rep.evaluatedAt.slice(0, 19).replace("T", " "))}` : ""}<div>${byEnv}</div></div>
+      ${trendSpark(rep.trend)}</div>
+    ${driftHtml}
+    <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:#94a3b8;font-size:11px;text-transform:uppercase">
+      <th style="text-align:left;padding:4px 8px">Requirement (✓ = approved to enforce)</th><th style="padding:4px 8px">Result</th><th></th></tr></thead><tbody>${reqRows}</tbody></table>
+    ${viol}${gaps}
+    <div class="muted" style="font-size:11px;margin-top:10px">AI structures the policy into rules — <b>you approve</b> which ones count; deterministic checks against your cloud CIS findings, asset/identity MFA and agentless host baseline decide pass/fail (evidence-cited). Uncollected evidence → <i>unverifiable</i>, never a false pass.</div>`);
+  document.querySelectorAll<HTMLInputElement>("[data-appr]").forEach((c) => c.onchange = () => {
+    post(`/api/policy-validation/requirement/${c.getAttribute("data-appr")}`, { approved: c.checked }).catch((e) => toast("⚠️ " + (e.message || e)));
+  });
+  document.querySelectorAll<HTMLElement>("[data-delreq]").forEach((b) => b.onclick = () => {
+    fetch(`/api/policy-validation/requirement/${b.getAttribute("data-delreq")}`, { method: "DELETE" }).then(() => validateDialog(id)).catch((e) => toast("⚠️ " + (e.message || e)));
+  });
+  (document.getElementById("pv-extract") as HTMLButtonElement).onclick = () => {
+    toast("Extracting requirements…");
+    post(`/api/policy-validation/extract`, { policyId: id }).then((j) => { toast(j.ai ? `Extracted (AI: ${j.model})` : "Extracted (offline heuristics)"); validateDialog(id); }).catch((e) => toast("⚠️ " + (e.message || e)));
+  };
+  (document.getElementById("pv-run") as HTMLButtonElement).onclick = () => {
+    toast("Validating against evidence…");
+    post(`/api/policy-validation/validate`, { policyId: id }).then((rep2: VReport) => renderValidate(id, rep2)).catch((e) => toast("⚠️ " + (e.message || e)));
+  };
 }
 
 interface PolicyVersion { versionId: number; version: string; status: string; effectiveDate: string | null; publishedDate: string | null; changeNote: string; changedBy: string | null; at: string; hasContent: boolean; }

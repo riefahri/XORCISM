@@ -14,6 +14,7 @@ import {
 import { createAgentJob } from "./agents";
 import { matchCves } from "./cvematch";
 import { controlAssurance, ensureAssuranceTables } from "./assurance";
+import { recordAuditSnapshot } from "./auditpack";
 import { runScheduledBoardReports } from "./boardreport";
 import { cronMatches } from "./cron";
 import { targetInScope } from "./scope";
@@ -197,6 +198,11 @@ export function startScheduler(): void {
   const assureTick = (): void => { try { controlAssurance(null); } catch (e) { console.warn(`[assurance] snapshot: ${(e as Error).message}`); } };
   const bootT = setTimeout(assureTick, 60_000); if (typeof bootT.unref === "function") bootT.unref();
   const assureTimer = setInterval(assureTick, 6 * 3600_000); if (typeof assureTimer.unref === "function") assureTimer.unref();
+
+  // Audit & accreditation package: persist a daily posture rollup so the package shows a trend over time.
+  const auditTick = (): void => { try { recordAuditSnapshot(null); } catch (e) { console.warn(`[auditpack] snapshot: ${(e as Error).message}`); } };
+  const auditBoot = setTimeout(auditTick, 90_000); if (typeof auditBoot.unref === "function") auditBoot.unref();
+  const auditTimer = setInterval(auditTick, 24 * 3600_000); if (typeof auditTimer.unref === "function") auditTimer.unref();
 
   console.log("[scheduler] démarré (tick 30s)");
 }

@@ -70,6 +70,29 @@ const SAMPLE_SNAPSHOT = {
   cloudtrail: { trails: [{ name: "org-trail", is_multi_region: true, is_logging: true, log_file_validation: false, cloudwatch_logs: false, kms_encrypted: false }] },
   config: { recorders: [{ name: "default", recording: true, all_regions: false }] },
 };
+const SAMPLE_AZURE = {
+  tenant: "contoso.onmicrosoft.com",
+  security_defaults_enabled: false, legacy_auth_blocked: false,
+  password_policy: { min_length: 8, complexity: true, expiry_days: 0 },
+  users: [
+    { user: "alice@contoso.com", admin: true, mfa: true },
+    { user: "bob@contoso.com", admin: true, mfa: false },
+    { user: "carol@contoso.com", mfa: false, last_sign_in_days: 140 },
+  ],
+};
+const SAMPLE_GCP = {
+  project: "my-gcp-project",
+  users: [
+    { user: "ops@example.com", admin: true, two_step: false },
+    { user: "dev@example.com", two_step: true, last_login_days: 5 },
+  ],
+  service_accounts: [{ name: "ci-deployer", user_managed_keys: 2, oldest_key_age_days: 400 }],
+  primitive_owner_bindings: 3,
+};
+type Provider = "aws" | "azure" | "gcp";
+const SAMPLES: Record<Provider, unknown> = { aws: SAMPLE_SNAPSHOT, azure: SAMPLE_AZURE, gcp: SAMPLE_GCP };
+const TITLES: Record<Provider, string> = { aws: "AWS compliance check (CIS AWS Foundations)", azure: "Azure compliance check (CIS Microsoft Azure Foundations)", gcp: "GCP compliance check (CIS Google Cloud Foundations)" };
+let checkProvider: Provider = "aws";
 
 function renderCompliance(d: Compliance): void {
   const host = $("cs-compliance");
@@ -101,7 +124,9 @@ function loadCompliance(): void {
   fetch("/api/cloud-security/compliance").then((r) => r.ok ? r.json() : null).then((d: Compliance | null) => { if (d) renderCompliance(d); }).catch(() => { /* none yet */ });
 }
 
-function openCheck(): void {
+function openCheck(provider: Provider): void {
+  checkProvider = provider;
+  const title = document.getElementById("cs-chk-title"); if (title) title.textContent = TITLES[provider];
   ($("cs-chk-json") as HTMLTextAreaElement).value = "";
   $("cs-chk-err").textContent = "";
   $("cs-chk-modal").classList.add("open");
@@ -113,7 +138,7 @@ async function runCheck(): Promise<void> {
   try { snapshot = JSON.parse(raw); } catch { err.textContent = "Invalid JSON."; return; }
   const btn = $("cs-chk-run") as HTMLButtonElement; btn.disabled = true; err.textContent = "Running…";
   try {
-    const r = await fetch("/api/cloud-security/aws-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ snapshot }) });
+    const r = await fetch(`/api/cloud-security/${checkProvider}-check`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ snapshot }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     $("cs-chk-modal").classList.remove("open");
@@ -124,9 +149,11 @@ async function runCheck(): Promise<void> {
 
 document.addEventListener("DOMContentLoaded", () => {
   initI18n(); load(); loadCompliance();
-  $("cs-run-check").addEventListener("click", openCheck);
+  $("cs-run-check").addEventListener("click", () => openCheck("aws"));
+  const azBtn = document.getElementById("cs-run-check-azure"); if (azBtn) azBtn.addEventListener("click", () => openCheck("azure"));
+  const gcpBtn = document.getElementById("cs-run-check-gcp"); if (gcpBtn) gcpBtn.addEventListener("click", () => openCheck("gcp"));
   $("cs-chk-cancel").addEventListener("click", () => $("cs-chk-modal").classList.remove("open"));
   $("cs-chk-modal").addEventListener("click", (e) => { if (e.target === $("cs-chk-modal")) $("cs-chk-modal").classList.remove("open"); });
-  $("cs-chk-sample").addEventListener("click", (e) => { e.preventDefault(); ($("cs-chk-json") as HTMLTextAreaElement).value = JSON.stringify(SAMPLE_SNAPSHOT, null, 2); });
+  $("cs-chk-sample").addEventListener("click", (e) => { e.preventDefault(); ($("cs-chk-json") as HTMLTextAreaElement).value = JSON.stringify(SAMPLES[checkProvider], null, 2); });
   $("cs-chk-run").addEventListener("click", () => void runCheck());
 });

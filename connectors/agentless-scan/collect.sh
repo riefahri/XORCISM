@@ -68,6 +68,18 @@ checks() {
     md="$(awk '/^PASS_MAX_DAYS/{print $2}' /etc/login.defs 2>/dev/null | head -1)"
     if [ -n "$md" ] && [ "$md" -le 365 ] 2>/dev/null; then chk "pass-max-days" "Password max age <= 365 days" "pass" "low"
     else chk "pass-max-days" "Password max age <= 365 days" "fail" "low"; fi
+    # value-bearing password-policy checks (the observed number is in the title so the policy validator
+    # can compare it against the org policy's own threshold). Flagged 'fail' when outside a strict baseline.
+    if [ -n "$md" ]; then
+      if [ "$md" -le 90 ] 2>/dev/null; then chk "pwd-max-age" "Password max age = ${md} days" "pass" "medium"
+      else chk "pwd-max-age" "Password max age = ${md} days" "fail" "medium"; fi
+    fi
+    ml="$(awk '/^PASS_MIN_LEN/{print $2}' /etc/login.defs 2>/dev/null | head -1)"
+    [ -n "$ml" ] || ml="$(grep -hoE 'minlen[ =]+[0-9]+' /etc/security/pwquality.conf /etc/pam.d/* 2>/dev/null | grep -oE '[0-9]+' | head -1)"
+    if [ -n "$ml" ]; then
+      if [ "$ml" -ge 14 ] 2>/dev/null; then chk "pwd-min-length" "Password minimum length = ${ml}" "pass" "medium"
+      else chk "pwd-min-length" "Password minimum length = ${ml}" "fail" "medium"; fi
+    fi
   fi
 }
 
