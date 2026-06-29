@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — NIST CSF 2.0 Maturity</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .cf-wrap{max-width:1300px;margin:0 auto;padding:18px}
+  .cf-wrap h1{font-size:20px;margin:0 0 2px}
+  .cf-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1010px}
+  .cf-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .cf-card{flex:1;min-width:130px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .cf-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .cf-card .val{font-size:26px;font-weight:700;margin-top:3px}
+  .cf-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .cf-score{background:linear-gradient(135deg,#241a40,#13162a)}
+  .cf-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  /* function rollup */
+  .fn{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .fn .nm{min-width:150px;font-weight:700;color:#e2e8f0}.fn .nm .c{font-size:10px;color:#64748b;font-family:ui-monospace,monospace;font-weight:400}
+  .fn .track{position:relative;flex:1;min-width:150px;height:14px;border-radius:7px;background:#1e2133;overflow:hidden}
+  .fn .track>i{display:block;height:100%;border-radius:7px}
+  .fn .tgt{position:absolute;top:-2px;width:2px;height:18px;background:#e2e8f0}
+  .fn .meta{min-width:120px;text-align:right;font-size:11px;color:#94a3b8}
+  /* scale reference */
+  .lv{display:flex;gap:12px;align-items:flex-start;background:#0f1117;border:1px solid #2d3250;border-left-width:4px;border-radius:8px;padding:9px 12px;margin-bottom:6px}
+  .lv .ln{font-weight:800;font-size:14px;min-width:30px}.lv .lt{font-weight:700;color:#e2e8f0;font-size:13px}.lv .ld{color:#94a3b8;font-size:12px;margin-top:2px}
+  /* table */
+  table.cf{width:100%;border-collapse:collapse;font-size:13px}
+  table.cf th,table.cf td{text-align:left;padding:6px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.cf th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  table.cf .fhead td{background:#11152a;font-weight:800;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px;font-size:11px}
+  .scode{font-size:10px;color:#64748b;font-family:ui-monospace,monospace;white-space:nowrap}
+  select.lvsel{background:#0f1117;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:12px;padding:3px 6px}
+  .gap{font-size:11px;background:#3a2a0e;color:#fcd34d;border-radius:5px;padding:1px 6px}
+  .muted{color:#64748b}
+  .worklist{list-style:none;margin:0;padding:0}.worklist li{padding:6px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .sev-High{color:#fb923c;font-weight:700}.sev-Medium{color:#fbbf24}.sev-Low{color:#94a3b8}
+  .cf-go{background:#22c55e;color:#06240f;border:none;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer}.cf-go:hover{background:#4ade80}.cf-go:disabled{opacity:.5}
+  .legend{font-size:11px;color:#64748b;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/governance">&#127963;&#65039; Governance (GV)</a>
+  <a href="/compliance-management">&#9878;&#65039; Compliance</a>
+  <a href="/pqcmm">&#9883; PQCMM</a>
+  <span class="spacer"></span>
+  <span class="title">&#128202; NIST CSF 2.0 Maturity</span>
+</div>
+
+<div class="cf-wrap">
+  <h1>NIST CSF 2.0 &mdash; Cybersecurity Maturity Assessment</h1>
+  <div class="cf-sub">Self-assess all 106 NIST Cybersecurity Framework 2.0 subcategories &mdash; across the six functions GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND and RECOVER &mdash; on a 5-level maturity scale (1 Performed &rarr; 5 Optimizing). Track current vs target maturity per outcome, roll up to per-function and overall maturity, and work the biggest gaps. Complements the Governance (GV) register and the framework control library.</div>
+  <div id="cf-body"><div class="muted" style="padding:24px;text-align:center">Building the CSF&nbsp;2.0 maturity posture&hellip;</div></div>
+</div>
+
+<script src="/js/i18n.js"></script><script src="/js/session-ui.js"></script>
+<script src="/js/csf-maturity.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "id": "syswarden",
+  "name": "SysWarden",
+  "type": "import",
+  "category": "HIDS",
+  "description": "SysWarden (github.com/duggytuxy/syswarden, syswarden.io) — an open-source, enterprise-grade Host Intrusion Detection & Prevention System / security orchestrator for critical Linux infrastructure: hardware-level network filtering (L2-L4 via nftables/pf), OWASP ModSecurity WAF (L7), WireGuard SSH/admin cloaking and automated CIS Level 2 hardening. This connector parses a SysWarden status/report export (JSON) and maps it to the XORCISM model: the protected host -> ASSET (with hardening posture), each not-applied CIS hardening control or disabled defensive component -> a finding, and each source IP blocked by nftables/ModSecurity -> a threat-intel IOC. Worker-safe: parses an exported file, no live host access.",
+  "intrusive": false,
+  "permission": "connector:syswarden",
+  "run": "run.py",
+  "mapping": "syswarden",
+  "parameters": [
+    {
+      "name": "file",
+      "type": "file",
+      "required": false,
+      "help": "A SysWarden status/report export in JSON (e.g. `syswarden --status --json > status.json`). If omitted, the SYSWARDEN_STATUS env path (worker) is read."
+    },
+    {
+      "name": "min_severity",
+      "type": "string",
+      "required": false,
+      "help": "Only emit hardening findings at or above this severity (low|medium|high). Default: low (all)."
+    }
+  ]
+}

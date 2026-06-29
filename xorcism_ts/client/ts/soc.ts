@@ -14,7 +14,7 @@ const PHASE_KEY: Record<string, string> = {
 const phaseLabel = (p: string): string => (PHASE_KEY[p] ? t(PHASE_KEY[p]) : p);
 
 interface Q { id: number; name: string; severity: string; status: string; tier: string; owner: string; detectedAt: string | null; ageMinutes: number | null; acknowledged: boolean; ackBreached: boolean; ackSlaMin: number; playbookId: number | null; playbookName: string | null; playbookDone: number; playbookTotal: number; escalations: number; }
-interface Data { metrics: any; onCall: any[]; shifts: any[]; coverageNow: string[]; coverageGaps: string[]; queue: Q[]; worklist: any[]; escalation: { tiers: any[] }; playbooks: any[]; summary: any }
+interface Data { metrics: any; onCall: any[]; shifts: any[]; coverageNow: string[]; coverageGaps: string[]; queue: Q[]; worklist: any[]; escalation: { tiers: any[] }; playbooks: any[]; aiSoc?: any; summary: any }
 
 let DATA: Data | null = null;
 
@@ -38,10 +38,78 @@ function queueRow(q: Q): string {
     <td>${q.playbookId ? `<a class="muted" style="cursor:pointer;color:#a5b4fc" data-pb="${q.id}">${esc(q.playbookName || t("soc.playbook"))}</a><br>${pb}` : pb}</td>
     <td style="white-space:nowrap">
       ${q.acknowledged ? "" : `<button class="btn-sm2" data-ack="${q.id}">${t("soc.btnAck")}</button> `}
+      <button class="btn-sm2" data-triage="${q.id}" title="AI triage — verdict, severity & recommended playbook">🤖 AI triage</button>
       <button class="btn-sm2" data-esc="${q.id}">${t("soc.btnEscalate")}</button>
       <button class="btn-sm2" data-attach="${q.id}">${t("soc.btnPlaybook")}</button>
     </td>
   </tr>`;
+}
+
+// AI-SOC posture panel: autonomy level on the ladder + capability checklist + KPIs + recommendations.
+function aiSocPanel(a: any): string {
+  if (!a) return "";
+  const LADDER = a.levels || [];
+  const lvl = Number(a.level ?? 0);
+  const rungs = LADDER.map((l: any) => `<span class="rung ${l.level === lvl ? "on" : ""}" title="${esc(l.desc)}">L${l.level} ${esc(l.name)}</span>`).join("<span class=\"arr\">→</span>");
+  const caps = (a.capabilities || []).map((c: any) => `<div class="cap"><span class="cb ${c.on ? "y" : "n"}">${c.on ? "✓" : "○"}</span>${esc(c.label)}</div>`).join("");
+  const kpis = (a.kpis || []).map((k: any) => {
+    const v = k.value == null ? "—" : `${k.value}${k.unit || ""}`;
+    const tgt = k.target != null ? ` <span class="muted">/ ${k.target}${k.unit || ""}</span>` : "";
+    return `<div class="kpi" title="${esc(k.note || "")}"><div class="kl">${esc(k.label)}</div><div class="kv">${esc(v)}${tgt}</div></div>`;
+  }).join("");
+  const recs = (a.recommendations || []).length
+    ? `<ul class="airecs">${a.recommendations.map((r: any) => `<li><span class="sev ${r.severity === "High" ? "s-crit" : r.severity === "Medium" ? "s-high" : "s-med"}">${esc(r.severity)}</span> ${esc(r.text)}</li>`).join("")}</ul>`
+    : `<div class="muted" style="font-size:12px;padding:4px 0">No gaps — operating at the top of the autonomy ladder.</div>`;
+  const prov = a.provider ? `<span class="muted" style="font-size:11px">AI: ${a.provider.configured ? esc(a.provider.model || "configured") + (a.provider.local ? " · local" : "") : "not configured"}</span>` : "";
+  return `<div class="panel" style="margin-bottom:8px">
+    <div class="so-section" style="margin-top:0;display:flex;align-items:center;gap:10px">🤖 AI-SOC autonomy
+      <span class="aibadge">Level ${lvl} — ${esc(a.levelName || "")}</span><span style="flex:1"></span>${prov}</div>
+    <div class="ladder">${rungs}</div>
+    <div class="aigrid"><div class="caps">${caps}</div><div class="kpis">${kpis}</div></div>
+    <div class="muted" style="font-size:11px;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.4px">Modernization worklist</div>${recs}
+  </div>
+  <style>
+    .aibadge{background:#3b1d63;color:#d8b4fe;border:1px solid #6b3fa0;border-radius:6px;padding:2px 9px;font-size:12px;font-weight:700}
+    .ladder{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:6px 0 10px}
+    .ladder .rung{font-size:11px;color:#94a3b8;background:#0f1117;border:1px solid #2d3250;border-radius:5px;padding:2px 7px}
+    .ladder .rung.on{background:#1d3a2b;color:#6ee7b7;border-color:#15803d;font-weight:700}
+    .ladder .arr{color:#475569;font-size:10px}
+    .aigrid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px}
+    @media(max-width:760px){.aigrid{grid-template-columns:1fr}}
+    .cap{font-size:12px;color:#cbd5e1;padding:3px 0}.cap .cb{display:inline-block;width:16px;font-weight:700}.cap .cb.y{color:#34d399}.cap .cb.n{color:#64748b}
+    .kpis{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
+    .kpi{background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:6px 10px;min-width:130px}
+    .kpi .kl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.3px}.kpi .kv{font-size:15px;font-weight:700;color:#e2e8f0;margin-top:2px}
+    .airecs{list-style:none;margin:0;padding:0}.airecs li{font-size:12px;padding:4px 0;border-bottom:1px solid #1e2133}
+  </style>`;
+}
+
+// Agentic AI triage of an incident — calls /api/soc/incident/:id/triage and shows the verdict.
+function triageIncident(id: number): void {
+  const q = DATA?.queue.find((x) => x.id === id);
+  $("so-dlg").innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:16px;color:#e7ebf3">🤖 AI triage — ${esc(q?.name || `Incident #${id}`)}</span><span style="flex:1"></span><button class="btn-sm2" id="so-close">${t("soc.close")}</button></div><div id="so-tri" class="muted" style="padding:16px;text-align:center">Triaging…</div>`;
+  $("so-modal").classList.add("show");
+  (document.getElementById("so-close") as HTMLElement).onclick = closeModal;
+  fetch(`/api/soc/incident/${id}/triage`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+    .then((r) => r.json().then((j) => { if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j.triage; }))
+    .then((tr: any) => {
+      const pb = tr.recommendedPlaybook;
+      const actions = (tr.nextActions || []).map((x: string) => `<li>${esc(x)}</li>`).join("");
+      const att = (tr.attack || []).map((x: string) => `<span class="pbcat">${esc(x)}</span>`).join(" ");
+      $("so-tri").className = "";
+      $("so-tri").innerHTML = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <span class="sev ${scls(tr.severity)}">${esc(tr.severity)}</span>
+          <span class="muted">Classification: <b style="color:#e2e8f0">${esc(tr.classification)}</b></span>
+          <span style="flex:1"></span><span class="muted" style="font-size:11px">${tr.offline ? "offline heuristic" : "AI: " + esc(tr.model)}</span></div>
+        <div style="font-size:13px;color:#e2e8f0;margin-bottom:8px"><b>Verdict:</b> ${esc(tr.verdict)}</div>
+        ${pb ? `<div style="font-size:13px;margin-bottom:6px"><b style="color:#e2e8f0">Recommended playbook:</b> ${esc(pb.name)} ${att}
+          <button class="btn-sm2" id="so-tri-attach" style="margin-left:6px">Attach</button></div>` : `<div class="muted" style="font-size:12px;margin-bottom:6px">No matching playbook in the library.</div>`}
+        <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin:8px 0 2px">Recommended next actions</div>
+        <ol style="margin:0;padding-left:18px;font-size:13px;color:#cbd5e1">${actions}</ol>`;
+      const ab = document.getElementById("so-tri-attach");
+      if (ab && pb) ab.onclick = () => { act(`/api/soc/incident/${id}/playbook`, { playbookId: pb.id }, t("soc.pbAttached")); closeModal(); };
+    })
+    .catch((e) => { $("so-tri").innerHTML = `<div style="color:#fca5a5;padding:12px">⚠️ ${esc(e.message || e)}</div>`; });
 }
 
 function render(): void {
@@ -79,6 +147,7 @@ function render(): void {
     : `<div class="muted" style="padding:8px 0">${t("soc.noPlaybooks")}</div>`;
 
   $("so-body").innerHTML = `<div class="so-cards">${cards}</div>
+    ${aiSocPanel(d.aiSoc)}
     <div class="so-section">${fmt("soc.secWorklist", { n: d.worklist.length })}</div>${work}
     <div class="so-section">${fmt("soc.secQueue", { n: d.queue.length })}</div>${queue}
     <div class="grid2" style="margin-top:8px">
@@ -94,6 +163,7 @@ function wire(): void {
   const on = (attr: string, fn: (id: number, el: HTMLElement) => void) =>
     Array.prototype.forEach.call(document.querySelectorAll(`[data-${attr}]`), (el: HTMLElement) => { el.onclick = () => fn(Number(el.getAttribute(`data-${attr}`)), el); });
   on("ack", (id) => act(`/api/soc/incident/${id}/ack`, {}, t("soc.toastAck")));
+  on("triage", (id) => triageIncident(id));
   on("esc", (id) => { const reason = prompt(t("soc.escPrompt"), t("soc.escDefault")); if (reason == null) return; act(`/api/soc/incident/${id}/escalate`, { reason }, t("soc.toastEsc")); });
   on("attach", (id) => attachPlaybook(id));
   on("pb", (id) => openPlaybook(id));

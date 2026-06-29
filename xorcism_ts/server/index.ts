@@ -139,6 +139,8 @@ import fairtefRouter from "./routes/fairtef";
 import devsecopsRouter from "./routes/devsecops";
 import riskRegisterRouter from "./routes/riskregister";
 import pqcmmRouter from "./routes/pqcmm";
+import csfMaturityRouter from "./routes/csfmaturity";
+import cbomRouter from "./routes/cbom";
 import ess8Router from "./routes/ess8";
 import { ensureEss8Tables, seedEss8Demo } from "./ess8";
 import threatDebtRouter from "./routes/threatdebt";
@@ -190,7 +192,7 @@ import {
   seedAdmin,
 } from "./auth";
 import { purgeExpiredSessions, seedFeaturePageGrants } from "./xid";
-import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureCloudComplianceTables, ensureComplianceJourneyTables, ensureQuestionnaireRunTables, ensureTprmTables, ensureZeroTrustTables, ensureZtSigninTable, ensureZtPolicyTable, ensureItdrTables, ensureIdGovTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureScaTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable, startReplicaSync, dbDriver } from "./db";
+import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureCloudComplianceTables, ensureComplianceJourneyTables, ensureQuestionnaireRunTables, ensureTprmTables, ensureZeroTrustTables, ensureZtSigninTable, ensureZtPolicyTable, ensureItdrTables, ensureIdGovTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureCsfMaturityTables, ensureScaTables, ensureCbomTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable, startReplicaSync, dbDriver } from "./db";
 import { tr } from "./i18n";
 
 const PORT = Number(process.env.PORT) || 9292;
@@ -393,6 +395,8 @@ app.use("/api", fairtefRouter); // FAIR-TEF: threat/loss event frequency estimat
 app.use("/api", devsecopsRouter); // DevSecOps operations: pipeline security scans coverage + gates + posture
 app.use("/api", riskRegisterRouter); // Risk Register: inherent→residual posture + treatment worklist (CRQ/FAIR ALE)
 app.use("/api", pqcmmRouter); // PQCMM: post-quantum-crypto maturity assessment (quantum-readiness posture)
+app.use("/api", csfMaturityRouter); // NIST CSF 2.0 maturity self-assessment (6 functions × 5-level scale, current vs target)
+app.use("/api", cbomRouter); // CBOM: cryptographic bill of materials inventory + import (quantum readiness)
 app.use("/api", ess8Router); // Essential Eight: ASD maturity-model assessment (backed by the ACSC ISM import)
 app.use("/api", threatDebtRouter); // Adversary Opportunity Index (AOI): path-organized "threat debt" top-line + STOCK/FLOW
 app.use("/api", insuranceRouter); // Cyber Insurance Readiness: insurer control checklist mapped to live signals
@@ -765,6 +769,12 @@ app.get("/risk-register", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/pqcmm", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "pqcmm.html"));
 });
+app.get("/csf-maturity", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "csf-maturity.html"));
+});
+app.get("/cbom", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "cbom.html"));
+});
 app.get("/essential-eight", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "essential-eight.html"));
 });
@@ -948,6 +958,8 @@ ensureNist80030Tables(); // NIST SP 800-30 risk assessment in XCOMPLIANCE: reuse
 ensureOtSecurityTables(); // OT/ICS Security (IEC 62443/NIST 800-82): reuses AUDIT + OTZONE/OTCONDUIT/OTZONEASSET stubs
 ensureFairMamTables(); // FAIR-MAM materiality assessment model: FAIRMAMCATEGORY taxonomy + FAIRMAMASSESSMENT/LINEITEM
 ensurePqcmmTables(); // PQCMM post-quantum-crypto maturity model: PQCMMLEVEL taxonomy + PQCMMASSESSMENT
+ensureCsfMaturityTables(); // NIST CSF 2.0 maturity self-assessment: CSFSUBCATEGORY catalogue + CSFMATURITYLEVEL + CSFMATURITYSCORE
+ensureCbomTables(); // CBOM cryptographic bill of materials: CRYPTOASSET inventory (quantum-safe classification, feeds PQCMM)
 ensureThreatDebtTables(); // Adversary Opportunity Index: THREATDEBTSNAPSHOT (AOI STOCK/FLOW history)
 ensureInsuranceTables(); // Cyber Insurance Readiness: CYBERINSURANCEPOLICY (carrier / limit / renewal record)
 ensureAiDetectTables(); // AI runtime detection: AIUSAGE telemetry + AIDETECTION

@@ -2,7 +2,7 @@
 import { Router, Request, Response } from "express";
 import { userCan, clientIp } from "../auth";
 import { socDashboard, createShift, deleteShift, acknowledgeIncident, escalateIncident, attachPlaybook, completePlaybookStep, incidentPlaybook,
-  listPlaybooks, createPlaybook, updatePlaybook, deletePlaybook, addPlaybookStep, deletePlaybookStep } from "../soc";
+  listPlaybooks, createPlaybook, updatePlaybook, deletePlaybook, addPlaybookStep, deletePlaybookStep, aiTriageIncident } from "../soc";
 import * as xid from "../xid";
 
 const router = Router();
@@ -85,6 +85,18 @@ router.post("/soc/playbook-step/:id", (req: Request, res: Response) => {
   const ok = completePlaybookStep(Number(req.params.id), String((req.body || {}).status || "done"), who(req));
   if (!ok) return void res.status(404).json({ error: "not found" });
   res.json({ ok: true });
+});
+
+// ── AI-SOC: agentic triage of an incident (local AI, deterministic fallback) ──
+router.post("/soc/incident/:id/triage", async (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!canRead(req)) return void res.status(403).json({ error: "forbidden" });
+  try {
+    const out = await aiTriageIncident(Number(req.params.id), ten(req));
+    if (!out) return void res.status(404).json({ error: "incident not found" });
+    xid.addAudit({ userId: req.user.UserID ?? null, action: "soc_ai_triage", resourceType: "INCIDENT", resourceKey: String(req.params.id), detail: `verdict via ${out.model}`, ip: clientIp(req) });
+    res.json({ ok: true, triage: out });
+  } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
 // ── IR playbook library management ───────────────────────────────────────────

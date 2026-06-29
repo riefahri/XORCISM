@@ -15,6 +15,7 @@ import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
 import { TOOL_SEED } from "./data/toolsSeed";
+import { CSF_LEVELS, CSF_SUBCATEGORIES } from "./data/csfCatalog";
 import * as vault from "./vault";
 
 // Location of the SQLite databases. OUTSIDE OneDrive: OneDrive replaces the files
@@ -5504,6 +5505,29 @@ export function ensurePqcmmTables(): void {
 }
 
 /**
+ * CBOM — Cryptographic Bill of Materials (XORCISM, alongside SBOM/COMPONENT/CPE). A first-class
+ * inventory of cryptographic assets (algorithms, certificates, protocols, keys) discovered in the
+ * estate — parsed from a CycloneDX 1.6 CBOM (component.type = "cryptographic-asset" + cryptoProperties)
+ * or a plain list. Each row records the primitive, algorithm, key size/curve, the NIST quantum-security
+ * level and a derived quantum-safe flag, optionally linked to an ASSET. Feeds the PQCMM quantum-
+ * readiness posture (HasCBOM + which crypto is still quantum-vulnerable). Created idempotently at boot.
+ */
+export function ensureCbomTables(): void {
+  let db: Database.Database;
+  try { db = getDb("XORCISM"); } catch { return; }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS CRYPTOASSET (
+      CryptoAssetID INTEGER PRIMARY KEY, CryptoAssetGUID TEXT, Name TEXT, BomRef TEXT,
+      AssetType TEXT, Primitive TEXT, Algorithm TEXT, KeySize INTEGER, Curve TEXT,
+      ClassicalBits INTEGER, NistQuantumLevel INTEGER, QuantumSafe INTEGER, Deprecated INTEGER,
+      Protocol TEXT, CertSubject TEXT, CertIssuer TEXT, CertNotAfter TEXT, Oid TEXT,
+      AssetID INTEGER, SbomID INTEGER, Source TEXT, TenantID INTEGER, CreatedDate TEXT);
+    CREATE INDEX IF NOT EXISTS ix_cryptoasset_tenant ON CRYPTOASSET(TenantID);
+    CREATE INDEX IF NOT EXISTS ix_cryptoasset_asset ON CRYPTOASSET(AssetID);
+    CREATE INDEX IF NOT EXISTS ix_cryptoasset_qs ON CRYPTOASSET(QuantumSafe);`);
+}
+
+/**
  * SCA — Software Composition Analysis over the existing CPE / CPEFORASSET / APPLICATION
  * inventory, with first-class SBOM (Software Bill of Materials) support for the two most
  * widely used standards: CycloneDX (OWASP) and SPDX (Linux Foundation). An imported SBOM
@@ -6511,6 +6535,13 @@ export function ensureSocTables(): void {
       for (const [n, t] of [["acknowledge_datetime", "TEXT"], ["EscalationTier", "TEXT"], ["PlaybookID", "INTEGER"], ["AssignedPersonID", "INTEGER"]] as [string, string][])
         if (!have.has(n)) db.exec(`ALTER TABLE "INCIDENT" ADD COLUMN "${n}" ${t}`);
     }
+    // PLAYBOOK gains incident-classification + ATT&CK / tooling / SLA-metric metadata (legacy table → extend via ALTER)
+    {
+      const have = new Set((db.prepare(`PRAGMA table_info("PLAYBOOK")`).all() as { name: string }[]).map((c) => c.name));
+      for (const [n, t] of [["Scenario", "TEXT"], ["IncidentType", "TEXT"], ["Priority", "TEXT"], ["DetectionSources", "TEXT"],
+        ["AttackTechniques", "TEXT"], ["Tools", "TEXT"], ["Metrics", "TEXT"], ["Source", "TEXT"]] as [string, string][])
+        if (!have.has(n)) db.exec(`ALTER TABLE "PLAYBOOK" ADD COLUMN "${n}" ${t}`);
+    }
   } catch { /* best-effort */ }
 }
 
@@ -6564,6 +6595,35 @@ export function ensureGovernanceTables(): void {
         Evidence TEXT, Notes TEXT, ReviewDate TEXT, TenantID INTEGER, UpdatedDate TEXT);
       CREATE UNIQUE INDEX IF NOT EXISTS ux_govstatus ON GOVERNANCESTATUS(ItemID, TenantID);`);
   } catch { /* best-effort */ }
+}
+
+/**
+ * NIST CSF 2.0 maturity self-assessment (XCOMPLIANCE). Reference catalogue (106 subcategories) +
+ * the 5-level maturity scale are seeded once at boot (CSF 2.0 Core is public domain); per-tenant
+ * current/target scores live in CSFMATURITYSCORE. See server/csfmaturity.ts for the rollups.
+ */
+export function ensureCsfMaturityTables(): void {
+  let db: Database.Database;
+  try { db = getDb("XCOMPLIANCE"); } catch { return; }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS CSFMATURITYLEVEL (
+      LevelID INTEGER PRIMARY KEY, Score INTEGER, Name TEXT, Description TEXT);
+    CREATE TABLE IF NOT EXISTS CSFSUBCATEGORY (
+      SubID INTEGER PRIMARY KEY, FunctionCode TEXT, FunctionName TEXT, CategoryCode TEXT, CategoryName TEXT,
+      SubCode TEXT, Outcome TEXT, SortOrder INTEGER);
+    CREATE TABLE IF NOT EXISTS CSFMATURITYSCORE (
+      ScoreID INTEGER PRIMARY KEY, SubID INTEGER, CurrentLevel INTEGER, TargetLevel INTEGER, Notes TEXT,
+      OwnerPersonID INTEGER, TenantID INTEGER, AssessedDate TEXT);
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_csfscore ON CSFMATURITYSCORE(SubID, TenantID);`);
+  if (!(db.prepare("SELECT COUNT(*) c FROM CSFMATURITYLEVEL").get() as { c: number }).c) {
+    const ins = db.prepare("INSERT INTO CSFMATURITYLEVEL (LevelID, Score, Name, Description) VALUES (?,?,?,?)");
+    db.transaction(() => CSF_LEVELS.forEach((l, i) => ins.run(i + 1, l.score, l.name, l.description)))();
+  }
+  if (!(db.prepare("SELECT COUNT(*) c FROM CSFSUBCATEGORY").get() as { c: number }).c) {
+    const ins = db.prepare("INSERT INTO CSFSUBCATEGORY (SubID, FunctionCode, FunctionName, CategoryCode, CategoryName, SubCode, Outcome, SortOrder) VALUES (?,?,?,?,?,?,?,?)");
+    db.transaction(() => CSF_SUBCATEGORIES.forEach((s, i) => ins.run(i + 1, s.functionCode, s.functionName, s.categoryCode, s.categoryName, s.sub, s.outcome, i)))();
+    console.log(`[seed] XCOMPLIANCE.CSFSUBCATEGORY ← ${CSF_SUBCATEGORIES.length} CSF 2.0 subcategories`);
+  }
 }
 
 /** OWASP AI Exchange / agentic threat catalogue (XTHREAT) for the AI threat advisor in threat modeling. */

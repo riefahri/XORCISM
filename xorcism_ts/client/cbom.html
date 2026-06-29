@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — CBOM (Cryptographic Bill of Materials)</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .cb-wrap{max-width:1300px;margin:0 auto;padding:18px}
+  .cb-wrap h1{font-size:20px;margin:0 0 2px}
+  .cb-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1010px}
+  .cb-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .cb-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .cb-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .cb-card .val{font-size:26px;font-weight:700;margin-top:3px}.cb-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .cb-score{background:linear-gradient(135deg,#102a40,#13162a)}
+  .cb-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .imp{background:#11152a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px;margin-bottom:8px}
+  .imp textarea{width:100%;min-height:90px;background:#0f1117;border:1px solid #2d3250;border-radius:8px;color:#e2e8f0;font:12px ui-monospace,monospace;padding:8px;box-sizing:border-box}
+  .cb-go{background:#0ea5e9;color:#04222e;border:none;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px}.cb-go:hover{background:#38bdf8}.cb-go:disabled{opacity:.5}
+  .cb-go.alt{background:#22c55e;color:#06240f}
+  table.cb{width:100%;border-collapse:collapse;font-size:13px}
+  table.cb th,table.cb td{text-align:left;padding:6px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.cb th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .qs{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .qs.safe{background:#14532d;color:#bbf7d0}.qs.vuln{background:#7f1d1d;color:#fecaca}.qs.unk{background:#1e2133;color:#94a3b8}
+  .dep{font-size:10px;background:#3a2a0e;color:#fcd34d;border-radius:5px;padding:1px 6px;margin-left:4px}
+  .scode{font-size:10px;color:#64748b;font-family:ui-monospace,monospace}
+  .bars{display:flex;flex-direction:column;gap:4px}.brow{display:flex;align-items:center;gap:8px;font-size:12px}.brow .k{min-width:160px;color:#cbd5e1}.brow .bar{flex:1;height:9px;border-radius:5px;background:#1e2133;overflow:hidden}.brow .bar>i{display:block;height:100%;background:linear-gradient(90deg,#0ea5e9,#38bdf8)}
+  .muted{color:#64748b}.worklist{list-style:none;margin:0;padding:0}.worklist li{padding:6px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .sev-High{color:#fb923c;font-weight:700}.sev-Medium{color:#fbbf24}
+  .legend{font-size:11px;color:#64748b;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/pqcmm">&#9883; PQCMM</a>
+  <a href="/sca">&#128230; SCA / SBOM</a>
+  <a href="/asset-management">&#128737;&#65039; Assets</a>
+  <span class="spacer"></span>
+  <span class="title">&#128273; CBOM — Cryptographic BOM</span>
+</div>
+<div class="cb-wrap">
+  <h1>CBOM &mdash; Cryptographic Bill of Materials</h1>
+  <div class="cb-sub">A first-class inventory of the cryptography in your estate &mdash; algorithms, certificates, protocols and keys &mdash; each classified <b>quantum-safe</b> vs <b>quantum-vulnerable</b>. Import a CycloneDX&nbsp;1.6 CBOM (<code>component.type = cryptographic-asset</code>) and roll up your quantum-readiness, the laggards being the classical public-key crypto (RSA/ECC/DH) that Shor's algorithm breaks. Feeds the <a href="/pqcmm" style="color:#7dd3fc">PQCMM</a> posture.</div>
+  <div id="cb-body"><div class="muted" style="padding:24px;text-align:center">Building the cryptographic inventory&hellip;</div></div>
+</div>
+<script src="/js/i18n.js"></script><script src="/js/session-ui.js"></script>
+<script src="/js/cbom.js"></script>
+</body>
+</html>

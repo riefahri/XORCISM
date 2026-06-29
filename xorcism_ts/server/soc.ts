@@ -13,8 +13,10 @@
  */
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
+import { SOC_PLAYBOOKS_36 } from "./data/socPlaybooks";
+import { aiProviderInfo, ollamaChat } from "./ai";
 
-const PHASES = ["Detection & Analysis", "Containment", "Eradication", "Recovery", "Post-Incident"] as const;
+const PHASES = ["Preparation", "Detection & Analysis", "Containment", "Eradication", "Recovery", "Lessons Learned & Reporting", "Post-Incident"] as const;
 
 // ── default escalation tiers (NIST 800-61 / SOC tiering) ───────────────────────
 export const DEFAULT_TIERS = [
@@ -223,6 +225,7 @@ export function socDashboard(tenant: number | null): any {
     queue, worklist: worklist.slice(0, 40),
     escalation: { tiers },
     playbooks,
+    aiSoc: aiSocPosture(tenant, { mttaMinutes: r1(avg(mtta)), playbookAdherence: adherence, openIncidents: openCount }),
     summary: {
       openIncidents: openCount, unacknowledged: queue.filter((q) => !q.acknowledged).length, ackBreached: queue.filter((q) => q.ackBreached).length,
       criticalOpen: queue.filter((q) => q.severity === "Critical").length, onCallNow: onCall.length, coverageGaps: coverageGaps.length,
@@ -315,7 +318,10 @@ function playbookTenantOk(id: number, tenant: number | null): boolean {
 export function listPlaybooks(tenant: number | null): any[] {
   const db = getDb("XINCIDENT");
   if (!has("PLAYBOOK")) return [];
-  const pbs = db.prepare(`SELECT PlaybookID, Name, Category, Severity, Description, StepCount FROM PLAYBOOK ${tw(tenant)} ORDER BY Category, Name`).all() as any[];
+  const pc = cols("PLAYBOOK");
+  const meta = pc.has("IncidentType");
+  const extra = meta ? ", Scenario, IncidentType, Priority, DetectionSources, AttackTechniques, Tools, Metrics, Source" : "";
+  const pbs = db.prepare(`SELECT PlaybookID, Name, Category, Severity, Description, StepCount${extra} FROM PLAYBOOK ${tw(tenant)} ORDER BY Category, Name`).all() as any[];
   const stepsBy = new Map<number, any[]>();
   if (has("PLAYBOOKSTEP")) {
     for (const st of db.prepare("SELECT StepID, PlaybookID, Phase, StepOrder, Title, Description, Role FROM PLAYBOOKSTEP ORDER BY PlaybookID, StepOrder").all() as any[]) {
@@ -323,7 +329,15 @@ export function listPlaybooks(tenant: number | null): any[] {
       stepsBy.get(k)!.push({ id: Number(st.StepID), phase: String(st.Phase ?? ""), order: Number(st.StepOrder ?? 0), title: String(st.Title ?? ""), description: String(st.Description ?? ""), role: String(st.Role ?? "") });
     }
   }
-  return pbs.map((p) => ({ id: Number(p.PlaybookID), name: String(p.Name), category: String(p.Category ?? ""), severity: String(p.Severity ?? ""), description: String(p.Description ?? ""), stepCount: Number(p.StepCount ?? 0), steps: stepsBy.get(Number(p.PlaybookID)) || [] }));
+  const splitList = (v: unknown, sep: RegExp): string[] => String(v ?? "").split(sep).map((s) => s.trim()).filter(Boolean);
+  return pbs.map((p) => ({
+    id: Number(p.PlaybookID), name: String(p.Name), category: String(p.Category ?? ""), severity: String(p.Severity ?? ""),
+    description: String(p.Description ?? ""), stepCount: Number(p.StepCount ?? 0),
+    scenario: String(p.Scenario ?? ""), incidentType: String(p.IncidentType ?? ""), priority: String(p.Priority ?? ""),
+    detectionSources: splitList(p.DetectionSources, /,/), attack: splitList(p.AttackTechniques, /,/),
+    tools: splitList(p.Tools, /•|·/), metrics: String(p.Metrics ?? ""), source: String(p.Source ?? ""),
+    steps: stepsBy.get(Number(p.PlaybookID)) || [],
+  }));
 }
 
 export function createPlaybook(p: { name: string; category?: string; severity?: string; description?: string; steps?: { phase?: string; title: string; description?: string; role?: string }[] }, tenant: number | null): { id: number } {
@@ -406,6 +420,139 @@ export function incidentPlaybook(incidentId: number): { phases: any[]; progress:
   return { phases, progress: { done, total: rows.length, pct: rows.length ? Math.round((done / rows.length) * 100) : 0 } };
 }
 
+// ── AI-SOC: autonomy model + posture + agentic triage assist ───────────────────
+// The autonomy ladder for an AI-augmented SOC (analogous to SAE driving levels): from fully
+// manual triage to autonomous Tier-1/2 with humans setting policy and hunting. Industry has
+// moved from playbook-driven SOAR to agentic AI that reasons, investigates and acts under
+// human oversight; ~90% of Tier-1 work is projected to be autonomous by end of 2026.
+export const AI_SOC_LEVELS = [
+  { level: 0, name: "Manual", desc: "Analysts triage, investigate and respond by hand. No AI in the loop." },
+  { level: 1, name: "Assisted", desc: "AI enriches alerts (context, IOC reputation, summaries); the analyst decides." },
+  { level: 2, name: "Augmented", desc: "AI triages and recommends a verdict, severity and playbook; the analyst approves." },
+  { level: 3, name: "Semi-autonomous", desc: "AI auto-triages routine alerts and drafts the case; humans handle the exceptions." },
+  { level: 4, name: "Autonomous w/ oversight", desc: "AI investigates and executes contained responses; humans oversee high-impact actions." },
+  { level: 5, name: "Autonomous", desc: "AI runs Tier-1/2 end-to-end; humans set policy, tune detections and hunt proactively." },
+];
+
+/** AI-SOC posture: a capability-based autonomy-level estimate + KPIs (measured vs SOTA target)
+ *  + a modernization worklist. Deterministic; the autonomy level is derived from observable signals. */
+export function aiSocPosture(tenant: number | null, ctx?: { mttaMinutes?: number | null; playbookAdherence?: number | null; openIncidents?: number }): any {
+  const db = getDb("XINCIDENT");
+  const info = aiProviderInfo();
+  const playbookCount = has("PLAYBOOK") ? Number((db.prepare(`SELECT COUNT(*) n FROM PLAYBOOK ${tw(tenant)}`).get() as { n: number }).n) : 0;
+  const escalationDefined = has("ESCALATIONPOLICY") && Number((db.prepare(`SELECT COUNT(*) n FROM ESCALATIONPOLICY ${tw(tenant)}`).get() as { n: number }).n) > 0;
+  const mtta = ctx?.mttaMinutes ?? null;
+  // capability checklist → autonomy level (each capability unlocks the next rung)
+  const caps = [
+    { key: "aiAssistant", label: "AI assistant available for enrichment & triage", on: info.configured },
+    { key: "playbooks", label: "IR playbook library (≥ 10 codified playbooks)", on: playbookCount >= 10 },
+    { key: "escalation", label: "Escalation policy with ack/resolve SLAs defined", on: escalationDefined },
+    { key: "fastTriage", label: "Median MTTA ≤ 30 min (triage keeping pace)", on: mtta != null && mtta <= 30 },
+    { key: "localAI", label: "AI runs locally — data never leaves your infrastructure", on: info.local && info.configured },
+  ];
+  const level = Math.min(5, caps.filter((c) => c.on).length);
+  const kpis = [
+    { key: "mtta", label: "Mean time to acknowledge", value: mtta, unit: "min", target: 10, dir: "lower", note: "AI triage target — sub-10-minute acknowledgement" },
+    { key: "tier1auto", label: "Tier-1 alerts auto-triaged", value: null, unit: "%", target: 90, dir: "higher", note: "Industry projection: ~90% of Tier-1 autonomous by end-2026 (needs AI-triage telemetry)" },
+    { key: "playbookAdherence", label: "Playbook adherence on open incidents", value: ctx?.playbookAdherence ?? null, unit: "%", target: 100, dir: "higher", note: "Codified response executed to completion" },
+    { key: "playbooks", label: "Codified IR playbooks", value: playbookCount, unit: "", target: 30, dir: "higher", note: "Breadth of automatable response coverage" },
+  ];
+  const recommendations: { severity: string; text: string }[] = [];
+  if (!info.configured) recommendations.push({ severity: "High", text: "Enable the local AI assistant (Ollama) to unlock alert enrichment and agentic triage — the foundation of an AI-SOC." });
+  else if (!info.local) recommendations.push({ severity: "Medium", text: "Move the AI assistant on-prem (local Ollama) so alert/incident data never leaves your infrastructure." });
+  if (playbookCount < 10) recommendations.push({ severity: "High", text: "Codify more IR playbooks so routine response can be automated and AI-assisted." });
+  if (!escalationDefined) recommendations.push({ severity: "Medium", text: "Define an escalation policy with ack/resolve SLAs so automation has measurable hand-off points." });
+  if (mtta != null && mtta > 30) recommendations.push({ severity: "Medium", text: `Median MTTA is ${Math.round(mtta)}m — introduce AI auto-triage on Tier-1 to bring acknowledgement under 10m.` });
+  if (level >= 3) recommendations.push({ severity: "Low", text: "Shift freed Tier-1 capacity to proactive threat hunting and detection engineering (the SOTA SOC operating model)." });
+
+  return { levels: AI_SOC_LEVELS, level, levelName: AI_SOC_LEVELS[level].name, capabilities: caps, kpis, recommendations,
+    provider: { configured: info.configured, local: info.local, model: info.model, provider: info.provider } };
+}
+
+/** Agentic AI triage of one incident: drafts a verdict, severity, classification, the recommended
+ *  playbook (matched from the library) and prioritized next actions. Uses the local AI assistant when
+ *  available; falls back to a deterministic heuristic triage (never blocks, never invents a pass). */
+export async function aiTriageIncident(incidentId: number, tenant: number | null): Promise<any> {
+  const db = getDb("XINCIDENT");
+  const ic = cols("INCIDENT");
+  const sel = (c: string) => (ic.has(c) ? `"${c}"` : `NULL AS "${c}"`);
+  // the incident title/description column name varies by schema generation (IncidentName vs summary vs Title)
+  const nameCol = ["IncidentName", "summary", "Summary", "Title", "Name"].find((c) => ic.has(c)) || "IncidentName";
+  const descCol = ["Description", "details", "Details", "Notes"].find((c) => ic.has(c)) || "Description";
+  const inc = db.prepare(`SELECT IncidentID, ${ic.has(nameCol) ? `"${nameCol}" AS nm` : "NULL AS nm"}, ${sel("Severity")}, ${sel("status")}, ${ic.has(descCol) ? `"${descCol}" AS ds` : "NULL AS ds"}, ${sel("Category")}, ${sel("EscalationTier")} FROM INCIDENT WHERE IncidentID = ?`).get(incidentId) as Record<string, any> | undefined;
+  if (!inc) return null;
+  const name = String(inc.nm ?? `Incident #${incidentId}`);
+  const sev = String(inc.Severity ?? "");
+  const desc = String(inc.ds ?? "");
+  const cat = String(inc.Category ?? "");
+  // recent alerts for context (best-effort)
+  let alerts: string[] = [];
+  if (has("ALERT")) {
+    try {
+      const ac = cols("ALERT");
+      const t = ac.has("Title") ? "Title" : ac.has("AlertName") ? "AlertName" : ac.has("Name") ? "Name" : null;
+      if (t) alerts = (db.prepare(`SELECT ${t} v FROM ALERT WHERE IncidentID = ? LIMIT 8`).all(incidentId) as { v: string }[]).map((r) => String(r.v)).filter(Boolean);
+    } catch { /* */ }
+  }
+  // match a playbook from the library (keyword overlap on name/category/type)
+  const lib = listPlaybooks(tenant);
+  const hay = `${name} ${cat} ${desc} ${alerts.join(" ")}`.toLowerCase();
+  const scorePb = (p: any): number => {
+    let s = 0;
+    for (const w of `${p.category} ${p.name} ${p.incidentType}`.toLowerCase().split(/[^a-z0-9]+/).filter((x: string) => x.length >= 4))
+      if (hay.includes(w)) s++;
+    return s;
+  };
+  const ranked = lib.map((p) => ({ p, s: scorePb(p) })).sort((a, b) => b.s - a.s);
+  const best = ranked[0] && ranked[0].s > 0 ? ranked[0].p : null;
+
+  const info = aiProviderInfo();
+  // offline / fallback deterministic triage
+  const offlineTriage = () => {
+    const sevNorm = /crit/i.test(sev) ? "Critical" : /high/i.test(sev) ? "High" : /med/i.test(sev) ? "Medium" : /low/i.test(sev) ? "Low" : (best?.severity || "Medium");
+    const actions: string[] = [];
+    if (best) {
+      actions.push(`Attach the "${best.name}" playbook (${best.steps.length} phases) and work it to completion.`);
+      const first = best.steps.find((st: any) => /detection|analysis|prepar/i.test(st.phase)) || best.steps[0];
+      if (first) actions.push(`Start with ${first.phase}: ${String(first.description).slice(0, 160)}`);
+    } else {
+      actions.push("No matching playbook — triage manually and create a playbook for this scenario.");
+    }
+    if (/crit|high/i.test(sevNorm)) actions.push("Acknowledge now and escalate to L2/L3 per the escalation policy if unacknowledged past SLA.");
+    actions.push("Confirm scope/blast radius and preserve evidence before containment.");
+    return {
+      verdict: best ? "Likely true-positive — matches a known scenario" : "Needs analyst review — no scenario match",
+      severity: sevNorm,
+      classification: best ? best.category : (cat || "Uncategorized"),
+      recommendedPlaybook: best ? { id: best.id, name: best.name, attack: best.attack } : null,
+      attack: best?.attack ?? [],
+      nextActions: actions,
+      model: "offline-heuristic", offline: true,
+    };
+  };
+  if (!info.configured) return offlineTriage();
+  try {
+    const sys = "You are an autonomous Tier-1 SOC analyst. Triage the incident. Respond ONLY with strict JSON: " +
+      '{"verdict":"...","severity":"Critical|High|Medium|Low","classification":"...","nextActions":["...","..."]}. Be concise and decisive.';
+    const usr = `Incident: ${name}\nReported severity: ${sev || "unknown"}\nCategory: ${cat || "n/a"}\nDescription: ${desc.slice(0, 600) || "n/a"}\n` +
+      `Recent alerts: ${alerts.slice(0, 6).join("; ") || "n/a"}\n` +
+      (best ? `Best-matching playbook in the library: "${best.name}" (category ${best.category}; ATT&CK ${best.attack.join(", ") || "n/a"}).` : "No matching playbook in the library.");
+    const raw = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: usr }], 0.2, 60000);
+    const m = raw.match(/\{[\s\S]*\}/);
+    const j = m ? JSON.parse(m[0]) : null;
+    if (!j || !j.verdict) return offlineTriage();
+    return {
+      verdict: String(j.verdict).slice(0, 400),
+      severity: ["Critical", "High", "Medium", "Low"].includes(String(j.severity)) ? String(j.severity) : offlineTriage().severity,
+      classification: String(j.classification || (best?.category ?? cat ?? "Uncategorized")).slice(0, 120),
+      recommendedPlaybook: best ? { id: best.id, name: best.name, attack: best.attack } : null,
+      attack: best?.attack ?? [],
+      nextActions: (Array.isArray(j.nextActions) ? j.nextActions : []).map((s: unknown) => String(s).slice(0, 280)).slice(0, 8),
+      model: info.model, offline: false,
+    };
+  } catch { return offlineTriage(); }
+}
+
 // ── seed ──────────────────────────────────────────────────────────────────────
 /** Seed default escalation policy + IR playbooks + SOC shifts, and backfill demo incidents. */
 export function seedSocDefaults(tenant: number): { policy: number; playbooks: number; shifts: number; backfilled: number } {
@@ -434,6 +581,30 @@ export function seedSocDefaults(tenant: number): { policy: number; playbooks: nu
     let sid = nextId("PLAYBOOKSTEP", "StepID");
     const ins = db.prepare("INSERT INTO PLAYBOOKSTEP (StepID, PlaybookID, Phase, StepOrder, Title, Description, Role, TenantID) VALUES (?,?,?,?,?,?,?,?)");
     pb.steps.forEach((st, i) => ins.run(sid++, pid, st.phase, i + 1, st.title, st.desc, st.role ?? null, tenant));
+    pbN++;
+  }
+
+  // extended scenario playbook library (36 PICERL playbooks: classification + ATT&CK + tooling + SLA metrics)
+  const pbCols = cols("PLAYBOOK");
+  const hasMeta = pbCols.has("IncidentType");
+  for (const pb of SOC_PLAYBOOKS_36) {
+    let pid = (db.prepare("SELECT PlaybookID FROM PLAYBOOK WHERE Name = ? AND IFNULL(TenantID,-1)=IFNULL(?,-1)").get(pb.name, tenant) as { PlaybookID: number } | undefined)?.PlaybookID;
+    if (pid) continue;
+    pid = nextId("PLAYBOOK", "PlaybookID");
+    if (hasMeta) {
+      db.prepare(`INSERT INTO PLAYBOOK (PlaybookID, PlaybookGUID, Name, Category, Description, Severity, StepCount,
+        Scenario, IncidentType, Priority, DetectionSources, AttackTechniques, Tools, Metrics, Source, TenantID, CreatedDate)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(pid, randomUUID(), pb.name, pb.category, pb.scenario, pb.severity, pb.phases.length,
+          pb.scenario, pb.incidentType, pb.priority, pb.detectionSources, pb.attack.join(", "), pb.tools.join(" • "), pb.metrics,
+          "SOC IR Playbook library", tenant, now);
+    } else {
+      db.prepare("INSERT INTO PLAYBOOK (PlaybookID, PlaybookGUID, Name, Category, Description, Severity, StepCount, TenantID, CreatedDate) VALUES (?,?,?,?,?,?,?,?,?)")
+        .run(pid, randomUUID(), pb.name, pb.category, pb.scenario, pb.severity, pb.phases.length, tenant, now);
+    }
+    let sid = nextId("PLAYBOOKSTEP", "StepID");
+    const ins = db.prepare("INSERT INTO PLAYBOOKSTEP (StepID, PlaybookID, Phase, StepOrder, Title, Description, Role, TenantID) VALUES (?,?,?,?,?,?,?,?)");
+    pb.phases.forEach((ph, i) => ins.run(sid++, pid, ph.phase, i + 1, ph.phase, ph.text, null, tenant));
     pbN++;
   }
 
