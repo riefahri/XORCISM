@@ -2,6 +2,7 @@
  * index.ts — XORCISM Express server (with XID authentication + RBAC)
  */
 
+import "./logging"; // FIRST: timestamps every tagged "[tag] …" server log line (must precede other imports)
 import "express-async-errors";
 import express, { Request, Response, NextFunction } from "express";
 import compression from "compression";
@@ -141,6 +142,11 @@ import riskRegisterRouter from "./routes/riskregister";
 import pqcmmRouter from "./routes/pqcmm";
 import csfMaturityRouter from "./routes/csfmaturity";
 import cbomRouter from "./routes/cbom";
+import aiSbomRouter from "./routes/aisbom";
+import traceRouter from "./routes/trace";
+import tlptRouter from "./routes/tlpt";
+import agentFwRouter from "./routes/agentfw";
+import sprsRouter from "./routes/sprs";
 import ess8Router from "./routes/ess8";
 import { ensureEss8Tables, seedEss8Demo } from "./ess8";
 import threatDebtRouter from "./routes/threatdebt";
@@ -191,8 +197,8 @@ import {
   userCanPage,
   seedAdmin,
 } from "./auth";
-import { purgeExpiredSessions, seedFeaturePageGrants } from "./xid";
-import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureCloudComplianceTables, ensureComplianceJourneyTables, ensureQuestionnaireRunTables, ensureTprmTables, ensureZeroTrustTables, ensureZtSigninTable, ensureZtPolicyTable, ensureItdrTables, ensureIdGovTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureCsfMaturityTables, ensureScaTables, ensureCbomTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable, startReplicaSync, dbDriver } from "./db";
+import { purgeExpiredSessions, seedFeaturePageGrants, ensureAuditChain } from "./xid";
+import { ensureSchemaDbs, seedData, ensureTenantColumns, ensureThreatModelTables, ensureComplianceDb, ensureTicketDb, ensureThreatTables, ensureIncidentTables, ensureOpenctiColumns, ensureEmulationTables, ensureGrcColumns, ensureBugBountyTables, ensureEbiosTables, ensureNist80030Tables, ensureOtSecurityTables, ensurePatchTables, ensureMonitoringTables, ensureControlImplementationTables, ensureCisBenchmarkTables, ensureTrustCenterTables, ensureAssetColumns, ensureAssetPrimaryKey, ensureIdentityTables, ensureOvalScanTables, ensureVulnerabilityColumns, ensureDocumentSensitivity, ensurePersonOrgChartColumns, ensureAwarenessTables, ensureMalwareScanTables, ensureCloudComplianceTables, ensureComplianceJourneyTables, ensureQuestionnaireRunTables, ensureTprmTables, ensureZeroTrustTables, ensureZtSigninTable, ensureZtPolicyTable, ensureItdrTables, ensureIdGovTables, ensureNotificationRuleTable, ensureSocTables, ensureSocCmmTables, ensureCertOpsTables, ensureGovernanceTables, ensureAiThreatTables, ensureWorkforceTables, ensureTeamOpsTables, ensureVocTables, ensureVmTrendsTables, ensureCtemTables, ensureStixObjectStore, ensureDevSecOpsTables, ensureNetflowTables, ensureToolDocumentTable, ensureOrganisationRiskScoreTable, ensureFairMamTables, ensurePqcmmTables, ensureCsfMaturityTables, ensureScaTables, ensureCbomTables, ensureAiSbomTables, ensureTlptTables, ensureAgentFwTables, ensureSprsTables, ensureToolStarTable, ensurePolicyAckTable, ensurePolicyVersionTable, startReplicaSync, dbDriver } from "./db";
 import { tr } from "./i18n";
 
 const PORT = Number(process.env.PORT) || 9292;
@@ -397,6 +403,11 @@ app.use("/api", riskRegisterRouter); // Risk Register: inherent→residual postu
 app.use("/api", pqcmmRouter); // PQCMM: post-quantum-crypto maturity assessment (quantum-readiness posture)
 app.use("/api", csfMaturityRouter); // NIST CSF 2.0 maturity self-assessment (6 functions × 5-level scale, current vs target)
 app.use("/api", cbomRouter); // CBOM: cryptographic bill of materials inventory + import (quantum readiness)
+app.use("/api", aiSbomRouter); // AI SBOM: CISA/G7 minimum-elements conformance per AI system
+app.use("/api", traceRouter); // TRACE (Oak Security): structured, evidence-driven threat modeling layered on THREATMODEL
+app.use("/api", tlptRouter); // TLPT / TIBER-EU: threat-led penetration testing engagements (DORA advanced testing)
+app.use("/api", agentFwRouter); // Agent Policy Firewall: pre-execution governance gate for agent/automation actions
+app.use("/api", sprsRouter); // SPRS / NIST 800-171 self-assessment score (DoD DFARS / CMMC L2)
 app.use("/api", ess8Router); // Essential Eight: ASD maturity-model assessment (backed by the ACSC ISM import)
 app.use("/api", threatDebtRouter); // Adversary Opportunity Index (AOI): path-organized "threat debt" top-line + STOCK/FLOW
 app.use("/api", insuranceRouter); // Cyber Insurance Readiness: insurer control checklist mapped to live signals
@@ -775,6 +786,21 @@ app.get("/csf-maturity", pageGuard("/"), (_req: Request, res: Response) => {
 app.get("/cbom", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "cbom.html"));
 });
+app.get("/ai-sbom", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "ai-sbom.html"));
+});
+app.get("/trace", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "trace.html"));
+});
+app.get("/tlpt", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "tlpt.html"));
+});
+app.get("/agent-firewall", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "agent-firewall.html"));
+});
+app.get("/sprs", pageGuard("/"), (_req: Request, res: Response) => {
+  res.sendFile(path.join(CLIENT_DIR, "sprs.html"));
+});
 app.get("/essential-eight", pageGuard("/"), (_req: Request, res: Response) => {
   res.sendFile(path.join(CLIENT_DIR, "essential-eight.html"));
 });
@@ -856,6 +882,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 // ── Startup ────────────────────────────────────────────────────────────────────
 ensureSchemaDbs(); // creates the "schema" databases (XORCISM, XVULNERABILITY, XATTACK, XMALWARE, XINCIDENT, XTHREAT, XOVAL, XWINDOWS) if missing
+ensureAuditChain(); // backfill the tamper-evident SHA-256 hash chain over the audit log (XAUDITLOG)
 seedAdmin();
 ensureComplianceDb(); // creates the XCOMPLIANCE.db database (AUDIT, AUDITFINDING, AUDITREPORT)
 ensurePentestColumns(); // links AUDITFINDING to its engagement (AUDIT type=Pentest) — must run after ensureComplianceDb
@@ -959,7 +986,11 @@ ensureOtSecurityTables(); // OT/ICS Security (IEC 62443/NIST 800-82): reuses AUD
 ensureFairMamTables(); // FAIR-MAM materiality assessment model: FAIRMAMCATEGORY taxonomy + FAIRMAMASSESSMENT/LINEITEM
 ensurePqcmmTables(); // PQCMM post-quantum-crypto maturity model: PQCMMLEVEL taxonomy + PQCMMASSESSMENT
 ensureCsfMaturityTables(); // NIST CSF 2.0 maturity self-assessment: CSFSUBCATEGORY catalogue + CSFMATURITYLEVEL + CSFMATURITYSCORE
+ensureTlptTables(); // TLPT / TIBER-EU threat-led penetration testing engagements (XCOMPLIANCE)
+ensureAgentFwTables(); // Agent Policy Firewall: agent-action governance ledger + policies (XORCISM)
+ensureSprsTables(); // SPRS / NIST 800-171 self-assessment status (XCOMPLIANCE)
 ensureCbomTables(); // CBOM cryptographic bill of materials: CRYPTOASSET inventory (quantum-safe classification, feeds PQCMM)
+ensureAiSbomTables(); // AI SBOM minimum elements (CISA/G7): AISBOMELEMENT catalogue + AISBOM/AISBOMCOVERAGE conformance
 ensureThreatDebtTables(); // Adversary Opportunity Index: THREATDEBTSNAPSHOT (AOI STOCK/FLOW history)
 ensureInsuranceTables(); // Cyber Insurance Readiness: CYBERINSURANCEPOLICY (carrier / limit / renewal record)
 ensureAiDetectTables(); // AI runtime detection: AIUSAGE telemetry + AIDETECTION

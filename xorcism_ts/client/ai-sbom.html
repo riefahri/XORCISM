@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — AI SBOM (Minimum Elements)</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .as-wrap{max-width:1300px;margin:0 auto;padding:18px}
+  .as-wrap h1{font-size:20px;margin:0 0 2px}
+  .as-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1040px}
+  .as-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .as-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px}
+  .as-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .as-card .val{font-size:26px;font-weight:700;margin-top:3px}.as-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .as-score{background:linear-gradient(135deg,#1a2e40,#13162a)}
+  .as-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .imp{background:#11152a;border:1px solid #2d3250;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  .imp label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:#94a3b8}
+  .imp input{background:#0f1117;border:1px solid #2d3250;border-radius:6px;color:#e2e8f0;font-size:13px;padding:6px 8px}
+  .as-go{background:#0ea5e9;color:#04222e;border:none;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer}.as-go:hover{background:#38bdf8}.as-go:disabled{opacity:.5}
+  .as-go.alt{background:#22c55e;color:#06240f}
+  table.as{width:100%;border-collapse:collapse;font-size:13px}
+  table.as th,table.as td{text-align:left;padding:6px 9px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.as th{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  table.as .fhead td{background:#11152a;font-weight:800;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px;font-size:11px}
+  tr.sb{cursor:pointer}tr.sb:hover{background:#161b30}
+  .fn{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .fn .nm{min-width:200px;font-weight:700;color:#e2e8f0}.fn .nm .c{font-size:10px;color:#64748b;font-family:ui-monospace,monospace;font-weight:400}
+  .fn .track{flex:1;min-width:140px;height:12px;border-radius:6px;background:#1e2133;overflow:hidden}.fn .track>i{display:block;height:100%;border-radius:6px}
+  .fn .meta{min-width:120px;text-align:right;font-size:11px;color:#94a3b8}
+  select.stsel{background:#0f1117;border:1px solid #2d3250;color:#cbd5e1;border-radius:6px;font-size:12px;padding:3px 6px}
+  .st{font-size:10px;font-weight:700;border-radius:5px;padding:1px 7px}.st.Present{background:#14532d;color:#bbf7d0}.st.Partial{background:#78350f;color:#fcd34d}.st.Missing{background:#7f1d1d;color:#fecaca}.st.na{background:#1e2133;color:#94a3b8}
+  .ex{font-size:10px;color:#64748b}.muted{color:#64748b}
+  .worklist{list-style:none;margin:0;padding:0}.worklist li{padding:6px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .sev-High{color:#fb923c;font-weight:700}.sev-Medium{color:#fbbf24}
+  .legend{font-size:11px;color:#64748b;margin-top:12px}
+  .back{color:#7dd3fc;cursor:pointer;font-size:13px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/sca">&#128230; SCA / SBOM</a>
+  <a href="/cbom">&#128273; CBOM</a>
+  <a href="/ai-systems">&#129302; AI Systems</a>
+  <span class="spacer"></span>
+  <span class="title">&#129302; AI SBOM — Minimum Elements</span>
+</div>
+<div class="as-wrap">
+  <h1>AI SBOM &mdash; Minimum Elements (CISA / G7)</h1>
+  <div class="as-sub">Assess each AI system's bill of materials against the <b>CISA / G7 "SBOM for AI — Minimum Elements"</b> (7 clusters, 50 supplemental elements covering metadata, system properties, models, datasets, infrastructure, security and KPIs). These complement the regular SBOM minimum elements and bring transparency to the AI supply chain. Mark each element Present / Partial / Missing / N-A and roll up a completeness score.</div>
+  <div id="as-body"><div class="muted" style="padding:24px;text-align:center">Loading AI SBOMs&hellip;</div></div>
+</div>
+<script src="/js/i18n.js"></script><script src="/js/session-ui.js"></script>
+<script src="/js/ai-sbom.js"></script>
+</body>
+</html>

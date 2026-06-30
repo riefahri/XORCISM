@@ -3,7 +3,7 @@
  * Renders the reusable AI-control repository, the lifecycle × risk-domain coverage matrix, the
  * control-library maturity / failure-mode checks, and per-control status assessment.
  */
-import { initI18n } from "./i18n";
+import { initI18n, t } from "./i18n";
 
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function val(id: string): string { return (document.getElementById(id) as HTMLInputElement).value.trim(); }
@@ -29,27 +29,27 @@ let SYSTEMS: { id: number; name: string; riskTier: string }[] = [];
 async function load(): Promise<void> {
   let d: Lib & { systems?: { id: number; name: string; riskTier: string }[]; systemCoverage?: { systems: SysCov[]; summary: { systems: number; governed: number; avgCoverage: number } } };
   try { const r = await fetch("/api/ai-control-library"); if (!r.ok) throw new Error(`HTTP ${r.status}`); d = await r.json(); }
-  catch (e) { $("ai-controls").innerHTML = `<div class="muted">Failed to load: ${esc(e)}</div>`; return; }
+  catch (e) { $("ai-controls").innerHTML = `<div class="muted">${t("aicl.loadFail")}: ${esc(e)}</div>`; return; }
   VOCAB = d.vocab; SYSTEMS = d.systems || [];
   fillSelects(d.vocab);
   const s = d.summary;
   $("ai-kpis").innerHTML = [
-    `<div class="kpi"><div class="v">${s.total}</div><div class="l">AI controls</div></div>`,
-    `<div class="kpi"><div class="v" style="color:${pctColor(s.maturityPct)}">${s.maturityPct}%</div><div class="l">Library maturity</div></div>`,
-    `<div class="kpi"><div class="v" style="color:${pctColor(s.total ? Math.round(s.implemented / s.total * 100) : 0)}">${s.implemented}/${s.total}</div><div class="l">Implemented</div></div>`,
-    `<div class="kpi"><div class="v" style="color:${pctColor(s.ownershipPct)}">${s.ownershipPct}%</div><div class="l">With owner</div></div>`,
-    `<div class="kpi"><div class="v" style="color:${pctColor(s.evidencePct)}">${s.evidencePct}%</div><div class="l">With evidence</div></div>`,
-    `<div class="kpi"><div class="v" style="color:${pctColor(s.mappedPct)}">${s.mappedPct}%</div><div class="l">Framework-mapped</div></div>`,
+    `<div class="kpi"><div class="v">${s.total}</div><div class="l">${t("aicl.kpi.controls")}</div></div>`,
+    `<div class="kpi"><div class="v" style="color:${pctColor(s.maturityPct)}">${s.maturityPct}%</div><div class="l">${t("aicl.kpi.maturity")}</div></div>`,
+    `<div class="kpi"><div class="v" style="color:${pctColor(s.total ? Math.round(s.implemented / s.total * 100) : 0)}">${s.implemented}/${s.total}</div><div class="l">${t("aicl.kpi.implemented")}</div></div>`,
+    `<div class="kpi"><div class="v" style="color:${pctColor(s.ownershipPct)}">${s.ownershipPct}%</div><div class="l">${t("aicl.kpi.owner")}</div></div>`,
+    `<div class="kpi"><div class="v" style="color:${pctColor(s.evidencePct)}">${s.evidencePct}%</div><div class="l">${t("aicl.kpi.evidence")}</div></div>`,
+    `<div class="kpi"><div class="v" style="color:${pctColor(s.mappedPct)}">${s.mappedPct}%</div><div class="l">${t("aicl.kpi.mapped")}</div></div>`,
   ].join("");
 
   // common control-library failure modes
   const g = d.gaps; const flag = (n: number, label: string): string => `<span class="chip ${n ? "bad" : "ok"}">${n ? "✗ " + n : "✓"} ${esc(label)}</span>`;
   $("ai-gaps").innerHTML = d.summary.total ? [
-    flag(g.noObjective, "no measurable objective"), flag(g.noOwner, "no owner"), flag(g.noEvidence, "no evidence"),
-    flag(g.noTesting, "no testing method"), flag(g.noFrequency, "no monitoring frequency"), flag(g.noFramework, "no framework mapping"),
-    g.lifecycleUncovered.length ? `<span class="chip bad">✗ lifecycle gaps: ${g.lifecycleUncovered.map(esc).join(", ")}</span>` : `<span class="chip ok">✓ all lifecycle phases covered</span>`,
-    g.domainUncovered.length ? `<span class="chip bad">✗ risk domains uncovered: ${g.domainUncovered.map(esc).join(", ")}</span>` : `<span class="chip ok">✓ all risk domains covered</span>`,
-  ].join("") : `<span class="muted">Library is empty — seed the starter library to begin.</span>`;
+    flag(g.noObjective, t("aicl.gap.objective")), flag(g.noOwner, t("aicl.gap.owner")), flag(g.noEvidence, t("aicl.gap.evidence")),
+    flag(g.noTesting, t("aicl.gap.testing")), flag(g.noFrequency, t("aicl.gap.frequency")), flag(g.noFramework, t("aicl.gap.framework")),
+    g.lifecycleUncovered.length ? `<span class="chip bad">✗ ${t("aicl.gap.lifecycleGaps")}: ${g.lifecycleUncovered.map(esc).join(", ")}</span>` : `<span class="chip ok">✓ ${t("aicl.gap.lifecycleOk")}</span>`,
+    g.domainUncovered.length ? `<span class="chip bad">✗ ${t("aicl.gap.domainGaps")}: ${g.domainUncovered.map(esc).join(", ")}</span>` : `<span class="chip ok">✓ ${t("aicl.gap.domainOk")}</span>`,
+  ].join("") : `<span class="muted">${t("aicl.empty")}</span>`;
   ($("ai-seed") as HTMLButtonElement).style.display = d.summary.total ? "none" : "";
 
   renderMatrix(d);
@@ -59,46 +59,46 @@ async function load(): Promise<void> {
 
 function renderSysCoverage(sc?: { systems: SysCov[]; summary: { systems: number; governed: number; avgCoverage: number } }): void {
   const host = document.getElementById("ai-syscov"); if (!host) return;
-  if (!sc || !sc.systems.length) { host.innerHTML = `<div class="muted" style="font-size:12px">No AI systems inventoried — apply controls to systems (from the controls table) to track per-system coverage.</div>`; return; }
-  host.innerHTML = `<div class="muted" style="font-size:11px;margin-bottom:4px">${sc.summary.governed}/${sc.summary.systems} systems governed · avg ${sc.summary.avgCoverage}% implemented</div>
-    <table class="ai"><thead><tr><th>AI system</th><th>Risk tier</th><th>Applied</th><th>Implemented</th><th>Coverage</th></tr></thead><tbody>${sc.systems.map((s) => `<tr><td>${esc(s.name)}</td><td>${esc(s.riskTier || "—")}</td><td>${s.applied}</td><td>${s.implemented}</td><td><span class="bar"><i style="width:${s.coveragePct}%;background:${pctColor(s.coveragePct)}"></i></span> ${s.coveragePct}%</td></tr>`).join("")}</tbody></table>`;
+  if (!sc || !sc.systems.length) { host.innerHTML = `<div class="muted" style="font-size:12px">${t("aicl.sysNone")}</div>`; return; }
+  host.innerHTML = `<div class="muted" style="font-size:11px;margin-bottom:4px">${sc.summary.governed}/${sc.summary.systems} ${t("aicl.sysGoverned")} · ${t("aicl.sysAvg")} ${sc.summary.avgCoverage}%</div>
+    <table class="ai"><thead><tr><th>${t("aicl.col.system")}</th><th>${t("aicl.col.riskTier")}</th><th>${t("aicl.col.applied")}</th><th>${t("aicl.col.implemented")}</th><th>${t("aicl.col.coverage")}</th></tr></thead><tbody>${sc.systems.map((s) => `<tr><td>${esc(s.name)}</td><td>${esc(s.riskTier || "—")}</td><td>${s.applied}</td><td>${s.implemented}</td><td><span class="bar"><i style="width:${s.coveragePct}%;background:${pctColor(s.coveragePct)}"></i></span> ${s.coveragePct}%</td></tr>`).join("")}</tbody></table>`;
 }
 
 function renderMatrix(d: Lib): void {
   const domains = d.vocab.domains;
   const head = `<tr><th class="lc"></th>${domains.map((x) => `<th title="${esc(x)}">${esc(x.split(" ").map((w) => w[0]).join(""))}</th>`).join("")}</tr>`;
   const body = d.matrix.map((r) => `<tr><td class="lc">${esc(r.lifecycle)}</td>${domains.map((dm) => { const n = r.domains[dm] || 0; return `<td><span class="cell" style="background:${heat(n)};color:${n ? "#e2e8f0" : "#3b4663"}">${n || "·"}</span></td>`; }).join("")}</tr>`).join("");
-  $("ai-matrix").innerHTML = `<table class="ai mtx">${head}${body}</table><div class="muted" style="font-size:11px;margin-top:4px">Count of controls per AI lifecycle phase (rows) × risk domain (columns). Empty cells are coverage gaps.</div>`;
+  $("ai-matrix").innerHTML = `<table class="ai mtx">${head}${body}</table><div class="muted" style="font-size:11px;margin-top:4px">${t("aicl.matrixCaption")}</div>`;
 }
 
 function renderControls(ctls: Ctl[]): void {
-  if (!ctls.length) { $("ai-controls").innerHTML = `<div class="muted">No controls yet.</div>`; return; }
+  if (!ctls.length) { $("ai-controls").innerHTML = `<div class="muted">${t("aicl.noCtl")}</div>`; return; }
   const opt = (sel: string): string => (VOCAB?.status || ["implemented", "partial", "planned", "na"]).map((o) => `<option ${o === sel ? "selected" : ""}>${o}</option>`).join("");
-  const applyCell = (id: number): string => SYSTEMS.length ? `<select data-apply="${id}" class="c-apply" style="background:#0f1117;border:1px solid #2d3250;color:#94a3b8;border-radius:6px;padding:3px 6px;font-size:11px"><option value="">apply ▾</option>${SYSTEMS.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select>` : "";
-  $("ai-controls").innerHTML = `<table class="ai"><thead><tr><th>ID</th><th>Objective / statement</th><th>Type</th><th>Lifecycle</th><th>Domains</th><th>Owner</th><th>Evidence</th><th>Frameworks</th><th>Status</th><th>Apply</th><th></th></tr></thead><tbody>${ctls.map((c) => `<tr>
+  const applyCell = (id: number): string => SYSTEMS.length ? `<select data-apply="${id}" class="c-apply" style="background:#0f1117;border:1px solid #2d3250;color:#94a3b8;border-radius:6px;padding:3px 6px;font-size:11px"><option value="">${t("aicl.apply")} ▾</option>${SYSTEMS.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select>` : "";
+  $("ai-controls").innerHTML = `<table class="ai"><thead><tr><th>${t("aicl.col.id")}</th><th>${t("aicl.col.objstmt")}</th><th>${t("aicl.col.type")}</th><th>${t("aicl.col.lifecycle")}</th><th>${t("aicl.col.domains")}</th><th>${t("aicl.col.owner")}</th><th>${t("aicl.col.evidence")}</th><th>${t("aicl.col.frameworks")}</th><th>${t("aicl.col.status")}</th><th>${t("aicl.col.apply")}</th><th></th></tr></thead><tbody>${ctls.map((c) => `<tr>
     <td><b>${esc(c.ref)}</b></td>
     <td>${esc(c.objective)}<div class="muted" style="font-size:11px">${esc(c.statement)}</div></td>
     <td class="t-${esc(c.type)}">${esc(c.type)}</td>
     <td>${esc(c.lifecycle)}</td>
     <td>${c.riskDomains.map((x) => `<span class="tag">${esc(x)}</span>`).join(" ")}</td>
-    <td>${c.owner ? esc(c.owner) : "<span class='tag' style='background:#7f1d1d;color:#fecaca'>none</span>"}</td>
-    <td style="max-width:180px">${c.evidence ? esc(c.evidence) : "<span class='tag' style='background:#7f1d1d;color:#fecaca'>none</span>"}<div class="muted" style="font-size:10px">${esc(c.testing || "")}${c.frequency ? " · " + esc(c.frequency) : ""}</div></td>
-    <td style="max-width:160px"><span class="muted" style="font-size:11px">${c.frameworks.map(esc).join(" · ") || "<span class='tag' style='background:#7f1d1d;color:#fecaca'>unmapped</span>"}</span></td>
+    <td>${c.owner ? esc(c.owner) : `<span class='tag' style='background:#7f1d1d;color:#fecaca'>${t("aicl.none")}</span>`}</td>
+    <td style="max-width:180px">${c.evidence ? esc(c.evidence) : `<span class='tag' style='background:#7f1d1d;color:#fecaca'>${t("aicl.none")}</span>`}<div class="muted" style="font-size:10px">${esc(c.testing || "")}${c.frequency ? " · " + esc(c.frequency) : ""}</div></td>
+    <td style="max-width:160px"><span class="muted" style="font-size:11px">${c.frameworks.map(esc).join(" · ") || `<span class='tag' style='background:#7f1d1d;color:#fecaca'>${t("aicl.unmapped")}</span>`}</span></td>
     <td><select data-id="${c.id}" class="c-st" style="background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;padding:3px 6px;font-size:11px">${opt(c.status)}</select></td>
     <td>${applyCell(c.id)}</td>
     <td><a href="#" data-del="${c.id}" style="color:#f87171">✕</a></td></tr>`).join("")}</tbody></table>`;
   $("ai-controls").querySelectorAll<HTMLSelectElement>("select.c-apply").forEach((sel) => sel.onchange = async () => {
     if (!sel.value) return;
     await fetch(`/api/ai-control-library/control/${sel.dataset.apply}/apply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aiSystemId: Number(sel.value) }) });
-    toast("Applied to AI system"); void load();
+    toast(t("aicl.toast.applied")); void load();
   });
   $("ai-controls").querySelectorAll<HTMLSelectElement>("select.c-st").forEach((sel) => sel.onchange = async () => {
     await fetch(`/api/ai-control-library/control/${sel.dataset.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: sel.value }) });
-    toast("Status updated"); void load();
+    toast(t("aicl.toast.status")); void load();
   });
   $("ai-controls").querySelectorAll<HTMLAnchorElement>("a[data-del]").forEach((a) => a.onclick = async (e) => {
-    e.preventDefault(); if (!confirm("Delete this control?")) return;
-    await fetch(`/api/ai-control-library/control/${a.dataset.del}`, { method: "DELETE" }); toast("Deleted"); void load();
+    e.preventDefault(); if (!confirm(t("aicl.confirmDel"))) return;
+    await fetch(`/api/ai-control-library/control/${a.dataset.del}`, { method: "DELETE" }); toast(t("aicl.toast.deleted")); void load();
   });
 }
 
@@ -111,14 +111,14 @@ document.addEventListener("DOMContentLoaded", () => {
   initI18n(); void load();
   ($("ai-seed") as HTMLButtonElement).onclick = async () => {
     const r = await fetch("/api/ai-control-library/seed", { method: "POST" });
-    if (r.ok) { const j = await r.json(); toast(`Seeded ${j.created} controls`); void load(); } else toast("Failed", false);
+    if (r.ok) { const j = await r.json(); toast(`${t("aicl.toast.seeded")} ${j.created}`); void load(); } else toast(t("aicl.toast.failed"), false);
   };
   ($("c-add") as HTMLButtonElement).onclick = async () => {
-    if (!val("c-ref") || !val("c-obj")) return toast("Identifier and objective required", false);
+    if (!val("c-ref") || !val("c-obj")) return toast(t("aicl.toast.reqFields"), false);
     const r = await fetch("/api/ai-control-library/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
       ref: val("c-ref"), objective: val("c-obj"), statement: val("c-stmt"), type: val("c-type"), lifecycle: val("c-lc"),
       riskDomains: val("c-dom"), owner: val("c-owner"), frequency: val("c-freq"), testing: val("c-test"), evidence: val("c-ev"),
       frameworks: val("c-fw"), status: "planned" }) });
-    if (r.ok) { toast("Control added"); (document.getElementById("c-ref") as HTMLInputElement).value = ""; (document.getElementById("c-obj") as HTMLInputElement).value = ""; void load(); } else toast("Failed (duplicate id?)", false);
+    if (r.ok) { toast(t("aicl.toast.added")); (document.getElementById("c-ref") as HTMLInputElement).value = ""; (document.getElementById("c-obj") as HTMLInputElement).value = ""; void load(); } else toast(t("aicl.toast.dup"), false);
   };
 });

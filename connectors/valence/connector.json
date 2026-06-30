@@ -1,0 +1,31 @@
+{
+  "id": "valence",
+  "name": "VALENCE GRC",
+  "type": "import",
+  "category": "Compliance",
+  "description": "VALENCE GRC (github.com/hiro001-eth/VALENCE-GRC-Platform, MIT) — an audit-grade GRC platform that turns SIEM telemetry into quantitative risk (FAIR Monte Carlo → ALE + VaR 95%), continuous control monitoring (RAG status), and a tamper-evident SHA-256 evidence chain, mapped across SOC 2 / ISO 27001 / NIST CSF / PCI DSS / DORA / CMMC. This connector imports a VALENCE run export — its control evaluations (control id, name, framework, RAG status, ALE, VaR) — and records them as a Compliance AUDIT in XORCISM.XCOMPLIANCE: one AUDITFINDING per failed / at-risk control, with the financial risk (ALE / VaR) carried in the finding. Worker-safe: parses an export file, or reads a running VALENCE instance's read-only API; no DB access.",
+  "intrusive": false,
+  "permission": "connector:valence",
+  "run": "run.py",
+  "mapping": "valence",
+  "parameters": [
+    {
+      "name": "file",
+      "type": "file",
+      "required": false,
+      "help": "A VALENCE run export in JSON — an object with metrics/controls/results[] (each: control id, name, framework, rag_status, value, threshold, ale, var_95), or a bare array of those. If omitted, the VALENCE_URL / VALENCE_TOKEN env (worker) is read."
+    },
+    {
+      "name": "org",
+      "type": "string",
+      "required": false,
+      "help": "Organisation / tenant label recorded as the audit host (default: from the export, else 'VALENCE')."
+    },
+    {
+      "name": "min_rag",
+      "type": "string",
+      "required": false,
+      "help": "Only record findings at or above this RAG severity: green | amber | red (default amber — i.e. amber+red controls become findings; green controls pass)."
+    }
+  ]
+}

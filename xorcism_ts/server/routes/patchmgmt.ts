@@ -4,7 +4,7 @@
  */
 import { Router, Request, Response } from "express";
 import { userCan, clientIp } from "../auth";
-import { patchInventory, updatePatchStatus, createRemediation, createRemediationsForAsset, setFalsePositive, createRemediationTicket, listRemediationsForAsset, PATCH_STATUSES } from "../patchmgmt";
+import { patchInventory, updatePatchStatus, createRemediation, createRemediationsForAsset, setFalsePositive, setFalsePositiveBulk, createRemediationTicket, listRemediationsForAsset, PATCH_STATUSES } from "../patchmgmt";
 import { createNotification } from "../db";
 import * as xid from "../xid";
 
@@ -138,13 +138,35 @@ router.post("/patch-management/false-positive", (req: Request, res: Response) =>
   const id = Number(b.assetVulnId);
   if (!Number.isInteger(id) || id <= 0) return void res.status(400).json({ error: "assetVulnId required" });
   const fp = b.falsePositive === true || b.falsePositive === 1 || b.falsePositive === "1" || b.falsePositive === "true";
+  const reason = b.reason != null ? String(b.reason) : undefined;
+  const by = req.user.DisplayName || req.user.Email || (req.user.UserID != null ? String(req.user.UserID) : undefined);
   const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
   try {
-    const out = setFalsePositive(id, fp, tenant);
+    const out = setFalsePositive(id, fp, tenant, { reason, by });
     if (!out.ok) return void res.status(404).json({ error: "asset-vuln not found / not in scope" });
     xid.addAudit({ userId: req.user.UserID ?? null, action: "vuln_false_positive", resourceType: "ASSETVULNERABILITY",
-      resourceKey: String(id), detail: `falsePositive=${fp ? 1 : 0}`, ip: clientIp(req) });
+      resourceKey: String(id), detail: `falsePositive=${fp ? 1 : 0}${reason ? ` reason="${reason.slice(0, 80)}"` : ""}`, ip: clientIp(req) });
     res.json({ ok: true, falsePositive: fp });
+  } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
+});
+
+// POST /api/patch-management/false-positive/bulk — flag/un-flag many at once.
+// Body: { assetVulnIds: number[], falsePositive: boolean }.
+router.post("/patch-management/false-positive/bulk", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "update", "XORCISM", "ASSETVULNERABILITY")) return void res.status(403).json({ error: "forbidden" });
+  const b = (req.body || {}) as Record<string, unknown>;
+  const ids = Array.isArray(b.assetVulnIds) ? (b.assetVulnIds as unknown[]).map(Number).filter((n) => Number.isInteger(n) && n > 0) : [];
+  if (!ids.length) return void res.status(400).json({ error: "assetVulnIds required" });
+  const fp = b.falsePositive === true || b.falsePositive === 1 || b.falsePositive === "1" || b.falsePositive === "true";
+  const reason = b.reason != null ? String(b.reason) : undefined;
+  const by = req.user.DisplayName || req.user.Email || (req.user.UserID != null ? String(req.user.UserID) : undefined);
+  const tenant = req.user.isSuperAdmin ? null : (req.user.tenantId ?? null);
+  try {
+    const out = setFalsePositiveBulk(ids, fp, tenant, { reason, by });
+    xid.addAudit({ userId: req.user.UserID ?? null, action: "vuln_false_positive_bulk", resourceType: "ASSETVULNERABILITY",
+      resourceKey: ids.slice(0, 50).join(","), detail: `falsePositive=${fp ? 1 : 0} changed=${out.changed}${reason ? ` reason="${reason.slice(0, 80)}"` : ""}`, ip: clientIp(req) });
+    res.json(out);
   } catch (e) { res.status(400).json({ error: String((e as Error).message || e) }); }
 });
 

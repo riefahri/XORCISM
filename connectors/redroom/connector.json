@@ -1,25 +1,31 @@
 {
   "id": "redroom",
-  "name": "redroom",
+  "name": "RedRoom",
   "type": "import",
   "category": "OSINT",
-  "description": "OSINT tool (dépôt GitHub Owlinkai/redroom). Tool: https://github.com/Owlinkai/redroom. [SCAFFOLD generated from XORCISM.TOOL #202 by tool_to_connector.py — implement run() in run.py to map redroom output to the XORCISM findings model {assets, services, cpes, vulns}.]",
+  "description": "RedRoom (github.com/Owlinkai/redroom, by Owlink.ai) — an open-source real-time news OSINT platform: a command-and-control-style intelligence dashboard for geopolitical analysis (live feed with sentiment + threat classification, 3D threat globe, RSS crawler, satellite/SIGINT tracking, AI narrative detection for information operations). This connector imports RedRoom's classified intelligence feed and maps each item to an XORCISM threat-intel record (XTHREAT.INTELEXCHANGE): headline -> IntelName, summary + classification -> description, source link -> reference, with sentiment / threat-level / region / narrative as tags and any referenced CVE extracted. Worker-safe: parses an exported feed file, or reads a configured read-only RedRoom API; no DB access.",
   "intrusive": false,
   "permission": "connector:redroom",
   "run": "run.py",
   "mapping": "redroom",
   "parameters": [
     {
-      "name": "target",
-      "type": "string",
-      "required": false,
-      "help": "Host, URL or path the tool acts on. When implementing, consider type 'target' or 'url' so the runner enforces the engagement scope."
-    },
-    {
       "name": "file",
       "type": "file",
       "required": false,
-      "help": "Offline mode: a saved redroom output file to parse instead of running it live."
+      "help": "A RedRoom feed export in JSON (an array, or an object with items/feed/data/articles/results[]). If omitted, the REDROOM_URL / REDROOM_API_KEY env (worker) is read."
+    },
+    {
+      "name": "limit",
+      "type": "number",
+      "required": false,
+      "help": "Maximum number of feed items to import (default 500)."
+    },
+    {
+      "name": "min_threat",
+      "type": "string",
+      "required": false,
+      "help": "Only import items at or above this threat level (low|medium|high|critical). Default: low (all)."
     }
   ]
 }

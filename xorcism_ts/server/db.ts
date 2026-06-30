@@ -16,6 +16,7 @@ import fs from "fs";
 import { randomUUID } from "crypto";
 import { TOOL_SEED } from "./data/toolsSeed";
 import { CSF_LEVELS, CSF_SUBCATEGORIES } from "./data/csfCatalog";
+import { AI_SBOM_ELEMENTS } from "./data/aiSbomElements";
 import * as vault from "./vault";
 
 // Location of the SQLite databases. OUTSIDE OneDrive: OneDrive replaces the files
@@ -148,6 +149,10 @@ export function startReplicaSync(): void {
 const SCHEMA_DB_NAMES = [
   "XORCISM", "XVULNERABILITY", "XATTACK", "XMALWARE",
   "XINCIDENT", "XTHREAT", "XOVAL", "XWINDOWS",
+  // SQLite-native databases (no SQL Server source model): their tables are also created at runtime
+  // by ensure*() functions, but a canonical *_sqlite.sql lets a fresh DB be provisioned identically.
+  // ensureSchemaDbs() builds them from the script first; the ensure*() calls then reconcile idempotently.
+  "XCOMPLIANCE", "XAGENT", "XID", "XJOB", "XTICKET",
 ] as const;
 const SCHEMA_SQL_DIR = path.resolve(__dirname, "../../../databases");
 
@@ -2029,6 +2034,9 @@ export interface VulnRow {
   PatchStatus?: string | null;
   RemediationCount?: number;
   FalsePositive?: number; // 0/1 — analyst-confirmed false positive (excluded from risk)
+  FalsePositiveReason?: string | null; // analyst justification captured at flag time
+  FalsePositiveBy?: string | null;     // who flagged it
+  FalsePositiveAt?: string | null;     // when (ISO)
 }
 
 // ── Tag referential (XORCISM.TAG; name column = TagValue) ─────────────
@@ -2712,15 +2720,16 @@ export function getAssetVulnerabilities(assetId: number): VulnRow[] {
   const avCols = new Set((xo.prepare(`PRAGMA table_info("ASSETVULNERABILITY")`).all() as { name: string }[]).map((c) => c.name));
   const hasPatch = avCols.has("PatchStatus");
   const hasFp = avCols.has("FalsePositive");
+  const hasFpr = avCols.has("FalsePositiveReason");
   const avRows = xo.prepare(
-    `SELECT AssetVulnerabilityID, VulnerabilityID${hasPatch ? ", PatchStatus" : ""}${hasFp ? ", FalsePositive" : ""}
+    `SELECT AssetVulnerabilityID, VulnerabilityID${hasPatch ? ", PatchStatus" : ""}${hasFp ? ", FalsePositive" : ""}${hasFpr ? ", FalsePositiveReason, FalsePositiveBy, FalsePositiveAt" : ""}
      FROM ASSETVULNERABILITY WHERE AssetID = ? AND VulnerabilityID IS NOT NULL
      ORDER BY AssetVulnerabilityID`
-  ).all(assetId) as { AssetVulnerabilityID: number; VulnerabilityID: number; PatchStatus?: string | null; FalsePositive?: number }[];
+  ).all(assetId) as { AssetVulnerabilityID: number; VulnerabilityID: number; PatchStatus?: string | null; FalsePositive?: number; FalsePositiveReason?: string | null; FalsePositiveBy?: string | null; FalsePositiveAt?: string | null }[];
   if (!avRows.length) return [];
   // First junction row wins per vulnerability (a remediation plan attaches to one instance).
-  const byVuln = new Map<number, { avId: number; patch: string | null; fp: number }>();
-  for (const r of avRows) if (!byVuln.has(r.VulnerabilityID)) byVuln.set(r.VulnerabilityID, { avId: r.AssetVulnerabilityID, patch: r.PatchStatus ?? null, fp: Number(r.FalsePositive) === 1 ? 1 : 0 });
+  const byVuln = new Map<number, { avId: number; patch: string | null; fp: number; fpReason: string | null; fpBy: string | null; fpAt: string | null }>();
+  for (const r of avRows) if (!byVuln.has(r.VulnerabilityID)) byVuln.set(r.VulnerabilityID, { avId: r.AssetVulnerabilityID, patch: r.PatchStatus ?? null, fp: Number(r.FalsePositive) === 1 ? 1 : 0, fpReason: r.FalsePositiveReason ?? null, fpBy: r.FalsePositiveBy ?? null, fpAt: r.FalsePositiveAt ?? null });
 
   // Count existing remediation plans per junction instance (so the UI can show "planned").
   const remCount = new Map<number, number>();
@@ -2746,7 +2755,7 @@ export function getAssetVulnerabilities(assetId: number): VulnRow[] {
     .all(...vids) as VulnRow[];
   return rows.map((v) => {
     const m = byVuln.get(v.VulnerabilityID);
-    return { ...v, AssetVulnerabilityID: m?.avId, PatchStatus: m?.patch ?? null, RemediationCount: m ? (remCount.get(m.avId) || 0) : 0, FalsePositive: m?.fp ?? 0 };
+    return { ...v, AssetVulnerabilityID: m?.avId, PatchStatus: m?.patch ?? null, RemediationCount: m ? (remCount.get(m.avId) || 0) : 0, FalsePositive: m?.fp ?? 0, FalsePositiveReason: m?.fpReason ?? null, FalsePositiveBy: m?.fpBy ?? null, FalsePositiveAt: m?.fpAt ?? null };
   });
 }
 
@@ -3750,6 +3759,36 @@ export function ensureThreatModelTables(): void {
       CreatedDate TEXT, TenantID INTEGER);
     CREATE INDEX IF NOT EXISTS ix_attacktree_tenant ON ATTACKTREE(TenantID);
     CREATE INDEX IF NOT EXISTS ix_attacktreenode_tree ON ATTACKTREENODE(AttackTreeID);
+    -- TRACE (Oak Security, CC BY 4.0) — a methodology layer on a THREATMODEL: the 5 model objects
+    -- (Threat actors / Roles / Assets / Critical invariants / Edges), collusion surfaces, and the
+    -- 6-phase sequential workflow with approval gates. Each object records evidence vs inferred assumption.
+    CREATE TABLE IF NOT EXISTS TRACEACTOR (
+      TraceActorID INTEGER PRIMARY KEY, ThreatModelID INTEGER, Name TEXT, Kind TEXT,
+      Capability TEXT, Incentive TEXT, Evidence TEXT, Assumption INTEGER DEFAULT 0, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TRACEROLE (
+      TraceRoleID INTEGER PRIMARY KEY, ThreatModelID INTEGER, Name TEXT, Privilege TEXT,
+      Evidence TEXT, Assumption INTEGER DEFAULT 0, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TRACEASSET (
+      TraceAssetID INTEGER PRIMARY KEY, ThreatModelID INTEGER, Name TEXT, Kind TEXT, Value TEXT,
+      Evidence TEXT, Assumption INTEGER DEFAULT 0, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TRACEINVARIANT (
+      TraceInvariantID INTEGER PRIMARY KEY, ThreatModelID INTEGER, Name TEXT, Statement TEXT, Category TEXT,
+      Evidence TEXT, Assumption INTEGER DEFAULT 0, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TRACEEDGE (
+      TraceEdgeID INTEGER PRIMARY KEY, ThreatModelID INTEGER, Name TEXT, FromDomain TEXT, ToDomain TEXT, Kind TEXT,
+      Evidence TEXT, Assumption INTEGER DEFAULT 0, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TRACECOLLUSION (
+      TraceCollusionID INTEGER PRIMARY KEY, ThreatModelID INTEGER, Actors TEXT, QuorumAssumption TEXT,
+      Credible INTEGER DEFAULT 0, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TRACEPHASE (
+      TracePhaseID INTEGER PRIMARY KEY, ThreatModelID INTEGER, Phase INTEGER, Name TEXT,
+      Status TEXT DEFAULT 'pending', ApprovedBy TEXT, ApprovedAt TEXT, TenantID INTEGER);
+    CREATE INDEX IF NOT EXISTS ix_traceactor_tm ON TRACEACTOR(ThreatModelID);
+    CREATE INDEX IF NOT EXISTS ix_tracerole_tm ON TRACEROLE(ThreatModelID);
+    CREATE INDEX IF NOT EXISTS ix_traceasset_tm ON TRACEASSET(ThreatModelID);
+    CREATE INDEX IF NOT EXISTS ix_traceinvariant_tm ON TRACEINVARIANT(ThreatModelID);
+    CREATE INDEX IF NOT EXISTS ix_traceedge_tm ON TRACEEDGE(ThreatModelID);
+    CREATE INDEX IF NOT EXISTS ix_tracephase_tm ON TRACEPHASE(ThreatModelID);
     -- ASSET ↔ OVAL definition link (configuration assessment results)
     CREATE TABLE IF NOT EXISTS ASSETOVALDEFINITION (
       AssetOVALDefinitionID INTEGER PRIMARY KEY,
@@ -3796,6 +3835,15 @@ export function ensureThreatModelTables(): void {
     CREATE INDEX IF NOT EXISTS ix_appwlentry_wl ON APPLICATIONWHITELISTENTRY(ApplicationWhitelistID);
     CREATE INDEX IF NOT EXISTS ix_appblentry_bl ON APPLICATIONBLACKLISTENTRY(ApplicationBlacklistID);
   `);
+  // TRACE: a STRIDE threat may be traced to one TRACE model object (asset/invariant/role/edge) for
+  // coverage; a THREATMODEL carries the TRACE pillar (protocol/system/organisation). Legacy → ALTER.
+  {
+    const tt = new Set((db.prepare(`PRAGMA table_info("THREATMODELTHREAT")`).all() as { name: string }[]).map((c) => c.name));
+    if (!tt.has("TraceObjectType")) db.exec(`ALTER TABLE "THREATMODELTHREAT" ADD COLUMN "TraceObjectType" TEXT`);
+    if (!tt.has("TraceObjectID")) db.exec(`ALTER TABLE "THREATMODELTHREAT" ADD COLUMN "TraceObjectID" INTEGER`);
+    const tm = new Set((db.prepare(`PRAGMA table_info("THREATMODEL")`).all() as { name: string }[]).map((c) => c.name));
+    if (!tm.has("TracePillar")) db.exec(`ALTER TABLE "THREATMODEL" ADD COLUMN "TracePillar" TEXT`);
+  }
   // APPLICATIONWHITELIST (legacy table, originally PK-only): idempotent addition of
   // descriptive/metadata fields (ALTER, we don't recreate the legacy table).
   const awExists = db
@@ -4669,6 +4717,10 @@ export function ensureAssetColumns(): void {
       (db.prepare(`PRAGMA table_info("ASSETVULNERABILITY")`).all() as { name: string }[]).map((c) => c.name)
     );
     if (!avCols.has("FalsePositive")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "FalsePositive" INTEGER DEFAULT 0`);
+    // False-positive triage traceability: analyst-supplied justification + who/when (cleared on un-flag).
+    if (!avCols.has("FalsePositiveReason")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "FalsePositiveReason" TEXT`);
+    if (!avCols.has("FalsePositiveBy")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "FalsePositiveBy" TEXT`);
+    if (!avCols.has("FalsePositiveAt")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "FalsePositiveAt" TEXT`);
     // CVE→asset auto-match provenance (lets users audit/triage keyword vs CPE matches and tune precision).
     if (!avCols.has("MatchConfidence")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "MatchConfidence" TEXT`); // High|Medium|Low
     if (!avCols.has("MatchSource")) db.exec(`ALTER TABLE "ASSETVULNERABILITY" ADD COLUMN "MatchSource" TEXT`);         // cpe|cpe-pair|cpe-keyword|tag
@@ -6623,6 +6675,118 @@ export function ensureCsfMaturityTables(): void {
     const ins = db.prepare("INSERT INTO CSFSUBCATEGORY (SubID, FunctionCode, FunctionName, CategoryCode, CategoryName, SubCode, Outcome, SortOrder) VALUES (?,?,?,?,?,?,?,?)");
     db.transaction(() => CSF_SUBCATEGORIES.forEach((s, i) => ins.run(i + 1, s.functionCode, s.functionName, s.categoryCode, s.categoryName, s.sub, s.outcome, i)))();
     console.log(`[seed] XCOMPLIANCE.CSFSUBCATEGORY ← ${CSF_SUBCATEGORIES.length} CSF 2.0 subcategories`);
+  }
+}
+
+/**
+ * TLPT / TIBER-EU (XCOMPLIANCE) — Threat-Led Penetration Testing engagements following the ECB
+ * TIBER-EU framework (the methodology DORA references for advanced/TLPT testing of financial entities):
+ * the 3-phase process (Preparation → Testing → Closure) with its canonical milestones/deliverables and
+ * sign-offs, the intelligence-led attack scenarios, the "flags" (critical-function targets), red-team
+ * findings + remediation, and the test team roster (White/Control/Blue/Red/TI/authority). Per-engagement
+ * milestones are seeded from the TIBER milestone catalogue (tlpt.ts) on creation.
+ */
+export function ensureTlptTables(): void {
+  let db: Database.Database;
+  try { db = getDb("XCOMPLIANCE"); } catch { return; }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS TLPTENGAGEMENT (
+      EngagementID INTEGER PRIMARY KEY, EngagementGUID TEXT, Name TEXT, Entity TEXT, Authority TEXT,
+      Framework TEXT DEFAULT 'TIBER-EU', Scope TEXT, CriticalFunctions TEXT, Status TEXT DEFAULT 'Preparation',
+      Phase INTEGER DEFAULT 0, StartDate TEXT, EndDate TEXT, WhiteTeamLead TEXT, ControlTeamLead TEXT,
+      TIProvider TEXT, RTProvider TEXT, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TLPTMILESTONE (
+      MilestoneID INTEGER PRIMARY KEY, EngagementID INTEGER, Phase INTEGER, PhaseName TEXT, Code TEXT,
+      Name TEXT, Deliverable TEXT, Status TEXT DEFAULT 'pending', SignedBy TEXT, SignedAt TEXT,
+      DocLink TEXT, SortOrder INTEGER, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TLPTSCENARIO (
+      ScenarioID INTEGER PRIMARY KEY, EngagementID INTEGER, Name TEXT, ThreatActor TEXT, ActorType TEXT,
+      Narrative TEXT, AttackTags TEXT, FlagsTargeted TEXT, Status TEXT DEFAULT 'planned', Outcome TEXT,
+      Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TLPTFLAG (
+      FlagID INTEGER PRIMARY KEY, EngagementID INTEGER, Name TEXT, CriticalFunction TEXT, Description TEXT,
+      Reached INTEGER DEFAULT 0, Detected INTEGER DEFAULT 0, Prevented INTEGER DEFAULT 0,
+      TimeToDetectHours REAL, ReachedDate TEXT, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TLPTFINDING (
+      FindingID INTEGER PRIMARY KEY, EngagementID INTEGER, Title TEXT, Severity TEXT, Category TEXT,
+      AttackTags TEXT, Description TEXT, Recommendation TEXT, Status TEXT DEFAULT 'Open',
+      RemediationOwner TEXT, DueDate TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS TLPTTEAM (
+      TeamMemberID INTEGER PRIMARY KEY, EngagementID INTEGER, TeamRole TEXT, MemberName TEXT, Organisation TEXT,
+      Contact TEXT, Notes TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE INDEX IF NOT EXISTS ix_tlptmilestone_eng ON TLPTMILESTONE(EngagementID);
+    CREATE INDEX IF NOT EXISTS ix_tlptscenario_eng ON TLPTSCENARIO(EngagementID);
+    CREATE INDEX IF NOT EXISTS ix_tlptflag_eng ON TLPTFLAG(EngagementID);
+    CREATE INDEX IF NOT EXISTS ix_tlptfinding_eng ON TLPTFINDING(EngagementID);
+    CREATE INDEX IF NOT EXISTS ix_tlptteam_eng ON TLPTTEAM(EngagementID);
+    CREATE INDEX IF NOT EXISTS ix_tlptengagement_tenant ON TLPTENGAGEMENT(TenantID);`);
+}
+
+/**
+ * Agent Policy Firewall (XORCISM) — a pre-execution governance boundary for agent / automation actions
+ * (MCP calls, browser actions, cloud connectors, CLI tasks, SOAR playbooks, remediation bots). Each
+ * proposed action is scored for blast radius, matched against policies (allow / deny / require-approval),
+ * checked for replay and segregation-of-duties, and recorded with a tamper-evident signed receipt
+ * (SHA-256 hash chain) BEFORE it runs. Complements the CROC loop (reactive) and the AI guardrails.
+ */
+export function ensureAgentFwTables(): void {
+  let db: Database.Database;
+  try { db = getDb("XORCISM"); } catch { return; }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS AGENTFWPOLICY (
+      PolicyID INTEGER PRIMARY KEY, PolicyGUID TEXT, Name TEXT, ActionType TEXT, TargetPattern TEXT,
+      MinBlastRadius INTEGER DEFAULT 0, Decision TEXT DEFAULT 'allow', RequireApprovers INTEGER DEFAULT 0,
+      Enabled INTEGER DEFAULT 1, Notes TEXT, SortOrder INTEGER, CreatedDate TEXT, TenantID INTEGER);
+    CREATE TABLE IF NOT EXISTS AGENTACTION (
+      ActionID INTEGER PRIMARY KEY, ActionGUID TEXT, ActionType TEXT, Actor TEXT, Target TEXT, Params TEXT,
+      Sensitivity TEXT, BlastRadius INTEGER, Decision TEXT, Status TEXT, SodFlag INTEGER DEFAULT 0,
+      ReplayFlag INTEGER DEFAULT 0, PolicyID INTEGER, PolicyName TEXT, Rationale TEXT, ContentHash TEXT,
+      ReceiptHash TEXT, PrevHash TEXT, RequiredApprovers INTEGER DEFAULT 0, ApprovedBy TEXT,
+      DecidedBy TEXT, DecidedDate TEXT, CreatedDate TEXT, TenantID INTEGER);
+    CREATE INDEX IF NOT EXISTS ix_agentfwpolicy_tenant ON AGENTFWPOLICY(TenantID);
+    CREATE INDEX IF NOT EXISTS ix_agentaction_tenant ON AGENTACTION(TenantID);
+    CREATE INDEX IF NOT EXISTS ix_agentaction_status ON AGENTACTION(Status);
+    CREATE INDEX IF NOT EXISTS ix_agentaction_content ON AGENTACTION(ContentHash);`);
+}
+
+/**
+ * SPRS / NIST 800-171 self-assessment (XCOMPLIANCE) — per-requirement implementation status for the 110
+ * NIST SP 800-171 Rev 2 requirements, used to compute the DoD SPRS score (110 down to the methodology
+ * floor). The 110-requirement catalogue + weights live in code (data/sprs800171.ts); only the per-tenant
+ * status (+ optional weight override) is stored here.
+ */
+export function ensureSprsTables(): void {
+  let db: Database.Database;
+  try { db = getDb("XCOMPLIANCE"); } catch { return; }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS SPRSSTATUS (
+      SprsStatusID INTEGER PRIMARY KEY, ReqID TEXT, Status TEXT DEFAULT 'not-implemented',
+      WeightOverride INTEGER, Notes TEXT, OwnerPersonID INTEGER, UpdatedDate TEXT, TenantID INTEGER);
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_sprsstatus ON SPRSSTATUS(ReqID, TenantID);`);
+}
+
+/**
+ * AI SBOM minimum elements (XCOMPLIANCE) — the CISA / G7 "SBOM for AI — Minimum Elements" (7 clusters,
+ * 50 supplemental elements). Reference catalogue is seeded once at boot; per-AI-system conformance is an
+ * AISBOM instance + AISBOMCOVERAGE (Present/Partial/Missing/N-A per element). See server/aisbom.ts.
+ */
+export function ensureAiSbomTables(): void {
+  let db: Database.Database;
+  try { db = getDb("XCOMPLIANCE"); } catch { return; }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS AISBOMELEMENT (
+      ElementID INTEGER PRIMARY KEY, ClusterCode TEXT, ClusterName TEXT, Element TEXT, Description TEXT, Example TEXT, SortOrder INTEGER);
+    CREATE TABLE IF NOT EXISTS AISBOM (
+      AiSbomID INTEGER PRIMARY KEY, AiSbomGUID TEXT, Name TEXT, Producer TEXT, Version TEXT, Format TEXT,
+      Status TEXT, Notes TEXT, TenantID INTEGER, CreatedDate TEXT);
+    CREATE TABLE IF NOT EXISTS AISBOMCOVERAGE (
+      CoverageID INTEGER PRIMARY KEY, AiSbomID INTEGER, ElementID INTEGER, Status TEXT, Value TEXT, Notes TEXT, UpdatedDate TEXT);
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_aisbomcov ON AISBOMCOVERAGE(AiSbomID, ElementID);
+    CREATE INDEX IF NOT EXISTS ix_aisbom_tenant ON AISBOM(TenantID);`);
+  if (!(db.prepare("SELECT COUNT(*) c FROM AISBOMELEMENT").get() as { c: number }).c) {
+    const ins = db.prepare("INSERT INTO AISBOMELEMENT (ElementID, ClusterCode, ClusterName, Element, Description, Example, SortOrder) VALUES (?,?,?,?,?,?,?)");
+    db.transaction(() => AI_SBOM_ELEMENTS.forEach((e, i) => ins.run(i + 1, e.cluster, e.clusterName, e.element, e.description, e.example, i)))();
+    console.log(`[seed] XCOMPLIANCE.AISBOMELEMENT ← ${AI_SBOM_ELEMENTS.length} AI-SBOM minimum elements (CISA/G7)`);
   }
 }
 

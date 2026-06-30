@@ -222,7 +222,7 @@ function isReadonlyFormColumn(table: string, col: string): boolean {
 }
 
 // Tables whose modal is widened (relational sub-panels).
-const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO", "VULNERABILITY", "AUDIT", "ASSETVULNERABILITY", "DOCUMENT", "BUGBOUNTYSUBMISSION", "IDENTITY", "AUDITFINDING", "RISKREGISTERENTRY", "BUGBOUNTYPROGRAM", "HUNT", "SIGMARULE", "INTELEXCHANGE", "TICKET", "ASSETVULNERABILITYREMEDIATION"]);
+const WIDE_MODAL_TABLES = new Set<string>(["ASSET", "THREATMODEL", "THREATMODELTHREAT", "OVALDEFINITION", "QUESTIONNAIRE", "ANSWER", "THREAT", "CRISISSCENARIO", "VULNERABILITY", "AUDIT", "ASSETVULNERABILITY", "DOCUMENT", "BUGBOUNTYSUBMISSION", "IDENTITY", "AUDITFINDING", "RISKREGISTERENTRY", "BUGBOUNTYPROGRAM", "HUNT", "SIGMARULE", "INTELEXCHANGE", "TICKET", "ASSETVULNERABILITYREMEDIATION", "INCIDENT"]);
 
 // Display reordering of fields in the forms:
 // table → list of [columnToMove, columnAfterWhich].
@@ -805,7 +805,7 @@ async function populateDatalist(dl: HTMLDataListElement, spec: DatalistSpec): Pr
 
 // SEARCH field by name that automatically fills an ID field, inserted
 // BEFORE the ID field (inverse of the "name hint"). Key "TABLE.IDColumn".
-interface NameSearchSpec { db: string; table: string; idCol: string; labelCol: string; searchLabel?: string; replaceIdField?: boolean }
+interface NameSearchSpec { db: string; table: string; idCol: string; labelCol: string; searchLabel?: string; replaceIdField?: boolean; roleFilter?: string }
 const NAME_SEARCH_COLUMNS: Record<string, NameSearchSpec> = {
   // OCIL: linked question — dropdown (input) of QuestionName → QuestionID.
   // replaceIdField: the dropdown replaces the ID field (which stays hidden).
@@ -832,6 +832,9 @@ const NAME_SEARCH_COLUMNS: Record<string, NameSearchSpec> = {
   "ASSETFORORGANISATION.OrganisationID": { db: "XORCISM", table: "ORGANISATION", idCol: "OrganisationID", labelCol: "OrganisationName", searchLabel: "OrganisationName", replaceIdField: true },
   "ASSETFORORGANISATION.AssetID": { db: "XORCISM", table: "ASSET", idCol: "AssetID", labelCol: "AssetName", searchLabel: "AssetName", replaceIdField: true },
   "ASSET.PersonID": { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", searchLabel: "Owner" },
+  // INCIDENT: assigned person — searchable PERSON.FullName combobox that fills AssignedPersonID (the raw
+  // ID field is hidden), with an optional NICE work-role filter narrowing the list to people in that role.
+  "INCIDENT.AssignedPersonID": { db: "XORCISM", table: "PERSON", idCol: "PersonID", labelCol: "FullName", searchLabel: "Assigned person", replaceIdField: true, roleFilter: "NICE" },
   // Location: search in ASSETLOCATION.AssetLocationName → fills AssetLocationID
   // (the dropdown replaces the ID field, kept hidden). The detail of the chosen location
   // is shown by a dedicated panel (appendAssetLocationTable).
@@ -872,6 +875,16 @@ function appendNameSearchField(
   const dl = document.createElement("datalist");
   dl.id = `${prefix}${idCol}_search_dl`;
   div.appendChild(label);
+  // optional role filter (e.g. the INCIDENT assignee filtered by NICE work role): a <select> above the
+  // search input that narrows the suggestion list to people holding the chosen role.
+  let roleSel: HTMLSelectElement | null = null;
+  if (spec.roleFilter) {
+    roleSel = document.createElement("select");
+    roleSel.style.cssText = FIELD_INPUT_CSS + ";margin-bottom:6px";
+    const o0 = document.createElement("option"); o0.value = ""; o0.textContent = `${t("incident.allRoles")} (${spec.roleFilter})`;
+    roleSel.appendChild(o0);
+    div.appendChild(roleSel);
+  }
   div.appendChild(input);
   div.appendChild(dl);
   body.appendChild(div);
@@ -879,22 +892,27 @@ function appendNameSearchField(
   void (async () => {
     const nameToId = new Map<string, string>();
     const idToName = new Map<string, string>();
+    const allOpts: { id: string; nm: string }[] = [];
     try {
       const opts = await api.getLookup(spec.db, spec.table, spec.idCol, spec.labelCol);
       for (const o of opts) {
         const id = o.id == null ? "" : String(o.id);
         const nm = o.label == null ? "" : String(o.label);
-        if (nm && !nameToId.has(nm)) {
-          nameToId.set(nm, id);
-          const op = document.createElement("option");
-          op.value = nm;
-          dl.appendChild(op);
-        }
+        if (nm && !nameToId.has(nm)) { nameToId.set(nm, id); allOpts.push({ id, nm }); }
         if (id && !idToName.has(id)) idToName.set(id, nm);
       }
     } catch {
       /* rights/unavailable: the search is inoperative, the ID stays editable */
     }
+    // (re)build the datalist, optionally restricted to a set of allowed ids (the chosen role's people)
+    const rebuild = (allowed?: Set<string>): void => {
+      dl.innerHTML = "";
+      for (const o of allOpts) {
+        if (allowed && o.id && !allowed.has(o.id)) continue;
+        const op = document.createElement("option"); op.value = o.nm; dl.appendChild(op);
+      }
+    };
+    rebuild();
     if (currentIdVal && idToName.has(currentIdVal)) input.value = idToName.get(currentIdVal)!;
     const resolve = () => {
       const idInput = document.getElementById(`${prefix}${idCol}`) as HTMLInputElement | null;
@@ -904,6 +922,24 @@ function appendNameSearchField(
     };
     input.addEventListener("input", resolve);
     input.addEventListener("change", resolve);
+
+    // wire the role filter (best-effort; if the workforce data is unavailable the plain combobox stays usable)
+    if (roleSel && spec.roleFilter) {
+      try {
+        const pr = await api.personRoles(spec.roleFilter);
+        for (const role of pr.roles) {
+          const n = (pr.byRole[String(role.id)] || []).length;
+          const op = document.createElement("option");
+          op.value = String(role.id);
+          op.textContent = `${role.name}${role.category ? ` · ${role.category}` : ""} (${n})`;
+          roleSel.appendChild(op);
+        }
+        roleSel.addEventListener("change", () => {
+          const v = roleSel!.value;
+          rebuild(v ? new Set((pr.byRole[v] || []).map(String)) : undefined);
+        });
+      } catch { /* role filter unavailable → unfiltered combobox */ }
+    }
   })();
 }
 
@@ -1252,6 +1288,10 @@ const GRID_DISPLAY_COLUMNS: Record<string, GridDisplaySpec[]> = {
       colLabel: "IncidentName",
     },
   ],
+  // INCIDENT: the incident's category name, resolved from IncidentCategoryID and shown right after it.
+  INCIDENT: [
+    { db: "XINCIDENT", table: "INCIDENTCATEGORY", idCol: "IncidentCategoryID", labelCol: "IncidentCategoryName", hintLabel: "Category", srcCol: "IncidentCategoryID", colLabel: "Category" },
+  ],
   RISKREGISTERENTRY: [
     {
       db: "XCOMPLIANCE",
@@ -1371,6 +1411,21 @@ const GRID_DISPLAY_COLUMNS: Record<string, GridDisplaySpec[]> = {
       keyCol: "AssetVulnerabilityID",
       colLabel: "REMEDIATION",
       emptyLabel: "Remediate",
+    },
+  ],
+  // VULNERABILITYFORCPE: the linked vulnerability's reference id (the CVE), resolved from VULNERABILITY
+  // by VulnerabilityID and shown right after VulnerabilityID. VULNERABILITY is large (~355k rows) → lazy
+  // (lookup-many bounded to the visible rows).
+  VULNERABILITYFORCPE: [
+    {
+      db: "XVULNERABILITY",
+      table: "VULNERABILITY",
+      idCol: "VulnerabilityID",
+      labelCol: "VULReferentialID",
+      hintLabel: "VULReferentialID",
+      srcCol: "VulnerabilityID",
+      colLabel: "VULReferentialID",
+      lazy: true,
     },
   ],
   // APPLICATION ↔ PERSON: resolved names to the right of PersonID and ApplicationID
@@ -1617,6 +1672,10 @@ const GRID_LINK_COLUMNS: Record<string, GridLinkSpec[]> = {
   // DocumentName → edits this DOCUMENT row itself (self-link).
   DOCUMENT: [
     { col: "DocumentName", srcCol: "DocumentID", db: "XCOMPLIANCE", table: "DOCUMENT", idCol: "DocumentID" },
+  ],
+  // IncidentName → edits this INCIDENT row itself (self-link). PK is IncidentID (XINCIDENT).
+  INCIDENT: [
+    { col: "IncidentName", srcCol: "IncidentID", db: "XINCIDENT", table: "INCIDENT", idCol: "IncidentID" },
   ],
   // Title → edits this BUGBOUNTYSUBMISSION row itself (self-link). PK is SubmissionID.
   BUGBOUNTYSUBMISSION: [
@@ -6328,7 +6387,7 @@ async function appendAssetSelector(
 
   const box = document.createElement("div");
   box.id = `${prefix}_m2m_assets`;
-  box.style.cssText = "max-height:200px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:var(--bg)";
+  box.style.cssText = "max-height:200px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:var(--bg);text-align:left";
   div.appendChild(box);
 
   // "Check all (filtered)" — toggles every currently-visible row.
@@ -6360,7 +6419,7 @@ async function appendAssetSelector(
   const allTags = new Set<string>();
   rows.forEach((a) => {
     const row = document.createElement("label");
-    row.style.cssText = "display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-soft);padding:2px 0;cursor:pointer";
+    row.style.cssText = "display:flex;justify-content:flex-start;align-items:center;gap:7px;font-size:12px;color:var(--text-soft);padding:2px 0;cursor:pointer;text-align:left";
     row.dataset.name = a.name.toLowerCase();
     row.dataset.tags = a.tags.map((s) => s.toLowerCase()).join(",");
     a.tags.forEach((tg) => allTags.add(tg));
@@ -7565,7 +7624,7 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
     box.innerHTML = `<div style="padding:8px;color:var(--text-dim);font-size:12px">—</div>`;
     return;
   }
-  let vulns: { VulnerabilityID: number; VULGUID: string; VULDescription: string; AssetVulnerabilityID?: number; PatchStatus?: string | null; RemediationCount?: number; FalsePositive?: number }[] = [];
+  let vulns: { VulnerabilityID: number; VULGUID: string; VULDescription: string; AssetVulnerabilityID?: number; PatchStatus?: string | null; RemediationCount?: number; FalsePositive?: number; FalsePositiveReason?: string | null; FalsePositiveBy?: string | null; FalsePositiveAt?: string | null }[] = [];
   try {
     vulns = await api.getAssetVulnerabilities(assetId);
   } catch (e) {
@@ -7581,23 +7640,83 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
   if (vulns.some((v) => (v.RemediationCount ?? 0) > 0)) {
     try { plansByAvId = (await api.getAssetRemediations(assetId)).plans; } catch { /* non-fatal */ }
   }
+  // — toolbar: "hide false positives" filter + bulk "mark selected as false positive" —
+  const hideFp = box.dataset.hideFp === "1";
+  const fpCount = vulns.filter((v) => Number(v.FalsePositive) === 1).length;
+  const shown = hideFp ? vulns.filter((v) => Number(v.FalsePositive) !== 1) : vulns;
+  const selected = new Set<number>();
+
+  const bar = document.createElement("div");
+  bar.style.cssText = "display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:5px 8px;border-bottom:1px solid var(--border);background:var(--surface-2,#11152a)";
+  const hideLab = document.createElement("label");
+  hideLab.style.cssText = "display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);" + (fpCount ? "cursor:pointer" : "opacity:.5");
+  const hideCb = document.createElement("input");
+  hideCb.type = "checkbox"; hideCb.checked = hideFp; hideCb.disabled = fpCount === 0;
+  hideCb.onchange = () => { box.dataset.hideFp = hideCb.checked ? "1" : "0"; void renderVulnBox(box, assetId); };
+  hideLab.appendChild(hideCb);
+  hideLab.appendChild(document.createTextNode(" " + t("rem.fpHide").replace("{n}", String(fpCount))));
+  bar.appendChild(hideLab);
+  const spacer = document.createElement("span"); spacer.style.flex = "1"; bar.appendChild(spacer);
+  const bulkBtn = document.createElement("button");
+  bulkBtn.type = "button"; bulkBtn.className = "btn btn-ghost btn-sm";
+  bulkBtn.style.cssText = "padding:2px 10px;font-size:11px"; bulkBtn.disabled = true;
+  bulkBtn.textContent = t("rem.fpBulk").replace("{n}", "0");
+  bulkBtn.title = t("rem.fpBulkTip");
+  bar.appendChild(bulkBtn);
+  box.appendChild(bar);
+
+  const refreshBulk = (): void => { bulkBtn.disabled = selected.size === 0; bulkBtn.textContent = t("rem.fpBulk").replace("{n}", String(selected.size)); };
+  bulkBtn.onclick = async (): Promise<void> => {
+    if (!selected.size) return;
+    const reason = prompt(t("rem.fpReasonPrompt").replace("{n}", String(selected.size)));
+    if (reason === null) return; // cancelled
+    bulkBtn.disabled = true;
+    try { const r = await api.setVulnFalsePositiveBulk([...selected], true, reason || undefined); toast(t("rem.fpBulkDone").replace("{n}", String(r.changed))); await renderVulnBox(box, assetId); }
+    catch (e) { toast(t("rem.fpErr") + " " + e, "err"); refreshBulk(); }
+  };
+
   const table = document.createElement("table");
   table.style.cssText = "width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed";
-  table.innerHTML =
-    '<thead><tr>' +
-    '<th style="text-align:left;padding:5px 8px;color:var(--text-muted);border-bottom:1px solid var(--border);width:220px">VULGUID</th>' +
-    '<th style="text-align:left;padding:5px 8px;color:var(--text-muted);border-bottom:1px solid var(--border)">VULDescription</th>' +
-    `<th style="text-align:left;padding:5px 8px;color:var(--text-muted);border-bottom:1px solid var(--border);width:150px">${t("rem.col")}</th>` +
-    '<th style="width:30px;border-bottom:1px solid var(--border)"></th>' +
-    '</tr></thead>';
+  const thead = document.createElement("thead");
+  const htr = document.createElement("tr");
+  const thSel = document.createElement("th");
+  thSel.style.cssText = "width:26px;padding:5px 4px 5px 8px;border-bottom:1px solid var(--border)";
+  const selAll = document.createElement("input"); selAll.type = "checkbox"; selAll.title = t("rem.fpSelAll");
+  thSel.appendChild(selAll); htr.appendChild(thSel);
+  const mkTh = (txt: string, css: string): HTMLTableCellElement => { const th = document.createElement("th"); th.style.cssText = "text-align:left;padding:5px 8px;color:var(--text-muted);border-bottom:1px solid var(--border);" + css; th.textContent = txt; return th; };
+  htr.appendChild(mkTh("VULGUID", "width:200px"));
+  htr.appendChild(mkTh("VULDescription", ""));
+  htr.appendChild(mkTh(t("rem.col"), "width:150px"));
+  const thRm = document.createElement("th"); thRm.style.cssText = "width:30px;border-bottom:1px solid var(--border)"; htr.appendChild(thRm);
+  thead.appendChild(htr); table.appendChild(thead);
   const tb = document.createElement("tbody");
-  vulns.forEach((v) => {
+  shown.forEach((v) => {
     const isFp = Number(v.FalsePositive) === 1;
     const dim = isFp ? "opacity:.5;text-decoration:line-through" : "";
     const tr = document.createElement("tr");
+    // row selection checkbox (only non-FP, DB-backed rows are eligible for the bulk action)
+    const selAvId = v.AssetVulnerabilityID;
+    const tdSel = document.createElement("td");
+    tdSel.style.cssText = "padding:4px 4px 4px 8px;border-bottom:1px solid var(--border-subtle);vertical-align:top";
+    if (!isFp && selAvId != null) {
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.dataset.av = String(selAvId);
+      cb.onchange = () => { if (cb.checked) selected.add(selAvId); else selected.delete(selAvId); refreshBulk(); };
+      tdSel.appendChild(cb);
+    }
     const td1 = document.createElement("td");
     td1.style.cssText = `padding:4px 8px;border-bottom:1px solid var(--border-subtle);color:var(--text-soft);word-break:break-all;vertical-align:top;${dim}`;
-    td1.textContent = v.VULGUID ?? `#${v.VulnerabilityID}`;
+    if (isFp) {
+      // distinct "FP" badge with the justification + who/when as tooltip
+      const badge = document.createElement("span");
+      badge.textContent = "FP";
+      badge.style.cssText = "display:inline-block;font-size:9px;font-weight:700;background:var(--warning,#fbbf24);color:#1a1205;border-radius:4px;padding:0 5px;margin-right:5px;vertical-align:middle;text-decoration:none;opacity:1";
+      const meta = [v.FalsePositiveBy || "", v.FalsePositiveAt ? String(v.FalsePositiveAt).slice(0, 10) : ""].filter(Boolean).join(" · ");
+      badge.title = (v.FalsePositiveReason || t("rem.fpTipOn")) + (meta ? " · " + meta : "");
+      td1.appendChild(badge);
+      td1.appendChild(document.createTextNode(v.VULGUID ?? `#${v.VulnerabilityID}`));
+    } else {
+      td1.textContent = v.VULGUID ?? `#${v.VulnerabilityID}`;
+    }
     const td2 = document.createElement("td");
     td2.style.cssText = `padding:4px 8px;border-bottom:1px solid var(--border-subtle);color:var(--text-soft);white-space:pre-wrap;word-break:break-word;vertical-align:top;${dim}`;
     td2.textContent = v.VULDescription ?? "";
@@ -7626,8 +7745,10 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
     fpBtn.title = isFp ? t("rem.fpTipOn") : t("rem.fpTip");
     if (avId == null) { fpBtn.disabled = true; fpBtn.title = t("link.saveFirst"); }
     else fpBtn.onclick = async () => {
+      let reason: string | undefined;
+      if (!isFp) { const r = prompt(t("rem.fpReasonPrompt").replace("{n}", "1")); if (r === null) return; reason = r || undefined; } // ask for a justification when flagging on
       fpBtn.disabled = true;
-      try { await api.setVulnFalsePositive(avId, !isFp); await renderVulnBox(box, assetId); }
+      try { await api.setVulnFalsePositive(avId, !isFp, reason); await renderVulnBox(box, assetId); }
       catch (e) { toast(t("rem.fpErr") + " " + e, "err"); fpBtn.disabled = false; }
     };
     tdPlan.appendChild(fpBtn);
@@ -7648,6 +7769,7 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
       }
     };
     tdRm.appendChild(rm);
+    tr.appendChild(tdSel);
     tr.appendChild(td1);
     tr.appendChild(td2);
     tr.appendChild(tdPlan);
@@ -7660,7 +7782,7 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
       const escP = (s: unknown): string => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
       const sub = document.createElement("tr");
       const cell = document.createElement("td");
-      cell.colSpan = 4;
+      cell.colSpan = 5;
       cell.style.cssText = "padding:0 8px 6px 8px;border-bottom:1px solid var(--border-subtle)";
       const statusColor = (s: string | null): string => /done|complete|resolv|patched/i.test(s || "") ? "var(--success,#34d399)" : /progress/i.test(s || "") ? "#60a5fa" : /defer/i.test(s || "") ? "#fbbf24" : "var(--text-dim)";
       cell.innerHTML =
@@ -7677,7 +7799,22 @@ async function renderVulnBox(box: HTMLElement, assetId: number | null): Promise<
       tb.appendChild(sub);
     }
   });
+  if (!shown.length) {
+    const er = document.createElement("tr"); const ec = document.createElement("td");
+    ec.colSpan = 5; ec.style.cssText = "padding:8px;color:var(--text-dim);font-size:12px;text-align:center";
+    ec.textContent = t("rem.fpAllHidden"); er.appendChild(ec); tb.appendChild(er);
+  }
   table.appendChild(tb);
+  // select-all toggles every eligible row checkbox
+  selAll.onchange = () => {
+    tb.querySelectorAll<HTMLInputElement>("input[type=checkbox][data-av]").forEach((cb) => {
+      cb.checked = selAll.checked;
+      const av = Number(cb.dataset.av);
+      if (selAll.checked) selected.add(av); else selected.delete(av);
+    });
+    refreshBulk();
+  };
+  refreshBulk();
   box.appendChild(table);
 }
 
@@ -7926,8 +8063,10 @@ async function appendVulnTable(body: HTMLElement, assetId: number | null): Promi
   }
 
   const box = document.createElement("div");
+  // Taller panel: this list often holds many CVEs — give it ~55% of the viewport (scrolls within the
+  // ASSET modal, which is itself capped at 90vh). min-height keeps it usable on short screens.
   box.style.cssText =
-    "max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:6px;background:var(--bg)";
+    "max-height:55vh;min-height:240px;overflow:auto;border:1px solid var(--border);border-radius:6px;background:var(--bg)";
 
   // "+ Plan for all" — bulk-create a remediation plan across every open vulnerability of the asset.
   const planAllBtn = document.createElement("button");

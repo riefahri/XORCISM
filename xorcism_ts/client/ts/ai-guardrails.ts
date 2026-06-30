@@ -3,6 +3,7 @@
  * Renders the AI Guardrail Baseline coverage, discovered AI agents + posture, runtime guardrail
  * violations, the guardrail-tool inventory and framework coverage, from /api/ai-guardrails.
  */
+import { initI18n, t } from "./i18n";
 function $(id: string): HTMLElement { return document.getElementById(id)!; }
 function esc(s: unknown): string { return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!)); }
 
@@ -27,12 +28,12 @@ function ctrlTitle(d: Data, id: string): string { return d.baselineDef.find((c) 
 function render(d: Data): void {
   const s = d.summary;
   const cards = [
-    card("AI agents", String(s.agents), "discovered on the fleet", s.agents ? "#a78bfa" : "#94a3b8"),
-    card("Avg posture", s.avgScore == null ? "—" : s.avgScore + "%", "guardrail baseline score", s.avgScore == null ? "#94a3b8" : scoreColor(s.avgScore)),
-    card("At risk", String(s.atRisk), "agents below 50%", s.atRisk ? "#f87171" : "#34d399"),
-    card("Controls covered", `${s.controlsCovered}/12`, "baseline controls assessed", "#60a5fa"),
-    card("Violations", String(s.openViolations), "runtime guardrail hits", s.openViolations ? "#f87171" : "#34d399"),
-    card("Gateways", String(s.gateways), "guardrail engines deployed", s.gateways ? "#34d399" : "#94a3b8"),
+    card(t("aig.kpi.agents"), String(s.agents), t("aig.kpi.agentsFoot"), s.agents ? "#a78bfa" : "#94a3b8"),
+    card(t("aig.kpi.posture"), s.avgScore == null ? "—" : s.avgScore + "%", t("aig.kpi.postureFoot"), s.avgScore == null ? "#94a3b8" : scoreColor(s.avgScore)),
+    card(t("aig.kpi.atRisk"), String(s.atRisk), t("aig.kpi.atRiskFoot"), s.atRisk ? "#f87171" : "#34d399"),
+    card(t("aig.kpi.controls"), `${s.controlsCovered}/12`, t("aig.kpi.controlsFoot"), "#60a5fa"),
+    card(t("aig.kpi.violations"), String(s.openViolations), t("aig.kpi.violationsFoot"), s.openViolations ? "#f87171" : "#34d399"),
+    card(t("aig.kpi.gateways"), String(s.gateways), t("aig.kpi.gatewaysFoot"), s.gateways ? "#34d399" : "#94a3b8"),
   ].join("");
 
   // Baseline coverage
@@ -52,11 +53,11 @@ function render(d: Data): void {
   const agentRows = d.agents.length ? d.agents.map((a) => `<tr>
       <td><span class="scorebar"><span style="width:${Math.max(4, a.score)}%;background:${scoreColor(a.score)}"></span></span><b>${a.score}</b></td>
       <td><span class="aname">${esc(a.name)}</span>${a.framework ? ` <span class="tag">${esc(a.framework)}</span>` : ""}<br><span class="muted mono" style="font-size:11px">${esc(a.host)}${a.endpoint ? " · " + esc(a.endpoint) : ""}${a.model ? " · " + esc(a.model) : ""}</span></td>
-      <td>${a.usesTools ? `<span class="tag">tools</span> ` : ""}${a.autonomous ? `<span class="tag">autonomous</span>` : ""}${a.secretsExposed ? ` <span class="pill p-fail">${a.secretsExposed} secret${a.secretsExposed > 1 ? "s" : ""}</span>` : ""}</td>
-      <td>${a.guardrails ? esc(a.guardrails) : `<span class="pill p-fail">none</span>`}</td>
+      <td>${a.usesTools ? `<span class="tag">${t("aig.tools")}</span> ` : ""}${a.autonomous ? `<span class="tag">${t("aig.autonomous")}</span>` : ""}${a.secretsExposed ? ` <span class="pill p-fail">${a.secretsExposed} ${t("aig.secrets")}</span>` : ""}</td>
+      <td>${a.guardrails ? esc(a.guardrails) : `<span class="pill p-fail">${t("aig.none")}</span>`}</td>
       <td>${a.gaps.length ? a.gaps.slice(0, 6).map((g) => `<span class="gap" title="${esc(ctrlTitle(d, g))}">${esc(g)}</span>`).join("") : `<span class="muted">—</span>`}</td>
     </tr>`).join("")
-    : `<tr><td colspan="5" class="muted">No AI agents discovered yet — launch an <span class="mono">aiguard</span> scan on an agent. It detects LLM apps / frameworks (LangChain, CrewAI, AutoGen…), MCP servers and local models, and scores each against the baseline.</td></tr>`;
+    : `<tr><td colspan="5" class="muted">${t("aig.noAgents")}</td></tr>`;
 
   // Violations
   const violRows = d.violations.length ? d.violations.slice(0, 40).map((v) => `<tr>
@@ -66,36 +67,36 @@ function render(d: Data): void {
       <td>${esc(v.name)}${v.huntId ? ` <a href="/?db=XTHREAT&table=HUNT&filterCol=HuntID&filterVal=${esc(v.huntId)}">→ hunt #${esc(v.huntId)}</a>` : ""}<div class="muted mono" style="font-size:10px;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.evidence)}</div></td>
       <td class="muted" style="font-size:11px">${esc(v.source)}</td>
     </tr>`).join("")
-    : `<tr><td colspan="5" class="muted">No guardrail violations recorded. Runtime monitoring flags prompt injection, jailbreaks, data exfiltration and excessive agency in AI-agent traces (heuristics + local AI); a guardrail gateway's block telemetry also lands here.</td></tr>`;
+    : `<tr><td colspan="5" class="muted">${t("aig.noViol")}</td></tr>`;
 
   // Tools
-  const toolRows = d.tools.map((t) => `<tr>
-      <td><a href="${esc(t.url)}" target="_blank" rel="noopener" class="aname">${esc(t.name)}</a></td>
-      <td>${esc(t.kind)}</td>
-      <td>${t.deployedOn ? `<span class="pill p-pass">deployed on ${t.deployedOn} agent${t.deployedOn > 1 ? "s" : ""}</span>` : `<span class="muted">not detected</span>`}</td>
+  const toolRows = d.tools.map((tl) => `<tr>
+      <td><a href="${esc(tl.url)}" target="_blank" rel="noopener" class="aname">${esc(tl.name)}</a></td>
+      <td>${esc(tl.kind)}</td>
+      <td>${tl.deployedOn ? `<span class="pill p-pass">${t("aig.deployedOn")} ${tl.deployedOn}</span>` : `<span class="muted">${t("aig.notDetected")}</span>`}</td>
     </tr>`).join("");
 
   const fwChips = d.frameworks.map((f) => `<span class="fw"><b>${esc(String(f.controls))}</b> ${esc(f.name)}</span>`).join("");
 
   $("ag-body").innerHTML = `<div class="ag-cards">${cards}</div>
-    <div class="ag-section">AI Guardrail Baseline (12 controls) <span class="muted" style="font-weight:400;text-transform:none;font-size:11px"> — framework coverage: ${fwChips}</span></div>
-    <table class="ag"><thead><tr><th>Guardrail control</th><th>Category</th><th>Pass / fail</th><th>Adoption</th></tr></thead><tbody>${baseRows}</tbody></table>
+    <div class="ag-section">${t("aig.sec.baseline")} <span class="muted" style="font-weight:400;text-transform:none;font-size:11px"> — ${t("aig.sec.fwCoverage")}: ${fwChips}</span></div>
+    <table class="ag"><thead><tr><th>${t("aig.col.control")}</th><th>${t("aig.col.category")}</th><th>${t("aig.col.passfail")}</th><th>${t("aig.col.adoption")}</th></tr></thead><tbody>${baseRows}</tbody></table>
 
-    <div class="ag-section">Discovered AI agents (${d.agents.length})</div>
-    <table class="ag"><thead><tr><th>Posture</th><th>Agent / host</th><th>Profile</th><th>Guardrails</th><th>Gaps</th></tr></thead><tbody>${agentRows}</tbody></table>
+    <div class="ag-section">${t("aig.sec.agents")} (${d.agents.length})</div>
+    <table class="ag"><thead><tr><th>${t("aig.col.posture")}</th><th>${t("aig.col.agentHost")}</th><th>${t("aig.col.profile")}</th><th>${t("aig.col.guardrails")}</th><th>${t("aig.col.gaps")}</th></tr></thead><tbody>${agentRows}</tbody></table>
 
-    <div class="ag-section">Runtime guardrail violations (${d.violations.length})</div>
-    <table class="ag"><thead><tr><th>When</th><th>Severity</th><th>Technique</th><th>Violation</th><th>Source</th></tr></thead><tbody>${violRows}</tbody></table>
+    <div class="ag-section">${t("aig.sec.violations")} (${d.violations.length})</div>
+    <table class="ag"><thead><tr><th>${t("aig.col.when")}</th><th>${t("aig.col.severity")}</th><th>${t("aig.col.technique")}</th><th>${t("aig.col.violation")}</th><th>${t("aig.col.source")}</th></tr></thead><tbody>${violRows}</tbody></table>
 
-    <div class="ag-section">Guardrail tools &amp; gateways</div>
-    <table class="ag"><thead><tr><th>Tool</th><th>Kind</th><th>Status</th></tr></thead><tbody>${toolRows}</tbody></table>
+    <div class="ag-section">${t("aig.sec.tools")}</div>
+    <table class="ag"><thead><tr><th>${t("aig.col.tool")}</th><th>${t("aig.col.kind")}</th><th>${t("aig.col.status")}</th></tr></thead><tbody>${toolRows}</tbody></table>
 
-    <div class="legend">Posture &amp; monitoring come from the XOR endpoint agent (kind <span class="mono">aiguard</span>); enforcement is delegated to an inline guardrail gateway (NeMo Guardrails / LLM Guard / Llama Guard / Lakera…) whose block telemetry is imported by the <span class="mono">llm-guard</span> connector. AI traces are analysed by the <b>local</b> AI — raw prompts never leave the host. Maps to OWASP AI Exchange, Google SAIF, ISO/IEC 42001, OWASP LLM Top 10, MITRE ATLAS and NIST AI RMF.</div>`;
+    <div class="legend">${t("aig.legend")}</div>`;
 }
 
 async function load(): Promise<void> {
   try { const r = await fetch("/api/ai-guardrails"); if (!r.ok) throw new Error(`HTTP ${r.status}`); render(await r.json()); }
-  catch (e) { $("ag-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">Failed to load AI guardrails: ${esc((e as Error).message)} — admin access required.</div>`; }
+  catch (e) { $("ag-body").innerHTML = `<div class="muted" style="padding:24px;text-align:center">${t("aig.loadFail")}: ${esc((e as Error).message)} — ${t("aig.adminReq")}</div>`; }
 }
 
-document.addEventListener("DOMContentLoaded", () => { void load(); });
+document.addEventListener("DOMContentLoaded", () => { initI18n(); void load(); });

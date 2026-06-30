@@ -317,16 +317,48 @@ export function createRemediationsForAsset(
   return out;
 }
 
+/** Build the column-aware SET clause + value prefix for a false-positive update. When flagging, the
+ *  analyst justification (reason), the actor (by) and the timestamp are recorded; when un-flagging,
+ *  they are cleared. Each column is only written if it exists in the schema. */
+function fpSetClause(avc: Set<string>, falsePositive: boolean, meta?: { reason?: string; by?: string }): { sets: string[]; vals: unknown[] } {
+  const sets = ["FalsePositive = ?"]; const vals: unknown[] = [falsePositive ? 1 : 0];
+  if (avc.has("FalsePositiveReason")) { sets.push("FalsePositiveReason = ?"); vals.push(falsePositive ? ((meta?.reason || "").slice(0, 500) || null) : null); }
+  if (avc.has("FalsePositiveBy")) { sets.push("FalsePositiveBy = ?"); vals.push(falsePositive ? (meta?.by || null) : null); }
+  if (avc.has("FalsePositiveAt")) { sets.push("FalsePositiveAt = ?"); vals.push(falsePositive ? new Date().toISOString() : null); }
+  return { sets, vals };
+}
+
 /** Flag (or un-flag) one asset↔vulnerability instance as a false positive (ASSETVULNERABILITY.FalsePositive).
- * False positives drop out of the patch worklist, coverage maths and the risk scores. */
-export function setFalsePositive(assetVulnId: number, falsePositive: boolean, tenant: number | null): { ok: boolean } {
+ * False positives drop out of the patch worklist, coverage maths and the risk scores. The optional
+ * meta records the analyst justification + who/when. */
+export function setFalsePositive(assetVulnId: number, falsePositive: boolean, tenant: number | null, meta?: { reason?: string; by?: string }): { ok: boolean } {
   const xo = getDb("XORCISM");
   const avc = cols("XORCISM", "ASSETVULNERABILITY");
   if (!avc.has("FalsePositive")) throw new Error("FalsePositive column not available");
+  const { sets, vals } = fpSetClause(avc, falsePositive, meta);
   const tw = tenant != null && avc.has("TenantID") ? "AND (TenantID = ? OR TenantID IS NULL)" : "";
-  const args: unknown[] = [falsePositive ? 1 : 0, assetVulnId]; if (tw) args.push(tenant);
-  const r = xo.prepare(`UPDATE ASSETVULNERABILITY SET FalsePositive = ? WHERE AssetVulnerabilityID = ? ${tw}`).run(...args);
+  vals.push(assetVulnId); if (tw) vals.push(tenant);
+  const r = xo.prepare(`UPDATE ASSETVULNERABILITY SET ${sets.join(", ")} WHERE AssetVulnerabilityID = ? ${tw}`).run(...vals);
   return { ok: r.changes > 0 };
+}
+
+/** Bulk flag/un-flag many asset↔vulnerability instances as false positive (one transaction).
+ *  Returns how many rows actually changed (tenant-scoped, dedupes the ids; same justification applied to all). */
+export function setFalsePositiveBulk(assetVulnIds: number[], falsePositive: boolean, tenant: number | null, meta?: { reason?: string; by?: string }): { ok: boolean; changed: number } {
+  const xo = getDb("XORCISM");
+  const avc = cols("XORCISM", "ASSETVULNERABILITY");
+  if (!avc.has("FalsePositive")) throw new Error("FalsePositive column not available");
+  const ids = [...new Set((assetVulnIds || []).map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+  if (!ids.length) return { ok: true, changed: 0 };
+  const { sets, vals: base } = fpSetClause(avc, falsePositive, meta);
+  const tw = tenant != null && avc.has("TenantID") ? "AND (TenantID = ? OR TenantID IS NULL)" : "";
+  const upd = xo.prepare(`UPDATE ASSETVULNERABILITY SET ${sets.join(", ")} WHERE AssetVulnerabilityID = ? ${tw}`);
+  let changed = 0;
+  const tx = xo.transaction(() => {
+    for (const id of ids) { const args: unknown[] = [...base, id]; if (tw) args.push(tenant); changed += upd.run(...args).changes; }
+  });
+  tx();
+  return { ok: true, changed };
 }
 
 /** Open an XTICKET work item for a remediation plan (asset↔vuln). Idempotent per asset-vuln instance

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — Agent Policy Firewall</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .af-wrap{max-width:1320px;margin:0 auto;padding:18px}
+  .af-wrap h1{font-size:20px;margin:0 0 2px}
+  .af-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1050px}
+  .muted{color:#64748b}
+  .af-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .af-card{flex:1;min-width:115px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:11px 14px}
+  .af-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .af-card .val{font-size:24px;font-weight:700;margin-top:3px}.af-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .af-sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .btn{background:#22c55e;color:#06240f;border:none;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer}.btn:hover{background:#4ade80}.btn:disabled{opacity:.5}
+  .btn.sec{background:#2d3250;color:#cbd5e1}.btn.sec:hover{background:#3a4170}.btn.sm{padding:3px 9px;font-size:11px}
+  .btn.danger{background:#3a1620;color:#fca5a5}.btn.danger:hover{background:#5a1f2e}
+  input.in,select.in,textarea.in{background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;font-size:12px;padding:5px 8px;font-family:inherit}
+  table.tt{width:100%;border-collapse:collapse;font-size:12px}
+  table.tt th,table.tt td{text-align:left;padding:5px 8px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.tt th{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .tag{font-size:10px;border-radius:5px;padding:1px 6px;background:#1e2a44;color:#93c5fd;white-space:nowrap}
+  .d-allowed,.d-approved{color:#22c55e;font-weight:700}.d-denied{color:#f87171;font-weight:700}.d-pending{color:#fbbf24;font-weight:700}
+  .flag{font-size:10px;border-radius:5px;padding:1px 6px;background:#3a1620;color:#fca5a5;margin-left:4px}
+  .blast{display:inline-block;min-width:90px}.blastbar{display:inline-block;height:8px;border-radius:4px;background:#1e2133;width:64px;overflow:hidden;vertical-align:middle;margin-left:4px}.blastbar>i{display:block;height:100%}
+  .frm{background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:11px;margin-bottom:10px}
+  .frm .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;margin-bottom:7px}
+  .frm label{font-size:10px;color:#94a3b8;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.3px}
+  .frm input,.frm select{width:100%}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .chain-ok{color:#6ee7b7}.chain-bad{color:#fca5a5}
+  .verdict{margin-top:8px;border:1px solid #2d3250;border-radius:8px;padding:10px;font-size:12px;background:#0f1117;white-space:pre-wrap}
+  .xdel{color:#64748b;cursor:pointer}.xdel:hover{color:#fca5a5}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/croc">&#128260; CROC Loop</a>
+  <a href="/ai-guardrails">&#128737;&#65039; AI Guardrails</a>
+  <a href="/authz-governance">&#128272; AuthZ</a>
+  <span class="spacer"></span>
+  <span class="title">&#128737;&#65039; Agent Policy Firewall</span>
+</div>
+
+<div class="af-wrap">
+  <h1>Agent Policy Firewall</h1>
+  <div class="af-sub">A regulated <b>pre-execution boundary</b> for agent &amp; automation actions — MCP calls, browser actions, cloud connectors, CLI tasks, SOAR playbooks and remediation bots. Every proposed action is scored for <b>blast radius</b>, matched against <b>policies</b> (allow / deny / require-approval), checked for <b>replay</b> and <b>segregation-of-duties</b>, and recorded with a tamper-evident <b>signed receipt</b> (SHA-256 hash chain) — <b>before it runs</b>. The governance layer agent-harness teams can't build from scratch. Complements the CROC loop (reactive) and the AI guardrails.</div>
+  <div id="af-body"><div class="muted" style="padding:24px;text-align:center">Loading the firewall…</div></div>
+</div>
+
+<script src="/js/i18n.js"></script><script src="/js/session-ui.js"></script>
+<script src="/js/agent-firewall.js"></script>
+</body>
+</html>

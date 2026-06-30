@@ -126,6 +126,11 @@ export const api = {
       `/api/lookup?db=${encodeURIComponent(db)}&table=${encodeURIComponent(table)}` +
         `&idCol=${encodeURIComponent(idCol)}&labelCol=${encodeURIComponent(labelCol)}`
     ),
+  // Work roles (NICE/ECSF) + the people assigned to each — used to filter a person picker by role.
+  personRoles: (framework = "NICE") =>
+    request<{ framework: string; roles: { id: number; name: string; category: string }[]; byRole: Record<string, number[]> }>(
+      `/api/workforce/person-roles?framework=${encodeURIComponent(framework)}`
+    ),
   // Lookup of ONE single value (large table: no full preloading)
   getLookupOne: (db: string, table: string, idCol: string, idVal: string, labelCol: string) =>
     request<{ label: unknown }>(
@@ -301,8 +306,10 @@ export const api = {
     request<{ VulnerabilityID: number; VULReferentialID: string; VULGUID: string; VULDescription: string; AssetVulnerabilityID?: number; PatchStatus?: string | null; RemediationCount?: number; FalsePositive?: number }[]>(
       `/api/asset-vulnerabilities?assetId=${assetId}`
     ),
-  setVulnFalsePositive: (assetVulnId: number, falsePositive: boolean) =>
-    request<{ ok: boolean; falsePositive: boolean }>("/api/patch-management/false-positive", "POST", { assetVulnId, falsePositive }),
+  setVulnFalsePositive: (assetVulnId: number, falsePositive: boolean, reason?: string) =>
+    request<{ ok: boolean; falsePositive: boolean }>("/api/patch-management/false-positive", "POST", { assetVulnId, falsePositive, reason }),
+  setVulnFalsePositiveBulk: (assetVulnIds: number[], falsePositive: boolean, reason?: string) =>
+    request<{ ok: boolean; changed: number }>("/api/patch-management/false-positive/bulk", "POST", { assetVulnIds, falsePositive, reason }),
   createRemediationBulk: (body: { assetId: number; name: string; type?: string; status?: string; priority?: string; targetDate?: string; ownerPersonId?: string | number; description?: string; scope?: "missing" | "all" }) =>
     request<{ ok: boolean; created: number; skipped: number; total: number }>("/api/patch-management/remediation-bulk", "POST", body),
   getAssetRemediations: (assetId: number) =>

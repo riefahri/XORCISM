@@ -186,6 +186,10 @@ function ensureSchema(db: Database.Database): void {
   addColumnIfMissing(db, "XUSER", "TotpSecret", "TEXT");    // TOTP base32 secret (RFC 6238 2FA)
   addColumnIfMissing(db, "XUSER", "TotpEnabled", "INTEGER"); // 1 once a code has been verified (opt-in)
   addColumnIfMissing(db, "XAUDITLOG", "TenantID", "INTEGER");
+  // Tamper-evident hash chain (VALENCE-style cryptographic lineage): each entry's EntryHash =
+  // SHA-256(PrevHash + canonical entry content), so any later edit/deletion breaks the chain.
+  addColumnIfMissing(db, "XAUDITLOG", "EntryHash", "TEXT");
+  addColumnIfMissing(db, "XAUDITLOG", "PrevHash", "TEXT");
   addColumnIfMissing(db, "XAPIKEY", "ExpiresDate", "TEXT"); // optional key expiry (null = never)
   db.exec("CREATE INDEX IF NOT EXISTS ix_user_tenant ON XUSER(TenantID);");
   db.exec("CREATE INDEX IF NOT EXISTS ix_webhook_user ON XWEBHOOK(UserID);");
@@ -805,6 +809,55 @@ function appendAuditFile(rec: Record<string, unknown>): void {
   }
 }
 
+// ── Tamper-evident audit hash chain (VALENCE-style cryptographic lineage) ──────
+// Each audit row's EntryHash = SHA-256(PrevHash + canonical content). Any later mutation/deletion of a
+// row breaks every hash after it, so verifyAuditChain() can prove the log has not been tampered with.
+type AuditRow = { AuditID: number; UserID: number | null; Action: string; ResourceType: string | null; ResourceKey: string | null; Detail: string | null; IP: string | null; Timestamp: string; TenantID: number | null };
+let _chainHead: string | null = null;
+let _chainReady = false;
+function _auditHash(prev: string, r: AuditRow): string {
+  // canonical, order-stable serialization of the row's content + its position (AuditID)
+  const canon = JSON.stringify([r.AuditID, r.UserID ?? null, r.Action, r.ResourceType ?? null, r.ResourceKey ?? null, r.Detail ?? null, r.IP ?? null, r.Timestamp, r.TenantID ?? null]);
+  return sha256hex(prev + "\n" + canon);
+}
+const _AUDIT_COLS = "AuditID,UserID,Action,ResourceType,ResourceKey,Detail,IP,Timestamp,TenantID";
+
+/** Build/extend the hash chain over any not-yet-hashed audit rows (in AuditID order). Idempotent;
+ *  called once at boot and lazily before the first append. Never throws (audit logging must not break). */
+export function ensureAuditChain(): void {
+  try {
+    const db = getXidDb();
+    if (!db.prepare("SELECT 1 FROM pragma_table_info('XAUDITLOG') WHERE name='EntryHash'").get()) return;
+    const rows = db.prepare(`SELECT ${_AUDIT_COLS},EntryHash FROM XAUDITLOG ORDER BY AuditID`).all() as (AuditRow & { EntryHash: string | null })[];
+    const upd = db.prepare("UPDATE XAUDITLOG SET EntryHash=?, PrevHash=? WHERE AuditID=?");
+    let prev = "";
+    db.transaction(() => {
+      for (const r of rows) {
+        if (r.EntryHash) { prev = r.EntryHash; continue; } // already chained
+        const h = _auditHash(prev, r);
+        upd.run(h, prev || null, r.AuditID);
+        prev = h;
+      }
+    })();
+    _chainHead = prev || null;
+    _chainReady = true;
+  } catch { /* old DB without the columns → chain disabled, logging still works */ }
+}
+
+/** Verify the audit chain: recompute each EntryHash from PrevHash + content; report the first break. */
+export function verifyAuditChain(): { ok: boolean; total: number; verified: number; firstBreakId: number | null; head: string | null } {
+  const db = getXidDb();
+  let rows: (AuditRow & { EntryHash: string; PrevHash: string | null })[] = [];
+  try { rows = db.prepare(`SELECT ${_AUDIT_COLS},EntryHash,PrevHash FROM XAUDITLOG WHERE EntryHash IS NOT NULL ORDER BY AuditID`).all() as typeof rows; }
+  catch { return { ok: true, total: 0, verified: 0, firstBreakId: null, head: null }; }
+  let prev = "", verified = 0, firstBreak: number | null = null;
+  for (const r of rows) {
+    if (r.EntryHash !== _auditHash(prev, r) || (r.PrevHash ?? "") !== prev) { firstBreak = r.AuditID; break; }
+    prev = r.EntryHash; verified++;
+  }
+  return { ok: firstBreak === null, total: rows.length, verified, firstBreakId: firstBreak, head: rows.length ? prev : null };
+}
+
 export function addAudit(opts: {
   userId: number | null;
   action: string;
@@ -815,7 +868,10 @@ export function addAudit(opts: {
   tenantId?: number | null;
 }): void {
   const ts = new Date().toISOString();
-  getXidDb()
+  // Backfill the chain over any pre-existing rows BEFORE inserting the new one, so the head is current
+  // and the new row gets hashed exactly once (avoids double-hashing the just-inserted row).
+  try { if (!_chainReady) ensureAuditChain(); } catch { /* ignore */ }
+  const info = getXidDb()
     .prepare(
       `INSERT INTO XAUDITLOG (UserID, Action, ResourceType, ResourceKey, Detail, IP, Timestamp, TenantID)
        VALUES (?,?,?,?,?,?,?,?)`
@@ -830,6 +886,17 @@ export function addAudit(opts: {
       now(),
       opts.tenantId ?? null
     );
+  // extend the tamper-evident hash chain (read the row back so the hash matches stored content exactly)
+  try {
+    const db = getXidDb();
+    const row = db.prepare(`SELECT ${_AUDIT_COLS} FROM XAUDITLOG WHERE AuditID=?`).get(Number(info.lastInsertRowid)) as AuditRow | undefined;
+    if (row && _chainReady) {
+      const prev = _chainHead ?? "";
+      const h = _auditHash(prev, row);
+      db.prepare("UPDATE XAUDITLOG SET EntryHash=?, PrevHash=? WHERE AuditID=?").run(h, prev || null, row.AuditID);
+      _chainHead = h;
+    }
+  } catch { /* chaining must never break audit logging */ }
   // SIEM sink (JSONL) — stable keys, ISO 8601 timestamp (UTC).
   appendAuditFile({
     ts,

@@ -329,7 +329,8 @@ export const riskScoreCalculator = new AssetRiskScoreCalculator();
 // registered and unremediated risk of a tenant, minus credit for demonstrated assurance.
 // All component queries are light (per-tenant COUNT/SELECT) so the 30 s loop stays cheap.
 //
-//   ASSETS        + Σ latest ASSET.RiskScore (technical hygiene — now net of false positives and
+//   ASSETS        + average latest ASSET.RiskScore (per-asset technical hygiene — count-independent,
+//                   so a large estate doesn't inflate the headline number; net of false positives and
 //                   discounted for in-flight remediation, since ASSET.RiskScore reflects both)
 //   RISK REGISTER + per OPEN entry: residual weight (Crit 40 / High 25 / Med 10 / Low 3 /
 //                   VeryLow 1 / unrated 5) + 15 if untreated high-crit + 8 if review overdue
@@ -359,12 +360,12 @@ export function enterpriseRiskBreakdown(tenantId: number | null): EnterpriseRisk
   if (tenantId == null) return empty;
   const today = new Date().toISOString().slice(0, 10);
 
-  // — ASSETS: Σ latest ASSET.RiskScore —
+  // — ASSETS: average latest ASSET.RiskScore (count-independent hygiene, not a raw sum) —
   const xo = getDb("XORCISM");
   let assets = 0;
   try {
     assets = num((xo.prepare(
-      'SELECT COALESCE(SUM(ars.RiskScore), 0) AS s FROM "ASSETRISKSCORE" ars ' +
+      'SELECT COALESCE(AVG(ars.RiskScore), 0) AS s FROM "ASSETRISKSCORE" ars ' +
       'JOIN "ASSET" a ON a.AssetID = ars.AssetID WHERE a.TenantID = ? AND ars.AssetRiskScoreID = ' +
       '(SELECT MAX(x.AssetRiskScoreID) FROM "ASSETRISKSCORE" x WHERE x.AssetID = ars.AssetID)'
     ).get(tenantId) as { s: number }).s);

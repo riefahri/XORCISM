@@ -15,7 +15,7 @@
       "method": "GET",
       "path": "/api/admin/roles",
       "file": "admin.ts",
-      "line": 241,
+      "line": 258,
       "requiresAuth": false
     },
     {
@@ -24,7 +24,7 @@
       "method": "GET",
       "path": "/api/admin/roles",
       "file": "admin.ts",
-      "line": 247,
+      "line": 264,
       "requiresAuth": false
     },
     {
@@ -33,7 +33,7 @@
       "method": "GET",
       "path": "/api/admin/tenants",
       "file": "admin.ts",
-      "line": 262,
+      "line": 279,
       "requiresAuth": false
     },
     {
@@ -42,7 +42,25 @@
       "method": "GET",
       "path": "/api/admin/users",
       "file": "admin.ts",
-      "line": 326,
+      "line": 343,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/admin/landing-access",
+      "method": "GET",
+      "path": "/api/admin/landing-access",
+      "file": "admin.ts",
+      "line": 449,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/admin/landing-access",
+      "method": "GET",
+      "path": "/api/admin/landing-access",
+      "file": "admin.ts",
+      "line": 472,
       "requiresAuth": false
     },
     {
@@ -51,7 +69,7 @@
       "method": "GET",
       "path": "/api/admin/whoami",
       "file": "admin.ts",
-      "line": 430,
+      "line": 483,
       "requiresAuth": false
     },
     {
@@ -60,7 +78,7 @@
       "method": "GET",
       "path": "/api/admin/resources",
       "file": "admin.ts",
-      "line": 439,
+      "line": 492,
       "requiresAuth": false
     },
     {
@@ -69,7 +87,7 @@
       "method": "GET",
       "path": "/api/admin/tenants",
       "file": "admin.ts",
-      "line": 463,
+      "line": 517,
       "requiresAuth": false
     },
     {
@@ -78,7 +96,7 @@
       "method": "GET",
       "path": "/api/admin/backup",
       "file": "admin.ts",
-      "line": 478,
+      "line": 532,
       "requiresAuth": false
     },
     {
@@ -87,7 +105,7 @@
       "method": "GET",
       "path": "/api/admin/correlate-cve",
       "file": "admin.ts",
-      "line": 494,
+      "line": 548,
       "requiresAuth": false
     },
     {
@@ -96,7 +114,7 @@
       "method": "GET",
       "path": "/api/notifications",
       "file": "admin.ts",
-      "line": 514,
+      "line": 568,
       "requiresAuth": false
     },
     {
@@ -105,7 +123,7 @@
       "method": "GET",
       "path": "/api/admin/roles",
       "file": "admin.ts",
-      "line": 529,
+      "line": 583,
       "requiresAuth": false
     },
     {
@@ -114,7 +132,142 @@
       "method": "GET",
       "path": "/api/admin/users",
       "file": "admin.ts",
-      "line": 551,
+      "line": 605,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/threat-debt",
+      "method": "GET",
+      "path": "/api/threat-debt",
+      "file": "adversary-opportunity.ts",
+      "line": 107,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/threat-debt/snapshot",
+      "method": "GET",
+      "path": "/api/threat-debt/snapshot",
+      "file": "adversary-opportunity.ts",
+      "line": 111,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/agent-scan",
+      "method": "GET",
+      "path": "/api/agent-scan",
+      "file": "agents.ts",
+      "line": 161,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/agents-overview",
+      "method": "GET",
+      "path": "/api/agents-overview",
+      "file": "agents.ts",
+      "line": 173,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-detection",
+      "method": "GET",
+      "path": "/api/ai-detection",
+      "file": "ai-detection.ts",
+      "line": 36,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-guardrails",
+      "method": "GET",
+      "path": "/api/ai-guardrails",
+      "file": "ai-guardrails.ts",
+      "line": 97,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-redteam",
+      "method": "GET",
+      "path": "/api/ai-redteam",
+      "file": "ai-redteam.ts",
+      "line": 88,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-skills/skill",
+      "method": "GET",
+      "path": "/api/ai-skills/skill",
+      "file": "ai-skills.ts",
+      "line": 161,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-skills/handover",
+      "method": "GET",
+      "path": "/api/ai-skills/handover",
+      "file": "ai-skills.ts",
+      "line": 181,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-skills",
+      "method": "GET",
+      "path": "/api/ai-skills",
+      "file": "ai-skills.ts",
+      "line": 186,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-systems",
+      "method": "GET",
+      "path": "/api/ai-systems",
+      "file": "ai-systems.ts",
+      "line": 108,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-systems-seed-demo",
+      "method": "GET",
+      "path": "/api/ai-systems-seed-demo",
+      "file": "ai-systems.ts",
+      "line": 112,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-systems",
+      "method": "GET",
+      "path": "/api/ai-systems",
+      "file": "ai-systems.ts",
+      "line": 127,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-threats/advise",
+      "method": "GET",
+      "path": "/api/ai-threats/advise",
+      "file": "ai-threat-advisor.ts",
+      "line": 33,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai-threats",
+      "method": "GET",
+      "path": "/api/ai-threats",
+      "file": "ai-threat-advisor.ts",
+      "line": 45,
       "requiresAuth": false
     },
     {
@@ -231,7 +384,7 @@
       "method": "GET",
       "path": "/api/questionnaire-questions",
       "file": "api.ts",
-      "line": 176,
+      "line": 179,
       "requiresAuth": false
     },
     {
@@ -240,7 +393,7 @@
       "method": "GET",
       "path": "/api/question",
       "file": "api.ts",
-      "line": 183,
+      "line": 186,
       "requiresAuth": false
     },
     {
@@ -249,7 +402,7 @@
       "method": "GET",
       "path": "/api/questionnaire-import",
       "file": "api.ts",
-      "line": 187,
+      "line": 190,
       "requiresAuth": false
     },
     {
@@ -258,7 +411,7 @@
       "method": "GET",
       "path": "/api/answer-evidences",
       "file": "api.ts",
-      "line": 193,
+      "line": 196,
       "requiresAuth": false
     },
     {
@@ -267,7 +420,7 @@
       "method": "GET",
       "path": "/api/evidence",
       "file": "api.ts",
-      "line": 195,
+      "line": 198,
       "requiresAuth": false
     },
     {
@@ -276,7 +429,7 @@
       "method": "GET",
       "path": "/api/threat-ttps",
       "file": "api.ts",
-      "line": 204,
+      "line": 207,
       "requiresAuth": false
     },
     {
@@ -285,7 +438,7 @@
       "method": "GET",
       "path": "/api/notifications/read-all",
       "file": "api.ts",
-      "line": 211,
+      "line": 214,
       "requiresAuth": false
     },
     {
@@ -294,7 +447,7 @@
       "method": "GET",
       "path": "/api/notifications",
       "file": "api.ts",
-      "line": 213,
+      "line": 216,
       "requiresAuth": false
     },
     {
@@ -303,7 +456,7 @@
       "method": "GET",
       "path": "/api/alert/notify",
       "file": "api.ts",
-      "line": 216,
+      "line": 219,
       "requiresAuth": false
     },
     {
@@ -312,7 +465,7 @@
       "method": "GET",
       "path": "/api/osv/import",
       "file": "api.ts",
-      "line": 230,
+      "line": 233,
       "requiresAuth": false
     },
     {
@@ -321,7 +474,7 @@
       "method": "GET",
       "path": "/api/circl/import",
       "file": "api.ts",
-      "line": 241,
+      "line": 244,
       "requiresAuth": false
     },
     {
@@ -330,7 +483,7 @@
       "method": "GET",
       "path": "/api/threatagent-category",
       "file": "api.ts",
-      "line": 258,
+      "line": 261,
       "requiresAuth": false
     },
     {
@@ -339,7 +492,7 @@
       "method": "GET",
       "path": "/api/import",
       "file": "api.ts",
-      "line": 261,
+      "line": 264,
       "requiresAuth": false
     },
     {
@@ -348,7 +501,7 @@
       "method": "GET",
       "path": "/api/dashboard/risk-score",
       "file": "api.ts",
-      "line": 264,
+      "line": 267,
       "requiresAuth": false
     },
     {
@@ -357,7 +510,7 @@
       "method": "GET",
       "path": "/api/dashboard/vuln-by-year",
       "file": "api.ts",
-      "line": 266,
+      "line": 269,
       "requiresAuth": false
     },
     {
@@ -366,7 +519,7 @@
       "method": "GET",
       "path": "/api/dashboard/tag-cloud",
       "file": "api.ts",
-      "line": 268,
+      "line": 271,
       "requiresAuth": false
     },
     {
@@ -375,7 +528,7 @@
       "method": "GET",
       "path": "/api/dashboard/incidents-by-status",
       "file": "api.ts",
-      "line": 270,
+      "line": 273,
       "requiresAuth": false
     },
     {
@@ -384,7 +537,7 @@
       "method": "GET",
       "path": "/api/dashboard/asset-financial-value",
       "file": "api.ts",
-      "line": 273,
+      "line": 276,
       "requiresAuth": false
     },
     {
@@ -393,7 +546,7 @@
       "method": "GET",
       "path": "/api/dashboard/asset-risk-exposure",
       "file": "api.ts",
-      "line": 279,
+      "line": 282,
       "requiresAuth": false
     },
     {
@@ -402,7 +555,7 @@
       "method": "GET",
       "path": "/api/dashboard/incidents-by-asset",
       "file": "api.ts",
-      "line": 288,
+      "line": 291,
       "requiresAuth": false
     },
     {
@@ -411,7 +564,25 @@
       "method": "GET",
       "path": "/api/asset-cpes",
       "file": "api.ts",
-      "line": 294,
+      "line": 297,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/patch-management/false-positive",
+      "method": "GET",
+      "path": "/api/patch-management/false-positive",
+      "file": "api.ts",
+      "line": 303,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/patch-management/remediation-bulk",
+      "method": "GET",
+      "path": "/api/patch-management/remediation-bulk",
+      "file": "api.ts",
+      "line": 305,
       "requiresAuth": false
     },
     {
@@ -420,7 +591,7 @@
       "method": "GET",
       "path": "/api/asset-vulnerabilities",
       "file": "api.ts",
-      "line": 304,
+      "line": 315,
       "requiresAuth": false
     },
     {
@@ -429,7 +600,7 @@
       "method": "GET",
       "path": "/api/asset-tags",
       "file": "api.ts",
-      "line": 308,
+      "line": 319,
       "requiresAuth": false
     },
     {
@@ -438,7 +609,7 @@
       "method": "GET",
       "path": "/api/tags",
       "file": "api.ts",
-      "line": 309,
+      "line": 320,
       "requiresAuth": false
     },
     {
@@ -447,7 +618,7 @@
       "method": "GET",
       "path": "/api/vuln-tags",
       "file": "api.ts",
-      "line": 313,
+      "line": 324,
       "requiresAuth": false
     },
     {
@@ -456,7 +627,7 @@
       "method": "GET",
       "path": "/api/cpe-tags",
       "file": "api.ts",
-      "line": 317,
+      "line": 328,
       "requiresAuth": false
     },
     {
@@ -465,7 +636,7 @@
       "method": "GET",
       "path": "/api/cwe-tags",
       "file": "api.ts",
-      "line": 321,
+      "line": 332,
       "requiresAuth": false
     },
     {
@@ -474,7 +645,16 @@
       "method": "GET",
       "path": "/api/control-tags",
       "file": "api.ts",
-      "line": 325,
+      "line": 336,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/sigmarule-tags",
+      "method": "GET",
+      "path": "/api/sigmarule-tags",
+      "file": "api.ts",
+      "line": 340,
       "requiresAuth": false
     },
     {
@@ -483,7 +663,7 @@
       "method": "GET",
       "path": "/api/asset-email-harvest",
       "file": "api.ts",
-      "line": 328,
+      "line": 343,
       "requiresAuth": false
     },
     {
@@ -492,7 +672,7 @@
       "method": "GET",
       "path": "/api/default-organisation",
       "file": "api.ts",
-      "line": 334,
+      "line": 349,
       "requiresAuth": false
     },
     {
@@ -501,7 +681,7 @@
       "method": "GET",
       "path": "/api/asset-organisations",
       "file": "api.ts",
-      "line": 338,
+      "line": 353,
       "requiresAuth": false
     },
     {
@@ -510,7 +690,7 @@
       "method": "GET",
       "path": "/api/asset-persons",
       "file": "api.ts",
-      "line": 342,
+      "line": 357,
       "requiresAuth": false
     },
     {
@@ -519,7 +699,7 @@
       "method": "GET",
       "path": "/api/setup/status",
       "file": "api.ts",
-      "line": 344,
+      "line": 359,
       "requiresAuth": false
     },
     {
@@ -528,7 +708,7 @@
       "method": "GET",
       "path": "/api/setup/admin-asset",
       "file": "api.ts",
-      "line": 348,
+      "line": 363,
       "requiresAuth": false
     },
     {
@@ -537,7 +717,7 @@
       "method": "GET",
       "path": "/api/ovaldef-tags",
       "file": "api.ts",
-      "line": 352,
+      "line": 367,
       "requiresAuth": false
     },
     {
@@ -546,7 +726,7 @@
       "method": "GET",
       "path": "/api/incident-assets",
       "file": "api.ts",
-      "line": 356,
+      "line": 371,
       "requiresAuth": false
     },
     {
@@ -555,7 +735,7 @@
       "method": "GET",
       "path": "/api/alert-assets",
       "file": "api.ts",
-      "line": 360,
+      "line": 375,
       "requiresAuth": false
     },
     {
@@ -564,7 +744,7 @@
       "method": "GET",
       "path": "/api/ai/triage-vuln",
       "file": "api.ts",
-      "line": 362,
+      "line": 377,
       "requiresAuth": false
     },
     {
@@ -573,7 +753,7 @@
       "method": "GET",
       "path": "/api/ai/enrich-report",
       "file": "api.ts",
-      "line": 364,
+      "line": 379,
       "requiresAuth": false
     },
     {
@@ -582,7 +762,7 @@
       "method": "GET",
       "path": "/api/ai/brief",
       "file": "api.ts",
-      "line": 366,
+      "line": 381,
       "requiresAuth": false
     },
     {
@@ -591,7 +771,7 @@
       "method": "GET",
       "path": "/api/assets-with-tags",
       "file": "api.ts",
-      "line": 368,
+      "line": 383,
       "requiresAuth": false
     },
     {
@@ -600,7 +780,7 @@
       "method": "GET",
       "path": "/api/threat-for-asset/bulk",
       "file": "api.ts",
-      "line": 370,
+      "line": 385,
       "requiresAuth": false
     },
     {
@@ -609,7 +789,7 @@
       "method": "GET",
       "path": "/api/threat-assets",
       "file": "api.ts",
-      "line": 374,
+      "line": 389,
       "requiresAuth": false
     },
     {
@@ -618,7 +798,7 @@
       "method": "GET",
       "path": "/api/incident-threatactor",
       "file": "api.ts",
-      "line": 378,
+      "line": 393,
       "requiresAuth": false
     },
     {
@@ -627,7 +807,7 @@
       "method": "GET",
       "path": "/api/audit-assets",
       "file": "api.ts",
-      "line": 383,
+      "line": 398,
       "requiresAuth": false
     },
     {
@@ -636,7 +816,7 @@
       "method": "GET",
       "path": "/api/asset-audits",
       "file": "api.ts",
-      "line": 388,
+      "line": 403,
       "requiresAuth": false
     },
     {
@@ -645,7 +825,7 @@
       "method": "GET",
       "path": "/api/asset-ovals",
       "file": "api.ts",
-      "line": 399,
+      "line": 414,
       "requiresAuth": false
     },
     {
@@ -654,7 +834,7 @@
       "method": "GET",
       "path": "/api/asset-ovals",
       "file": "api.ts",
-      "line": 401,
+      "line": 416,
       "requiresAuth": false
     },
     {
@@ -663,7 +843,7 @@
       "method": "GET",
       "path": "/api/threatmodel-assets",
       "file": "api.ts",
-      "line": 411,
+      "line": 426,
       "requiresAuth": false
     },
     {
@@ -672,7 +852,7 @@
       "method": "GET",
       "path": "/api/threatmodel-threats",
       "file": "api.ts",
-      "line": 417,
+      "line": 432,
       "requiresAuth": false
     },
     {
@@ -681,7 +861,7 @@
       "method": "GET",
       "path": "/api/threat-controls",
       "file": "api.ts",
-      "line": 421,
+      "line": 436,
       "requiresAuth": false
     },
     {
@@ -690,7 +870,7 @@
       "method": "GET",
       "path": "/api/insert",
       "file": "api.ts",
-      "line": 423,
+      "line": 438,
       "requiresAuth": false
     },
     {
@@ -699,7 +879,7 @@
       "method": "GET",
       "path": "/api/update",
       "file": "api.ts",
-      "line": 425,
+      "line": 440,
       "requiresAuth": false
     },
     {
@@ -708,7 +888,7 @@
       "method": "GET",
       "path": "/api/delete",
       "file": "api.ts",
-      "line": 427,
+      "line": 442,
       "requiresAuth": false
     },
     {
@@ -717,7 +897,7 @@
       "method": "GET",
       "path": "/api/bia/audits",
       "file": "api.ts",
-      "line": 433,
+      "line": 448,
       "requiresAuth": false
     },
     {
@@ -726,7 +906,7 @@
       "method": "GET",
       "path": "/api/bia/audits",
       "file": "api.ts",
-      "line": 435,
+      "line": 450,
       "requiresAuth": false
     },
     {
@@ -735,7 +915,7 @@
       "method": "GET",
       "path": "/api/bia/entries",
       "file": "api.ts",
-      "line": 446,
+      "line": 461,
       "requiresAuth": false
     },
     {
@@ -744,79 +924,16 @@
       "method": "GET",
       "path": "/api/bia/asset-names",
       "file": "api.ts",
-      "line": 456,
+      "line": 471,
       "requiresAuth": false
     },
     {
       "kind": "http-route",
-      "id": "route:GET:/api/prefs/table-favorites",
+      "id": "route:GET:/api/bia/person-names",
       "method": "GET",
-      "path": "/api/prefs/table-favorites",
-      "file": "app.ts",
-      "line": 3249,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/prefs/table-favorites",
-      "method": "GET",
-      "path": "/api/prefs/table-favorites",
-      "file": "app.ts",
-      "line": 3259,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/auth/me",
-      "method": "GET",
-      "path": "/api/auth/me",
-      "file": "app.ts",
-      "line": 3349,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/ai/suggest-answer",
-      "method": "GET",
-      "path": "/api/ai/suggest-answer",
-      "file": "app.ts",
-      "line": 6227,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/agent-scan",
-      "method": "GET",
-      "path": "/api/agent-scan",
-      "file": "app.ts",
-      "line": 6328,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/threatreport/parse",
-      "method": "GET",
-      "path": "/api/threatreport/parse",
-      "file": "app.ts",
-      "line": 7181,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/sigma/convert",
-      "method": "GET",
-      "path": "/api/sigma/convert",
-      "file": "app.ts",
-      "line": 7238,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/auth/me",
-      "method": "GET",
-      "path": "/api/auth/me",
-      "file": "app.ts",
-      "line": 9377,
+      "path": "/api/bia/person-names",
+      "file": "api.ts",
+      "line": 472,
       "requiresAuth": false
     },
     {
@@ -843,7 +960,7 @@
       "method": "GET",
       "path": "/api/asset-management",
       "file": "asset-management.ts",
-      "line": 69,
+      "line": 78,
       "requiresAuth": false
     },
     {
@@ -852,7 +969,7 @@
       "method": "GET",
       "path": "/api/asset-management/asset",
       "file": "asset-management.ts",
-      "line": 160,
+      "line": 163,
       "requiresAuth": false
     },
     {
@@ -861,7 +978,25 @@
       "method": "GET",
       "path": "/api/cve-match/run",
       "file": "asset-management.ts",
-      "line": 175,
+      "line": 178,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cve-match/run",
+      "method": "GET",
+      "path": "/api/cve-match/run",
+      "file": "asset-management.ts",
+      "line": 197,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/asset-management/import",
+      "method": "GET",
+      "path": "/api/asset-management/import",
+      "file": "asset-management.ts",
+      "line": 354,
       "requiresAuth": false
     },
     {
@@ -870,7 +1005,7 @@
       "method": "GET",
       "path": "/api/asset-monitoring",
       "file": "asset-monitoring.ts",
-      "line": 58,
+      "line": 61,
       "requiresAuth": false
     },
     {
@@ -884,11 +1019,20 @@
     },
     {
       "kind": "http-route",
+      "id": "route:GET:/api/asset-monitoring/asset-targets",
+      "method": "GET",
+      "path": "/api/asset-monitoring/asset-targets",
+      "file": "asset-monitoring.ts",
+      "line": 134,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
       "id": "route:GET:/api/asset-monitoring/activate",
       "method": "GET",
       "path": "/api/asset-monitoring/activate",
       "file": "asset-monitoring.ts",
-      "line": 165,
+      "line": 216,
       "requiresAuth": false
     },
     {
@@ -897,7 +1041,7 @@
       "method": "GET",
       "path": "/api/asset-monitoring/check",
       "file": "asset-monitoring.ts",
-      "line": 188,
+      "line": 239,
       "requiresAuth": false
     },
     {
@@ -906,7 +1050,7 @@
       "method": "GET",
       "path": "/api/asset-monitoring/run-checks",
       "file": "asset-monitoring.ts",
-      "line": 198,
+      "line": 249,
       "requiresAuth": false
     },
     {
@@ -915,7 +1059,7 @@
       "method": "GET",
       "path": "/api/assurance",
       "file": "assurance.ts",
-      "line": 30,
+      "line": 34,
       "requiresAuth": false
     },
     {
@@ -933,7 +1077,52 @@
       "method": "GET",
       "path": "/api/asset-graph",
       "file": "attack-surface.ts",
-      "line": 54,
+      "line": 61,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/attack-tree",
+      "method": "GET",
+      "path": "/api/attack-tree",
+      "file": "attack-tree.ts",
+      "line": 84,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/attack-tree/node/update",
+      "method": "GET",
+      "path": "/api/attack-tree/node/update",
+      "file": "attack-tree.ts",
+      "line": 99,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/attack-tree/node/delete",
+      "method": "GET",
+      "path": "/api/attack-tree/node/delete",
+      "file": "attack-tree.ts",
+      "line": 103,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/attack-tree",
+      "method": "GET",
+      "path": "/api/attack-tree",
+      "file": "attack-tree.ts",
+      "line": 115,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/attack-tree/node",
+      "method": "GET",
+      "path": "/api/attack-tree/node",
+      "file": "attack-tree.ts",
+      "line": 123,
       "requiresAuth": false
     },
     {
@@ -974,11 +1163,137 @@
     },
     {
       "kind": "http-route",
+      "id": "route:GET:/api/ai/board-narrative",
+      "method": "GET",
+      "path": "/api/ai/board-narrative",
+      "file": "board-report.ts",
+      "line": 142,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/board-report",
+      "method": "GET",
+      "path": "/api/board-report",
+      "file": "board-report.ts",
+      "line": 155,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/bug-bounty",
+      "method": "GET",
+      "path": "/api/bug-bounty",
+      "file": "bug-bounty.ts",
+      "line": 45,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/bug-bounty/program",
+      "method": "GET",
+      "path": "/api/bug-bounty/program",
+      "file": "bug-bounty.ts",
+      "line": 92,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cert-ops",
+      "method": "GET",
+      "path": "/api/cert-ops",
+      "file": "cert-ops.ts",
+      "line": 11,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cert-ops/case",
+      "method": "GET",
+      "path": "/api/cert-ops/case",
+      "file": "cert-ops.ts",
+      "line": 79,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cert-ops/activity",
+      "method": "GET",
+      "path": "/api/cert-ops/activity",
+      "file": "cert-ops.ts",
+      "line": 84,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/chatops/command",
+      "method": "GET",
+      "path": "/api/chatops/command",
+      "file": "chatops.ts",
+      "line": 34,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cloud-security",
+      "method": "GET",
+      "path": "/api/cloud-security",
+      "file": "cloud-security.ts",
+      "line": 31,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/compliance-journeys",
+      "method": "GET",
+      "path": "/api/compliance-journeys",
+      "file": "compliance-journeys.ts",
+      "line": 100,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/compliance-journeys/item/",
+      "method": "GET",
+      "path": "/api/compliance-journeys/item/",
+      "file": "compliance-journeys.ts",
+      "line": 133,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/compliance-journeys/item/",
+      "method": "GET",
+      "path": "/api/compliance-journeys/item/",
+      "file": "compliance-journeys.ts",
+      "line": 151,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/compliance-journeys/step/",
+      "method": "GET",
+      "path": "/api/compliance-journeys/step/",
+      "file": "compliance-journeys.ts",
+      "line": 161,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/compliance-journeys",
+      "method": "GET",
+      "path": "/api/compliance-journeys",
+      "file": "compliance-journeys.ts",
+      "line": 168,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
       "id": "route:GET:/api/compliance-management",
       "method": "GET",
       "path": "/api/compliance-management",
       "file": "compliance-management.ts",
-      "line": 47,
+      "line": 54,
       "requiresAuth": false
     },
     {
@@ -987,7 +1302,7 @@
       "method": "GET",
       "path": "/api/compliance-management/audit",
       "file": "compliance-management.ts",
-      "line": 122,
+      "line": 231,
       "requiresAuth": false
     },
     {
@@ -996,7 +1311,7 @@
       "method": "GET",
       "path": "/api/configuration-management",
       "file": "configuration-management.ts",
-      "line": 55,
+      "line": 60,
       "requiresAuth": false
     },
     {
@@ -1005,7 +1320,7 @@
       "method": "GET",
       "path": "/api/configuration/cis-benchmarks",
       "file": "configuration-management.ts",
-      "line": 107,
+      "line": 106,
       "requiresAuth": false
     },
     {
@@ -1014,7 +1329,7 @@
       "method": "GET",
       "path": "/api/configuration/scan-targets",
       "file": "configuration-management.ts",
-      "line": 134,
+      "line": 133,
       "requiresAuth": false
     },
     {
@@ -1023,7 +1338,7 @@
       "method": "GET",
       "path": "/api/configuration/schedule-scan",
       "file": "configuration-management.ts",
-      "line": 183,
+      "line": 182,
       "requiresAuth": false
     },
     {
@@ -1032,7 +1347,25 @@
       "method": "GET",
       "path": "/api/agent-scan",
       "file": "configuration-management.ts",
-      "line": 192,
+      "line": 191,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/configuration/fleet-compliance",
+      "method": "GET",
+      "path": "/api/configuration/fleet-compliance",
+      "file": "configuration-management.ts",
+      "line": 215,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/configuration/deploy-compliance",
+      "method": "GET",
+      "path": "/api/configuration/deploy-compliance",
+      "file": "configuration-management.ts",
+      "line": 249,
       "requiresAuth": false
     },
     {
@@ -1059,7 +1392,7 @@
       "method": "GET",
       "path": "/api/engagements",
       "file": "connectors.ts",
-      "line": 62,
+      "line": 63,
       "requiresAuth": false
     },
     {
@@ -1068,25 +1401,7 @@
       "method": "GET",
       "path": "/api/connectors",
       "file": "connectors.ts",
-      "line": 83,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/schedules",
-      "method": "GET",
-      "path": "/api/schedules",
-      "file": "connectors.ts",
-      "line": 227,
-      "requiresAuth": false
-    },
-    {
-      "kind": "http-route",
-      "id": "route:GET:/api/connectors/run",
-      "method": "GET",
-      "path": "/api/connectors/run",
-      "file": "connectors.ts",
-      "line": 231,
+      "line": 87,
       "requiresAuth": false
     },
     {
@@ -1100,11 +1415,29 @@
     },
     {
       "kind": "http-route",
+      "id": "route:GET:/api/connectors/run",
+      "method": "GET",
+      "path": "/api/connectors/run",
+      "file": "connectors.ts",
+      "line": 253,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/schedules",
+      "method": "GET",
+      "path": "/api/schedules",
+      "file": "connectors.ts",
+      "line": 271,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
       "id": "route:GET:/api/engagements",
       "method": "GET",
       "path": "/api/engagements",
       "file": "connectors.ts",
-      "line": 306,
+      "line": 328,
       "requiresAuth": false
     },
     {
@@ -1113,7 +1446,7 @@
       "method": "GET",
       "path": "/api/workers",
       "file": "connectors.ts",
-      "line": 319,
+      "line": 341,
       "requiresAuth": false
     },
     {
@@ -1122,7 +1455,7 @@
       "method": "GET",
       "path": "/api/workers",
       "file": "connectors.ts",
-      "line": 358,
+      "line": 380,
       "requiresAuth": false
     },
     {
@@ -1131,7 +1464,7 @@
       "method": "GET",
       "path": "/api/ocil/questionnaires",
       "file": "connectors.ts",
-      "line": 455,
+      "line": 507,
       "requiresAuth": false
     },
     {
@@ -1140,7 +1473,7 @@
       "method": "GET",
       "path": "/api/ocil/export",
       "file": "connectors.ts",
-      "line": 469,
+      "line": 521,
       "requiresAuth": false
     },
     {
@@ -1149,7 +1482,7 @@
       "method": "GET",
       "path": "/api/ocil/validate",
       "file": "connectors.ts",
-      "line": 483,
+      "line": 535,
       "requiresAuth": false
     },
     {
@@ -1158,7 +1491,7 @@
       "method": "GET",
       "path": "/api/ocil/import",
       "file": "connectors.ts",
-      "line": 494,
+      "line": 546,
       "requiresAuth": false
     },
     {
@@ -1167,7 +1500,7 @@
       "method": "GET",
       "path": "/api/pentest/playbooks/import",
       "file": "content.ts",
-      "line": 26,
+      "line": 30,
       "requiresAuth": false
     },
     {
@@ -1176,7 +1509,7 @@
       "method": "GET",
       "path": "/api/pentest/playbooks",
       "file": "content.ts",
-      "line": 33,
+      "line": 37,
       "requiresAuth": false
     },
     {
@@ -1185,7 +1518,7 @@
       "method": "GET",
       "path": "/api/control-management",
       "file": "control-management.ts",
-      "line": 192,
+      "line": 194,
       "requiresAuth": false
     },
     {
@@ -1194,7 +1527,7 @@
       "method": "GET",
       "path": "/api/control-management/implementation",
       "file": "control-management.ts",
-      "line": 205,
+      "line": 207,
       "requiresAuth": false
     },
     {
@@ -1203,7 +1536,7 @@
       "method": "GET",
       "path": "/api/control-management/implementation",
       "file": "control-management.ts",
-      "line": 293,
+      "line": 295,
       "requiresAuth": false
     },
     {
@@ -1212,7 +1545,7 @@
       "method": "GET",
       "path": "/api/control-management/poam",
       "file": "control-management.ts",
-      "line": 330,
+      "line": 332,
       "requiresAuth": false
     },
     {
@@ -1221,7 +1554,7 @@
       "method": "GET",
       "path": "/api/control-management/poam/update",
       "file": "control-management.ts",
-      "line": 338,
+      "line": 340,
       "requiresAuth": false
     },
     {
@@ -1230,7 +1563,7 @@
       "method": "GET",
       "path": "/api/crisis-management/launch",
       "file": "crisis-management.ts",
-      "line": 71,
+      "line": 75,
       "requiresAuth": false
     },
     {
@@ -1239,7 +1572,133 @@
       "method": "GET",
       "path": "/api/crisis-management",
       "file": "crisis-management.ts",
+      "line": 84,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc-orchestrator",
+      "method": "GET",
+      "path": "/api/croc-orchestrator",
+      "file": "croc-orchestrator.ts",
+      "line": 77,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc-orchestrator/run",
+      "method": "GET",
+      "path": "/api/croc-orchestrator/run",
+      "file": "croc-orchestrator.ts",
+      "line": 85,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc-orchestrator/seed-demo",
+      "method": "GET",
+      "path": "/api/croc-orchestrator/seed-demo",
+      "file": "croc-orchestrator.ts",
+      "line": 89,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc/reason",
+      "method": "GET",
+      "path": "/api/croc/reason",
+      "file": "croc.ts",
+      "line": 151,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc/policies",
+      "method": "GET",
+      "path": "/api/croc/policies",
+      "file": "croc.ts",
+      "line": 169,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc/ticketing",
+      "method": "GET",
+      "path": "/api/croc/ticketing",
+      "file": "croc.ts",
+      "line": 204,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc/iam",
+      "method": "GET",
+      "path": "/api/croc/iam",
+      "file": "croc.ts",
+      "line": 236,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc/soar",
+      "method": "GET",
+      "path": "/api/croc/soar",
+      "file": "croc.ts",
+      "line": 266,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/auth/me",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "file": "croc.ts",
+      "line": 274,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/croc",
+      "method": "GET",
+      "path": "/api/croc",
+      "file": "croc.ts",
+      "line": 276,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ctem",
+      "method": "GET",
+      "path": "/api/ctem",
+      "file": "ctem.ts",
+      "line": 19,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ctem/discover",
+      "method": "GET",
+      "path": "/api/ctem/discover",
+      "file": "ctem.ts",
       "line": 80,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cti-expert",
+      "method": "GET",
+      "path": "/api/cti-expert",
+      "file": "cti-expert.ts",
+      "line": 112,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cti-expert/investigate",
+      "method": "GET",
+      "path": "/api/cti-expert/investigate",
+      "file": "cti-expert.ts",
+      "line": 134,
       "requiresAuth": false
     },
     {
@@ -1248,7 +1707,7 @@
       "method": "GET",
       "path": "/api/cti/ticket",
       "file": "cti-watch.ts",
-      "line": 31,
+      "line": 34,
       "requiresAuth": false
     },
     {
@@ -1257,7 +1716,25 @@
       "method": "GET",
       "path": "/api/cti/impact",
       "file": "cti-watch.ts",
-      "line": 40,
+      "line": 43,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cyber-risk-hunting/escalate",
+      "method": "GET",
+      "path": "/api/cyber-risk-hunting/escalate",
+      "file": "cyber-risk-hunting.ts",
+      "line": 88,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/cyber-risk-hunting",
+      "method": "GET",
+      "path": "/api/cyber-risk-hunting",
+      "file": "cyber-risk-hunting.ts",
+      "line": 100,
       "requiresAuth": false
     },
     {
@@ -1302,7 +1779,52 @@
       "method": "GET",
       "path": "/api/dashboard/kpis",
       "file": "dashboard.ts",
-      "line": 606,
+      "line": 609,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/dashboard/threat-level",
+      "method": "GET",
+      "path": "/api/dashboard/threat-level",
+      "file": "dashboard.ts",
+      "line": 695,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/devsecops",
+      "method": "GET",
+      "path": "/api/devsecops",
+      "file": "devsecops.ts",
+      "line": 17,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/devsecops/gate",
+      "method": "GET",
+      "path": "/api/devsecops/gate",
+      "file": "devsecops.ts",
+      "line": 76,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/devsecops/app",
+      "method": "GET",
+      "path": "/api/devsecops/app",
+      "file": "devsecops.ts",
+      "line": 133,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/devsecops/scan",
+      "method": "GET",
+      "path": "/api/devsecops/scan",
+      "file": "devsecops.ts",
+      "line": 149,
       "requiresAuth": false
     },
     {
@@ -1311,7 +1833,7 @@
       "method": "GET",
       "path": "/api/drift",
       "file": "drift.ts",
-      "line": 45,
+      "line": 48,
       "requiresAuth": false
     },
     {
@@ -1320,7 +1842,25 @@
       "method": "GET",
       "path": "/api/drift/snapshot",
       "file": "drift.ts",
-      "line": 52,
+      "line": 56,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/easm",
+      "method": "GET",
+      "path": "/api/easm",
+      "file": "easm.ts",
+      "line": 64,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/easm/snapshot",
+      "method": "GET",
+      "path": "/api/easm/snapshot",
+      "file": "easm.ts",
+      "line": 117,
       "requiresAuth": false
     },
     {
@@ -1343,6 +1883,42 @@
     },
     {
       "kind": "http-route",
+      "id": "route:GET:/api/endpoint-query/ask",
+      "method": "GET",
+      "path": "/api/endpoint-query/ask",
+      "file": "endpoint-query.ts",
+      "line": 96,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/endpoint-query",
+      "method": "GET",
+      "path": "/api/endpoint-query",
+      "file": "endpoint-query.ts",
+      "line": 108,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/essential-eight/assess",
+      "method": "GET",
+      "path": "/api/essential-eight/assess",
+      "file": "essential-eight.ts",
+      "line": 84,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/essential-eight",
+      "method": "GET",
+      "path": "/api/essential-eight",
+      "file": "essential-eight.ts",
+      "line": 103,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
       "id": "route:GET:/api/exploitdb/info",
       "method": "GET",
       "path": "/api/exploitdb/info",
@@ -1356,7 +1932,7 @@
       "method": "GET",
       "path": "/api/ai/exposure-brief",
       "file": "exposure.ts",
-      "line": 65,
+      "line": 99,
       "requiresAuth": false
     },
     {
@@ -1365,7 +1941,7 @@
       "method": "GET",
       "path": "/api/fair-mam/assess",
       "file": "fair-mam.ts",
-      "line": 111,
+      "line": 116,
       "requiresAuth": false
     },
     {
@@ -1374,7 +1950,34 @@
       "method": "GET",
       "path": "/api/fair-mam",
       "file": "fair-mam.ts",
-      "line": 139,
+      "line": 144,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/fair-tef",
+      "method": "GET",
+      "path": "/api/fair-tef",
+      "file": "fair-tef.ts",
+      "line": 86,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/fair-tef/compute",
+      "method": "GET",
+      "path": "/api/fair-tef/compute",
+      "file": "fair-tef.ts",
+      "line": 96,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/fair-tef/assess",
+      "method": "GET",
+      "path": "/api/fair-tef/assess",
+      "file": "fair-tef.ts",
+      "line": 100,
       "requiresAuth": false
     },
     {
@@ -1384,6 +1987,33 @@
       "path": "/api/auth/forgot",
       "file": "forgot.ts",
       "line": 13,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/frameworks",
+      "method": "GET",
+      "path": "/api/frameworks",
+      "file": "frameworks.ts",
+      "line": 82,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/frameworks",
+      "method": "GET",
+      "path": "/api/frameworks",
+      "file": "frameworks.ts",
+      "line": 111,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/governance",
+      "method": "GET",
+      "path": "/api/governance",
+      "file": "governance.ts",
+      "line": 18,
       "requiresAuth": false
     },
     {
@@ -1424,11 +2054,38 @@
     },
     {
       "kind": "http-route",
+      "id": "route:GET:/api/hunting/tahiti",
+      "method": "GET",
+      "path": "/api/hunting/tahiti",
+      "file": "hunting.ts",
+      "line": 171,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
       "id": "route:GET:/api/identities",
       "method": "GET",
       "path": "/api/identities",
       "file": "identities.ts",
-      "line": 65,
+      "line": 75,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/identity-governance/campaign",
+      "method": "GET",
+      "path": "/api/identity-governance/campaign",
+      "file": "identity-governance.ts",
+      "line": 176,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/identity-governance",
+      "method": "GET",
+      "path": "/api/identity-governance",
+      "file": "identity-governance.ts",
+      "line": 189,
       "requiresAuth": false
     },
     {
@@ -1437,7 +2094,70 @@
       "method": "GET",
       "path": "/api/incident-management",
       "file": "incident-management.ts",
-      "line": 54,
+      "line": 59,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/insurance-readiness/policy",
+      "method": "GET",
+      "path": "/api/insurance-readiness/policy",
+      "file": "insurance-readiness.ts",
+      "line": 120,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/insurance-readiness",
+      "method": "GET",
+      "path": "/api/insurance-readiness",
+      "file": "insurance-readiness.ts",
+      "line": 127,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/investment-advisor/simulate",
+      "method": "GET",
+      "path": "/api/investment-advisor/simulate",
+      "file": "investment-advisor.ts",
+      "line": 73,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/investment-advisor/advise",
+      "method": "GET",
+      "path": "/api/investment-advisor/advise",
+      "file": "investment-advisor.ts",
+      "line": 81,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/investment-advisor",
+      "method": "GET",
+      "path": "/api/investment-advisor",
+      "file": "investment-advisor.ts",
+      "line": 89,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/itdr/scan",
+      "method": "GET",
+      "path": "/api/itdr/scan",
+      "file": "itdr.ts",
+      "line": 116,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/itdr",
+      "method": "GET",
+      "path": "/api/itdr",
+      "file": "itdr.ts",
+      "line": 170,
       "requiresAuth": false
     },
     {
@@ -1446,7 +2166,7 @@
       "method": "GET",
       "path": "/api/kill-chain/groups",
       "file": "kill-chain.ts",
-      "line": 32,
+      "line": 34,
       "requiresAuth": false
     },
     {
@@ -1455,7 +2175,34 @@
       "method": "GET",
       "path": "/api/kill-chain",
       "file": "kill-chain.ts",
-      "line": 39,
+      "line": 41,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/knowledge-graph/query",
+      "method": "GET",
+      "path": "/api/knowledge-graph/query",
+      "file": "knowledge-graph.ts",
+      "line": 93,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/landing/config",
+      "method": "GET",
+      "path": "/api/landing/config",
+      "file": "landing.ts",
+      "line": 89,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/llm-pentest",
+      "method": "GET",
+      "path": "/api/llm-pentest",
+      "file": "llm-pentest.ts",
+      "line": 137,
       "requiresAuth": false
     },
     {
@@ -1464,7 +2211,7 @@
       "method": "GET",
       "path": "/api/auth/oidc/status",
       "file": "login.ts",
-      "line": 80,
+      "line": 92,
       "requiresAuth": false
     },
     {
@@ -1473,7 +2220,7 @@
       "method": "GET",
       "path": "/api/auth/me",
       "file": "login.ts",
-      "line": 87,
+      "line": 99,
       "requiresAuth": false
     },
     {
@@ -1482,7 +2229,16 @@
       "method": "GET",
       "path": "/api/auth/login",
       "file": "login.ts",
-      "line": 102,
+      "line": 114,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/auth/totp/verify",
+      "method": "GET",
+      "path": "/api/auth/totp/verify",
+      "file": "login.ts",
+      "line": 141,
       "requiresAuth": false
     },
     {
@@ -1491,7 +2247,7 @@
       "method": "GET",
       "path": "/api/auth/pin-login",
       "file": "login.ts",
-      "line": 153,
+      "line": 195,
       "requiresAuth": false
     },
     {
@@ -1500,7 +2256,52 @@
       "method": "GET",
       "path": "/api/auth/change-password",
       "file": "login.ts",
-      "line": 172,
+      "line": 214,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/malware-scan",
+      "method": "GET",
+      "path": "/api/malware-scan",
+      "file": "malware-scan.ts",
+      "line": 72,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/malware-scan/run",
+      "method": "GET",
+      "path": "/api/malware-scan/run",
+      "file": "malware-scan.ts",
+      "line": 112,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/malware-scan/document/",
+      "method": "GET",
+      "path": "/api/malware-scan/document/",
+      "file": "malware-scan.ts",
+      "line": 121,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/mssp",
+      "method": "GET",
+      "path": "/api/mssp",
+      "file": "mssp.ts",
+      "line": 52,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/network-sessions",
+      "method": "GET",
+      "path": "/api/network-sessions",
+      "file": "network-sessions.ts",
+      "line": 11,
       "requiresAuth": false
     },
     {
@@ -1509,7 +2310,7 @@
       "method": "GET",
       "path": "/api/nist-800-30/dashboard",
       "file": "nist-800-30.ts",
-      "line": 80,
+      "line": 82,
       "requiresAuth": false
     },
     {
@@ -1518,7 +2319,25 @@
       "method": "GET",
       "path": "/api/nist-800-30/assessment",
       "file": "nist-800-30.ts",
-      "line": 151,
+      "line": 149,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/org-chart",
+      "method": "GET",
+      "path": "/api/org-chart",
+      "file": "org-chart.ts",
+      "line": 81,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/osint-graph",
+      "method": "GET",
+      "path": "/api/osint-graph",
+      "file": "osint-graph.ts",
+      "line": 94,
       "requiresAuth": false
     },
     {
@@ -1527,7 +2346,7 @@
       "method": "GET",
       "path": "/api/ot-security",
       "file": "ot-security.ts",
-      "line": 72,
+      "line": 75,
       "requiresAuth": false
     },
     {
@@ -1536,7 +2355,61 @@
       "method": "GET",
       "path": "/api/ot-security/assessment",
       "file": "ot-security.ts",
-      "line": 153,
+      "line": 154,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/oval/test-search",
+      "method": "GET",
+      "path": "/api/oval/test-search",
+      "file": "oval-editor.ts",
+      "line": 130,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/oval/def-search",
+      "method": "GET",
+      "path": "/api/oval/def-search",
+      "file": "oval-editor.ts",
+      "line": 149,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/oval/preview",
+      "method": "GET",
+      "path": "/api/oval/preview",
+      "file": "oval-editor.ts",
+      "line": 210,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/oval/definition",
+      "method": "GET",
+      "path": "/api/oval/definition",
+      "file": "oval-editor.ts",
+      "line": 222,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/oval/meta",
+      "method": "GET",
+      "path": "/api/oval/meta",
+      "file": "oval-editor.ts",
+      "line": 264,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/oval/def-search",
+      "method": "GET",
+      "path": "/api/oval/def-search",
+      "file": "oval-editor.ts",
+      "line": 293,
       "requiresAuth": false
     },
     {
@@ -1545,7 +2418,7 @@
       "method": "GET",
       "path": "/api/oval-results",
       "file": "oval-scan.ts",
-      "line": 42,
+      "line": 45,
       "requiresAuth": false
     },
     {
@@ -1608,7 +2481,7 @@
       "method": "GET",
       "path": "/api/patch-management",
       "file": "patch-management.ts",
-      "line": 77,
+      "line": 92,
       "requiresAuth": false
     },
     {
@@ -1617,7 +2490,7 @@
       "method": "GET",
       "path": "/api/patch-management/status",
       "file": "patch-management.ts",
-      "line": 126,
+      "line": 150,
       "requiresAuth": false
     },
     {
@@ -1626,7 +2499,7 @@
       "method": "GET",
       "path": "/api/patch-management/remediation",
       "file": "patch-management.ts",
-      "line": 175,
+      "line": 200,
       "requiresAuth": false
     },
     {
@@ -1653,7 +2526,7 @@
       "method": "GET",
       "path": "/api/pentest/playbooks/export",
       "file": "pentest-page.ts",
-      "line": 221,
+      "line": 260,
       "requiresAuth": false
     },
     {
@@ -1662,7 +2535,7 @@
       "method": "GET",
       "path": "/api/pentest/playbooks/import",
       "file": "pentest-page.ts",
-      "line": 231,
+      "line": 270,
       "requiresAuth": false
     },
     {
@@ -1671,7 +2544,7 @@
       "method": "GET",
       "path": "/api/pentest/engagements",
       "file": "pentest-page.ts",
-      "line": 340,
+      "line": 379,
       "requiresAuth": false
     },
     {
@@ -1680,7 +2553,7 @@
       "method": "GET",
       "path": "/api/pir",
       "file": "pir.ts",
-      "line": 47,
+      "line": 50,
       "requiresAuth": false
     },
     {
@@ -1689,7 +2562,7 @@
       "method": "GET",
       "path": "/api/policy-management",
       "file": "policy-management.ts",
-      "line": 71,
+      "line": 218,
       "requiresAuth": false
     },
     {
@@ -1698,7 +2571,7 @@
       "method": "GET",
       "path": "/api/pqcmm/assess",
       "file": "pqcmm.ts",
-      "line": 66,
+      "line": 69,
       "requiresAuth": false
     },
     {
@@ -1707,7 +2580,7 @@
       "method": "GET",
       "path": "/api/pqcmm",
       "file": "pqcmm.ts",
-      "line": 77,
+      "line": 80,
       "requiresAuth": false
     },
     {
@@ -1721,11 +2594,110 @@
     },
     {
       "kind": "http-route",
+      "id": "route:GET:/api/privacy/processing",
+      "method": "GET",
+      "path": "/api/privacy/processing",
+      "file": "privacy.ts",
+      "line": 95,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/privacy/dsar",
+      "method": "GET",
+      "path": "/api/privacy/dsar",
+      "file": "privacy.ts",
+      "line": 116,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/privacy/breach",
+      "method": "GET",
+      "path": "/api/privacy/breach",
+      "file": "privacy.ts",
+      "line": 136,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/privacy",
+      "method": "GET",
+      "path": "/api/privacy",
+      "file": "privacy.ts",
+      "line": 145,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
       "id": "route:GET:/api/purple/sigma-suggest",
       "method": "GET",
       "path": "/api/purple/sigma-suggest",
       "file": "purple-team.ts",
-      "line": 34,
+      "line": 37,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/questionnaire-journeys",
+      "method": "GET",
+      "path": "/api/questionnaire-journeys",
+      "file": "questionnaire-journeys.ts",
+      "line": 101,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/questionnaire-journeys/item/",
+      "method": "GET",
+      "path": "/api/questionnaire-journeys/item/",
+      "file": "questionnaire-journeys.ts",
+      "line": 167,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/questionnaire-journeys/item/",
+      "method": "GET",
+      "path": "/api/questionnaire-journeys/item/",
+      "file": "questionnaire-journeys.ts",
+      "line": 193,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/questionnaire-journeys/response/",
+      "method": "GET",
+      "path": "/api/questionnaire-journeys/response/",
+      "file": "questionnaire-journeys.ts",
+      "line": 226,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/questionnaire-journeys/response/",
+      "method": "GET",
+      "path": "/api/questionnaire-journeys/response/",
+      "file": "questionnaire-journeys.ts",
+      "line": 234,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/questionnaire-journeys/submit/",
+      "method": "GET",
+      "path": "/api/questionnaire-journeys/submit/",
+      "file": "questionnaire-journeys.ts",
+      "line": 239,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/questionnaire-journeys",
+      "method": "GET",
+      "path": "/api/questionnaire-journeys",
+      "file": "questionnaire-journeys.ts",
+      "line": 246,
       "requiresAuth": false
     },
     {
@@ -1734,7 +2706,43 @@
       "method": "GET",
       "path": "/api/ransomware/groups",
       "file": "ransomware.ts",
-      "line": 77,
+      "line": 82,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/reg-calendar",
+      "method": "GET",
+      "path": "/api/reg-calendar",
+      "file": "reg-calendar.ts",
+      "line": 100,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/reg-calendar/obligation",
+      "method": "GET",
+      "path": "/api/reg-calendar/obligation",
+      "file": "reg-calendar.ts",
+      "line": 118,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/reg-incident-reporting/report",
+      "method": "GET",
+      "path": "/api/reg-incident-reporting/report",
+      "file": "reg-incident-reporting.ts",
+      "line": 48,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/reg-incident-reporting",
+      "method": "GET",
+      "path": "/api/reg-incident-reporting",
+      "file": "reg-incident-reporting.ts",
+      "line": 54,
       "requiresAuth": false
     },
     {
@@ -1761,7 +2769,25 @@
       "method": "GET",
       "path": "/api/risk-register",
       "file": "risk-register.ts",
-      "line": 57,
+      "line": 73,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/risk-register/governance",
+      "method": "GET",
+      "path": "/api/risk-register/governance",
+      "file": "risk-register.ts",
+      "line": 73,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/risk-register/measure/update",
+      "method": "GET",
+      "path": "/api/risk-register/measure/update",
+      "file": "risk-register.ts",
+      "line": 176,
       "requiresAuth": false
     },
     {
@@ -1770,7 +2796,43 @@
       "method": "GET",
       "path": "/api/risk-register/entry",
       "file": "risk-register.ts",
-      "line": 171,
+      "line": 246,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/risk-register/strategy",
+      "method": "GET",
+      "path": "/api/risk-register/strategy",
+      "file": "risk-register.ts",
+      "line": 296,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/risk-register/measure",
+      "method": "GET",
+      "path": "/api/risk-register/measure",
+      "file": "risk-register.ts",
+      "line": 322,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/risk-register/link/update",
+      "method": "GET",
+      "path": "/api/risk-register/link/update",
+      "file": "risk-register.ts",
+      "line": 354,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/risk-register/link/delete",
+      "method": "GET",
+      "path": "/api/risk-register/link/delete",
+      "file": "risk-register.ts",
+      "line": 355,
       "requiresAuth": false
     },
     {
@@ -1779,7 +2841,7 @@
       "method": "GET",
       "path": "/api/sca/import",
       "file": "sca.ts",
-      "line": 112,
+      "line": 115,
       "requiresAuth": false
     },
     {
@@ -1788,7 +2850,7 @@
       "method": "GET",
       "path": "/api/sca/graph",
       "file": "sca.ts",
-      "line": 132,
+      "line": 135,
       "requiresAuth": false
     },
     {
@@ -1797,7 +2859,34 @@
       "method": "GET",
       "path": "/api/sca",
       "file": "sca.ts",
-      "line": 164,
+      "line": 167,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/security-awareness",
+      "method": "GET",
+      "path": "/api/security-awareness",
+      "file": "security-awareness.ts",
+      "line": 64,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/security-awareness/training",
+      "method": "GET",
+      "path": "/api/security-awareness/training",
+      "file": "security-awareness.ts",
+      "line": 109,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/security-awareness/phishing",
+      "method": "GET",
+      "path": "/api/security-awareness/phishing",
+      "file": "security-awareness.ts",
+      "line": 118,
       "requiresAuth": false
     },
     {
@@ -1806,7 +2895,97 @@
       "method": "GET",
       "path": "/api/auth/set-pin",
       "file": "session-ui.ts",
-      "line": 74,
+      "line": 76,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/auth/totp/status",
+      "method": "GET",
+      "path": "/api/auth/totp/status",
+      "file": "session-ui.ts",
+      "line": 105,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/notification-rules/test",
+      "method": "GET",
+      "path": "/api/notification-rules/test",
+      "file": "session-ui.ts",
+      "line": 203,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/notification-rules",
+      "method": "GET",
+      "path": "/api/notification-rules",
+      "file": "session-ui.ts",
+      "line": 227,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/teams/webhooks",
+      "method": "GET",
+      "path": "/api/teams/webhooks",
+      "file": "session-ui.ts",
+      "line": 257,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/teams/test",
+      "method": "GET",
+      "path": "/api/teams/test",
+      "file": "session-ui.ts",
+      "line": 283,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/teams/webhooks",
+      "method": "GET",
+      "path": "/api/teams/webhooks",
+      "file": "session-ui.ts",
+      "line": 311,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/auth/totp/disable",
+      "method": "GET",
+      "path": "/api/auth/totp/disable",
+      "file": "session-ui.ts",
+      "line": 452,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/auth/totp/enroll",
+      "method": "GET",
+      "path": "/api/auth/totp/enroll",
+      "file": "session-ui.ts",
+      "line": 472,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/auth/totp/activate",
+      "method": "GET",
+      "path": "/api/auth/totp/activate",
+      "file": "session-ui.ts",
+      "line": 512,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/auth/totp/status",
+      "method": "GET",
+      "path": "/api/auth/totp/status",
+      "file": "session-ui.ts",
+      "line": 524,
       "requiresAuth": false
     },
     {
@@ -1815,7 +2994,7 @@
       "method": "GET",
       "path": "/api/auth/me",
       "file": "session-ui.ts",
-      "line": 196,
+      "line": 535,
       "requiresAuth": false
     },
     {
@@ -1824,7 +3003,34 @@
       "method": "GET",
       "path": "/api/auth/logout",
       "file": "session-ui.ts",
-      "line": 257,
+      "line": 596,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/siem",
+      "method": "GET",
+      "path": "/api/siem",
+      "file": "siem.ts",
+      "line": 49,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/siem/ingest",
+      "method": "GET",
+      "path": "/api/siem/ingest",
+      "file": "siem.ts",
+      "line": 60,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/siem/sample",
+      "method": "GET",
+      "path": "/api/siem/sample",
+      "file": "siem.ts",
+      "line": 66,
       "requiresAuth": false
     },
     {
@@ -1834,6 +3040,78 @@
       "path": "/api/sla/incidents",
       "file": "sla.ts",
       "line": 58,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/slsa",
+      "method": "GET",
+      "path": "/api/slsa",
+      "file": "slsa.ts",
+      "line": 42,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/soar/playbook",
+      "method": "GET",
+      "path": "/api/soar/playbook",
+      "file": "soar.ts",
+      "line": 146,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/soar",
+      "method": "GET",
+      "path": "/api/soar",
+      "file": "soar.ts",
+      "line": 154,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/soc-cmm",
+      "method": "GET",
+      "path": "/api/soc-cmm",
+      "file": "soc-cmm.ts",
+      "line": 12,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/soc/shift",
+      "method": "GET",
+      "path": "/api/soc/shift",
+      "file": "soc.ts",
+      "line": 135,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/soc/playbook",
+      "method": "GET",
+      "path": "/api/soc/playbook",
+      "file": "soc.ts",
+      "line": 173,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/soc/playbooks",
+      "method": "GET",
+      "path": "/api/soc/playbooks",
+      "file": "soc.ts",
+      "line": 183,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/soc",
+      "method": "GET",
+      "path": "/api/soc",
+      "file": "soc.ts",
+      "line": 270,
       "requiresAuth": false
     },
     {
@@ -1865,11 +3143,47 @@
     },
     {
       "kind": "http-route",
+      "id": "route:GET:/api/team-ops",
+      "method": "GET",
+      "path": "/api/team-ops",
+      "file": "team-ops.ts",
+      "line": 18,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/team-ops/exercise",
+      "method": "GET",
+      "path": "/api/team-ops/exercise",
+      "file": "team-ops.ts",
+      "line": 93,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai/feed-digest",
+      "method": "GET",
+      "path": "/api/ai/feed-digest",
+      "file": "threat-feeds.ts",
+      "line": 97,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/threatfeeds",
+      "method": "GET",
+      "path": "/api/threatfeeds",
+      "file": "threat-feeds.ts",
+      "line": 108,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
       "id": "route:GET:/api/threat-informed-defense/generate-detection",
       "method": "GET",
       "path": "/api/threat-informed-defense/generate-detection",
       "file": "threat-informed-defense.ts",
-      "line": 69,
+      "line": 71,
       "requiresAuth": false
     },
     {
@@ -1878,7 +3192,7 @@
       "method": "GET",
       "path": "/api/threat-informed-defense",
       "file": "threat-informed-defense.ts",
-      "line": 96,
+      "line": 98,
       "requiresAuth": false
     },
     {
@@ -1887,7 +3201,7 @@
       "method": "GET",
       "path": "/api/threat-informed-defense/plan-validation",
       "file": "threat-informed-defense.ts",
-      "line": 161,
+      "line": 159,
       "requiresAuth": false
     },
     {
@@ -1896,7 +3210,7 @@
       "method": "GET",
       "path": "/api/configuration/scan-targets",
       "file": "threat-informed-defense.ts",
-      "line": 180,
+      "line": 178,
       "requiresAuth": false
     },
     {
@@ -1905,7 +3219,7 @@
       "method": "GET",
       "path": "/api/agent-scan",
       "file": "threat-informed-defense.ts",
-      "line": 196,
+      "line": 194,
       "requiresAuth": false
     },
     {
@@ -1914,7 +3228,7 @@
       "method": "GET",
       "path": "/api/threat-informed-defense/schedule-revalidation",
       "file": "threat-informed-defense.ts",
-      "line": 213,
+      "line": 211,
       "requiresAuth": false
     },
     {
@@ -1937,11 +3251,101 @@
     },
     {
       "kind": "http-route",
-      "id": "route:GET:/api/tprm/dashboard",
+      "id": "route:GET:/api/tprm/vendor",
       "method": "GET",
-      "path": "/api/tprm/dashboard",
+      "path": "/api/tprm/vendor",
       "file": "tprm.ts",
-      "line": 70,
+      "line": 100,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/tprm/vendor/",
+      "method": "GET",
+      "path": "/api/tprm/vendor/",
+      "file": "tprm.ts",
+      "line": 119,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/tprm/vendor/",
+      "method": "GET",
+      "path": "/api/tprm/vendor/",
+      "file": "tprm.ts",
+      "line": 151,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/tprm/finding/",
+      "method": "GET",
+      "path": "/api/tprm/finding/",
+      "file": "tprm.ts",
+      "line": 159,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/tprm/vendor/",
+      "method": "GET",
+      "path": "/api/tprm/vendor/",
+      "file": "tprm.ts",
+      "line": 171,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/tprm/vendor/",
+      "method": "GET",
+      "path": "/api/tprm/vendor/",
+      "file": "tprm.ts",
+      "line": 177,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/tprm/vendor/",
+      "method": "GET",
+      "path": "/api/tprm/vendor/",
+      "file": "tprm.ts",
+      "line": 182,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai/tprm-vendor-brief",
+      "method": "GET",
+      "path": "/api/ai/tprm-vendor-brief",
+      "file": "tprm.ts",
+      "line": 193,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai/tprm-review-questionnaire",
+      "method": "GET",
+      "path": "/api/ai/tprm-review-questionnaire",
+      "file": "tprm.ts",
+      "line": 201,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/ai/tprm-draft-answers",
+      "method": "GET",
+      "path": "/api/ai/tprm-draft-answers",
+      "file": "tprm.ts",
+      "line": 207,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/tprm",
+      "method": "GET",
+      "path": "/api/tprm",
+      "file": "tprm.ts",
+      "line": 211,
       "requiresAuth": false
     },
     {
@@ -1950,7 +3354,7 @@
       "method": "GET",
       "path": "/api/trust-center/config",
       "file": "trust-center.ts",
-      "line": 103,
+      "line": 104,
       "requiresAuth": false
     },
     {
@@ -1959,7 +3363,88 @@
       "method": "GET",
       "path": "/api/trust-center",
       "file": "trust-center.ts",
-      "line": 111,
+      "line": 112,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/vm-report",
+      "method": "GET",
+      "path": "/api/vm-report",
+      "file": "vm-report.ts",
+      "line": 52,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/vm-report/snapshot",
+      "method": "GET",
+      "path": "/api/vm-report/snapshot",
+      "file": "vm-report.ts",
+      "line": 93,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/voc",
+      "method": "GET",
+      "path": "/api/voc",
+      "file": "voc.ts",
+      "line": 16,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/voc/sla",
+      "method": "GET",
+      "path": "/api/voc/sla",
+      "file": "voc.ts",
+      "line": 61,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/voc/campaign",
+      "method": "GET",
+      "path": "/api/voc/campaign",
+      "file": "voc.ts",
+      "line": 62,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/voc/exception",
+      "method": "GET",
+      "path": "/api/voc/exception",
+      "file": "voc.ts",
+      "line": 63,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/vulnerability-management",
+      "method": "GET",
+      "path": "/api/vulnerability-management",
+      "file": "vulnerability-management.ts",
+      "line": 157,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/vulnerability-management/disposition",
+      "method": "GET",
+      "path": "/api/vulnerability-management/disposition",
+      "file": "vulnerability-management.ts",
+      "line": 176,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/vulnerability-management/track",
+      "method": "GET",
+      "path": "/api/vulnerability-management/track",
+      "file": "vulnerability-management.ts",
+      "line": 193,
       "requiresAuth": false
     },
     {
@@ -1978,6 +3463,105 @@
       "path": "/api/webhooks",
       "file": "webhooks.ts",
       "line": 65,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/wifi-pentest",
+      "method": "GET",
+      "path": "/api/wifi-pentest",
+      "file": "wifi-pentest.ts",
+      "line": 160,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/wifi-pentest/scan",
+      "method": "GET",
+      "path": "/api/wifi-pentest/scan",
+      "file": "wifi-pentest.ts",
+      "line": 174,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/wifi-pentest/seed-demo",
+      "method": "GET",
+      "path": "/api/wifi-pentest/seed-demo",
+      "file": "wifi-pentest.ts",
+      "line": 183,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/wifi-pentest/import",
+      "method": "GET",
+      "path": "/api/wifi-pentest/import",
+      "file": "wifi-pentest.ts",
+      "line": 196,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/workforce",
+      "method": "GET",
+      "path": "/api/workforce",
+      "file": "workforce.ts",
+      "line": 14,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/workforce/assign",
+      "method": "GET",
+      "path": "/api/workforce/assign",
+      "file": "workforce.ts",
+      "line": 50,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/zero-trust/assessment",
+      "method": "GET",
+      "path": "/api/zero-trust/assessment",
+      "file": "zero-trust.ts",
+      "line": 119,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/zero-trust/assessment/",
+      "method": "GET",
+      "path": "/api/zero-trust/assessment/",
+      "file": "zero-trust.ts",
+      "line": 144,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/zero-trust/assessment/",
+      "method": "GET",
+      "path": "/api/zero-trust/assessment/",
+      "file": "zero-trust.ts",
+      "line": 160,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/zero-trust/item/",
+      "method": "GET",
+      "path": "/api/zero-trust/item/",
+      "file": "zero-trust.ts",
+      "line": 168,
+      "requiresAuth": false
+    },
+    {
+      "kind": "http-route",
+      "id": "route:GET:/api/zero-trust",
+      "method": "GET",
+      "path": "/api/zero-trust",
+      "file": "zero-trust.ts",
+      "line": 176,
       "requiresAuth": false
     }
   ],
@@ -2009,6 +3593,18 @@
     {
       "from": "external",
       "to": "route:GET:/api/admin/users",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/admin/landing-access",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/admin/landing-access",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2057,6 +3653,96 @@
     {
       "from": "external",
       "to": "route:GET:/api/admin/users",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/threat-debt",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/threat-debt/snapshot",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/agent-scan",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/agents-overview",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-detection",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-guardrails",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-redteam",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-skills/skill",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-skills/handover",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-skills",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-systems",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-systems-seed-demo",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-systems",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-threats/advise",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai-threats",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2260,6 +3946,18 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/patch-management/false-positive",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/patch-management/remediation-bulk",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/asset-vulnerabilities",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -2297,6 +3995,12 @@
     {
       "from": "external",
       "to": "route:GET:/api/control-tags",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/sigmarule-tags",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2482,49 +4186,7 @@
     },
     {
       "from": "external",
-      "to": "route:GET:/api/prefs/table-favorites",
-      "kind": "trust-boundary",
-      "requiresAuth": false
-    },
-    {
-      "from": "external",
-      "to": "route:GET:/api/prefs/table-favorites",
-      "kind": "trust-boundary",
-      "requiresAuth": false
-    },
-    {
-      "from": "external",
-      "to": "route:GET:/api/auth/me",
-      "kind": "trust-boundary",
-      "requiresAuth": false
-    },
-    {
-      "from": "external",
-      "to": "route:GET:/api/ai/suggest-answer",
-      "kind": "trust-boundary",
-      "requiresAuth": false
-    },
-    {
-      "from": "external",
-      "to": "route:GET:/api/agent-scan",
-      "kind": "trust-boundary",
-      "requiresAuth": false
-    },
-    {
-      "from": "external",
-      "to": "route:GET:/api/threatreport/parse",
-      "kind": "trust-boundary",
-      "requiresAuth": false
-    },
-    {
-      "from": "external",
-      "to": "route:GET:/api/sigma/convert",
-      "kind": "trust-boundary",
-      "requiresAuth": false
-    },
-    {
-      "from": "external",
-      "to": "route:GET:/api/auth/me",
+      "to": "route:GET:/api/bia/person-names",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2560,6 +4222,18 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/cve-match/run",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/asset-management/import",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/asset-monitoring",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -2567,6 +4241,12 @@
     {
       "from": "external",
       "to": "route:GET:/api/asset-monitoring/status",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/asset-monitoring/asset-targets",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2608,6 +4288,36 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/attack-tree",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/attack-tree/node/update",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/attack-tree/node/delete",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/attack-tree",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/attack-tree/node",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/attack/coverage",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -2627,6 +4337,90 @@
     {
       "from": "external",
       "to": "route:GET:/api/bia/dependencies",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai/board-narrative",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/board-report",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/bug-bounty",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/bug-bounty/program",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/cert-ops",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/cert-ops/case",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/cert-ops/activity",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/chatops/command",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/cloud-security",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/compliance-journeys",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/compliance-journeys/item/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/compliance-journeys/item/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/compliance-journeys/step/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/compliance-journeys",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2669,6 +4463,18 @@
     {
       "from": "external",
       "to": "route:GET:/api/agent-scan",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/configuration/fleet-compliance",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/configuration/deploy-compliance",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2812,6 +4618,90 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/croc-orchestrator",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/croc-orchestrator/run",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/croc-orchestrator/seed-demo",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/croc/reason",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/croc/policies",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/croc/ticketing",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/croc/iam",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/croc/soar",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/auth/me",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/croc",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ctem",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ctem/discover",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/cti-expert",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/cti-expert/investigate",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/cti/ticket",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -2819,6 +4709,18 @@
     {
       "from": "external",
       "to": "route:GET:/api/cti/impact",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/cyber-risk-hunting/escalate",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/cyber-risk-hunting",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2854,6 +4756,36 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/dashboard/threat-level",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/devsecops",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/devsecops/gate",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/devsecops/app",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/devsecops/scan",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/drift",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -2866,6 +4798,18 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/easm",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/easm/snapshot",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/ebios/dashboard",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -2873,6 +4817,30 @@
     {
       "from": "external",
       "to": "route:GET:/api/ebios/assessment",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/endpoint-query/ask",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/endpoint-query",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/essential-eight/assess",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/essential-eight",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2902,7 +4870,43 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/fair-tef",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/fair-tef/compute",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/fair-tef/assess",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/auth/forgot",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/frameworks",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/frameworks",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/governance",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2932,13 +4936,73 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/hunting/tahiti",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/identities",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
     {
       "from": "external",
+      "to": "route:GET:/api/identity-governance/campaign",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/identity-governance",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/incident-management",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/insurance-readiness/policy",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/insurance-readiness",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/investment-advisor/simulate",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/investment-advisor/advise",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/investment-advisor",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/itdr/scan",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/itdr",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2951,6 +5015,24 @@
     {
       "from": "external",
       "to": "route:GET:/api/kill-chain",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/knowledge-graph/query",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/landing/config",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/llm-pentest",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2974,6 +5056,12 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/auth/totp/verify",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/auth/pin-login",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -2981,6 +5069,36 @@
     {
       "from": "external",
       "to": "route:GET:/api/auth/change-password",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/malware-scan",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/malware-scan/run",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/malware-scan/document/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/mssp",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/network-sessions",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -2998,6 +5116,18 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/org-chart",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/osint-graph",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/ot-security",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -3005,6 +5135,42 @@
     {
       "from": "external",
       "to": "route:GET:/api/ot-security/assessment",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/oval/test-search",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/oval/def-search",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/oval/preview",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/oval/definition",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/oval/meta",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/oval/def-search",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -3130,13 +5296,103 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/privacy/processing",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/privacy/dsar",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/privacy/breach",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/privacy",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/purple/sigma-suggest",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
     {
       "from": "external",
+      "to": "route:GET:/api/questionnaire-journeys",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/questionnaire-journeys/item/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/questionnaire-journeys/item/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/questionnaire-journeys/response/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/questionnaire-journeys/response/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/questionnaire-journeys/submit/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/questionnaire-journeys",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/ransomware/groups",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/reg-calendar",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/reg-calendar/obligation",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/reg-incident-reporting/report",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/reg-incident-reporting",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -3160,7 +5416,43 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/risk-register/governance",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/risk-register/measure/update",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/risk-register/entry",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/risk-register/strategy",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/risk-register/measure",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/risk-register/link/update",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/risk-register/link/delete",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -3184,7 +5476,85 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/security-awareness",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/security-awareness/training",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/security-awareness/phishing",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/auth/set-pin",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/auth/totp/status",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/notification-rules/test",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/notification-rules",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/teams/webhooks",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/teams/test",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/teams/webhooks",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/auth/totp/disable",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/auth/totp/enroll",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/auth/totp/activate",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/auth/totp/status",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -3202,7 +5572,73 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/siem",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/siem/ingest",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/siem/sample",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/sla/incidents",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/slsa",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/soar/playbook",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/soar",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/soc-cmm",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/soc/shift",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/soc/playbook",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/soc/playbooks",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/soc",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -3221,6 +5657,30 @@
     {
       "from": "external",
       "to": "route:GET:/api/stix/reports",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/team-ops",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/team-ops/exercise",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai/feed-digest",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/threatfeeds",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -3274,7 +5734,67 @@
     },
     {
       "from": "external",
-      "to": "route:GET:/api/tprm/dashboard",
+      "to": "route:GET:/api/tprm/vendor",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/tprm/vendor/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/tprm/vendor/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/tprm/finding/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/tprm/vendor/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/tprm/vendor/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/tprm/vendor/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai/tprm-vendor-brief",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai/tprm-review-questionnaire",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/ai/tprm-draft-answers",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/tprm",
       "kind": "trust-boundary",
       "requiresAuth": false
     },
@@ -3292,6 +5812,60 @@
     },
     {
       "from": "external",
+      "to": "route:GET:/api/vm-report",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/vm-report/snapshot",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/voc",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/voc/sla",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/voc/campaign",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/voc/exception",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/vulnerability-management",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/vulnerability-management/disposition",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/vulnerability-management/track",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
       "to": "route:GET:/api/webhooks",
       "kind": "trust-boundary",
       "requiresAuth": false
@@ -3303,18 +5877,73 @@
       "requiresAuth": false
     },
     {
-      "from": "application",
-      "to": "datastore:default",
-      "kind": "asset-boundary"
-    }
-  ],
-  "assets": [
+      "from": "external",
+      "to": "route:GET:/api/wifi-pentest",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
     {
-      "kind": "datastore",
-      "id": "datastore:default",
-      "name": "Application Database"
+      "from": "external",
+      "to": "route:GET:/api/wifi-pentest/scan",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/wifi-pentest/seed-demo",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/wifi-pentest/import",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/workforce",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/workforce/assign",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/zero-trust/assessment",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/zero-trust/assessment/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/zero-trust/assessment/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/zero-trust/item/",
+      "kind": "trust-boundary",
+      "requiresAuth": false
+    },
+    {
+      "from": "external",
+      "to": "route:GET:/api/zero-trust",
+      "kind": "trust-boundary",
+      "requiresAuth": false
     }
   ],
+  "assets": [],
   "threats": [
     {
       "stride": "T",
@@ -3336,7 +5965,7 @@
       "severity": "critical",
       "file": "connectors.ts",
       "vuln": "XSS",
-      "finding_id": "connectors.ts:412:323:XSS",
+      "finding_id": "connectors.ts:448:167:XSS",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/prefs/worker-path"
     },
@@ -3358,9 +5987,9 @@
       "cwe": "CWE-79",
       "family": "xss",
       "severity": "critical",
-      "file": "pentest-page.ts",
+      "file": "oval-editor.ts",
       "vuln": "XSS",
-      "finding_id": "pentest-page.ts:350:263:XSS",
+      "finding_id": "oval-editor.ts:298:268:XSS",
       "affectsAsset": null,
       "atEntity": null
     },
@@ -3372,7 +6001,7 @@
       "severity": "critical",
       "file": "kill-chain.ts",
       "vuln": "XSS",
-      "finding_id": "kill-chain.ts:134:34:XSS",
+      "finding_id": "kill-chain.ts:136:36:XSS",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/kill-chain/groups"
     },
@@ -3382,9 +6011,9 @@
       "cwe": "CWE-502",
       "severity": "critical",
       "file": "sca.ts",
-      "line": 116,
+      "line": 119,
       "vuln": "Insecure Deserialization (yaml.load)",
-      "finding_id": "ir-taint:sca.ts:116:py-yaml-load",
+      "finding_id": "ir-taint:sca.ts:119:py-yaml-load",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/sca/import"
     },
@@ -3394,9 +6023,9 @@
       "cwe": "CWE-502",
       "severity": "critical",
       "file": "sca.ts",
-      "line": 116,
+      "line": 119,
       "vuln": "Insecure Deserialization (Marshal.load)",
-      "finding_id": "ir-taint:sca.ts:116:rb-marshal-load",
+      "finding_id": "ir-taint:sca.ts:119:rb-marshal-load",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/sca/import"
     },
@@ -3406,9 +6035,9 @@
       "cwe": "CWE-502",
       "severity": "critical",
       "file": "sca.ts",
-      "line": 116,
+      "line": 119,
       "vuln": "Unsafe Deserialization (pickle.load)",
-      "finding_id": "ir-taint:sca.ts:116:py-pickle-load",
+      "finding_id": "ir-taint:sca.ts:119:py-pickle-load",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/sca/import"
     },
@@ -3420,7 +6049,7 @@
       "severity": "high",
       "file": "connectors.ts",
       "vuln": "SSRF",
-      "finding_id": "connectors.ts:412:42:SSRF",
+      "finding_id": "connectors.ts:448:42:SSRF",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/prefs/worker-path"
     },
@@ -3432,9 +6061,46 @@
       "severity": "high",
       "file": "connectors.ts",
       "vuln": "SSRF",
-      "finding_id": "connectors.ts:412:42:SSRF",
+      "finding_id": "connectors.ts:448:42:SSRF",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/prefs/worker-path"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": "CWE-338",
+      "family": "weak-rng",
+      "severity": "high",
+      "file": "vm-report.ts",
+      "line": 35,
+      "vuln": "Insecure Randomness — Math.random() used for security-sensitive value",
+      "finding_id": "weak-rng:vm-report.ts:35",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/vm-report"
+    },
+    {
+      "stride": "I",
+      "strideLabel": "Information Disclosure",
+      "cwe": "CWE-918",
+      "family": "ssrf",
+      "severity": "high",
+      "file": "landing.ts",
+      "vuln": "SSRF",
+      "finding_id": "landing.ts:51:71:SSRF",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "E",
+      "strideLabel": "Elevation of Privilege",
+      "cwe": "CWE-918",
+      "family": "ssrf",
+      "severity": "high",
+      "file": "landing.ts",
+      "vuln": "SSRF",
+      "finding_id": "landing.ts:51:71:SSRF",
+      "affectsAsset": null,
+      "atEntity": null
     },
     {
       "stride": "E",
@@ -3442,23 +6108,11 @@
       "cwe": "CWE-502",
       "severity": "high",
       "file": "sca.ts",
-      "line": 116,
+      "line": 119,
       "vuln": "Unsafe Deserialization (yaml.load)",
-      "finding_id": "ir-taint:sca.ts:116:py-yaml-load-v2",
+      "finding_id": "ir-taint:sca.ts:119:py-yaml-load-v2",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/sca/import"
-    },
-    {
-      "stride": "T",
-      "strideLabel": "Tampering",
-      "cwe": "CWE-79",
-      "family": "xss",
-      "severity": "medium",
-      "file": "app.ts",
-      "vuln": "XSS",
-      "finding_id": "app.ts:1803:960:XSS",
-      "affectsAsset": null,
-      "atEntity": null
     },
     {
       "stride": "I",
@@ -3468,7 +6122,7 @@
       "severity": "medium",
       "file": "purple-team.ts",
       "vuln": "SSRF",
-      "finding_id": "purple-team.ts:12:44:SSRF",
+      "finding_id": "purple-team.ts:15:47:SSRF",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/purple/sigma-suggest"
     },
@@ -3480,57 +6134,9 @@
       "severity": "medium",
       "file": "purple-team.ts",
       "vuln": "SSRF",
-      "finding_id": "purple-team.ts:12:44:SSRF",
+      "finding_id": "purple-team.ts:15:47:SSRF",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/purple/sigma-suggest"
-    },
-    {
-      "stride": "T",
-      "strideLabel": "Tampering",
-      "cwe": "CWE-89",
-      "family": "sql-injection",
-      "severity": "low",
-      "file": "app.ts",
-      "vuln": "SQL Injection",
-      "finding_id": "app.ts:1803:6437:SQL_Injection",
-      "affectsAsset": "datastore:default",
-      "atEntity": null
-    },
-    {
-      "stride": "I",
-      "strideLabel": "Information Disclosure",
-      "cwe": "CWE-89",
-      "family": "sql-injection",
-      "severity": "low",
-      "file": "app.ts",
-      "vuln": "SQL Injection",
-      "finding_id": "app.ts:1803:6437:SQL_Injection",
-      "affectsAsset": "datastore:default",
-      "atEntity": null
-    },
-    {
-      "stride": "I",
-      "strideLabel": "Information Disclosure",
-      "cwe": "CWE-22",
-      "family": "path-traversal",
-      "severity": "low",
-      "file": "app.ts",
-      "vuln": "Path Traversal",
-      "finding_id": "app.ts:1803:7426:Path_Traversal",
-      "affectsAsset": null,
-      "atEntity": null
-    },
-    {
-      "stride": "T",
-      "strideLabel": "Tampering",
-      "cwe": "CWE-922",
-      "family": "data-exposure",
-      "severity": "low",
-      "file": "app.ts",
-      "vuln": "Data Exposure",
-      "finding_id": "app.ts:1803:1777:Data_Exposure",
-      "affectsAsset": null,
-      "atEntity": null
     },
     {
       "stride": "T",
@@ -3538,9 +6144,9 @@
       "cwe": "CWE-79",
       "family": "xss",
       "severity": "critical",
-      "file": "chain.ts",
+      "file": "crisis-exercise.ts",
       "vuln": "XSS",
-      "finding_id": "chain.ts:25:64:XSS",
+      "finding_id": "crisis-exercise.ts:10:182:XSS",
       "affectsAsset": null,
       "atEntity": null
     },
@@ -3564,7 +6170,7 @@
       "severity": "critical",
       "file": "tools.ts",
       "vuln": "XSS",
-      "finding_id": "tools.ts:118:124:XSS",
+      "finding_id": "tools.ts:122:128:XSS",
       "affectsAsset": null,
       "atEntity": null
     },
@@ -3576,7 +6182,7 @@
       "severity": "high",
       "file": "tools.ts",
       "vuln": "SSRF",
-      "finding_id": "tools.ts:118:123:SSRF",
+      "finding_id": "tools.ts:122:127:SSRF",
       "affectsAsset": null,
       "atEntity": null
     },
@@ -3588,46 +6194,33 @@
       "severity": "high",
       "file": "tools.ts",
       "vuln": "SSRF",
-      "finding_id": "tools.ts:118:123:SSRF",
+      "finding_id": "tools.ts:122:127:SSRF",
       "affectsAsset": null,
       "atEntity": null
     },
     {
       "stride": "T",
       "strideLabel": "Tampering",
-      "cwe": "CWE-208",
-      "family": "timing-attack",
+      "cwe": "CWE-79",
+      "family": "mutation-xss-read-back-of-innerhtml-then",
       "severity": "low",
-      "file": "app.ts",
-      "line": 6044,
-      "vuln": "Timing-Unsafe Comparison — secret/HMAC compared with === instead of timingSafeEqual",
-      "finding_id": "timing-unsafe:app.ts:6044",
+      "file": "board-report.ts",
+      "line": 145,
+      "vuln": "Mutation XSS: read-back of innerHTML then re-assigned to another innerHTML",
+      "finding_id": "mxss-innerhtml-roundtrip:board-report.ts:145",
       "affectsAsset": null,
-      "atEntity": null
+      "atEntity": "route:GET:/api/ai/board-narrative"
     },
     {
       "stride": "T",
       "strideLabel": "Tampering",
-      "cwe": null,
-      "family": "concurrency-bug",
+      "cwe": "CWE-79",
+      "family": "mutation-xss-read-back-of-innerhtml-then",
       "severity": "low",
-      "file": "app.ts",
-      "line": 7958,
-      "vuln": "Concurrency: fire-and-forget async call in openCpeModal() — result not awaited",
-      "finding_id": "concurrency:fire-forget:app.ts:7958",
-      "affectsAsset": null,
-      "atEntity": null
-    },
-    {
-      "stride": "T",
-      "strideLabel": "Tampering",
-      "cwe": null,
-      "family": "concurrency-bug",
-      "severity": "low",
-      "file": "app.ts",
-      "line": 8354,
-      "vuln": "Concurrency: fire-and-forget async call in appendThreatModelScope() — result not awaited",
-      "finding_id": "concurrency:fire-forget:app.ts:8354",
+      "file": "vulnerability-management.ts",
+      "line": 65,
+      "vuln": "Mutation XSS: read-back of innerHTML then re-assigned to another innerHTML",
+      "finding_id": "mxss-innerhtml-roundtrip:vulnerability-management.ts:65",
       "affectsAsset": null,
       "atEntity": null
     },
@@ -3637,12 +6230,1533 @@
       "cwe": null,
       "family": "concurrency-bug",
       "severity": "low",
-      "file": "app.ts",
-      "line": 8478,
-      "vuln": "Concurrency: fire-and-forget async call in appendThreatMitigations() — result not awaited",
-      "finding_id": "concurrency:fire-forget:app.ts:8478",
+      "file": "ai-threat-advisor.ts",
+      "line": 31,
+      "vuln": "Concurrency: fire-and-forget async call in advise() — result not awaited",
+      "finding_id": "concurrency:fire-forget:ai-threat-advisor.ts:31",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/ai-threats/advise"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "ai-threat-advisor.ts",
+      "line": 44,
+      "vuln": "Concurrency: fire-and-forget async call in loadCatalogue() — result not awaited",
+      "finding_id": "concurrency:fire-forget:ai-threat-advisor.ts:44",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/ai-threats/advise"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "attack-tree.ts",
+      "line": 83,
+      "vuln": "Concurrency: fire-and-forget async call in loadList() — result not awaited",
+      "finding_id": "concurrency:fire-forget:attack-tree.ts:83",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/attack-tree"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "board-report.ts",
+      "line": 138,
+      "vuln": "Concurrency: fire-and-forget async call in loadAi() — result not awaited",
+      "finding_id": "concurrency:fire-forget:board-report.ts:138",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/ai/board-narrative"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "bug-bounty.ts",
+      "line": 44,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:bug-bounty.ts:44",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/bug-bounty"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "cert-ops.ts",
+      "line": 10,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:cert-ops.ts:10",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/cert-ops"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "cert-ops.ts",
+      "line": 42,
+      "vuln": "Concurrency: fire-and-forget async call in openCase() — result not awaited",
+      "finding_id": "concurrency:fire-forget:cert-ops.ts:42",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/cert-ops"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "cert-ops.ts",
+      "line": 71,
+      "vuln": "Concurrency: fire-and-forget async call in post() — result not awaited",
+      "finding_id": "concurrency:fire-forget:cert-ops.ts:71",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/cert-ops/case"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "cloud-security.ts",
+      "line": 30,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:cloud-security.ts:30",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/cloud-security"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "compliance-journeys.ts",
+      "line": 89,
+      "vuln": "Concurrency: fire-and-forget async call in createJourney() — result not awaited",
+      "finding_id": "concurrency:fire-forget:compliance-journeys.ts:89",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/compliance-journeys"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "compliance-journeys.ts",
+      "line": 131,
+      "vuln": "Concurrency: fire-and-forget async call in openJourney() — result not awaited",
+      "finding_id": "concurrency:fire-forget:compliance-journeys.ts:131",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/compliance-journeys"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "compliance-journeys.ts",
+      "line": 131,
+      "vuln": "Concurrency: fire-and-forget async call in openJourney() — result not awaited",
+      "finding_id": "concurrency:fire-forget:compliance-journeys.ts:131",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/compliance-journeys"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "compliance-journeys.ts",
+      "line": 131,
+      "vuln": "Concurrency: fire-and-forget async call in openJourney() — result not awaited",
+      "finding_id": "concurrency:fire-forget:compliance-journeys.ts:131",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/compliance-journeys"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "compliance-journeys.ts",
+      "line": 160,
+      "vuln": "Concurrency: fire-and-forget async call in setStatus() — result not awaited",
+      "finding_id": "concurrency:fire-forget:compliance-journeys.ts:160",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/compliance-journeys/item/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "compliance-journeys.ts",
+      "line": 167,
+      "vuln": "Concurrency: fire-and-forget async call in reload() — result not awaited",
+      "finding_id": "concurrency:fire-forget:compliance-journeys.ts:167",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/compliance-journeys/item/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "ctem.ts",
+      "line": 16,
+      "vuln": "Concurrency: fire-and-forget async call in post() — result not awaited",
+      "finding_id": "concurrency:fire-forget:ctem.ts:16",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/ctem"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "ctem.ts",
+      "line": 18,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:ctem.ts:18",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/ctem"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "ctem.ts",
+      "line": 18,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:ctem.ts:18",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/ctem"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "devsecops.ts",
+      "line": 16,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:devsecops.ts:16",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/devsecops"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "devsecops.ts",
+      "line": 88,
+      "vuln": "Concurrency: fire-and-forget async call in openAsvs() — result not awaited",
+      "finding_id": "concurrency:fire-forget:devsecops.ts:88",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/devsecops/gate"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "endpoint-query.ts",
+      "line": 80,
+      "vuln": "Concurrency: fire-and-forget async call in showResult() — result not awaited",
+      "finding_id": "concurrency:fire-forget:endpoint-query.ts:80",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/endpoint-query/ask"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "endpoint-query.ts",
+      "line": 91,
+      "vuln": "Concurrency: fire-and-forget async call in ask() — result not awaited",
+      "finding_id": "concurrency:fire-forget:endpoint-query.ts:91",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/endpoint-query/ask"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "endpoint-query.ts",
+      "line": 107,
+      "vuln": "Concurrency: fire-and-forget async call in reload() — result not awaited",
+      "finding_id": "concurrency:fire-forget:endpoint-query.ts:107",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/endpoint-query/ask"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "essential-eight.ts",
+      "line": 80,
+      "vuln": "Concurrency: fire-and-forget async call in save() — result not awaited",
+      "finding_id": "concurrency:fire-forget:essential-eight.ts:80",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/essential-eight/assess"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "essential-eight.ts",
+      "line": 89,
+      "vuln": "Concurrency: fire-and-forget async call in toggleControls() — result not awaited",
+      "finding_id": "concurrency:fire-forget:essential-eight.ts:89",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/essential-eight/assess"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "essential-eight.ts",
+      "line": 102,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:essential-eight.ts:102",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/essential-eight/assess"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "fair-tef.ts",
+      "line": 85,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:fair-tef.ts:85",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/fair-tef"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "governance.ts",
+      "line": 17,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:governance.ts:17",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/governance"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "malware-scan.ts",
+      "line": 71,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:malware-scan.ts:71",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/malware-scan"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "malware-scan.ts",
+      "line": 105,
+      "vuln": "Concurrency: fire-and-forget async call in runScan() — result not awaited",
+      "finding_id": "concurrency:fire-forget:malware-scan.ts:105",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/malware-scan"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "malware-scan.ts",
+      "line": 119,
+      "vuln": "Concurrency: fire-and-forget async call in scanDoc() — result not awaited",
+      "finding_id": "concurrency:fire-forget:malware-scan.ts:119",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/malware-scan"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "network-sessions.ts",
+      "line": 10,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:network-sessions.ts:10",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/network-sessions"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "org-chart.ts",
+      "line": 80,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:org-chart.ts:80",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/org-chart"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "osint-graph.ts",
+      "line": 93,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:osint-graph.ts:93",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/osint-graph"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "policy-management.ts",
+      "line": 131,
+      "vuln": "Concurrency: fire-and-forget async call in post() — result not awaited",
+      "finding_id": "concurrency:fire-forget:policy-management.ts:131",
       "affectsAsset": null,
       "atEntity": null
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "policy-management.ts",
+      "line": 151,
+      "vuln": "Concurrency: fire-and-forget async call in coverageDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:policy-management.ts:151",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "policy-management.ts",
+      "line": 166,
+      "vuln": "Concurrency: fire-and-forget async call in wire() — result not awaited",
+      "finding_id": "concurrency:fire-forget:policy-management.ts:166",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "policy-management.ts",
+      "line": 166,
+      "vuln": "Concurrency: fire-and-forget async call in wire() — result not awaited",
+      "finding_id": "concurrency:fire-forget:policy-management.ts:166",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "policy-management.ts",
+      "line": 177,
+      "vuln": "Concurrency: fire-and-forget async call in versionsDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:policy-management.ts:177",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/policy-management"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "policy-management.ts",
+      "line": 177,
+      "vuln": "Concurrency: fire-and-forget async call in versionsDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:policy-management.ts:177",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/policy-management"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "policy-management.ts",
+      "line": 205,
+      "vuln": "Concurrency: fire-and-forget async call in versionView() — result not awaited",
+      "finding_id": "concurrency:fire-forget:policy-management.ts:205",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/policy-management"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 70,
+      "vuln": "Concurrency: fire-and-forget async call in act() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:70",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 70,
+      "vuln": "Concurrency: fire-and-forget async call in act() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:70",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 78,
+      "vuln": "Concurrency: fire-and-forget async call in procDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:78",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 78,
+      "vuln": "Concurrency: fire-and-forget async call in procDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:78",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 104,
+      "vuln": "Concurrency: fire-and-forget async call in dsarDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:104",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 104,
+      "vuln": "Concurrency: fire-and-forget async call in dsarDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:104",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 123,
+      "vuln": "Concurrency: fire-and-forget async call in breachDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:123",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 123,
+      "vuln": "Concurrency: fire-and-forget async call in breachDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:123",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "privacy.ts",
+      "line": 144,
+      "vuln": "Concurrency: fire-and-forget async call in reload() — result not awaited",
+      "finding_id": "concurrency:fire-forget:privacy.ts:144",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/privacy/processing"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "questionnaire-journeys.ts",
+      "line": 90,
+      "vuln": "Concurrency: fire-and-forget async call in createRun() — result not awaited",
+      "finding_id": "concurrency:fire-forget:questionnaire-journeys.ts:90",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/questionnaire-journeys"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "questionnaire-journeys.ts",
+      "line": 165,
+      "vuln": "Concurrency: fire-and-forget async call in openRun() — result not awaited",
+      "finding_id": "concurrency:fire-forget:questionnaire-journeys.ts:165",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/questionnaire-journeys/item/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "questionnaire-journeys.ts",
+      "line": 165,
+      "vuln": "Concurrency: fire-and-forget async call in openRun() — result not awaited",
+      "finding_id": "concurrency:fire-forget:questionnaire-journeys.ts:165",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/questionnaire-journeys/item/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "questionnaire-journeys.ts",
+      "line": 165,
+      "vuln": "Concurrency: fire-and-forget async call in openRun() — result not awaited",
+      "finding_id": "concurrency:fire-forget:questionnaire-journeys.ts:165",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/questionnaire-journeys/item/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "questionnaire-journeys.ts",
+      "line": 165,
+      "vuln": "Concurrency: fire-and-forget async call in openRun() — result not awaited",
+      "finding_id": "concurrency:fire-forget:questionnaire-journeys.ts:165",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/questionnaire-journeys/item/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "questionnaire-journeys.ts",
+      "line": 238,
+      "vuln": "Concurrency: fire-and-forget async call in submitRun() — result not awaited",
+      "finding_id": "concurrency:fire-forget:questionnaire-journeys.ts:238",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/questionnaire-journeys/item/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "questionnaire-journeys.ts",
+      "line": 245,
+      "vuln": "Concurrency: fire-and-forget async call in reload() — result not awaited",
+      "finding_id": "concurrency:fire-forget:questionnaire-journeys.ts:245",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/questionnaire-journeys/response/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "security-awareness.ts",
+      "line": 63,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:security-awareness.ts:63",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/security-awareness"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "security-awareness.ts",
+      "line": 103,
+      "vuln": "Concurrency: fire-and-forget async call in wireCreate() — result not awaited",
+      "finding_id": "concurrency:fire-forget:security-awareness.ts:103",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/security-awareness"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "security-awareness.ts",
+      "line": 103,
+      "vuln": "Concurrency: fire-and-forget async call in wireCreate() — result not awaited",
+      "finding_id": "concurrency:fire-forget:security-awareness.ts:103",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/security-awareness"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "session-ui.ts",
+      "line": 20,
+      "vuln": "Concurrency: fire-and-forget async call in openSettings() — result not awaited",
+      "finding_id": "concurrency:fire-forget:session-ui.ts:20",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "session-ui.ts",
+      "line": 148,
+      "vuln": "Concurrency: fire-and-forget async call in openNotificationRules() — result not awaited",
+      "finding_id": "concurrency:fire-forget:session-ui.ts:148",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/auth/totp/status"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "session-ui.ts",
+      "line": 410,
+      "vuln": "Concurrency: fire-and-forget async call in openTotpManager() — result not awaited",
+      "finding_id": "concurrency:fire-forget:session-ui.ts:410",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/auth/totp/disable"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soar.ts",
+      "line": 90,
+      "vuln": "Concurrency: fire-and-forget async call in act() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soar.ts:90",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soar.ts",
+      "line": 90,
+      "vuln": "Concurrency: fire-and-forget async call in act() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soar.ts:90",
+      "affectsAsset": null,
+      "atEntity": null
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soar.ts",
+      "line": 97,
+      "vuln": "Concurrency: fire-and-forget async call in runPlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soar.ts:97",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soar/playbook"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soar.ts",
+      "line": 97,
+      "vuln": "Concurrency: fire-and-forget async call in runPlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soar.ts:97",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soar/playbook"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soar.ts",
+      "line": 103,
+      "vuln": "Concurrency: fire-and-forget async call in runDetail() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soar.ts:103",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soar/playbook"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soar.ts",
+      "line": 124,
+      "vuln": "Concurrency: fire-and-forget async call in newDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soar.ts:124",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soar/playbook"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soar.ts",
+      "line": 124,
+      "vuln": "Concurrency: fire-and-forget async call in newDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soar.ts:124",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soar/playbook"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soar.ts",
+      "line": 153,
+      "vuln": "Concurrency: fire-and-forget async call in reload() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soar.ts:153",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soar/playbook"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc-cmm.ts",
+      "line": 11,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc-cmm.ts:11",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc-cmm"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 93,
+      "vuln": "Concurrency: fire-and-forget async call in wire() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:93",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 93,
+      "vuln": "Concurrency: fire-and-forget async call in wire() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:93",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 112,
+      "vuln": "Concurrency: fire-and-forget async call in newShiftDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:112",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 112,
+      "vuln": "Concurrency: fire-and-forget async call in newShiftDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:112",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 148,
+      "vuln": "Concurrency: fire-and-forget async call in newPlaybookDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:148",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 148,
+      "vuln": "Concurrency: fire-and-forget async call in newPlaybookDialog() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:148",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 182,
+      "vuln": "Concurrency: fire-and-forget async call in managePlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:182",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 182,
+      "vuln": "Concurrency: fire-and-forget async call in managePlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:182",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 182,
+      "vuln": "Concurrency: fire-and-forget async call in managePlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:182",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 182,
+      "vuln": "Concurrency: fire-and-forget async call in managePlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:182",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 182,
+      "vuln": "Concurrency: fire-and-forget async call in managePlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:182",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 182,
+      "vuln": "Concurrency: fire-and-forget async call in managePlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:182",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/shift"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 226,
+      "vuln": "Concurrency: fire-and-forget async call in act() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:226",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/playbooks"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 226,
+      "vuln": "Concurrency: fire-and-forget async call in act() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:226",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc/playbooks"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 243,
+      "vuln": "Concurrency: fire-and-forget async call in openPlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:243",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 243,
+      "vuln": "Concurrency: fire-and-forget async call in openPlaybook() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:243",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "soc.ts",
+      "line": 269,
+      "vuln": "Concurrency: fire-and-forget async call in reload() — result not awaited",
+      "finding_id": "concurrency:fire-forget:soc.ts:269",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/soc"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "team-ops.ts",
+      "line": 17,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:team-ops.ts:17",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/team-ops"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "team-ops.ts",
+      "line": 56,
+      "vuln": "Concurrency: fire-and-forget async call in openExercise() — result not awaited",
+      "finding_id": "concurrency:fire-forget:team-ops.ts:56",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/team-ops"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "team-ops.ts",
+      "line": 85,
+      "vuln": "Concurrency: fire-and-forget async call in post() — result not awaited",
+      "finding_id": "concurrency:fire-forget:team-ops.ts:85",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/team-ops/exercise"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "threat-feeds.ts",
+      "line": 57,
+      "vuln": "Concurrency: fire-and-forget async call in select() — result not awaited",
+      "finding_id": "concurrency:fire-forget:threat-feeds.ts:57",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/ai/feed-digest"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "threat-feeds.ts",
+      "line": 57,
+      "vuln": "Concurrency: fire-and-forget async call in select() — result not awaited",
+      "finding_id": "concurrency:fire-forget:threat-feeds.ts:57",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/ai/feed-digest"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 89,
+      "vuln": "Concurrency: fire-and-forget async call in createVendor() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:89",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 89,
+      "vuln": "Concurrency: fire-and-forget async call in createVendor() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:89",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 117,
+      "vuln": "Concurrency: fire-and-forget async call in openVendor() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:117",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 117,
+      "vuln": "Concurrency: fire-and-forget async call in openVendor() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:117",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 117,
+      "vuln": "Concurrency: fire-and-forget async call in openVendor() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:117",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 164,
+      "vuln": "Concurrency: fire-and-forget async call in api() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:164",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 169,
+      "vuln": "Concurrency: fire-and-forget async call in assess() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:169",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 176,
+      "vuln": "Concurrency: fire-and-forget async call in linkRun() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:176",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 179,
+      "vuln": "Concurrency: fire-and-forget async call in addFinding() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:179",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 199,
+      "vuln": "Concurrency: fire-and-forget async call in aiReview() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:199",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 203,
+      "vuln": "Concurrency: fire-and-forget async call in aiDraft() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:203",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/finding/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "tprm.ts",
+      "line": 210,
+      "vuln": "Concurrency: fire-and-forget async call in reload() — result not awaited",
+      "finding_id": "concurrency:fire-forget:tprm.ts:210",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/tprm/vendor/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "vm-report.ts",
+      "line": 51,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:vm-report.ts:51",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/vm-report"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "voc.ts",
+      "line": 15,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:voc.ts:15",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/voc"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "voc.ts",
+      "line": 54,
+      "vuln": "Concurrency: fire-and-forget async call in post() — result not awaited",
+      "finding_id": "concurrency:fire-forget:voc.ts:54",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/voc"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "vulnerability-management.ts",
+      "line": 156,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:vulnerability-management.ts:156",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/vulnerability-management"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "workforce.ts",
+      "line": 13,
+      "vuln": "Concurrency: fire-and-forget async call in load() — result not awaited",
+      "finding_id": "concurrency:fire-forget:workforce.ts:13",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/workforce"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "workforce.ts",
+      "line": 49,
+      "vuln": "Concurrency: fire-and-forget async call in assign() — result not awaited",
+      "finding_id": "concurrency:fire-forget:workforce.ts:49",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/workforce"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "zero-trust.ts",
+      "line": 142,
+      "vuln": "Concurrency: fire-and-forget async call in openAssessment() — result not awaited",
+      "finding_id": "concurrency:fire-forget:zero-trust.ts:142",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/zero-trust/assessment"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "zero-trust.ts",
+      "line": 142,
+      "vuln": "Concurrency: fire-and-forget async call in openAssessment() — result not awaited",
+      "finding_id": "concurrency:fire-forget:zero-trust.ts:142",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/zero-trust/assessment"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "zero-trust.ts",
+      "line": 142,
+      "vuln": "Concurrency: fire-and-forget async call in openAssessment() — result not awaited",
+      "finding_id": "concurrency:fire-forget:zero-trust.ts:142",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/zero-trust/assessment"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "zero-trust.ts",
+      "line": 167,
+      "vuln": "Concurrency: fire-and-forget async call in setStage() — result not awaited",
+      "finding_id": "concurrency:fire-forget:zero-trust.ts:167",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/zero-trust/assessment"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "zero-trust.ts",
+      "line": 171,
+      "vuln": "Concurrency: fire-and-forget async call in api() — result not awaited",
+      "finding_id": "concurrency:fire-forget:zero-trust.ts:171",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/zero-trust/assessment/"
+    },
+    {
+      "stride": "T",
+      "strideLabel": "Tampering",
+      "cwe": null,
+      "family": "concurrency-bug",
+      "severity": "low",
+      "file": "zero-trust.ts",
+      "line": 175,
+      "vuln": "Concurrency: fire-and-forget async call in reload() — result not awaited",
+      "finding_id": "concurrency:fire-forget:zero-trust.ts:175",
+      "affectsAsset": null,
+      "atEntity": "route:GET:/api/zero-trust/assessment/"
     },
     {
       "stride": "I",
@@ -3652,7 +7766,7 @@
       "severity": "medium",
       "file": "chain.ts",
       "vuln": "SSRF",
-      "finding_id": "chain.ts:25:162:SSRF",
+      "finding_id": "chain.ts:29:166:SSRF",
       "affectsAsset": null,
       "atEntity": null
     },
@@ -3664,7 +7778,7 @@
       "severity": "medium",
       "file": "chain.ts",
       "vuln": "SSRF",
-      "finding_id": "chain.ts:25:162:SSRF",
+      "finding_id": "chain.ts:29:166:SSRF",
       "affectsAsset": null,
       "atEntity": null
     },
@@ -3674,32 +7788,12 @@
       "cwe": "CWE-20",
       "severity": "critical",
       "file": "sca.ts",
-      "line": 116,
+      "line": 119,
       "vuln": "Multi-Sink Taint Chain — request.json() (Starlette) reaches 4 sinks",
       "finding_id": "multi-sink:request.json() (Starlette):4",
       "affectsAsset": null,
       "atEntity": "route:GET:/api/sca/import"
     }
   ],
-  "attackTrees": [
-    {
-      "root": "Compromise datastore: Application Database",
-      "asset_id": "datastore:default",
-      "leaves": [
-        {
-          "label": "Tampering via sql-injection (CWE-89)",
-          "severity": "low",
-          "file": "app.ts",
-          "finding_id": "app.ts:1803:6437:SQL_Injection"
-        },
-        {
-          "label": "Information Disclosure via sql-injection (CWE-89)",
-          "severity": "low",
-          "file": "app.ts",
-          "finding_id": "app.ts:1803:6437:SQL_Injection"
-        }
-      ],
-      "severity": "medium"
-    }
-  ]
+  "attackTrees": []
 }

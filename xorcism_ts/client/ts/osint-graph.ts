@@ -14,6 +14,12 @@ const COLOR: Record<string, string> = {
   domain: "#34d399", ip: "#60a5fa", email: "#f472b6", hash: "#94a3b8", onion: "#a855f7",
 };
 const TYPE_LABEL: Record<string, string> = { intel: "Intel report", cve: "CVE", actor: "Threat actor", malware: "Malware", attack: "ATT&CK", domain: "Domain", ip: "IP", email: "Email", hash: "Hash", onion: ".onion" };
+// Node types whose entity maps to a record in another table → "open the matching form" deep-link
+// (Explorer editCol/editVal → getRowById → edit modal). The node label is the lookup value.
+const FORM_LINK: Record<string, { db: string; table: string; editCol: string; key: string }> = {
+  cve: { db: "XVULNERABILITY", table: "VULNERABILITY", editCol: "VULReferentialID", key: "og.openVuln" },
+  actor: { db: "XTHREAT", table: "THREATACTOR", editCol: "ThreatActorName", key: "og.openActor" },
+};
 const typeLabel = (tp: string): string => { const k = `og.type.${tp}`; const v = T(k); return v === k ? (TYPE_LABEL[tp] || tp) : v; };
 
 interface N { id: string; type: string; label: string; degree: number; source?: string; date?: string; ref?: string; x?: number; y?: number; }
@@ -22,6 +28,7 @@ interface L { source: any; target: any; kind: string; }
 let NODES: N[] = []; let LINKS: L[] = [];
 const hidden = new Set<string>();
 let sim: any, nodeSel: any, linkSel: any, labelSel: any;
+let zoomBehavior: any, svgSel: any; // retained so the +/−/reset buttons can drive the same transform
 const adj = new Map<string, Set<string>>();
 
 function buildAdj(): void {
@@ -39,7 +46,26 @@ function render(): void {
   const W = host.clientWidth, H = host.clientHeight;
   const svg = d3.select(host).append("svg").attr("width", W).attr("height", H);
   const g = svg.append("g");
-  svg.call(d3.zoom().scaleExtent([0.15, 4]).on("zoom", (e: any) => g.attr("transform", e.transform)));
+  zoomBehavior = d3.zoom().scaleExtent([0.15, 4]).on("zoom", (e: any) => g.attr("transform", e.transform));
+  svgSel = svg;
+  svg.call(zoomBehavior); // wheel / pinch / drag-pan
+
+  // Visible zoom controls (+ / − / reset) — drive the same d3.zoom transform as the wheel.
+  const ctrl = document.createElement("div");
+  ctrl.className = "og-zoom";
+  ctrl.innerHTML =
+    `<button data-z="in" title="${esc(T("og.zoomIn"))}" aria-label="${esc(T("og.zoomIn"))}">+</button>` +
+    `<button data-z="out" title="${esc(T("og.zoomOut"))}" aria-label="${esc(T("og.zoomOut"))}">&minus;</button>` +
+    `<button data-z="reset" class="reset" title="${esc(T("og.zoomReset"))}" aria-label="${esc(T("og.zoomReset"))}">&#9974;</button>`;
+  host.appendChild(ctrl);
+  ctrl.querySelectorAll<HTMLButtonElement>("button").forEach((b) => {
+    b.onclick = (ev) => {
+      ev.preventDefault();
+      const z = b.dataset.z;
+      if (z === "reset") svgSel.transition().duration(300).call(zoomBehavior.transform, d3.zoomIdentity);
+      else svgSel.transition().duration(200).call(zoomBehavior.scaleBy, z === "in" ? 1.4 : 1 / 1.4);
+    };
+  });
 
   const visN = NODES.filter((n) => !hidden.has(n.type));
   const visIds = new Set(visN.map((n) => n.id));
@@ -72,8 +98,18 @@ function focus(d: N): void {
   linkSel.classed("dim", (l: L) => { const s = (l.source as any).id, t = (l.target as any).id; return s !== d.id && t !== d.id; });
   const neighNodes = [...neigh].map((id) => NODES.find((n) => n.id === id)).filter(Boolean) as N[];
   neighNodes.sort((a, b) => b.degree - a.degree);
-  $("og-panel").innerHTML = `<h3><span style="color:${COLOR[d.type] || "#94a3b8"}">●</span> ${esc(d.label)}</h3>
+  // Deep-link to the matching record's edit form in a new tab (CVE→VULNERABILITY, actor→THREATACTOR…).
+  // Explorer editCol/editVal → getRowById → edit modal; the node label is the lookup value.
+  const fl = FORM_LINK[d.type];
+  const col = COLOR[d.type] || "#94a3b8";
+  const formLink = fl
+    ? `<div style="margin:8px 0"><a class="og-openform" target="_blank" rel="noopener" style="color:${col}"
+         href="/?db=${fl.db}&table=${fl.table}&editCol=${fl.editCol}&editVal=${encodeURIComponent(d.label)}"
+         >${esc(T(fl.key))} ↗</a></div>`
+    : "";
+  $("og-panel").innerHTML = `<h3><span style="color:${col}">●</span> ${esc(d.label)}</h3>
     <div class="muted" style="font-size:12px">${esc(typeLabel(d.type))}${d.type !== "intel" ? ` · ${fmt("og.seenIn", { n: d.degree })}` : ""}</div>
+    ${formLink}
     ${d.source ? `<div class="k">${T("og.source")}</div>${esc(d.source)}` : ""}
     ${d.date ? `<div class="k">${T("og.date")}</div>${esc(d.date)}` : ""}
     ${d.ref ? `<div class="k">${T("og.reference")}</div><a href="${esc(d.ref)}" target="_blank" rel="noopener" style="word-break:break-all">${esc(d.ref).slice(0, 80)}↗</a>` : ""}

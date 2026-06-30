@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — TLPT (TIBER-EU)</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .tl-wrap{max-width:1320px;margin:0 auto;padding:18px}
+  .tl-wrap h1{font-size:20px;margin:0 0 2px}
+  .tl-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1050px}
+  .muted{color:#64748b}
+  .tl-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .tl-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:11px 14px}
+  .tl-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .tl-card .val{font-size:24px;font-weight:700;margin-top:3px}
+  .tl-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .tl-score{background:linear-gradient(135deg,#241a40,#13162a)}
+  .tl-section{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .btn{background:#22c55e;color:#06240f;border:none;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer}.btn:hover{background:#4ade80}.btn:disabled{opacity:.5;cursor:default}
+  .btn.sec{background:#2d3250;color:#cbd5e1}.btn.sec:hover{background:#3a4170}
+  .btn.sm{padding:3px 9px;font-size:11px}
+  .btn.danger{background:#3a1620;color:#fca5a5}.btn.danger:hover{background:#5a1f2e}
+  input.in,select.in,textarea.in{background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;font-size:12px;padding:5px 8px;font-family:inherit}
+  textarea.in{width:100%;min-height:70px;resize:vertical}
+  .mrow{display:flex;align-items:center;gap:12px;padding:9px 11px;border:1px solid #2d3250;border-radius:8px;background:#13162a;margin-bottom:6px;cursor:pointer}
+  .mrow:hover{border-color:#4ade80}
+  .mrow .nm{font-weight:700;color:#e2e8f0;flex:1}
+  .pill{font-size:10px;border-radius:5px;padding:1px 7px;font-weight:700}
+  .pill.fw{background:#1e2a44;color:#93c5fd}.pill.st{background:#241a40;color:#c4b5fd}
+  /* phases / milestones */
+  .ph{border:1px solid #2d3250;border-radius:10px;background:#13162a;padding:10px 12px;margin-bottom:10px}
+  .ph h4{margin:0 0 8px;font-size:12px;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between}
+  .ms{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #1e2133;font-size:12px}
+  .ms .code{font-family:ui-monospace,monospace;font-size:10px;color:#64748b;min-width:54px}
+  .ms .mn{flex:1}.ms .mn b{color:#e2e8f0}.ms .mn .dl{color:#94a3b8;font-size:11px}
+  .ms .ap{font-size:10px;color:#22c55e;min-width:120px;text-align:right}
+  .ms select{font-size:11px;padding:2px 5px}
+  .ms-completed{opacity:.75}
+  /* generic tables */
+  table.tt{width:100%;border-collapse:collapse;font-size:12px}
+  table.tt th,table.tt td{text-align:left;padding:5px 8px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.tt th{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  .tag{font-size:10px;border-radius:5px;padding:1px 6px;background:#1e2a44;color:#93c5fd;white-space:nowrap}
+  .sev-Critical{color:#f87171;font-weight:700}.sev-High{color:#fb923c;font-weight:700}.sev-Medium{color:#fbbf24}.sev-Low{color:#94a3b8}.sev-Info{color:#64748b}
+  .yes{color:#22c55e;font-weight:700}.no{color:#64748b}
+  .reached{color:#f87171;font-weight:700}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;border:1px solid #2d3250;border-radius:6px;padding:1px 7px;margin-right:4px;user-select:none}
+  .chip.on{background:#10271a;border-color:#22c55e;color:#6ee7b7}
+  .frm{background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:10px;margin-bottom:10px;display:none}
+  .frm.open{display:block}
+  .frm .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;margin-bottom:7px}
+  .frm label{font-size:10px;color:#94a3b8;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.3px}
+  .frm input,.frm select,.frm textarea{width:100%}
+  .ai-out{background:#0f1117;border:1px solid #2d3250;border-radius:8px;padding:11px;font-size:12px;color:#cbd5e1;white-space:pre-wrap;margin-top:8px;line-height:1.5}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .xdel{color:#64748b;cursor:pointer;font-size:12px}.xdel:hover{color:#fca5a5}
+  .prop{display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #1e2133;font-size:12px}.prop .pt{flex:1}
+  .attribution{font-size:11px;color:#64748b;margin-top:18px;border-top:1px solid #1e2133;padding-top:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/compliance-management">&#9878;&#65039; Compliance</a>
+  <a href="/purple-team">&#129512; Purple Team</a>
+  <a href="/reg-incident-reporting">&#128221; DORA</a>
+  <span class="spacer"></span>
+  <span class="title">&#127993;&#65039; TLPT &mdash; TIBER-EU</span>
+</div>
+
+<div class="tl-wrap">
+  <h1>TLPT &mdash; Threat-Led Penetration Testing (TIBER-EU)</h1>
+  <div class="tl-sub">Run controlled, intelligence-led red-team tests against your live critical systems following the ECB <b>TIBER-EU</b> framework &mdash; the methodology DORA references for advanced (TLPT) testing of financial entities. Track the three phases (<b>Preparation &rarr; Testing &rarr; Closure</b>) with their canonical milestones &amp; sign-offs, the intelligence-led attack <b>scenarios</b>, the <b>flags</b> (critical-function targets) and whether each was <b>reached / detected / prevented</b>, the red-team <b>findings</b> &amp; remediation, and the <b>team roster</b> (White / Control / Blue / Red / TI / authority). The scorecard measures resilience (Prevent · Detect · Respond), not just whether the testers got in.</div>
+  <div id="tl-body"><div class="muted" style="padding:24px;text-align:center">Loading TLPT engagements&hellip;</div></div>
+  <div class="attribution">
+    Phase &amp; role terminology from the European Central Bank&rsquo;s <b>TIBER-EU Framework</b>; this is an independent
+    implementation. TLPT is the term used by <b>DORA</b> (Regulation (EU) 2022/2554) for advanced threat-led testing.
+  </div>
+</div>
+
+<script src="/js/i18n.js"></script><script src="/js/session-ui.js"></script>
+<script src="/js/tlpt.js"></script>
+</body>
+</html>

@@ -328,3 +328,58 @@ export function auditPackageOscal(p: AuditPackage, kind: "ssp" | "poam" = "ssp",
     "control-implementation": { description: "Implementation status per control objective, evidenced by live telemetry.", "implemented-requirements": impl },
   } };
 }
+
+/**
+ * SARIF 2.1.0 export of the audit package — emits control gaps/partials and top cyber-risk exposures as
+ * SARIF results, so the accreditation evidence drops into code-scanning / SARIF-consuming tools (GitHub
+ * code scanning, DefectDojo, etc.). Built from the already-tenant-scoped package (no extra queries).
+ */
+export function auditPackageSarif(p: AuditPackage): unknown {
+  const sevLevel = (s: string): "error" | "warning" | "note" =>
+    /gap|crit|high|fail/i.test(s) ? "error" : /partial|med|moderate|warn/i.test(s) ? "warning" : "note";
+  const rules: Record<string, unknown>[] = [];
+  const ruleSeen = new Set<string>();
+  const results: Record<string, unknown>[] = [];
+
+  // control implementation gaps / partials
+  for (const c of p.accreditation.controls.filter((x) => x.status === "gap" || x.status === "partial")) {
+    const ruleId = `control/${c.id}`;
+    if (!ruleSeen.has(ruleId)) {
+      ruleSeen.add(ruleId);
+      rules.push({ id: ruleId, name: c.name, shortDescription: { text: `Control: ${c.name}` },
+        defaultConfiguration: { level: sevLevel(c.status) },
+        properties: { frameworks: (c.frameworks || []).map((f) => `${f.fw}:${f.ref}`), tags: ["compliance", "control"] } });
+    }
+    results.push({
+      ruleId, level: sevLevel(c.status),
+      message: { text: `${c.name} — implementation status: ${c.status}.${c.refs ? ` Mapped to ${c.refs}.` : ""}${c.metric ? ` (${c.metric})` : ""}` },
+      locations: [{ logicalLocations: [{ name: c.id, fullyQualifiedName: c.refs || c.id, kind: "control" }] }],
+      properties: { status: c.status, evidence: c.evidence || [] },
+    });
+  }
+  // top cyber-risk exposures (CVEs)
+  for (const e of p.risk.topExposures) {
+    const ruleId = `exposure/${e.ref}`;
+    if (!ruleSeen.has(ruleId)) {
+      ruleSeen.add(ruleId);
+      rules.push({ id: ruleId, name: e.ref, shortDescription: { text: `Exposure ${e.ref}` },
+        defaultConfiguration: { level: e.kev || e.priority >= 70 ? "error" : "warning" }, properties: { tags: ["vulnerability", e.kev ? "kev" : "exposure"] } });
+    }
+    results.push({
+      ruleId, level: e.kev || e.priority >= 70 ? "error" : "warning",
+      message: { text: `${e.ref}: priority ${e.priority}${e.cvss != null ? `, CVSS ${e.cvss}` : ""}${e.epss != null ? `, EPSS ${(e.epss * 100).toFixed(0)}%` : ""}${e.kev ? ", on CISA KEV" : ""}${e.exploits ? `, ${e.exploits} public exploit(s)` : ""}.` },
+      locations: [{ logicalLocations: [{ name: e.ref, kind: "vulnerability" }] }],
+      properties: { kev: e.kev, cvss: e.cvss, epss: e.epss, exploits: e.exploits, priority: e.priority },
+    });
+  }
+
+  return {
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [{
+      tool: { driver: { name: "XORCISM", informationUri: "https://github.com/XORCISM-AI/XORCISM", version: "1.6", rules } },
+      results,
+      properties: { generatedAt: p.generatedAt, provenPct: p.accreditation.provenPct, gaps: p.accreditation.gap, partials: p.accreditation.partial },
+    }],
+  };
+}

@@ -303,6 +303,13 @@ router.get("/audit", (req: Request, res: Response) => {
   res.json(xid.listAudit(limit, scope ?? undefined));
 });
 
+// GET /api/admin/audit/verify — verify the tamper-evident audit hash chain (cryptographic lineage).
+// Recomputes each entry's SHA-256(PrevHash + content); any post-hoc edit/deletion breaks the chain.
+router.get("/audit/verify", (req: Request, res: Response) => {
+  if (!superOnly(req, res)) return; // global integrity check → super-admin only
+  res.json(xid.verifyAuditChain());
+});
+
 // Common filters for the exports (tenant-scoped for non-super admins).
 function auditFilters(req: Request) {
   const q = req.query;

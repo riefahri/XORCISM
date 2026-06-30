@@ -1842,3 +1842,34 @@ CREATE TABLE "OVALVARIABLEVALUEFOROVALSYSTEMOBJECT"(
 ;
 
 COMMIT;
+
+-- ============================================================================
+-- Schema sync — runtime tables/columns/indexes created by the server's ensure*
+-- functions, appended to keep this canonical script in step with the live schema.
+-- Generated 2026-06-29. Additive; safe to re-run the script.
+-- ============================================================================
+-- New tables (3)
+CREATE TABLE IF NOT EXISTS CISBENCHMARK ( BenchmarkID INTEGER PRIMARY KEY, BenchmarkGUID TEXT, Name TEXT, Version TEXT, Platform TEXT, Category TEXT, Source TEXT, ExternalID TEXT, RecommendationCount INTEGER, CreatedDate TEXT);
+CREATE TABLE IF NOT EXISTS CISBENCHMARKRECOMMENDATION ( RecommendationID INTEGER PRIMARY KEY, RecommendationGUID TEXT, BenchmarkID INTEGER, Number TEXT, Title TEXT, Level TEXT, Section TEXT, Description TEXT, Remediation TEXT, AssessmentType TEXT, ExternalID TEXT, CreatedDate TEXT);
+CREATE TABLE IF NOT EXISTS CISBENCHMARKRESULT ( ResultID INTEGER PRIMARY KEY, ResultGUID TEXT, BenchmarkID INTEGER, RecommendationID INTEGER, RecommendationNumber TEXT, AssetID INTEGER, Result TEXT, Severity TEXT, CheckedAt TEXT, Source TEXT, ExternalID TEXT, CreatedDate TEXT, TenantID INTEGER);
+-- New columns (12)
+ALTER TABLE "OVALDEFINITION" ADD COLUMN "BlobSha256" TEXT;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "AssetID" INTEGER;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "OVALDefinitionID" INTEGER;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "OVALDefinitionIDPattern" TEXT;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "ResultValue" TEXT;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "ClassValue" TEXT;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "Title" TEXT;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "Severity" TEXT;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "ScanDate" DATE;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "AgentName" TEXT;
+ALTER TABLE "OVALRESULTS" ADD COLUMN "TenantID" INTEGER;
+ALTER TABLE "OVALRESULTSTYPE" ADD COLUMN "ResultValue" TEXT;
+-- New indexes (7)
+CREATE INDEX IF NOT EXISTS "ix_OVALRESULTS_tenant" ON "OVALRESULTS" ("TenantID");
+CREATE INDEX IF NOT EXISTS ix_cisrec_benchmark ON CISBENCHMARKRECOMMENDATION(BenchmarkID);
+CREATE INDEX IF NOT EXISTS ix_cisres_asset ON CISBENCHMARKRESULT(AssetID);
+CREATE INDEX IF NOT EXISTS ix_cisres_benchmark ON CISBENCHMARKRESULT(BenchmarkID);
+CREATE INDEX IF NOT EXISTS ix_ovalresults_asset ON "OVALRESULTS"("AssetID");
+CREATE INDEX IF NOT EXISTS ix_ovalresults_class ON "OVALRESULTS"("ClassValue");
+CREATE INDEX IF NOT EXISTS ix_ovalresults_scan ON "OVALRESULTS"("ScanDate");

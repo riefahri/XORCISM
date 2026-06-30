@@ -1573,3 +1573,51 @@ CREATE TABLE IF NOT EXISTS PIR (
 CREATE INDEX IF NOT EXISTS ix_pir_status ON PIR(Status);
 
 COMMIT;
+
+-- ============================================================================
+-- Schema sync — runtime tables/columns/indexes created by the server's ensure*
+-- functions, appended to keep this canonical script in step with the live schema.
+-- Generated 2026-06-29. Additive; safe to re-run the script.
+-- ============================================================================
+-- New tables (7)
+CREATE TABLE IF NOT EXISTS AIEXCHANGETHREAT ( ThreatID INTEGER PRIMARY KEY, ThreatGUID TEXT, Ref TEXT, Name TEXT, Category TEXT, Lifecycle TEXT, Impact TEXT, Description TEXT, Controls TEXT, AppliesTo TEXT, Source TEXT, URL TEXT, TenantID INTEGER, CreatedDate TEXT);
+CREATE TABLE IF NOT EXISTS CTIINVESTIGATION ( InvestigationID INTEGER PRIMARY KEY, InvestigationGUID TEXT, Target TEXT, TargetKind TEXT, Status TEXT DEFAULT 'complete', ExposureScore INTEGER, Severity TEXT, Summary TEXT, Brief TEXT, PlanJSON TEXT, FindingsJSON TEXT, ObservablesJSON TEXT, Recommendations TEXT, AttackTags TEXT, Model TEXT, Offline INTEGER DEFAULT 0, IntelID INTEGER, CreatedDate TEXT, TenantID INTEGER);
+CREATE TABLE IF NOT EXISTS EXERCISETESTCASE ( TestCaseID INTEGER PRIMARY KEY, ExerciseID INTEGER, AttackID TEXT, Technique TEXT, Tactic TEXT, OffensiveAction TEXT, OffensiveTool TEXT, ExpectedDefense TEXT, Outcome TEXT, Prevented INTEGER DEFAULT 0, Detected INTEGER DEFAULT 0, Logged INTEGER DEFAULT 0, DetectionTimeMin INTEGER, DetectionSource TEXT, ResponseAction TEXT, SigmaRuleID INTEGER, Notes TEXT, TenantID INTEGER, CreatedDate TEXT);
+CREATE TABLE IF NOT EXISTS STIXOBJECT ( StixObjectID INTEGER PRIMARY KEY, StixID TEXT, StixType TEXT, SpecVersion TEXT, Name TEXT, RawJson TEXT, Source TEXT, TenantID INTEGER, CreatedDate TEXT, ModifiedDate TEXT);
+CREATE VIRTUAL TABLE IF NOT EXISTS STIXOBJECT_FTS USING fts5(stixId UNINDEXED, stixType, name, value, content, tokenize='porter unicode61');
+CREATE TABLE IF NOT EXISTS TEAMCAPABILITY ( CapabilityID INTEGER PRIMARY KEY, Team TEXT, Name TEXT, Category TEXT, Maturity INTEGER, Capacity TEXT, Tooling TEXT, OwnerPersonID INTEGER, Notes TEXT, TenantID INTEGER, CreatedDate TEXT);
+CREATE TABLE IF NOT EXISTS TEAMEXERCISE ( ExerciseID INTEGER PRIMARY KEY, ExerciseGUID TEXT, Name TEXT, ExerciseType TEXT, Objective TEXT, ThreatActor TEXT, Status TEXT, StartDate TEXT, EndDate TEXT, TenantID INTEGER, CreatedDate TEXT);
+-- New columns (23)
+ALTER TABLE "THREATACTOR" ADD COLUMN "SourceReliability" TEXT;
+ALTER TABLE "THREATACTOR" ADD COLUMN "InfoCredibility" TEXT;
+ALTER TABLE "THREATCAMPAIGN" ADD COLUMN "SourceReliability" TEXT;
+ALTER TABLE "THREATCAMPAIGN" ADD COLUMN "InfoCredibility" TEXT;
+ALTER TABLE "HUNT" ADD COLUMN "TahitiPhase" TEXT;
+ALTER TABLE "HUNT" ADD COLUMN "TahitiTrigger" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "CveTags" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "AiSummary" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "Confidence" INTEGER;
+ALTER TABLE "THREATREPORT" ADD COLUMN "TLP" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "Labels" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "CreatedByRef" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "ExternalReferences" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "Revoked" INTEGER DEFAULT 0;
+ALTER TABLE "THREATREPORT" ADD COLUMN "Aliases" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "WorkflowStatus" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "SourceReliability" TEXT;
+ALTER TABLE "THREATREPORT" ADD COLUMN "InfoCredibility" TEXT;
+ALTER TABLE "INTELEXCHANGE" ADD COLUMN "SourceReliability" TEXT;
+ALTER TABLE "INTELEXCHANGE" ADD COLUMN "InfoCredibility" TEXT;
+ALTER TABLE "INTELEXCHANGE" ADD COLUMN "RawJson" TEXT;
+ALTER TABLE "IOC" ADD COLUMN "RawJson" TEXT;
+ALTER TABLE "OBSERVABLE" ADD COLUMN "RawJson" TEXT;
+-- New indexes (9)
+CREATE INDEX IF NOT EXISTS ix_aithreat_cat ON AIEXCHANGETHREAT(Category);
+CREATE INDEX IF NOT EXISTS ix_ctiinv_target ON CTIINVESTIGATION(Target);
+CREATE INDEX IF NOT EXISTS ix_ctiinv_tenant ON CTIINVESTIGATION(TenantID);
+CREATE INDEX IF NOT EXISTS ix_stixobject_tenant ON STIXOBJECT(TenantID);
+CREATE INDEX IF NOT EXISTS ix_stixobject_type ON STIXOBJECT(StixType);
+CREATE INDEX IF NOT EXISTS ix_teamcap_tenant ON TEAMCAPABILITY(TenantID);
+CREATE INDEX IF NOT EXISTS ix_teamex_tenant ON TEAMEXERCISE(TenantID);
+CREATE INDEX IF NOT EXISTS ix_testcase_ex ON EXERCISETESTCASE(ExerciseID);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_stixobject ON STIXOBJECT(StixID);

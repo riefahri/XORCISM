@@ -1,7 +1,7 @@
 /** workforce.ts (routes) — NICE + ENISA ECSF workforce roles around PERSON. RBAC on XORCISM.PERSON. */
 import { Router, Request, Response } from "express";
 import { userCan } from "../auth";
-import { workforceInventory, assignRole, unassignRole } from "../workforce";
+import { workforceInventory, assignRole, unassignRole, personsByWorkRole } from "../workforce";
 
 const router = Router();
 const ten = (req: Request): number | null => (req.user!.isSuperAdmin ? null : (req.user!.tenantId ?? null));
@@ -10,6 +10,13 @@ router.get("/workforce", (req: Request, res: Response) => {
   if (!req.user) return void res.status(401).json({ error: "auth" });
   if (!userCan(req.user, "read", "XORCISM", "PERSON")) return void res.status(403).json({ error: "forbidden" });
   try { res.json(workforceInventory(ten(req))); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
+});
+
+// GET /api/workforce/person-roles?framework=NICE — roles + the people in each (for person-picker filters)
+router.get("/workforce/person-roles", (req: Request, res: Response) => {
+  if (!req.user) return void res.status(401).json({ error: "auth" });
+  if (!userCan(req.user, "read", "XORCISM", "PERSON")) return void res.status(403).json({ error: "forbidden" });
+  try { res.json(personsByWorkRole(String(req.query.framework || "NICE"))); } catch (e) { res.status(500).json({ error: (e as Error).message }); }
 });
 
 router.post("/workforce/assign", (req: Request, res: Response) => {

@@ -38,6 +38,25 @@ export const WORKROLES: Role[] = [
   r("NICE", "CI-WRL-001", "Threat/Warning Analyst", "Cyberspace Intelligence", "Develops cyber indications and warnings; assesses threats.", "CTI, threat analysis, warning"),
 ];
 
+/** Work roles of one framework (default NICE) + the people assigned to each (PERSONWORKROLE).
+ *  Used to filter a person picker (e.g. the INCIDENT assignee combobox) by NICE role. */
+export function personsByWorkRole(framework = "NICE"): { framework: string; roles: { id: number; name: string; category: string }[]; byRole: Record<string, number[]> } {
+  const fw = String(framework || "NICE").toUpperCase();
+  const out = { framework: fw, roles: [] as { id: number; name: string; category: string }[], byRole: {} as Record<string, number[]> };
+  let db: ReturnType<typeof getDb>;
+  try { db = getDb("XORCISM"); } catch { return out; }
+  const has = (t: string): boolean => { try { return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t); } catch { return false; } };
+  if (!has("WORKROLE")) return out;
+  out.roles = (db.prepare("SELECT WorkRoleID id, Name name, IFNULL(Category,'') category FROM WORKROLE WHERE UPPER(IFNULL(Framework,''))=? ORDER BY Name").all(fw) as any[])
+    .map((x) => ({ id: Number(x.id), name: String(x.name ?? ""), category: String(x.category ?? "") }));
+  if (has("PERSONWORKROLE")) {
+    for (const l of db.prepare("SELECT pwr.WorkRoleID wid, pwr.PersonID pid FROM PERSONWORKROLE pwr JOIN WORKROLE w ON w.WorkRoleID=pwr.WorkRoleID WHERE UPPER(IFNULL(w.Framework,''))=? AND pwr.PersonID IS NOT NULL").all(fw) as any[]) {
+      (out.byRole[String(l.wid)] ||= []).push(Number(l.pid));
+    }
+  }
+  return out;
+}
+
 const FRAMEWORKS = ["ECSF", "NICE"];
 
 function persons(): Map<number, string> { const m = new Map<number, string>(); try { for (const p of getDb("XORCISM").prepare("SELECT PersonID, FullName FROM PERSON").all() as any[]) m.set(Number(p.PersonID), String(p.FullName || `#${p.PersonID}`)); } catch { /* */ } return m; }

@@ -1,0 +1,39 @@
+-- ============================================================================
+-- XID_sqlite.sql — canonical SQLite schema for the XID database.
+--
+-- XID is a SQLite-native XORCISM database (no SQL Server source model): its tables are
+-- created at runtime by the server's ensure*() functions. This script is generated from the
+-- live schema so a fresh XID.db can be provisioned identically (the server's ensure*()
+-- functions still run at boot and reconcile idempotently). Reference data is seeded at boot.
+-- Generated 2026-06-29 from the live schema. Schema only (no data).
+-- ============================================================================
+
+BEGIN TRANSACTION;
+
+-- Tables (14)
+CREATE TABLE IF NOT EXISTS XUSER ( UserID INTEGER PRIMARY KEY AUTOINCREMENT, Email TEXT NOT NULL, LoweredEmail TEXT NOT NULL UNIQUE, DisplayName TEXT, PasswordHash TEXT NOT NULL, IsApproved INTEGER NOT NULL DEFAULT 1, IsLockedOut INTEGER NOT NULL DEFAULT 0, MustChangePassword INTEGER NOT NULL DEFAULT 0, FailedPasswordAttemptCount INTEGER NOT NULL DEFAULT 0, FailedPasswordWindowStart TEXT, LastLoginDate TEXT, LastPasswordChangedDate TEXT, CreatedDate TEXT, CreatedByUserID INTEGER, Comment TEXT , "TenantID" INTEGER, "PinHash" TEXT, "TotpSecret" TEXT, "TotpEnabled" INTEGER);
+CREATE TABLE IF NOT EXISTS XROLE ( RoleID INTEGER PRIMARY KEY AUTOINCREMENT, RoleName TEXT NOT NULL UNIQUE, RoleDescription TEXT, CreatedDate TEXT );
+CREATE TABLE IF NOT EXISTS XUSERROLE ( UserRoleID INTEGER PRIMARY KEY AUTOINCREMENT, UserID INTEGER NOT NULL, RoleID INTEGER NOT NULL, UNIQUE(UserID, RoleID) );
+CREATE TABLE IF NOT EXISTS XPERMISSION ( PermissionID INTEGER PRIMARY KEY AUTOINCREMENT, RoleID INTEGER NOT NULL, ResourceType TEXT NOT NULL, ResourceKey TEXT NOT NULL, CanCreate INTEGER NOT NULL DEFAULT 0, CanRead INTEGER NOT NULL DEFAULT 0, CanUpdate INTEGER NOT NULL DEFAULT 0, CanDelete INTEGER NOT NULL DEFAULT 0, CreatedDate TEXT, UNIQUE(RoleID, ResourceType, ResourceKey) );
+CREATE TABLE IF NOT EXISTS XSESSION ( SessionID TEXT PRIMARY KEY, UserID INTEGER NOT NULL, CreatedDate TEXT NOT NULL, ExpiresDate TEXT NOT NULL, LastSeenDate TEXT, IP TEXT, UserAgent TEXT );
+CREATE TABLE IF NOT EXISTS XAUDITLOG ( AuditID INTEGER PRIMARY KEY AUTOINCREMENT, UserID INTEGER, Action TEXT NOT NULL, ResourceType TEXT, ResourceKey TEXT, Detail TEXT, IP TEXT, Timestamp TEXT NOT NULL , "TenantID" INTEGER);
+CREATE TABLE IF NOT EXISTS XTENANT ( TenantID INTEGER PRIMARY KEY AUTOINCREMENT, TenantName TEXT NOT NULL UNIQUE, IsSystem INTEGER NOT NULL DEFAULT 0, IsActive INTEGER NOT NULL DEFAULT 1, CreatedDate TEXT );
+CREATE TABLE IF NOT EXISTS XPASSWORDRESET ( ResetID INTEGER PRIMARY KEY AUTOINCREMENT, UserID INTEGER NOT NULL, TokenHash TEXT NOT NULL UNIQUE, ExpiresDate TEXT NOT NULL, UsedDate TEXT, CreatedDate TEXT );
+CREATE TABLE IF NOT EXISTS XFEEDBACK ( FeedbackID INTEGER PRIMARY KEY AUTOINCREMENT, UserID INTEGER, Email TEXT, Type TEXT NOT NULL DEFAULT 'rating', FeatureKey TEXT, Rating INTEGER, Title TEXT, Message TEXT, Status TEXT NOT NULL DEFAULT 'new', CreatedDate TEXT );
+CREATE TABLE IF NOT EXISTS XUSERPREF ( UserID INTEGER NOT NULL, PrefKey TEXT NOT NULL, PrefValue TEXT, ModifiedDate TEXT, PRIMARY KEY (UserID, PrefKey) );
+CREATE TABLE IF NOT EXISTS XAPIKEY ( KeyID INTEGER PRIMARY KEY AUTOINCREMENT, UserID INTEGER NOT NULL, TenantID INTEGER, Name TEXT NOT NULL, Prefix TEXT NOT NULL, KeyHash TEXT NOT NULL UNIQUE, Scopes TEXT, CreatedDate TEXT NOT NULL, LastUsedDate TEXT, Revoked INTEGER NOT NULL DEFAULT 0 , "ExpiresDate" TEXT);
+CREATE TABLE IF NOT EXISTS XWEBAUTHN ( CredentialID TEXT PRIMARY KEY, UserID INTEGER NOT NULL, PublicKeyJwk TEXT NOT NULL, Alg INTEGER NOT NULL, SignCount INTEGER NOT NULL DEFAULT 0, Transports TEXT, Aaguid TEXT, Name TEXT, CreatedDate TEXT, LastUsedDate TEXT );
+CREATE TABLE IF NOT EXISTS XWEBHOOK ( WebhookID INTEGER PRIMARY KEY AUTOINCREMENT, UserID INTEGER NOT NULL, TenantID INTEGER, Url TEXT NOT NULL, Secret TEXT NOT NULL, Events TEXT NOT NULL, Active INTEGER NOT NULL DEFAULT 1, CreatedDate TEXT NOT NULL, LastStatus INTEGER, LastDeliveryDate TEXT, FailureCount INTEGER NOT NULL DEFAULT 0 );
+CREATE TABLE IF NOT EXISTS XRBACSEED(name TEXT PRIMARY KEY, applied_at TEXT);
+
+-- Indexes (8)
+CREATE INDEX IF NOT EXISTS ix_userrole_user ON XUSERROLE(UserID);
+CREATE INDEX IF NOT EXISTS ix_perm_role ON XPERMISSION(RoleID);
+CREATE INDEX IF NOT EXISTS ix_session_user ON XSESSION(UserID);
+CREATE INDEX IF NOT EXISTS ix_audit_user ON XAUDITLOG(UserID);
+CREATE INDEX IF NOT EXISTS ix_reset_user ON XPASSWORDRESET(UserID);
+CREATE INDEX IF NOT EXISTS ix_webauthn_user ON XWEBAUTHN(UserID);
+CREATE INDEX IF NOT EXISTS ix_user_tenant ON XUSER(TenantID);
+CREATE INDEX IF NOT EXISTS ix_webhook_user ON XWEBHOOK(UserID);
+
+COMMIT;

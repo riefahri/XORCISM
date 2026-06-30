@@ -1,0 +1,37 @@
+{
+  "id": "ironsight",
+  "name": "IRONSIGHT",
+  "type": "import",
+  "category": "OSINT",
+  "description": "IRONSIGHT (github.com/NoblerWorks-HQ/IRONSIGHT, by Nobler Works) — a real-time OSINT command center monitoring the Middle East conflict, aggregating 50+ free no-key public sources (20+ RSS news feeds, 27 Telegram channels, conflict/strike events, regional threat levels, military aircraft & naval tracking, missile alerts, satellite thermal detection). This connector imports IRONSIGHT's OSINT intelligence feeds (news, Telegram, conflicts, strikes, regional alerts) and maps each item to an XORCISM threat-intel record (XTHREAT.INTELEXCHANGE): headline/post -> IntelName, summary + classification -> description, source link -> reference, with source/region/category/severity as tags and conflict actors (IDF/IRGC/Hezbollah/Hamas/Houthi…) and any referenced CVE extracted. Worker-safe: parses an exported feed file, or reads a running IRONSIGHT instance's read-only API routes; no DB access.",
+  "intrusive": false,
+  "permission": "connector:ironsight",
+  "run": "run.py",
+  "mapping": "ironsight",
+  "parameters": [
+    {
+      "name": "file",
+      "type": "file",
+      "required": false,
+      "help": "An IRONSIGHT feed export in JSON: an array of items, or an object keyed by feed (news/telegram/conflicts/strikes/regionalAlerts[]). If omitted, the IRONSIGHT_URL env (worker) is read."
+    },
+    {
+      "name": "kinds",
+      "type": "string",
+      "required": false,
+      "help": "Comma-separated feeds to import: news,telegram,conflicts,strikes,regional-alerts (default: all of these)."
+    },
+    {
+      "name": "limit",
+      "type": "number",
+      "required": false,
+      "help": "Maximum number of intel items to import across all feeds (default 500)."
+    },
+    {
+      "name": "min_severity",
+      "type": "string",
+      "required": false,
+      "help": "Only import event items at or above this severity (low|guarded|elevated|high|critical). Applies to items that carry a severity/threat level (conflicts/strikes/regional alerts); news & Telegram items have none and are always included. Default: import all."
+    }
+  ]
+}

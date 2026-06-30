@@ -38,22 +38,22 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/agents">&#129518; Agents</a>
-  <a href="/ai-threat-advisor">&#129302; AI Threat Advisor</a>
-  <a href="/a3m">&#9876;&#65039; A3M</a>
+  <a href="/agents" data-i18n="aig.navAgents">&#129518; Agents</a>
+  <a href="/ai-threat-advisor" data-i18n="aig.navAdvisor">&#129302; AI Threat Advisor</a>
+  <a href="/a3m" data-i18n="aig.navA3m">&#9876;&#65039; A3M</a>
   <span class="spacer"></span>
-  <span class="title">&#128737;&#65039; AI Guardrails</span>
+  <span class="title" data-i18n="aig.title">&#128737;&#65039; AI Guardrails</span>
 </div>
 
 <div class="ag-wrap">
-  <h1>AI-agent guardrails management</h1>
-  <div class="ag-sub">The operational view over the guardrails protecting your LLM apps &amp; autonomous AI agents. The XOR
-    agents <b>discover</b> AI agents on each host, <b>assess</b> them against the <b>AI Guardrail Baseline</b> (12 controls,
-    cross-mapped to OWASP AI Exchange, Google SAIF, ISO/IEC&nbsp;42001, OWASP LLM Top&nbsp;10, MITRE ATLAS, NIST AI RMF), and
-    <b>monitor</b> their traces with the local AI for guardrail violations (prompt injection, jailbreak, data exfiltration,
-    excessive agency). Inline <b>enforcement</b> stays with a guardrail gateway — its block telemetry shows up here too.
-    Launch an <span class="mono">aiguard</span> scan from <a href="/agents">Agents</a>.</div>
-  <div id="ag-body"><div class="muted" style="padding:24px;text-align:center">Loading AI guardrail posture…</div></div>
+  <h1 data-i18n="aig.h1">AI-agent guardrails management</h1>
+  <div class="ag-sub" data-i18n="aig.sub">The operational view over the guardrails protecting your LLM apps &amp; autonomous AI agents. The XOR
+    agents discover AI agents on each host, assess them against the AI Guardrail Baseline (12 controls,
+    cross-mapped to OWASP AI Exchange, Google SAIF, ISO/IEC 42001, OWASP LLM Top 10, MITRE ATLAS, NIST AI RMF), and
+    monitor their traces with the local AI for guardrail violations (prompt injection, jailbreak, data exfiltration,
+    excessive agency). Inline enforcement stays with a guardrail gateway — its block telemetry shows up here too.
+    Launch an aiguard scan from the Agents page.</div>
+  <div id="ag-body"><div class="muted" style="padding:24px;text-align:center" data-i18n="aig.loading">Loading AI guardrail posture…</div></div>
 </div>
 
 <div id="toast"></div>

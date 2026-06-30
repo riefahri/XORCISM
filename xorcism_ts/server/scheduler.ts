@@ -23,10 +23,18 @@ import { targetInScope } from "./scope";
 import * as xid from "./xid";
 
 // Single-flight guard: never run two NVD imports at once (an hourly run that overruns is skipped).
+// The guard is held across automatic retries, so a fresh hourly tick can't race a pending retry.
 let cveImportRunning = false;
+
+// Retry policy for transient failures (NVD rate-limit / network / timeout). Attempts = 1 try + N
+// retries; backoff is exponential from the base delay. Tunable via env.
+const CVE_MAX_ATTEMPTS = Math.max(1, Math.floor(Number(process.env.XOR_CVE_IMPORT_RETRIES ?? 2)) + 1);
+const CVE_RETRY_BASE_MS = Math.max(10_000, Number(process.env.XOR_CVE_IMPORT_RETRY_MS) || 300_000); // 5 min base
 
 // Spawn the Python NVD CVE importer (incremental --recent-only by default). Fire-and-forget,
 // non-blocking; graceful if Python isn't on PATH (logs once, set XOR_PYTHON to override).
+// Transient failures (non-zero / killed exit) are retried with exponential backoff up to
+// CVE_MAX_ATTEMPTS; a spawn/exec error (python missing) is NOT retried (it won't fix itself).
 function runCveImport(s: Schedule): void {
   markScheduleRun(s.ScheduleID, 0, sqlNow()); // mark fired now → anti-duplicate within the minute
   if (cveImportRunning) { console.warn("[scheduler] NVD CVE import still running — skipping this hour"); return; }
@@ -39,42 +47,70 @@ function runCveImport(s: Schedule): void {
   if (p.recentOnly !== false) args.push("--recent-only");
   if (process.env.NVD_API_KEY) args.push("--api-key", process.env.NVD_API_KEY);
   const env = { ...process.env, XORCISM_DB_DIR: process.env.DB_DIR || "C:/Users/jerom/XORCISM_databases" };
+
   cveImportRunning = true;
-  const t0 = Date.now();
-  console.log(`[scheduler] NVD CVE import starting (${py} import_nvd_cve.py ${args.slice(1).join(" ")})`);
-  let child;
-  try {
-    child = spawn(py, args, { cwd: repoRoot, env, windowsHide: true });
-  } catch (e) {
-    cveImportRunning = false;
-    console.warn(`[scheduler] NVD CVE import could not start: ${(e as Error).message} — set XOR_PYTHON to your python executable`);
-    return;
-  }
-  let tail = "";
-  const cap = (b: Buffer): void => { tail = (tail + b.toString()).slice(-2000); };
-  child.stdout?.on("data", cap);
-  child.stderr?.on("data", cap);
-  const killTimer = setTimeout(() => { try { child!.kill(); } catch { /* already gone */ } }, 50 * 60 * 1000);
-  if (typeof killTimer.unref === "function") killTimer.unref();
-  child.on("error", (e) => {
-    cveImportRunning = false; clearTimeout(killTimer);
-    console.warn(`[scheduler] NVD CVE import failed: ${e.message} — is '${py}' on PATH? (set XOR_PYTHON)`);
-  });
-  child.on("close", (code) => {
-    cveImportRunning = false; clearTimeout(killTimer);
-    const secs = Math.round((Date.now() - t0) / 1000);
-    const last = (tail.trim().split(/\r?\n/).pop() || "").slice(0, 200);
-    console.log(`[scheduler] NVD CVE import finished (exit ${code}, ${secs}s)${last ? " · " + last : ""}`);
-    xid.addAudit({ userId: s.created_by, action: "schedule_fire", resourceType: "importer",
-      resourceKey: "import-nvd-cve", detail: `recent-only exit=${code} ${secs}s` });
-    // Link the freshly-imported CVEs to assets by technology + raise "New CVEs for ASSET" alerts.
-    if (code === 0) {
-      try {
-        const r = matchCves({ tenant: null });
-        if (r.newLinks) console.log(`[cvematch] post-import: ${r.newLinks} new link(s) → ${r.assetsNotified} asset(s) notified (scanned ${r.cvesScanned})`);
-      } catch (e) { console.warn(`[cvematch] post-import: ${(e as Error).message}`); }
+
+  const attempt = (n: number): void => {
+    const t0 = Date.now();
+    console.log(`[scheduler] NVD CVE import starting (attempt ${n}/${CVE_MAX_ATTEMPTS}: ${py} import_nvd_cve.py ${args.slice(1).join(" ")})`);
+    let child;
+    try {
+      child = spawn(py, args, { cwd: repoRoot, env, windowsHide: true });
+    } catch (e) {
+      cveImportRunning = false;
+      console.warn(`[scheduler] NVD CVE import could not start: ${(e as Error).message} — set XOR_PYTHON to your python executable`);
+      return;
     }
-  });
+    let tail = "";
+    const cap = (b: Buffer): void => { tail = (tail + b.toString()).slice(-2000); };
+    child.stdout?.on("data", cap);
+    child.stderr?.on("data", cap);
+    const killTimer = setTimeout(() => { try { child!.kill(); } catch { /* already gone */ } }, 50 * 60 * 1000);
+    if (typeof killTimer.unref === "function") killTimer.unref();
+
+    // Schedule a retry on transient failure, or give up + audit once the budget is spent.
+    const retryOrGiveUp = (reason: string): void => {
+      if (n < CVE_MAX_ATTEMPTS) {
+        const delay = CVE_RETRY_BASE_MS * Math.pow(2, n - 1); // 5min, 10min, 20min, …
+        console.warn(`[scheduler] NVD CVE import ${reason} — retry ${n + 1}/${CVE_MAX_ATTEMPTS} in ${Math.round(delay / 60000)}min`);
+        const rt = setTimeout(() => attempt(n + 1), delay); // guard stays held across the backoff
+        if (typeof rt.unref === "function") rt.unref();
+      } else {
+        cveImportRunning = false;
+        console.warn(`[scheduler] NVD CVE import ${reason} — giving up after ${CVE_MAX_ATTEMPTS} attempt(s)`);
+        xid.addAudit({ userId: s.created_by, action: "schedule_fire", resourceType: "importer",
+          resourceKey: "import-nvd-cve", detail: `FAILED after ${CVE_MAX_ATTEMPTS} attempt(s): ${reason}` });
+      }
+    };
+
+    let settled = false; // Node may emit 'error' then 'close' — handle the attempt once
+    child.on("error", (e) => {
+      if (settled) return; settled = true; clearTimeout(killTimer);
+      cveImportRunning = false; // spawn/exec failure (python missing) → do not retry
+      console.warn(`[scheduler] NVD CVE import failed to start: ${e.message} — is '${py}' on PATH? (set XOR_PYTHON)`);
+    });
+    child.on("close", (code) => {
+      if (settled) return; settled = true; clearTimeout(killTimer);
+      const secs = Math.round((Date.now() - t0) / 1000);
+      const last = (tail.trim().split(/\r?\n/).pop() || "").slice(0, 200);
+      if (code === 0) {
+        cveImportRunning = false;
+        console.log(`[scheduler] NVD CVE import finished (exit 0, ${secs}s, attempt ${n})${last ? " · " + last : ""}`);
+        xid.addAudit({ userId: s.created_by, action: "schedule_fire", resourceType: "importer",
+          resourceKey: "import-nvd-cve", detail: `recent-only exit=0 ${secs}s attempt=${n}` });
+        // Link the freshly-imported CVEs to assets by technology + raise "New CVEs for ASSET" alerts.
+        try {
+          const r = matchCves({ tenant: null });
+          if (r.newLinks) console.log(`[cvematch] post-import: ${r.newLinks} new link(s) → ${r.assetsNotified} asset(s) notified (scanned ${r.cvesScanned})`);
+        } catch (e) { console.warn(`[cvematch] post-import: ${(e as Error).message}`); }
+      } else {
+        console.warn(`[scheduler] NVD CVE import finished (exit ${code}, ${secs}s, attempt ${n})${last ? " · " + last : ""}`);
+        retryOrGiveUp(`exit ${code}`); // transient failure (incl. timeout-kill, code null) → retry
+      }
+    });
+  };
+
+  attempt(1);
 }
 
 function scopeHost(target: string): string {

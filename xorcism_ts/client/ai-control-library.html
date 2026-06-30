@@ -35,51 +35,51 @@
 <div class="topbar">
   <span class="logo">&#9670; XORCISM</span>
   <a href="/" data-i18n="nav.explorer">&#8592; Explorer</a>
-  <a href="/control-management">&#9989; Controls</a>
-  <a href="/ai-guardrails">&#129302; AI guardrails</a>
+  <a href="/control-management" data-i18n="aicl.navControls">&#9989; Controls</a>
+  <a href="/ai-guardrails" data-i18n="aicl.navGuardrails">&#129302; AI guardrails</a>
   <span class="spacer"></span>
-  <span class="title">&#129504; AI Control Library</span>
+  <span class="title" data-i18n="aicl.title">&#129504; AI Control Library</span>
 </div>
 
 <div class="ai-wrap">
-  <h1 style="font-size:20px;margin:0 0 2px">AI Control Library</h1>
-  <div class="ai-sub">The operational layer of AI governance: reusable, testable, auditable controls that translate AI risks into standardized control objectives, activities, ownership, evidence and monitoring — across the AI lifecycle. Organised by the six layers (lifecycle × risk domain × objective × activity × evidence × ownership), mapped to ISO/IEC 42001, NIST AI RMF, CSA AICM and the EU AI Act. Design controls for your risk context, then map to frameworks — not a mirror of any single one.</div>
+  <h1 style="font-size:20px;margin:0 0 2px" data-i18n="aicl.h1">AI Control Library</h1>
+  <div class="ai-sub" data-i18n="aicl.sub">The operational layer of AI governance: reusable, testable, auditable controls that translate AI risks into standardized control objectives, activities, ownership, evidence and monitoring — across the AI lifecycle. Organised by the six layers (lifecycle × risk domain × objective × activity × evidence × ownership), mapped to ISO/IEC 42001, NIST AI RMF, CSA AICM and the EU AI Act. Design controls for your risk context, then map to frameworks — not a mirror of any single one.</div>
 
   <div id="ai-kpis" class="kpis"></div>
   <div id="ai-gaps" class="chips"></div>
   <div style="margin:0 0 8px;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn-ai" id="ai-seed">＋ Seed starter AI control library</button>
-    <a class="btn-ai" id="ai-report" href="/api/ai-control-library?format=md" style="text-decoration:none">📄 Download governance report</a>
+    <button class="btn-ai" id="ai-seed" data-i18n="aicl.seedBtn">＋ Seed starter AI control library</button>
+    <a class="btn-ai" id="ai-report" href="/api/ai-control-library?format=md" style="text-decoration:none" data-i18n="aicl.reportBtn">📄 Download governance report</a>
   </div>
 
-  <div class="sect-h">Coverage — AI lifecycle × risk domain</div>
+  <div class="sect-h" data-i18n="aicl.secCoverage">Coverage — AI lifecycle × risk domain</div>
   <div id="ai-matrix" style="overflow-x:auto"></div>
 
-  <div class="sect-h">Per-AI-system coverage</div>
+  <div class="sect-h" data-i18n="aicl.secSysCov">Per-AI-system coverage</div>
   <div id="ai-syscov" style="overflow-x:auto"></div>
 
-  <div class="sect-h">Controls</div>
+  <div class="sect-h" data-i18n="aicl.secControls">Controls</div>
   <div id="ai-controls" style="overflow-x:auto"></div>
 
-  <details class="card2" style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:#e7ebf3">＋ Add a control</summary>
+  <details class="card2" style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:#e7ebf3" data-i18n="aicl.addCtl">＋ Add a control</summary>
     <div class="row" style="margin-top:8px">
-      <div class="fld"><label>Identifier</label><input id="c-ref" placeholder="AI-FAIR-02"></div>
-      <div class="fld"><label>Control type</label><select id="c-type"></select></div>
-      <div class="fld"><label>Lifecycle phase</label><select id="c-lc"></select></div>
-      <div class="fld"><label>Risk domain</label><select id="c-dom"></select></div>
+      <div class="fld"><label data-i18n="aicl.f.id">Identifier</label><input id="c-ref" placeholder="AI-FAIR-02"></div>
+      <div class="fld"><label data-i18n="aicl.f.type">Control type</label><select id="c-type"></select></div>
+      <div class="fld"><label data-i18n="aicl.f.lifecycle">Lifecycle phase</label><select id="c-lc"></select></div>
+      <div class="fld"><label data-i18n="aicl.f.domain">Risk domain</label><select id="c-dom"></select></div>
     </div>
-    <div class="fld" style="margin-bottom:8px"><label>Control objective</label><input id="c-obj" placeholder="Desired governance outcome"></div>
-    <div class="fld" style="margin-bottom:8px"><label>Control statement</label><textarea id="c-stmt" rows="2"></textarea></div>
+    <div class="fld" style="margin-bottom:8px"><label data-i18n="aicl.f.objective">Control objective</label><input id="c-obj" data-i18n-placeholder="aicl.f.objectivePh" placeholder="Desired governance outcome"></div>
+    <div class="fld" style="margin-bottom:8px"><label data-i18n="aicl.f.statement">Control statement</label><textarea id="c-stmt" rows="2"></textarea></div>
     <div class="row">
-      <div class="fld"><label>Owner</label><select id="c-owner"></select></div>
-      <div class="fld"><label>Monitoring frequency</label><select id="c-freq"></select></div>
-      <div class="fld"><label>Testing method</label><input id="c-test"></div>
+      <div class="fld"><label data-i18n="aicl.f.owner">Owner</label><select id="c-owner"></select></div>
+      <div class="fld"><label data-i18n="aicl.f.freq">Monitoring frequency</label><select id="c-freq"></select></div>
+      <div class="fld"><label data-i18n="aicl.f.testing">Testing method</label><input id="c-test"></div>
     </div>
     <div class="row">
-      <div class="fld"><label>Required evidence</label><input id="c-ev"></div>
-      <div class="fld"><label>Framework refs (comma)</label><input id="c-fw" placeholder="ISO 42001 A.6.2.4, NIST AI RMF MEASURE-2.11"></div>
+      <div class="fld"><label data-i18n="aicl.f.evidence">Required evidence</label><input id="c-ev"></div>
+      <div class="fld"><label data-i18n="aicl.f.fw">Framework refs (comma)</label><input id="c-fw" placeholder="ISO 42001 A.6.2.4, NIST AI RMF MEASURE-2.11"></div>
     </div>
-    <button class="btn-ai" id="c-add">Add control</button>
+    <button class="btn-ai" id="c-add" data-i18n="aicl.addBtn">Add control</button>
   </details>
 </div>
 

@@ -444,6 +444,34 @@
         <span class="domain-desc" data-i18n="landing.attacktree.d">Arbres d'attaque (Schneier) : décomposez un objectif attaquant en sous-buts AND/OR, avec remontée de faisabilité et le chemin d'attaque le plus facile.</span>
       </a>
 
+      <a class="domain-card" href="/trace" style="--accent:#a78bfa">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="13" r="2"/><circle cx="6" cy="19" r="1.5"/><circle cx="18" cy="19" r="1.5"/><path d="M6.7 7.3 10.6 11.6M17.3 7.3 13.4 11.6M11 14.6 6.8 17.7M13 14.6l4.2 3.1"/></svg></span>
+        <span class="domain-title" data-i18n="landing.trace">TRACE Threat Modeling</span>
+        <span class="domain-sub">actors · assets · invariants · edges</span>
+        <span class="domain-desc" data-i18n="landing.trace.d">TRACE (Oak Security) : modélisation structurée et fondée sur les preuves — 5 objets (acteurs, rôles, actifs, invariants critiques, arêtes), STRIDE tracé aux objets, surfaces de collusion et flux de travail en 6 phases avec validations.</span>
+      </a>
+
+      <a class="domain-card" href="/tlpt" style="--accent:#f59e0b">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 11 4.6-2.6 8-6 8-11V5z"/><path d="M9 12l2 2 4-4"/></svg></span>
+        <span class="domain-title" data-i18n="landing.tlpt">TLPT — TIBER-EU</span>
+        <span class="domain-sub">threat-led pentest · DORA · flags</span>
+        <span class="domain-desc" data-i18n="landing.tlpt.d">Tests d'intrusion pilotés par la menace (TLPT) selon le cadre TIBER-EU de la BCE — la méthode référencée par DORA : 3 phases (Préparation → Test → Clôture) avec jalons et validations, scénarios d'attaque issus du renseignement, « flags » (cibles des fonctions critiques) atteints/détectés/prévenus, constats &amp; remédiation, et score de résilience (Prévenir · Détecter · Répondre).</span>
+      </a>
+
+      <a class="domain-card" href="/agent-firewall" style="--accent:#f43f5e">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 11 4.6-2.6 8-6 8-11V5z"/><path d="M9 11.5l2 2 3.5-4"/></svg></span>
+        <span class="domain-title" data-i18n="landing.agentfw">Agent Policy Firewall</span>
+        <span class="domain-sub">blast radius · SoD · signed receipts</span>
+        <span class="domain-desc" data-i18n="landing.agentfw.d">Frontière d'exécution régulée pour les actions des agents/automatisations (MCP, navigateur, connecteurs cloud, CLI, playbooks SOAR, bots de remédiation) : score de rayon d'impact (blast radius), politiques allow/deny/approbation, détection de séparation des tâches (SoD), prévention du rejeu et reçus signés (chaîne SHA-256) — avant toute exécution. La couche de gouvernance que les frameworks d'agents (LangChain/CrewAI…) ne fournissent pas.</span>
+      </a>
+
+      <a class="domain-card" href="/sprs" style="--accent:#34d399">
+        <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></span>
+        <span class="domain-title" data-i18n="landing.sprs">SPRS — NIST 800-171</span>
+        <span class="domain-sub">DoD score · DFARS · CMMC L2</span>
+        <span class="domain-desc" data-i18n="landing.sprs.d">Score d'auto-évaluation SPRS (DoD) pour les 110 exigences NIST SP 800-171 Rev 2 : départ à 110, déduction pondérée (1/3/5) par exigence non satisfaite, crédit partiel, POA&amp;M déduit jusqu'à clôture, N/A exclu ; rollup par famille et poids éditables. Requis DFARS 252.204-7012/-7019/-7020 et base du CMMC Niveau 2.</span>
+      </a>
+
       <a class="domain-card" href="/cloud-attacks" style="--accent:#22d3ee">
         <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a4 4 0 0 0 0-8 6 6 0 0 0-11.6-1.5A3.5 3.5 0 0 0 6 18z"/><path d="M9 13l2 2 4-4"/></svg></span>
         <span class="domain-title" data-i18n="landing.cloudattacks">Cloud Attacks Matrix</span>
@@ -672,9 +700,9 @@
 
       <a class="domain-card" href="/ai-control-library" style="--accent:#8b5cf6">
         <span class="domain-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17h7M17.5 14v7"/></svg></span>
-        <span class="domain-title">AI Control Library</span>
-        <span class="domain-sub">reusable AI controls · lifecycle × risk</span>
-        <span class="domain-desc">The operational layer of AI governance: a structured, reusable repository of AI controls — each with an objective, control type (preventive/detective/corrective), AI lifecycle phase, risk domain, owner, required evidence, testing method, monitoring frequency and framework references. Organised by the six layers (lifecycle × risk domain × objective × activity × evidence × ownership), with a coverage matrix, a maturity score and the common control-library failure-mode checks (no measurable objective, no owner, no evidence, no testing, no framework mapping). Ships an org-tailorable starter library mapped to ISO/IEC 42001, the NIST AI RMF, CSA AICM and the EU AI Act — design for your risk context, then map to frameworks.</span>
+        <span class="domain-title" data-i18n="landing.aicontrol">AI Control Library</span>
+        <span class="domain-sub" data-i18n="landing.aicontrol.sub">reusable AI controls · lifecycle × risk</span>
+        <span class="domain-desc" data-i18n="landing.aicontrol.d">The operational layer of AI governance: a structured, reusable repository of AI controls — each with an objective, control type (preventive/detective/corrective), AI lifecycle phase, risk domain, owner, required evidence, testing method, monitoring frequency and framework references. Organised by the six layers (lifecycle × risk domain × objective × activity × evidence × ownership), with a coverage matrix, a maturity score and the common control-library failure-mode checks (no measurable objective, no owner, no evidence, no testing, no framework mapping). Ships an org-tailorable starter library mapped to ISO/IEC 42001, the NIST AI RMF, CSA AICM and the EU AI Act — design for your risk context, then map to frameworks.</span>
       </a>
 
       <a class="domain-card" href="/zero-trust" style="--accent:#38bdf8">

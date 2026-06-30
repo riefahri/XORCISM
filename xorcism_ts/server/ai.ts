@@ -724,3 +724,197 @@ export async function boardNarrative(tenant: number | null): Promise<{ narrative
   }
   return { narrative: det, model: status.reachable ? "fallback" : "offline", offline: true };
 }
+
+// ── TRACE threat modeling (Oak Security methodology) ───────────────────────────
+// Deterministic logic decides; the local AI only narrates/extends, with an offline fallback.
+// Object extraction never invents authority — candidates carry the source sentence as evidence.
+
+function parseJsonObject(s: string): any {
+  if (!s) return null;
+  const a = s.indexOf("{"), b = s.lastIndexOf("}");
+  if (a < 0 || b <= a) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; }
+}
+const sentences = (t: string): string[] =>
+  String(t || "").replace(/\s+/g, " ").split(/(?<=[.!?])\s+|\n+/).map((x) => x.trim()).filter((x) => x.length > 8).slice(0, 400);
+const uniqByName = (arr: { name: string; [k: string]: unknown }[]): any[] => {
+  const seen = new Set<string>(); const out: any[] = [];
+  for (const o of arr) { const k = o.name.toLowerCase(); if (o.name && !seen.has(k)) { seen.add(k); out.push(o); } if (out.length >= 25) break; }
+  return out;
+};
+
+/** TRACE phase 2 — extract candidate model objects (actors/roles/assets/invariants/edges) from pasted
+ *  sources. Every candidate records the source sentence as evidence (or is flagged assumption). */
+export async function traceExtractObjects(text: string, pillar?: string): Promise<{ objects: Record<string, any[]>; model: string; offline: boolean; note: string }> {
+  const empty = (): Record<string, any[]> => ({ actor: [], role: [], asset: [], invariant: [], edge: [] });
+  // deterministic keyword heuristic
+  const det = empty();
+  const push = (t: string, name: string, ev: string, extra: Record<string, unknown> = {}) => det[t].push({ name: name.slice(0, 120), evidence: ev.slice(0, 240), assumption: false, ...extra });
+  for (const s of sentences(text)) {
+    const l = s.toLowerCase();
+    if (/\b(attacker|adversary|malicious|insider|threat actor|rogue|compromised|nation.?state)\b/.test(l)) push("actor", s.slice(0, 80), s, { kind: /insider|rogue|compromised/.test(l) ? "Insider/compromised" : "External" });
+    if (/\b(admin|operator|owner|signer|maintainer|deployer|validator|user|role|privileg)\b/.test(l)) push("role", s.slice(0, 80), s);
+    if (/\b(funds?|treasury|key|wallet|token|secret|credential|database|data|model weights?|asset|collateral)\b/.test(l)) push("asset", s.slice(0, 80), s);
+    if (/\b(must (?:never|always|not)?|should never|only|invariant|guarantee|never be|cannot be|at all times)\b/.test(l)) push("invariant", s, s, { statement: s.slice(0, 200) });
+    if (/\b(bridge|oracle|api|gateway|cross.?chain|between|interface|endpoint|webhook|->|→|deploy)\b/.test(l)) push("edge", s.slice(0, 80), s, { kind: "Trust boundary" });
+  }
+  for (const t of Object.keys(det)) det[t] = uniqByName(det[t]);
+
+  const status = await ollamaStatus();
+  if (status.reachable && text.trim()) {
+    const sys =
+      "You extract a TRACE threat model from source text. TRACE has five object types: " +
+      "actor (threat actors: who could attack, capability+incentive), role (legitimate roles/privileges), asset (what's valuable: funds/keys/data), " +
+      "invariant (a property that must always hold), edge (a trust boundary / interface between domains). " +
+      `Pillar focus: ${pillar || "System"}. Return STRICT JSON only: ` +
+      '{"actor":[{"name","kind","capability","incentive","evidence"}],"role":[{"name","privilege","evidence"}],"asset":[{"name","kind","value","evidence"}],"invariant":[{"name","statement","category","evidence"}],"edge":[{"name","fromdomain","todomain","kind","evidence"}]}. ' +
+      "Each evidence MUST quote the source sentence it came from; do not invent objects not supported by the text. Max 8 per type.";
+    try {
+      const raw = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: text.slice(0, 9000) }], 0.2);
+      const j = parseJsonObject(raw);
+      if (j) {
+        const out = empty();
+        for (const t of Object.keys(out)) if (Array.isArray(j[t])) out[t] = j[t].slice(0, 12).map((o: any) => ({ ...o, name: String(o.name || "").slice(0, 120), evidence: String(o.evidence || "").slice(0, 240), assumption: !o.evidence }));
+        const n = Object.values(out).reduce((a, b) => a + b.length, 0);
+        if (n) return { objects: out, model: OLLAMA_MODEL, offline: false, note: "AI-extracted — review evidence before accepting each object." };
+      }
+    } catch { /* fall back to deterministic */ }
+  }
+  return { objects: det, model: status.reachable ? "fallback" : "offline", offline: true, note: "Heuristic extraction (local AI unavailable) — review each candidate before accepting." };
+}
+
+/** TRACE phase 3 — propose STRIDE threats grounded in the model's objects (deterministic, with optional
+ *  AI commentary). Each proposal carries the traced object id so it can be accepted with one click. */
+export async function traceProposeStride(m: any): Promise<{ proposals: any[]; commentary: string; model: string; offline: boolean }> {
+  const o = m?.objects || {};
+  const impactOf = (val: string): string => (/crit/i.test(val) ? "Critical" : /high/i.test(val) ? "High" : /low/i.test(val) ? "Low" : "Medium");
+  const existing = new Set((m?.threats || []).map((t: any) => `${t.traceType}:${t.traceId}:${t.stride}`));
+  const proposals: any[] = [];
+  const add = (title: string, stride: string, traceType: string, traceId: number, impact = "Medium", likelihood = "Medium") => {
+    if (existing.has(`${traceType}:${traceId}:${stride}`)) return;
+    proposals.push({ title: title.slice(0, 200), stride, traceType, traceId, impact, likelihood });
+  };
+  for (const a of o.asset || []) {
+    const imp = impactOf(a.value);
+    add(`Tampering with asset "${a.name}"`, "Tampering", "asset", a.id, imp);
+    add(`Information disclosure of "${a.name}"`, "Information disclosure", "asset", a.id, imp);
+    add(`Denial of service against "${a.name}"`, "Denial of service", "asset", a.id, imp, "Low");
+  }
+  for (const e of o.edge || []) {
+    add(`Spoofing across "${e.name}" (${e.fromdomain || "?"}→${e.todomain || "?"})`, "Spoofing", "edge", e.id, "High");
+    add(`Tampering of data crossing "${e.name}"`, "Tampering", "edge", e.id, "High");
+    add(`Elevation of privilege via "${e.name}"`, "Elevation of privilege", "edge", e.id, "High");
+  }
+  for (const r of o.role || []) {
+    add(`Spoofing the "${r.name}" role`, "Spoofing", "role", r.id, "Medium");
+    add(`Repudiation of actions by "${r.name}"`, "Repudiation", "role", r.id, "Low", "Low");
+  }
+  for (const iv of o.invariant || []) {
+    add(`Violation of invariant: ${iv.name}`, "Elevation of privilege", "invariant", iv.id, "High");
+  }
+  proposals.splice(40); // cap
+
+  let commentary = "Deterministic STRIDE candidates from the model's assets, edges, roles and invariants. Accept the credible ones; each links back to its object for traceability.";
+  const status = await ollamaStatus();
+  if (status.reachable && proposals.length) {
+    const sys = "You are a STRIDE threat-modeling assistant. Given a list of candidate threats, write 3-5 sentences highlighting the 3 most serious and any obvious gaps. Be concise, no preamble.";
+    const ctx = proposals.slice(0, 30).map((p) => `- [${p.stride}] ${p.title}`).join("\n");
+    try { const c = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: ctx }], 0.3); if (c) commentary = c; } catch { /* keep deterministic */ }
+  }
+  return { proposals, commentary, model: status.reachable ? OLLAMA_MODEL : "offline", offline: !status.reachable };
+}
+
+/** TRACE phase 6 — roadmap & report. Deterministic structure from the model + coverage; AI narration when up. */
+export async function traceReport(m: any): Promise<{ report: string; model: string; offline: boolean }> {
+  const c = m?.coverage || {}; const mod = m?.model || {};
+  const threats = (m?.threats || []) as any[];
+  const sev = (t: any) => `${t.impact || "?"}/${t.likelihood || "?"}`;
+  const top = [...threats].sort((a, b) => (/(crit)/i.test(b.impact) ? 2 : /high/i.test(b.impact) ? 1 : 0) - (/(crit)/i.test(a.impact) ? 2 : /high/i.test(a.impact) ? 1 : 0)).slice(0, 8);
+  const assumptions = Object.entries(m?.objects || {}).flatMap(([t, arr]: any) => (arr as any[]).filter((x) => x.assumption).map((x) => `- (${t}) ${x.name}`));
+  const det = [
+    `### TRACE report — ${mod.name || "model"}`,
+    `Pillar: **${mod.pillar || "—"}** · Quality score: **${c.qualityScore ?? 0}/100** · Phases approved: **${c.phasesApproved ?? 0}/${c.phasesTotal ?? 7}**.`,
+    `\n**Model:** ${c.actors ?? 0} actors · ${c.roles ?? 0} roles · ${c.assets ?? 0} assets · ${c.invariants ?? 0} invariants · ${c.edges ?? 0} edges · ${c.threats ?? 0} STRIDE threats · ${c.attackTrees ?? 0} attack trees · ${c.collusion ?? 0} collusion surfaces.`,
+    `\n**Traceability:** ${c.traceabilityPct ?? 0}% of threats trace to a model object; ${c.assetCoveragePct ?? 0}% of assets and ${c.edgeReviewPct ?? 0}% of edges are covered by a threat.`,
+    `\n**Top threats:**\n${top.map((t) => `- [${t.stride || "?"}] ${t.title} (${sev(t)})`).join("\n") || "- none yet — run STRIDE (phase 3)"}`,
+    (m?.collusion || []).length ? `\n**Collusion / coordination surfaces:**\n${(m.collusion as any[]).map((x) => `- ${x.actors}${x.quorum ? ` — quorum: ${x.quorum}` : ""}${x.credible ? " (credible)" : ""}`).join("\n")}` : "",
+    assumptions.length ? `\n**Inferred assumptions to validate:**\n${assumptions.slice(0, 12).join("\n")}` : "",
+    `\n**Roadmap:** ${c.attackTrees ? "" : "build attack trees for the top threats (phase 4); "}${c.assetCoveragePct < 100 ? "cover the remaining assets/edges with STRIDE threats; " : ""}${c.collusion ? "" : "inspect collusion/coordination surfaces (phase 5); "}then mitigate the top threats above in priority order and obtain phase approvals.`,
+  ].filter(Boolean).join("\n");
+
+  const status = await ollamaStatus();
+  if (status.reachable) {
+    const ctx = det + "\n\nAll threats:\n" + threats.slice(0, 30).map((t) => `- [${t.stride}] ${t.title} (${sev(t)}) → ${t.traceType || "untraced"}`).join("\n");
+    const sys =
+      "You are a security architect writing a TRACE threat-model report (Oak Security methodology). Produce concise Markdown with sections: " +
+      "## Executive summary, ## Model overview, ## Top threats (prioritized, by impact×likelihood), ## Coverage & traceability gaps, ## Collusion & coordination, ## Remediation roadmap (ordered). Under 450 words, specific and actionable.";
+    try { const report = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: ctx.slice(0, 12000) }], 0.3); if (report) return { report, model: OLLAMA_MODEL, offline: false }; } catch { /* fall back */ }
+  }
+  return { report: det, model: status.reachable ? "fallback" : "offline", offline: true };
+}
+
+// ── TLPT / TIBER-EU (Threat-Led Penetration Testing) ───────────────────────────
+// Deterministic logic decides; the local AI only narrates/extends, with an offline fallback.
+
+// threat-actor archetype → typical ATT&CK technique IDs for an intelligence-led scenario
+const TLPT_ACTOR_TTP: Record<string, { label: string; tags: string }> = {
+  "Cyber-criminal": { label: "Financially-motivated intrusion (e-crime)", tags: "T1566, T1078, T1021, T1486" },
+  "Nation-state": { label: "Espionage / disruptive APT", tags: "T1190, T1195, T1078, T1071" },
+  "Insider": { label: "Privileged insider abuse", tags: "T1078.004, T1098, T1052, T1213" },
+  "Hacktivist": { label: "Ideologically-motivated disruption", tags: "T1190, T1498, T1491" },
+  "Terrorist": { label: "Destructive / sabotage", tags: "T1190, T1485, T1561" },
+};
+
+/** Propose intelligence-led attack scenarios for a TLPT engagement (the TTI phase), grounded in the
+ *  engagement's critical functions + threat-actor archetypes. Deterministic; AI adds commentary. */
+export async function tlptProposeScenarios(eng: any): Promise<{ proposals: any[]; commentary: string; model: string; offline: boolean }> {
+  const e = eng?.engagement || {};
+  const funcs = String(e.criticalFunctions || "").split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
+  const flags = (eng?.flags || []).map((f: any) => f.name).filter(Boolean);
+  const existing = new Set((eng?.scenarios || []).map((s: any) => `${s.actorType}:${s.name}`.toLowerCase()));
+  const target = flags[0] || funcs[0] || "the critical function in scope";
+  const proposals: any[] = [];
+  for (const [actorType, ttp] of Object.entries(TLPT_ACTOR_TTP)) {
+    const name = `${ttp.label} → ${funcs[0] || "critical function"}`;
+    if (existing.has(`${actorType}:${name}`.toLowerCase())) continue;
+    proposals.push({
+      name, actorType, threatActor: ttp.label,
+      narrative: `Intelligence-led ${actorType.toLowerCase()} scenario: gain initial access, move toward ${funcs[0] || "the critical function"}, and attempt the flag "${target}". Map each step to ATT&CK and to the entity's Prevent/Detect/Respond controls.`,
+      attackTags: ttp.tags, flagsTargeted: target,
+    });
+  }
+  let commentary = "Deterministic TIBER-EU scenario starters by threat-actor archetype, anchored to your critical functions and flags. The Threat Intelligence provider should refine these into the Targeted Threat Intelligence (TTI) report with real, current adversary tradecraft.";
+  const status = await ollamaStatus();
+  if (status.reachable && proposals.length) {
+    const sys = "You are a TIBER-EU Threat Intelligence provider. Given candidate attack scenarios for a financial entity, write 3-5 sentences on which threat actors are most relevant and what tradecraft to emphasise. Concise, no preamble.";
+    const ctx = `Entity: ${e.entity || "?"}\nCritical functions: ${funcs.join(", ") || "?"}\nFlags: ${flags.join(", ") || "?"}\nScenarios:\n${proposals.map((p) => `- [${p.actorType}] ${p.name} (${p.attackTags})`).join("\n")}`;
+    try { const c = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: ctx }], 0.3); if (c) commentary = c; } catch { /* keep deterministic */ }
+  }
+  return { proposals, commentary, model: status.reachable ? OLLAMA_MODEL : "offline", offline: !status.reachable };
+}
+
+/** TIBER-EU Test Summary Report — deterministic structure from the scorecard + flags + findings; AI narration when up. */
+export async function tlptReport(eng: any): Promise<{ report: string; model: string; offline: boolean }> {
+  const e = eng?.engagement || {}; const c = eng?.scorecard || {};
+  const flags = (eng?.flags || []) as any[];
+  const findings = (eng?.findings || []) as any[];
+  const topF = findings.filter((f) => /critical|high/i.test(f.severity)).slice(0, 8);
+  const det = [
+    `### TIBER-EU Test Summary Report — ${e.name || "engagement"}`,
+    `Entity: **${e.entity || "—"}** · Authority: ${e.authority || "—"} · Framework: ${e.framework || "TIBER-EU"} · Phase: **${e.status || "—"}**.`,
+    `\n**Resilience score: ${c.resilience ?? 0}/100** — Prevent/Detect/Respond across the tested flags.`,
+    `\n**Flags:** ${c.flags ?? 0} total · ${c.reached ?? 0} reached by the Red Team · ${c.detected ?? 0} detected (${c.detectRate ?? 0}% of reached) · ${c.prevented ?? 0} prevented.`,
+    flags.length ? `\n**Per-flag outcome:**\n${flags.map((f) => `- ${f.name} (${f.criticalFunction || "—"}): ${f.reached ? "REACHED" : "not reached"}${f.detected ? " · detected" : ""}${f.prevented ? " · prevented" : ""}${f.timeToDetectHours != null ? ` · TTD ${f.timeToDetectHours}h` : ""}`).join("\n")}` : "",
+    `\n**Findings:** ${c.findings ?? 0} (${c.critical ?? 0} critical, ${c.high ?? 0} high) · ${c.openFindings ?? 0} open · ${c.remediated ?? 0}% remediated.`,
+    topF.length ? `\n**Top findings:**\n${topF.map((f) => `- [${f.severity}] ${f.title}${f.recommendation ? ` → ${f.recommendation}` : ""}`).join("\n")}` : "",
+    `\n**Process:** ${c.milestonesDone ?? 0}/${c.milestones ?? 0} milestones complete (${c.milestonePct ?? 0}%) across Preparation/Testing/Closure.`,
+    `\n**Recommended next steps:** drive the remediation plan for the critical/high findings; improve detection where flags were reached undetected; replay the scenarios (purple-teaming) to validate fixes; complete the attestation to the authority.`,
+  ].filter(Boolean).join("\n");
+
+  const status = await ollamaStatus();
+  if (status.reachable) {
+    const sys = "You are writing a TIBER-EU Test Summary Report for a financial entity's board and supervisor. Translate the red-team results into concise Markdown emphasising Prevent/Detect/Respond resilience (not just whether the testers got in). Sections: ## Executive summary, ## Resilience (flags reached/detected/prevented), ## Key findings, ## Remediation priorities, ## Process & attestation. Under 450 words, specific.";
+    try { const report = await ollamaChat([{ role: "system", content: sys }, { role: "user", content: det.slice(0, 12000) }], 0.3); if (report) return { report, model: OLLAMA_MODEL, offline: false }; } catch { /* fall back */ }
+  }
+  return { report: det, model: status.reachable ? "fallback" : "offline", offline: true };
+}

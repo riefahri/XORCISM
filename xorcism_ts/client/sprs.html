@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XORCISM — SPRS / NIST 800-171 Score</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .sp-wrap{max-width:1200px;margin:0 auto;padding:18px}
+  .sp-wrap h1{font-size:20px;margin:0 0 2px}
+  .sp-sub{color:#94a3b8;font-size:13px;margin-bottom:16px;max-width:1000px}
+  .muted{color:#64748b}
+  .sp-cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .sp-card{flex:1;min-width:120px;background:#13162a;border:1px solid #2d3250;border-radius:10px;padding:11px 14px}
+  .sp-card .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+  .sp-card .val{font-size:26px;font-weight:700;margin-top:3px}.sp-card .foot{font-size:11px;color:#64748b;margin-top:2px}
+  .sp-score{background:linear-gradient(135deg,#241a40,#13162a)}
+  .sp-sec{font-size:13px;font-weight:700;color:#cbd5e1;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .btn{background:#22c55e;color:#06240f;border:none;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer}.btn:hover{background:#4ade80}
+  .btn.sec{background:#2d3250;color:#cbd5e1}.btn.sec:hover{background:#3a4170}
+  .fam{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid #1e2133;font-size:13px}
+  .fam .nm{min-width:240px;color:#e2e8f0}.fam .nm .c{font-size:10px;color:#64748b;font-family:ui-monospace,monospace}
+  .fam .track{position:relative;flex:1;min-width:120px;height:13px;border-radius:7px;background:#1e2133;overflow:hidden}.fam .track>i{display:block;height:100%}
+  .fam .meta{min-width:120px;text-align:right;font-size:11px;color:#94a3b8}
+  table.tt{width:100%;border-collapse:collapse;font-size:12px}
+  table.tt th,table.tt td{text-align:left;padding:4px 8px;border-bottom:1px solid #1e2133;vertical-align:top}
+  table.tt th{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+  table.tt .fhead td{background:#11152a;font-weight:800;color:#cbd5e1;text-transform:uppercase;letter-spacing:.5px;font-size:11px}
+  .rid{font-family:ui-monospace,monospace;font-size:11px;color:#cbd5e1;white-space:nowrap}
+  .w5{color:#f87171;font-weight:700}.w3{color:#fbbf24}.w1{color:#94a3b8}
+  select.in{background:#0f1117;border:1px solid #2d3250;color:#e2e8f0;border-radius:6px;font-size:11px;padding:2px 6px}
+  .ded{color:#f87171}.ded0{color:#22c55e}
+  .note{font-size:11px;color:#64748b;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">&#9670; XORCISM</span>
+  <a href="/">&#8592; Explorer</a>
+  <a href="/compliance-management">&#9878;&#65039; Compliance</a>
+  <a href="/compliance-journeys">&#129517; Journeys</a>
+  <a href="/assurance">&#9989; Assurance</a>
+  <span class="spacer"></span>
+  <span class="title">&#127937; SPRS / NIST 800-171</span>
+</div>
+
+<div class="sp-wrap">
+  <h1>SPRS &mdash; NIST SP 800-171 self-assessment score</h1>
+  <div class="sp-sub">The DoD <b>Supplier Performance Risk System (SPRS)</b> score for the 110 NIST SP 800-171 Rev 2 requirements: start at <b>110</b> and subtract each not-met requirement's weight (1 / 3 / 5); a <b>POA&amp;M</b> item still counts as not-met until closed; partial implementation earns partial credit; N/A is excluded. Required for DoD contractors (DFARS 252.204-7012/-7019/-7020) and the basis of CMMC Level 2. Weights follow the DoD Assessment Methodology and are <b>editable per requirement</b> — validate against your authoritative copy.</div>
+  <div id="sp-body"><div class="muted" style="padding:24px;text-align:center">Computing the SPRS score&hellip;</div></div>
+  <div class="note">Score basis: DoD Assessment Methodology (max 110; the floor shown is derived from the live weights — the methodology's documented floor is −203). Complements the CMMC compliance journey and the Audit &amp; Accreditation package (OSCAL SSP/POA&amp;M).</div>
+</div>
+
+<script src="/js/i18n.js"></script><script src="/js/session-ui.js"></script>
+<script src="/js/sprs.js"></script>
+</body>
+</html>
